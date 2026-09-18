@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 ROOT=Path(__file__).resolve().parents[1]
-TASK=ROOT/'qubit-control'
+TASK=ROOT/'tasks/qubit-control'
 
 
 def load(name,path):

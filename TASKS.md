@@ -131,7 +131,7 @@ $$
 
 The missing quantity is the correlation between the probes. Refitting $\gamma$ cannot repair the incorrect long-time limit.
 
-See [the benchmark guide](docs/BENCHMARK.md) for task interfaces and grading, and [the reference solution](qubit-control/solution/model.py) for implementation details.
+See [the benchmark guide](docs/BENCHMARK.md) for task interfaces and grading, and [the reference solution](tasks/qubit-control/solution/model.py) for implementation details.
 
 ## 2. Two gas chambers separated by a free piston
 
@@ -264,7 +264,7 @@ $$
 
 The extra factor describes the effect of changing shared pressure. It becomes one for every calibration preparation, which is why those data hide the missing physics.
 
-See [the benchmark guide](docs/BENCHMARK.md) for task interfaces and grading, and [the independent sum-and-difference solution](thermal-bodies/tests/reference.py) for implementation details.
+See [the benchmark guide](docs/BENCHMARK.md) for task interfaces and grading, and [the independent sum-and-difference solution](tasks/thermal-bodies/tests/reference.py) for implementation details.
 
 ## 3. Two salts sharing one anion
 
@@ -396,7 +396,7 @@ The smooth, small-modulation example makes the mechanism easy to calculate. The 
 
 The failure comes from combining two individually valid binary reductions without enforcing their shared electrical constraint. Changing the fitted $D$ cannot make independent diffusion move an initially uniform B profile.
 
-See [the benchmark guide](docs/BENCHMARK.md) for task interfaces and grading, and [the independent three-ion reference](reaction-diffusion/tests/reference.py) for the numerical implementation.
+See [the benchmark guide](docs/BENCHMARK.md) for task interfaces and grading, and [the independent three-ion reference](tasks/reaction-diffusion/tests/reference.py) for the numerical implementation.
 
 ## What these examples teach about calibration
 

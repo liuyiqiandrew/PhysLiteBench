@@ -36,7 +36,7 @@ def save_diffs(job, original):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("task", type=Path)
+    parser.add_argument("task", type=Path, help="Task directory, e.g. tasks/qubit-control")
     parser.add_argument("--agent", choices=("codex", "oracle", "nop"), default="codex")
     parser.add_argument("--solution-model", type=Path, help="Replace the private oracle model for a control run")
     parser.add_argument("--trials", type=int, default=3)

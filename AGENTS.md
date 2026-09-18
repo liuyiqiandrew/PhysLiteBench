@@ -2,7 +2,7 @@
 
 ## Structure
 
-The three tasks are `qubit-control/`, `thermal-bodies/`, and `reaction-diffusion/`. Each has public files in `environment/`, private verification in `tests/`, and a reference solution in `solution/`. Keep private answers, tests, and author documentation out of agent images.
+The three tasks are `tasks/qubit-control/`, `tasks/thermal-bodies/`, and `tasks/reaction-diffusion/`. Each has public files in `environment/`, private verification in `tests/`, and a reference solution in `solution/`. Keep private answers, tests, and author documentation out of agent images.
 
 Read `TASKS.md` for physics, `docs/BENCHMARK.md` for grading and validation, and `DASHBOARD.md` for the latest results. `scripts/` contains the runner, validators, and completed shortcut controls. `results/` holds shareable summaries; new run artifacts go in ignored `jobs/`.
 
@@ -12,8 +12,8 @@ Install uv and start Docker. From this directory:
 
 ```bash
 docker info
-python3 scripts/run_science.py thermal-bodies --agent oracle --trials 1
-python3 scripts/run_science.py thermal-bodies --model gpt-5.6-luna \
+python3 scripts/run_science.py tasks/thermal-bodies --agent oracle --trials 1
+python3 scripts/run_science.py tasks/thermal-bodies --model gpt-5.6-luna \
   --trials 3 --concurrency 3 --reasoning-effort high
 ```
 

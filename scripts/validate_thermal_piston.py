@@ -12,7 +12,7 @@ import tempfile
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-TASK = ROOT / "thermal-bodies"
+TASK = ROOT / "tasks/thermal-bodies"
 OUT = ROOT / "jobs/thermal-piston-validation-v9"
 
 

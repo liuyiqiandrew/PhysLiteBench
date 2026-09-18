@@ -7,7 +7,7 @@ import shutil
 import numpy as np
 
 ROOT=Path(__file__).resolve().parents[1]
-TASK=ROOT/'reaction-diffusion'
+TASK=ROOT/'tasks/reaction-diffusion'
 def load(name,path):
     spec=importlib.util.spec_from_file_location(name,path);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 ref=load('reference',TASK/'tests/reference.py')

@@ -6,9 +6,9 @@ These three tasks test whether an agent checks a supplied physical model rather 
 
 | Task | Revision and physical assumption to repair | Interface |
 |---|---|---|
-| [qubit-control](../qubit-control/environment/README.md) | 6: two spins experience one fluctuating field; the shortcut treats their noise independently. | `QubitModel.fit(runs)` stores positive `.gamma` (s⁻¹); `predict(experiments)` returns shape `(N,)`. |
-| [thermal-bodies](../thermal-bodies/environment/README.md) | 9: two gases share a moving piston inside a rigid vessel; the shortcut treats their common pressure as constant. | `ThermalModel.fit(runs)` stores positive `.conductance` (W/K); `predict(t, initial_temperature)` returns shape `(N, 2)`. |
-| [reaction-diffusion](../reaction-diffusion/environment/README.md) | 6: two salts share a counterion; the shortcut extends separate binary-salt diffusion to a mixture. | `TransportModel.fit(data)` stores positive `.diffusivity` (m²/s); `predict(t, x, initial)` returns shape `(T, X, 2)`. |
+| [qubit-control](../tasks/qubit-control/environment/README.md) | 6: two spins experience one fluctuating field; the shortcut treats their noise independently. | `QubitModel.fit(runs)` stores positive `.gamma` (s⁻¹); `predict(experiments)` returns shape `(N,)`. |
+| [thermal-bodies](../tasks/thermal-bodies/environment/README.md) | 9: two gases share a moving piston inside a rigid vessel; the shortcut treats their common pressure as constant. | `ThermalModel.fit(runs)` stores positive `.conductance` (W/K); `predict(t, initial_temperature)` returns shape `(N, 2)`. |
+| [reaction-diffusion](../tasks/reaction-diffusion/environment/README.md) | 6: two salts share a counterion; the shortcut extends separate binary-salt diffusion to a mixture. | `TransportModel.fit(data)` stores positive `.diffusivity` (m²/s); `predict(t, x, initial)` returns shape `(T, X, 2)`. |
 
 All fit methods return `self`. The linked apparatus documents define input schemas, units, and preparation conventions. The transport directory retains its original name; the current system has no chemical reactions.
 
@@ -39,9 +39,9 @@ Run from the repository root with Docker running and `uv` available. The task im
 For example, check both piston controls, then run three agents concurrently:
 
 ```bash
-python3 scripts/run_science.py thermal-bodies --agent oracle --trials 1 --concurrency 1
-python3 scripts/run_science.py thermal-bodies --agent oracle --solution-model scripts/thermal_piston_baseline.py --trials 1 --concurrency 1
-python3 scripts/run_science.py thermal-bodies --model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3
+python3 scripts/run_science.py tasks/thermal-bodies --agent oracle --trials 1 --concurrency 1
+python3 scripts/run_science.py tasks/thermal-bodies --agent oracle --solution-model scripts/thermal_piston_baseline.py --trials 1 --concurrency 1
+python3 scripts/run_science.py tasks/thermal-bodies --model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3
 ```
 
 Substitute either other task and its shortcut path; `--model` selects another available Codex model. Each run creates a fresh job containing its frozen task, logs, metrics, final files, and diffs.
