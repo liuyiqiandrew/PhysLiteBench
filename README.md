@@ -12,6 +12,8 @@ Three Harbor tasks test whether a coding agent checks a model's physical assumpt
 
 Start with [TASKS.md](TASKS.md) for an explanation from physical intuition through worked equations. [The benchmark guide](docs/BENCHMARK.md) explains interfaces, grading, and validation. [DASHBOARD.md](DASHBOARD.md) contains the latest model comparisons and trajectory findings.
 
+Contributing a new system? Follow [Adding a physics task](docs/ADDING_TASKS.md) for the directory layout, author/agent boundary, controls, evaluation, and PR requirements.
+
 ## Setup
 
 Install Python 3, [uv](https://docs.astral.sh/uv/getting-started/installation/), and [Docker](https://docs.docker.com/get-started/get-docker/). Start Docker and check `docker info`. Run the commands below from this directory.

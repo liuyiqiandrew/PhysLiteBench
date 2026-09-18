@@ -29,4 +29,6 @@ Freeze inputs and grading during each evaluation batch. Regenerate calibration o
 
 ## Review Guidance
 
-No Git history establishes a commit convention. Use short imperative subjects and focused changes. Review descriptions should explain the physical behavior changed, validation performed, and relevant run evidence. Link related issues when applicable.
+Use short imperative subjects and focused changes. Review descriptions should explain the physical behavior changed, validation performed, and relevant run evidence. Link related issues when applicable.
+
+For new tasks, follow [docs/ADDING_TASKS.md](docs/ADDING_TASKS.md). Use `tasks/<descriptive-name>/`, supply both completed controls and an independent reference, and request a teammate's physics review. Update the task explanation, interface guide, and reviewed evaluation results with the contribution.

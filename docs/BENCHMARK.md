@@ -2,6 +2,8 @@
 
 These three tasks test whether an agent checks a supplied physical model rather than only completing its parameter fit. Each starter contains a working predictor and an unfinished fit method. A completed shortcut fits the calibration but makes wrong predictions for other preparations. [TASKS.md](../TASKS.md) explains the physics and exact solutions.
 
+For a new system, follow [Adding a physics task](ADDING_TASKS.md). This page documents the interfaces and thresholds of the current three tasks.
+
 ## Current tasks and interfaces
 
 | Task | Revision and physical assumption to repair | Interface |
