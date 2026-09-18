@@ -1,0 +1,76 @@
+{
+  "trial": "reaction-diffusion__CMRj2xx",
+  "diagnostic": "Fixed-D endpoint control-volume correction in temporary copy only",
+  "change": "Multiply the two endpoint rows of the mixed-salt time derivative by 2, using dx/2 endpoint volumes. Interior fluxes, physical field equation, solver, fit, and D unchanged.",
+  "source_sha256": "c07e7c00505473d4cb52be0d4b4109a79cf8d36b2eafca14e349e05e94a1c783",
+  "original_submission_unchanged": true,
+  "original_metrics": {
+    "diffusivity_m2_s": 1.000113839689674e-09,
+    "relative_diffusivity_error": 0.00011383968967404456,
+    "calibration_reduced_chi2": 1.0110175725628157,
+    "hidden_nrmse": [
+      0.028288150678681928,
+      0.02798038709075031,
+      0.09003977893697868
+    ],
+    "hidden_species_nrmse": [
+      [
+        0.02125714938425842,
+        0.028288150678681928
+      ],
+      [
+        0.02798038709075031,
+        0.02111052139167581
+      ],
+      [
+        0.09003977893697868,
+        0.03420475781655116
+      ]
+    ],
+    "minimum_hidden_concentration": [
+      0.30000000000000004,
+      0.30000000000000004,
+      0.30000000000000004
+    ],
+    "maximum_mean_concentration_error": [
+      8.536108838230749e-05,
+      8.883818160343449e-05,
+      0.010769119231168078
+    ]
+  },
+  "patched_metrics": {
+    "diffusivity_m2_s": 1.000113839689674e-09,
+    "relative_diffusivity_error": 0.00011383968967404456,
+    "calibration_reduced_chi2": 1.0110175725628157,
+    "hidden_nrmse": [
+      0.00023022139112284352,
+      0.0002267387461048628,
+      0.0011919354051288908
+    ],
+    "hidden_species_nrmse": [
+      [
+        0.00021690529744039288,
+        0.00023022139112284352
+      ],
+      [
+        0.0002267387461048628,
+        0.0002025983755596071
+      ],
+      [
+        0.0009483263740722816,
+        0.0011919354051288908
+      ]
+    ],
+    "minimum_hidden_concentration": [
+      0.30000000000000004,
+      0.30000000000000004,
+      0.30000000000000004
+    ],
+    "maximum_mean_concentration_error": [
+      1.1102230246251565e-15,
+      8.881784197001252e-16,
+      6.661338147750939e-16
+    ]
+  },
+  "patch": "--- submitted/model.py\n+++ temporary/model.py\n@@ -110,8 +110,10 @@\n             flux_a = np.pad(flux_a, (1, 1))\n             flux_b = np.pad(flux_b, (1, 1))\n             # Padding imposes the blocking (zero species flux) end conditions.\n-            return np.column_stack((-(np.diff(flux_a) / dx),\n-                                    -(np.diff(flux_b) / dx))).ravel()\n+            rate = np.column_stack((-(np.diff(flux_a) / dx),\n+                                    -(np.diff(flux_b) / dx)))\n+            rate[[0, -1]] *= 2\n+            return rate.ravel()\n \n         solution = solve_ivp(derivative, (0.0, t[-1]), initial.ravel(),\n                              t_eval=t, method=\"BDF\", rtol=1e-8, atol=1e-10)\n"
+}
