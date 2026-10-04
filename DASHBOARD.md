@@ -56,10 +56,12 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | thermal-unsteady-sphere r1 | 3/3 | [Archived: three physical passes](results/zero-three-thermal-sphere-r1-results.json) |
 | fixed-trap-memory r1 | 3/3 | [Archived: three physical passes](results/zero-three-fixed-trap-r1-results.json) |
 | survivor-transport r1 | 2/3 | [Archived: 2 pass, 1 clean physical failure, 0 mixed failure](results/zero-three-survivor-r1-results.json) |
-| collisionless-screening r1 | Pending | [Frozen; controls and three trials running](results/zero-three-collisionless-r1-plan.json) |
-| waving-sheet r1 | Pending | [Frozen; controls and three trials running](results/zero-three-waving-r1-plan.json) |
+| collisionless-screening r1 | 1/3 | [Archived: 1 pass, 0 clean physical failure, 1 mixed failure, 1 normalization failure; 2 interruptions preserved](results/zero-three-collisionless-r1-results.json) |
+| waving-sheet r1 | 2/3 | [Archived: 2 pass, 1 clean physical failure, 0 mixed failure, 0 normalization failure; 3 interruptions preserved](results/zero-three-waving-r1-results.json) |
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
+
+The [later Docker shutdown review](results/docker-outage-20261004-140542.json) preserves two plasma and three waving-sheet interruptions with null rewards. Exactly five replacements completed the frozen batches; the original completed plasma failure was retained. Neither candidate meets the zero-pass target, and the plasma failures also miss the required physical failure mode.
 
 ## Prior conditional screen
 
