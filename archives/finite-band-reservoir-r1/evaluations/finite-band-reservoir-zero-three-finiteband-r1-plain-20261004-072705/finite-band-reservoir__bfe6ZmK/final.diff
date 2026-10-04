@@ -1,0 +1,62 @@
+--- before/model.py
++++ after/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.optimize import brentq
++from scipy.optimize import minimize_scalar
+ from scipy.special import expit
+ 
+ 
+@@ -41,8 +42,49 @@
+         self.coupling_scale = .8
+ 
+     def fit(self, records):
+-        # TODO: infer coupling_scale from the calibration records.
+-        raise NotImplementedError
++        """Fit the common coupling scale to calibration observations.
++
++        The calibration uncertainty is supplied with each observation, so the
++        natural one-parameter fit is the bounded weighted least-squares
++        estimate.  Keeping the parameter bounded is important here: the
++        apparatus specification only identifies scales in ``[.65, .95]`` and
++        it also makes fitting well behaved for unusually noisy records.
++        """
++        records = list(records)
++        if not records:
++            return self
++
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records],
++                            dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records],
++                            dtype=float)
++
++        if (not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(sigmas)) or np.any(sigmas <= 0)):
++            raise ValueError('calibration values and sigmas must be finite, '
++                             'with positive sigmas')
++
++        def objective(scale):
++            prediction = np.asarray([
++                _occupation(item['orbital_energy'], item['temperature'],
++                            scale * item['contact_multiplier'])
++                for item in inputs
++            ])
++            residual = (prediction - values) / sigmas
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(
++            objective,
++            bounds=(0.65, 0.95),
++            method='bounded',
++            options={'xatol': 1e-12},
++        )
++        # ``minimize_scalar`` is reliable for this smooth one-dimensional
++        # objective; the clamp also guarantees the public parameter contract
++        # in the event of a solver tolerance edge case.
++        self.coupling_scale = float(np.clip(result.x, 0.65, 0.95))
++        return self
+ 
+     def predict(self, experiments):
+         return np.asarray([_occupation(e['orbital_energy'], e['temperature'],

@@ -1,0 +1,68 @@
+{
+  "task": "pressure-surface-waves",
+  "revision": 1,
+  "trial": "pressure-surface-waves__8kim2xP",
+  "diagnostic_only": true,
+  "new_agent_evaluations": 0,
+  "original_artifacts_modified": false,
+  "fixed_parameter": {
+    "density": 1099.9921395233794
+  },
+  "evidence": {
+    "jobs/pressure-surface-waves-zero-three-pressurewaves-r1-plain-20261004-070231/pressure-surface-waves__8kim2xP/artifacts/app/model.py": "348766e149396a21d812949d1d75413dc18507ed071b7e21ee736e830fb48e04",
+    "jobs/pressure-surface-waves-zero-three-pressurewaves-r1-plain-20261004-070231/pressure-surface-waves__8kim2xP/agent/trajectory.json": "7bb0e62f784936b953219fc58a654ecc793058df7d4564a239ef6bd078cab926",
+    "jobs/pressure-surface-waves-zero-three-pressurewaves-r1-plain-20261004-070231/pressure-surface-waves__8kim2xP/verifier/metrics.json": "1d50486d48b9d388df21a92dbf2f04c3cef27fc97bcbadf47a12b0f6189440b2",
+    "jobs/pressure-surface-waves-zero-three-pressurewaves-r1-plain-20261004-070231/frozen-task/tests/reference.py": "fd4c65250344b7892c21056ccda2a66cec90caf913f741262a2f44b1da07b41c",
+    "results/diagnostics/zero-three-pressurewaves-r1-causal.py": "9556e397776f4ce33aea8927e113e349c5666e579e7f9b6d3bbfddecbe5f7d4d"
+  },
+  "final_source_repair": {
+    "change": "In surface_matrix only, subtract (c-b)*normal from shear_traction and (c-b)*tangent from normal_traction. Static equilibrium gives c-b=pressure*J/MU. No density refit or other code change.",
+    "repaired_source_sha256": "8c7e4743318093beeced1ac56679fb539bda1f701c48653ea075eb5bca68f7ce"
+  },
+  "exploratory_probe": {
+    "trajectory_step": 8,
+    "original_ratios": "hL=(c+2)*ql/D; hT=(c+2)/(D*qt)",
+    "algebra_only_repair": "hL=ql; hT=1/qt",
+    "derivation": "For the displacement columns (i,-h), the bulk acoustic equation gives h=(s\u00b2+c+2-b*q\u00b2-y)/((c+2)*q), with y=s\u00b2-b+b*x. For ql\u00b2=1-b*x/D it gives h=ql; for qt\u00b2=1-x it gives h=1/qt. The agent matrix already contains follower-pressure coefficients b and c+2-b, using pJ=c-b.",
+    "calibration_chi2": {
+      "original_probe": 611607.5158267571,
+      "ratio_repaired_probe": 0.9918511092509631
+    }
+  },
+  "hidden": {
+    "pressure_sweep": {
+      "original": 0.16337935411691212,
+      "pressure_traction_repair": 3.5242422955925155e-06,
+      "original_probe": 0.0423586142452129,
+      "ratio_repaired_probe": 3.5242422961470866e-06,
+      "repaired_probe_vs_repaired_source_max_absolute": 2.842170943040401e-14
+    },
+    "stretch_sweep": {
+      "original": 0.1713430287517511,
+      "pressure_traction_repair": 3.5273336111728724e-06,
+      "original_probe": 0.03377687263255647,
+      "ratio_repaired_probe": 3.527333611492037e-06,
+      "repaired_probe_vs_repaired_source_max_absolute": 2.1316282072803006e-14
+    },
+    "loaded_waves": {
+      "original": 0.1673799801575533,
+      "pressure_traction_repair": 3.5278588717775484e-06,
+      "original_probe": 0.033589750778656294,
+      "ratio_repaired_probe": 3.5278588725369266e-06,
+      "repaired_probe_vs_repaired_source_max_absolute": 3.552713678800501e-14
+    },
+    "unloaded_anchors": {
+      "original": 3.5427655074445717e-06,
+      "pressure_traction_repair": 3.5427655074197655e-06,
+      "original_probe": 0.048339670974430246,
+      "ratio_repaired_probe": 3.5427655078549596e-06,
+      "repaired_probe_vs_repaired_source_max_absolute": 3.552713678800501e-14
+    }
+  },
+  "calibration_chi2": {
+    "original": 0.9918511092510351,
+    "pressure_traction_repair": 0.991851109251513
+  },
+  "classification": "implementation_induced_regression",
+  "qualification": "The final model uses the wrong physical boundary closure, but its preceding probe already encodes follower-pressure traction. An attenuation-eigenvector algebra error makes that probe fail even at zero pressure; the next public update retains the supplied closure because calibration matches it. The algebra-only repair recovers calibration and hidden predictions at unchanged density. Conservatively exclude this as a clean target physical failure; the exact internal reason for retreat is not observable."
+}

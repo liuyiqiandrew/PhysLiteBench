@@ -1,0 +1,53 @@
+--- before/model.py
++++ after/model.py
+@@ -41,7 +41,49 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Fit the viscosity from calibration measurements.
++
++        For a fixed experiment the response is proportional to the
++        reciprocal viscosity, so this is a one-parameter weighted least
++        squares problem.  Solving for ``1 / viscosity`` directly also avoids
++        the unnecessary non-linearity in the fit.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('at least one calibration record is required')
++
++        calculated = []
++        measured = []
++        weights = []
++        for record in records:
++            experiment = record['input']
++            calculated.append(response(
++                experiment['kind'],
++                experiment['width'],
++                experiment['strength'],
++                experiment.get('radius', 1.),
++            ))
++            measured.append(float(record['value']))
++            sigma = float(record.get('sigma', 3e-5))
++            if not np.isfinite(sigma) or sigma <= 0:
++                raise ValueError('calibration uncertainties must be positive')
++            weights.append(1. / sigma**2)
++
++        calculated = np.asarray(calculated, dtype=float)
++        measured = np.asarray(measured, dtype=float)
++        weights = np.asarray(weights, dtype=float)
++        denominator = np.sum(weights * calculated**2)
++        if not np.isfinite(denominator) or denominator == 0:
++            raise ValueError('calibration records contain no response signal')
++
++        reciprocal_viscosity = np.sum(
++            weights * calculated * measured
++        ) / denominator
++        if not np.isfinite(reciprocal_viscosity) or reciprocal_viscosity <= 0:
++            raise ValueError('calibration records imply a non-positive viscosity')
++
++        self.viscosity = float(np.clip(1. / reciprocal_viscosity, .8, 1.6))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

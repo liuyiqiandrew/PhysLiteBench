@@ -1,0 +1,52 @@
+--- before/model.py
++++ after/model.py
+@@ -41,7 +41,48 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Fit the one unknown material parameter from calibration records.
++
++        For a fixed interaction potential the creeping-flow response is
++        proportional to the reciprocal viscosity.  Consequently the
++        calibration problem is a one-parameter weighted linear least-squares
++        problem in ``1 / viscosity``.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('at least one calibration record is required')
++
++        basis = np.empty(len(records), dtype=float)
++        values = np.empty(len(records), dtype=float)
++        sigmas = np.empty(len(records), dtype=float)
++        for i, record in enumerate(records):
++            experiment = record['input']
++            basis[i] = response(
++                experiment['kind'],
++                experiment['width'],
++                experiment['strength'],
++                experiment.get('radius', 1.),
++            )
++            values[i] = float(record['value'])
++            sigmas[i] = float(record.get('sigma', 1.))
++
++        if (not np.isfinite(basis).all() or not np.isfinite(values).all()
++                or not np.isfinite(sigmas).all() or np.any(sigmas <= 0)):
++            raise ValueError('calibration records must contain finite values')
++
++        weights = 1. / sigmas**2
++        denominator = np.sum(weights * basis**2)
++        if denominator == 0.:
++            raise ValueError('calibration records contain no informative response')
++        reciprocal_viscosity = np.sum(weights * basis * values) / denominator
++        if not np.isfinite(reciprocal_viscosity) or reciprocal_viscosity <= 0.:
++            raise ValueError('calibration records imply an invalid viscosity')
++
++        # The stated apparatus restricts viscosity to this interval.  The
++        # unconstrained estimate is used when it is admissible; clipping gives
++        # the constrained least-squares estimate for noisy/outlying records.
++        self.viscosity = float(np.clip(1. / reciprocal_viscosity, .8, 1.6))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

@@ -1,0 +1,1 @@
+The electric boundary condition fixes the electromotive force around each periodic cycle. Distinguish that condition from imposing zero mean charge current while solving the local continuity equation.

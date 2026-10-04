@@ -1,0 +1,1 @@
+The prepared state and the post-contact Hamiltonian determine the occupations of its normal modes. An infinite chain does not automatically equilibrate every mode of the coupled system. Examine which spectral components can disperse into the chain and apply the stated time average to the initial product covariance.

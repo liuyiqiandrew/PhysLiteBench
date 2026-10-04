@@ -35,9 +35,13 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | poroelastic-relaxation r1 | 3/3 | [Archived: three physical passes](results/zero-three-poroelastic-r1-results.json) |
 | isolated-spheres r1 | 3/3 | [Archived: three physical passes](results/zero-three-spheres-r1-results.json) |
 | hot-brownian-rotation r1 | 3/3 | [Archived: three physical passes](results/zero-three-hotrotation-r1-results.json) |
-| pressure-surface-waves r1 | untested | Scientific validation and independent peer review complete; ready for evaluation |
-| entropy-anomaly r4 | untested | Scientific validation and independent peer review complete; ready for evaluation |
-| finite-layer-phoresis r1 | unfinished | Staged prototype; calibration and full validation pending |
+| pressure-surface-waves r1 | 2/3 | [Archived: two physical passes; one algebra-influenced regression](results/zero-three-pressurewaves-r1-results.json) |
+| entropy-anomaly r4 | 2/3 | [Archived: two physical passes; one physical failure](results/zero-three-entropy-r4-results.json) |
+| finite-layer-phoresis r1 | 1/3 | [Archived: two physical failures; one physical pass](results/zero-three-phoresis-r1-results.json) |
+| finite-band-reservoir r1 | 2/3 | [Archived: two physical passes; one physical model-selection failure](results/zero-three-finiteband-r1-results.json) |
+| ionic-current-loops r3 | untested | Scientific validation and independent peer review complete; frozen for evaluation |
+| finite-layer-phoresis r2 | prototype | Navier-slip reference checks complete; no task package or model trials |
+| hardcore-coherence | prototype | Independent Fock-space checks complete; no task package or model trials |
 
 ## Prior conditional screen
 
