@@ -1,0 +1,40 @@
+--- before/model.py
++++ after/model.py
+@@ -35,6 +35,36 @@
+     def __init__(self):self.diffusivity=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Estimate the common diffusion coefficient from calibration data.
++
++        For a fixed preparation and detector, the transport equation is
++        linear in the common coefficient ``D``.  ``predict_at(..., 1)`` is
++        therefore the design vector for a one-parameter weighted least
++        squares fit.  The calibration uncertainties are supplied with each
++        record (and are fixed by the instrument), so they are used as the
++        weights rather than treating all records as exact.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        inputs=[record['input'] for record in records]
++        values=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record.get('sigma',.001) for record in records],
++                         dtype=float)
++        if (not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(sigma)) or np.any(sigma<=0)):
++            raise ValueError('Calibration values and uncertainties must be finite, with sigma > 0.')
++
++        design=predict_at(inputs,1.)
++        weights=1./sigma**2
++        denominator=np.sum(weights*design*design)
++        if not np.isfinite(denominator) or denominator<=0:
++            raise ValueError('Calibration records do not identify diffusivity.')
++
++        estimate=np.sum(weights*design*values)/denominator
++        # The apparatus specifies the physically admissible range of D.
++        self.diffusivity=float(np.clip(estimate,.5,2.))
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.diffusivity)

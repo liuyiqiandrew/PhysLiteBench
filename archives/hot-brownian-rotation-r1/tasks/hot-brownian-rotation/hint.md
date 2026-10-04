@@ -1,0 +1,1 @@
+Apply the local thermal-stress covariance to the fluid response that transmits torque to the support. Check whether reducing a spatially nonuniform liquid to one effective temperature preserves the torque spectrum at every frequency. The deterministic hydrodynamic impedance alone does not specify the noise of a nonisothermal fluid.

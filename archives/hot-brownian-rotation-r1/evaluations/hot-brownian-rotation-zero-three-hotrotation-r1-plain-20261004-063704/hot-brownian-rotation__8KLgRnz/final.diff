@@ -1,0 +1,159 @@
+--- before/model.py
++++ after/model.py
+@@ -1,25 +1,143 @@
++"""Fluctuating-hydrodynamics model for the torque on a fixed sphere.
++
++The rotational Stokes solution is used both for the deterministic impedance and
++for the spatial weighting of the thermal stress.  In particular, the
++temperature entering the spectrum is not generally the surface temperature:
++it is weighted by the (frequency-dependent) viscous dissipation density.
++"""
++
+ import numpy as np
+ 
+ 
+-def impedance(e,viscosity):
+-    a=e['radius']
+-    z=a*np.sqrt(-1j*e['omega']/viscosity)
+-    return 8*np.pi*viscosity*a**3*(1+z*z/(3*(1+z)))
++# Gauss--Legendre nodes on [0, infinity), written as rho = 1 + u/(1-u).
++# This gives very accurate integrals for the rational, exponentially decaying
++# functions in the rotational Stokes solution over the stated frequency range.
++_quad_x, _quad_w = np.polynomial.legendre.leggauss(128)
++_quad_u = (_quad_x + 1.0) / 2.0
++_quad_w = _quad_w / 2.0
++_quad_rho = 1.0 + _quad_u / (1.0 - _quad_u)
++_quad_jacobian = 1.0 / (1.0 - _quad_u) ** 2
+ 
+ 
+-def spectrum(e,viscosity):
+-    temperature=e['ambient']+.75*e['rise']
+-    return float(2*temperature*impedance(e,viscosity).real)
++def _dimensionless_z(experiment, viscosity):
++    """Return z = a*sqrt(-i*omega/viscosity), with the physical branch."""
++
++    radius = float(experiment["radius"])
++    omega = float(experiment["omega"])
++    return radius * np.sqrt(-1j * omega / float(viscosity))
+ 
+ 
+-def predict_at(experiments,viscosity):
+-    return np.asarray([spectrum(e,viscosity) for e in experiments])
++def impedance(e, viscosity):
++    """Rotational hydrodynamic impedance of the sphere."""
++
++    a = float(e["radius"])
++    z = _dimensionless_z(e, viscosity)
++    eta = float(viscosity)
++    return 8.0 * np.pi * eta * a**3 * (1.0 + z * z / (3.0 * (1.0 + z)))
++
++
++def _temperature_weight(z):
++    """Return the coefficient multiplying ``rise`` in the effective T.
++
++    For a unit-amplitude rotational flow, let rho=r/a.  Its only nonzero
++    strain component is proportional to
++
++        exp(-z*(rho-1))/(1+z) *
++        (z**2/rho + 3*z/rho**2 + 3/rho**3).
++
++    The noise spectrum weights this strain squared by T(rho).  Since
++    T=ambient+rise/rho, the needed coefficient is the ratio of the integrals
++    with rho and rho**2 as their radial volume weights.
++    """
++
++    if abs(z) == 0.0:
++        # q = -3/rho**3, so the ratio is
++        # (9*integral rho^-5)/(9*integral rho^-4) = (9/4)/3.
++        return 0.75
++
++    rho = _quad_rho
++    q = (
++        np.exp(-z * (rho - 1.0))
++        / (1.0 + z)
++        * (z * z / rho + 3.0 * z / rho**2 + 3.0 / rho**3)
++    )
++    weight = _quad_w * _quad_jacobian
++    numerator = np.sum(weight * rho * np.abs(q) ** 2)
++    denominator = np.sum(weight * rho**2 * np.abs(q) ** 2)
++    return float(numerator / denominator)
++
++
++def spectrum(e, viscosity):
++    """Two-sided connected torque spectrum at one experiment."""
++
++    z = _dimensionless_z(e, viscosity)
++    effective_temperature = float(e["ambient"]) + float(e["rise"]) * _temperature_weight(z)
++    return float(2.0 * effective_temperature * np.real(impedance(e, viscosity)))
++
++
++def predict_at(experiments, viscosity):
++    """Evaluate spectra in input order and return a one-dimensional array."""
++
++    return np.asarray([spectrum(e, viscosity) for e in experiments], dtype=float)
++
++
++def _objective(viscosity, experiments, values, sigmas):
++    residual = (predict_at(experiments, viscosity) - values) / sigmas
++    return float(np.dot(residual, residual))
+ 
+ 
+ class Model:
+-    def __init__(self):self.viscosity=None
++    def __init__(self):
++        self.viscosity = None
+ 
+-    def fit(self,records):
+-        raise NotImplementedError('Implement calibration fitting.')
++    def fit(self, records):
++        """Fit the common viscosity by independent Gaussian likelihood."""
+ 
+-    def predict(self,experiments):return predict_at(experiments,self.viscosity)
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record["input"] for record in records]
++        values = np.asarray([float(record["value"]) for record in records], dtype=float)
++        sigmas = np.asarray([float(record.get("sigma", 0.02)) for record in records], dtype=float)
++        if not np.isfinite(values).all() or not np.isfinite(sigmas).all() or np.any(sigmas <= 0.0):
++            raise ValueError("calibration values and uncertainties must be finite")
++
++        # The allowed interval is part of the apparatus specification.  A
++        # coarse scan also makes the bounded one-dimensional minimization
++        # robust if a caller supplies records unlike the supplied calibration.
++        lower, upper = 0.7, 1.4
++        grid = np.linspace(lower, upper, 33)
++        grid_objectives = np.asarray(
++            [_objective(v, experiments, values, sigmas) for v in grid]
++        )
++        best = int(np.argmin(grid_objectives))
++
++        if best == 0:
++            estimate = lower
++        elif best == len(grid) - 1:
++            estimate = upper
++        else:
++            left, right = grid[best - 1], grid[best + 1]
++            # Golden-section minimization of the scalar Gaussian objective.
++            golden = (np.sqrt(5.0) - 1.0) / 2.0
++            x1 = right - golden * (right - left)
++            x2 = left + golden * (right - left)
++            f1 = _objective(x1, experiments, values, sigmas)
++            f2 = _objective(x2, experiments, values, sigmas)
++            for _ in range(80):
++                if f1 <= f2:
++                    right, x2, f2 = x2, x1, f1
++                    x1 = right - golden * (right - left)
++                    f1 = _objective(x1, experiments, values, sigmas)
++                else:
++                    left, x1, f1 = x1, x2, f2
++                    x2 = left + golden * (right - left)
++                    f2 = _objective(x2, experiments, values, sigmas)
++            estimate = (left + right) / 2.0
++
++        self.viscosity = float(estimate)
++        return self
++
++    def predict(self, experiments):
++        return predict_at(experiments, self.viscosity)

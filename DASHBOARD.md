@@ -31,9 +31,13 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | prestrained-solid r1 | 2/3 | [Archived: two physical passes, one mixed failure](results/zero-three-prestrained-r1-results.json) |
 | hydrodynamic-heating r2 | 2/3 | [Archived: two physical passes, one physical failure](results/zero-three-hydro-r2-results.json) |
 | terminal-current-noise r1 | 3/3 | [Archived: three physical passes](results/zero-three-terminal-r1-results.json) |
-| ionic-current-loops r2 | 0/2; incomplete | [Two physical failures; one unstarted Docker setup failure](results/zero-three-ionic-r2-partial-review.json) |
-| poroelastic-relaxation r1 | untested | Scientific validation and independent peer review complete; ready for evaluation |
-| isolated-spheres r1 | untested | Scientific and local controls complete; final peer report pending |
+| ionic-current-loops r2 | 1/3 | [Archived: two physical failures, one physical pass; one unstarted setup failure preserved](results/zero-three-ionic-r2-results.json) |
+| poroelastic-relaxation r1 | 3/3 | [Archived: three physical passes](results/zero-three-poroelastic-r1-results.json) |
+| isolated-spheres r1 | 3/3 | [Archived: three physical passes](results/zero-three-spheres-r1-results.json) |
+| hot-brownian-rotation r1 | 3/3 | [Archived: three physical passes](results/zero-three-hotrotation-r1-results.json) |
+| pressure-surface-waves r1 | untested | Scientific validation and independent peer review complete; ready for evaluation |
+| entropy-anomaly r4 | untested | Scientific validation and independent peer review complete; ready for evaluation |
+| finite-layer-phoresis r1 | unfinished | Staged prototype; calibration and full validation pending |
 
 ## Prior conditional screen
 

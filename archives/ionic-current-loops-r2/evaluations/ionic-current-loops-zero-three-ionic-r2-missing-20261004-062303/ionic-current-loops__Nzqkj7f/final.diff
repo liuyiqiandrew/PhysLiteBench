@@ -1,0 +1,176 @@
+--- before/model.py
++++ after/model.py
+@@ -1,40 +1,146 @@
++"""Model for the initial evolution of the electrolyte concentrations.
++
++The electric field is not obtained by setting the ionic current to zero at
++each point.  In a closed ring the total current is constant around the ring;
++the absence of an applied voltage imposes the second condition needed to find
++that constant.
++"""
++
+ from functools import lru_cache
+ import json
++
+ import numpy as np
+ 
+-RATIOS=np.array([1.,4.,1.])
+-CHARGES=np.array([1.,1.,-1.])
++
++RATIOS = np.array([1.0, 4.0, 1.0])
++CHARGES = np.array([1.0, 1.0, -1.0])
+ 
+ 
+-@lru_cache(128)
+-def fields(key,points=257):
+-    e=json.loads(key);x=np.arange(points)*2*np.pi/points
+-    c=np.array([e['means'][i]+e['amplitudes'][i]*np.cos(e['waves'][i]*x+e['phases'][i]) for i in [0,1]])
+-    c=np.vstack((c,c.sum(axis=0)))
+-    modes=np.fft.fftfreq(points,1/points)
+-    gradient=np.fft.ifft(1j*modes*np.fft.fft(c,axis=1),axis=1).real
+-    conductivity=RATIOS@c
+-    diffusion_charge_gradient=(RATIOS*CHARGES)@gradient
+-    electric=diffusion_charge_gradient/conductivity
+-    flux=-RATIOS[:,None]*gradient+(RATIOS*CHARGES)[:,None]*c*electric
+-    change=-np.fft.ifft(1j*modes*np.fft.fft(flux,axis=1),axis=1).real
+-    return x,c,electric,flux,change
++@lru_cache(maxsize=128)
++def fields(key, points=257):
++    """Return the preparation fields and their unit-diffusivity changes.
++
++    ``key`` contains only the four preparation arrays, so preparations can be
++    reused across detector choices and calibration records.  The spectral
++    grid is exact for the input trigonometric profiles and resolves the
++    smooth rational electric-field expression to far beyond the requested
++    detector modes.
++    """
++
++    experiment = json.loads(key)
++    x = np.arange(points, dtype=float) * (2.0 * np.pi / points)
++    modes = np.fft.fftfreq(points, 1.0 / points)
++
++    c01 = np.array(
++        [
++            experiment["means"][i]
++            + experiment["amplitudes"][i]
++            * np.cos(experiment["waves"][i] * x + experiment["phases"][i])
++            for i in (0, 1)
++        ],
++        dtype=float,
++    )
++    c = np.vstack((c01, c01.sum(axis=0)))
++
++    gradient = np.fft.ifft(
++        1j * modes * np.fft.fft(c, axis=1), axis=1
++    ).real
++
++    # With E positive in the direction of increasing x,
++    #     J_i / D = -r_i c_i' + z_i r_i c_i E.
++    # Charge conservation makes the total current constant:
++    #     I / D = -A + K E,
++    # where A=sum(z_i r_i c_i') and K=sum(r_i c_i).
++    conductivity = RATIOS @ c
++    diffusion_charge_gradient = (RATIOS * CHARGES) @ gradient
++    zero_current_field = diffusion_charge_gradient / conductivity
++
++    # No changing magnetic flux means the electrostatic voltage around the
++    # ring is zero.  Thus mean(E)=0, which determines the constant current.
++    current = -np.mean(zero_current_field) / np.mean(1.0 / conductivity)
++    electric = zero_current_field + current / conductivity
++
++    flux = (
++        -RATIOS[:, None] * gradient
++        + (RATIOS * CHARGES)[:, None] * c * electric
++    )
++    change = -np.fft.ifft(
++        1j * modes * np.fft.fft(flux, axis=1), axis=1
++    ).real
++
++    return x, c, electric, flux, change
+ 
+ 
+-def predict_at(experiments,diffusivity):
+-    out=[]
+-    for e in experiments:
+-        key=json.dumps({k:e[k] for k in ['means','amplitudes','waves','phases']},sort_keys=True)
+-        x,_,_,_,change=fields(key)
+-        weight=np.cos(e['detector']*x+e['detector_phase'])
+-        out.append(2*diffusivity*np.mean(change[e['species']]*weight))
+-    return np.asarray(out,dtype=float)
++def _preparation_key(experiment):
++    return json.dumps(
++        {
++            name: experiment[name]
++            for name in ("means", "amplitudes", "waves", "phases")
++        },
++        sort_keys=True,
++        separators=(",", ":"),
++    )
++
++
++def predict_at(experiments, diffusivity):
++    """Predict the requested signed Fourier rates for a diffusivity."""
++
++    out = []
++    for experiment in experiments:
++        _, _, _, _, change = fields(_preparation_key(experiment))
++        points = change.shape[1]
++        x = np.arange(points, dtype=float) * (2.0 * np.pi / points)
++        weight = np.cos(
++            experiment["detector"] * x + experiment["detector_phase"]
++        )
++
++        # The documented coefficient is (1/pi) integral(change*cos), and
++        # the grid mean is (1/(2*pi)) integral(...).
++        out.append(
++            2.0
++            * diffusivity
++            * np.mean(change[experiment["species"]] * weight)
++        )
++
++    return np.asarray(out, dtype=float)
+ 
+ 
+ class Model:
+-    def __init__(self):self.diffusivity=None
++    def __init__(self):
++        self.diffusivity = None
+ 
+-    def fit(self,records):
+-        raise NotImplementedError('Implement calibration fitting.')
++    def fit(self, records):
++        """Fit the common diffusivity to calibration records.
+ 
+-    def predict(self,experiments):return predict_at(experiments,self.diffusivity)
++        For fixed preparation and detector settings, the predicted rate is
++        linear in the common diffusivity.  The Gaussian uncertainties therefore
++        give a one-parameter weighted least-squares estimate.
++        """
++
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        unit_rates = predict_at([record["input"] for record in records], 1.0)
++        values = np.asarray([record["value"] for record in records], dtype=float)
++        sigmas = np.asarray([record["sigma"] for record in records], dtype=float)
++
++        if not np.isfinite(unit_rates).all() or not np.isfinite(values).all():
++            raise ValueError("calibration data must be finite")
++        if not np.isfinite(sigmas).all() or np.any(sigmas <= 0.0):
++            raise ValueError("calibration uncertainties must be positive")
++
++        weights = 1.0 / np.square(sigmas)
++        denominator = np.sum(weights * np.square(unit_rates))
++        if not np.isfinite(denominator) or denominator <= 0.0:
++            raise ValueError("calibration records do not identify diffusivity")
++
++        estimate = np.sum(weights * unit_rates * values) / denominator
++        # The apparatus specifies the physically allowed interval for D.
++        self.diffusivity = float(np.clip(estimate, 0.5, 2.0))
++        return self
++
++    def predict(self, experiments):
++        if self.diffusivity is None:
++            raise ValueError("fit the model before making predictions")
++        return predict_at(experiments, self.diffusivity)

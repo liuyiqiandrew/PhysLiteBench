@@ -1,0 +1,1 @@
+The finite-mass entropy record is not determined by the limiting position path alone. Eliminate velocity jointly with the entropy functional. Its conditional mean and its fluctuations need not have the same reduction. Long-time cumulant rates can also be obtained directly from the finite-mass Kramers generator and the calorimetric functional.

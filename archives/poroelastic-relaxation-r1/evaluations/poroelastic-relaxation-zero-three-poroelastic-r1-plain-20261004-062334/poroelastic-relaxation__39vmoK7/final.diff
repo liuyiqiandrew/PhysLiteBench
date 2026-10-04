@@ -1,0 +1,122 @@
+--- before/model.py
++++ after/model.py
+@@ -1,29 +1,64 @@
++"""Model for pressure relaxation in the periodically constrained layer."""
++
+ import numpy as np
+ from scipy.optimize import minimize_scalar
+ 
+-ELASTICITY = 1e6 * np.array([[6., 2., .8], [2., 4., .6], [.8, .6, 3.]])
+-PERMEABILITY = 1e-15 * np.array([[1., .2], [.2, .6]])
+-TRACE = np.array([1., 1., 0.])
+-ALPHA = .9
++ELASTICITY = 1e6 * np.array(
++    [[6.0, 2.0, 0.8], [2.0, 4.0, 0.6], [0.8, 0.6, 3.0]], dtype=float
++)
++PERMEABILITY = 1e-15 * np.array([[1.0, 0.2], [0.2, 0.6]], dtype=float)
++TRACE = np.array([1.0, 1.0, 0.0], dtype=float)
++ALPHA = 0.9
+ BULK = 20e6
+-LENGTH = .01
++LENGTH = 0.01
+ LEAKAGE = 1e-10
+ 
+ 
++def _wavevector(mode):
++    return 2.0 * np.pi / LENGTH * np.asarray(mode, dtype=float)
++
++
++def _periodic_strain_per_pressure(k):
++    """Strain amplitude per unit pressure from periodic mechanical balance."""
++    kx, ky = k
++    # For p=P*cos(k.x), use u=U*sin(k.x), hence e=B U*cos(k.x).
++    B = np.array([[kx, 0.0], [0.0, ky], [ky, kx]], dtype=float)
++    acoustic = B.T @ ELASTICITY @ B
++    rhs = ALPHA * (B.T @ TRACE)
++    displacement_per_pressure = np.linalg.solve(acoustic, rhs)
++    return B @ displacement_per_pressure
++
++
+ def coefficients(e):
+-    k = 2 * np.pi / LENGTH * np.asarray(e['mode'], dtype=float)
+-    strain = np.linalg.solve(ELASTICITY, ALPHA * TRACE)
+-    storage = 1 / BULK + ALPHA * TRACE @ strain
+-    conductance = k @ PERMEABILITY @ k + LEAKAGE
+-    return float(storage), float(conductance)
++    """Return effective fluid storage and hydraulic conductance for a mode."""
++    k = _wavevector(e["mode"])
++    if np.all(k == 0.0):
++        # The freely adjusting affine strain makes every mean stress vanish.
++        strain_per_pressure = np.linalg.solve(ELASTICITY, ALPHA * TRACE)
++    else:
++        strain_per_pressure = _periodic_strain_per_pressure(k)
++
++    # p = BULK*(zeta - ALPHA*trace(e)), so zeta is the pressure times this
++    # effective storage after mechanical equilibrium has been imposed.
++    storage = 1.0 / BULK + ALPHA * float(TRACE @ strain_per_pressure)
++    conductance = float(k @ PERMEABILITY @ k + LEAKAGE)
++    if not np.isfinite(storage) or storage <= 0.0:
++        raise ValueError("effective fluid storage must be positive")
++    if not np.isfinite(conductance) or conductance < 0.0:
++        raise ValueError("hydraulic conductance must be nonnegative")
++    return storage, conductance
+ 
+ 
+ def predict_at(experiments, viscosity):
++    viscosity = float(viscosity)
++    if not np.isfinite(viscosity) or viscosity <= 0.0:
++        raise ValueError("viscosity must be positive")
+     result = []
+     for e in experiments:
+         storage, conductance = coefficients(e)
+-        result.append(e['initial_pressure'] * np.exp(-conductance * e['time'] / (viscosity * storage)))
+-    return np.asarray(result)
++        decay = conductance * float(e["time"]) / (viscosity * storage)
++        result.append(float(e["initial_pressure"]) * np.exp(-decay))
++    return np.asarray(result, dtype=float)
+ 
+ 
+ class Model:
+@@ -31,19 +66,37 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
++        """Fit the common viscosity by weighted least squares."""
+         records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
+         experiments = [r['input'] for r in records]
+-        y = np.asarray([r['value'] for r in records])
+-        sigma = np.asarray([r['sigma'] for r in records])
+-        decay = np.array([coefficients(e)[1] * e['time'] / coefficients(e)[0] for e in experiments])
+-        initial = np.array([e['initial_pressure'] for e in experiments])
++        y = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if not np.all(np.isfinite(y)) or not np.all(np.isfinite(sigma)):
++            raise ValueError("calibration values and uncertainties must be finite")
++        if np.any(sigma <= 0.0):
++            raise ValueError("calibration uncertainties must be positive")
++
++        storage = np.empty(len(experiments), dtype=float)
++        conductance = np.empty(len(experiments), dtype=float)
++        initial = np.empty(len(experiments), dtype=float)
++        time = np.empty(len(experiments), dtype=float)
++        for i, e in enumerate(experiments):
++            storage[i], conductance[i] = coefficients(e)
++            initial[i] = float(e['initial_pressure'])
++            time[i] = float(e['time'])
++        decay = conductance * time / storage
++
+         def loss(viscosity):
+             residual = (initial * np.exp(-decay / viscosity) - y) / sigma
+             return float(residual @ residual)
+         result = minimize_scalar(loss, bounds=(.0008, .0015), method='bounded',
+                                  options={'xatol': 1e-14})
+-        self.viscosity = float(result.x)
++        self.viscosity = float(np.clip(result.x, .0008, .0015))
+         return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.viscosity)
