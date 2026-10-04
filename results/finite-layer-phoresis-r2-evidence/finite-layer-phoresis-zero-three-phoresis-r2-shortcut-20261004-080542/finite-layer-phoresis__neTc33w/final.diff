@@ -1,0 +1,17 @@
+--- before/model.py
++++ after/model.py
+@@ -40,7 +40,13 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        records = list(records)
++        basis = predict_at([r['input'] for r in records], 1.)
++        values = np.array([r['value'] for r in records])
++        sigma = np.array([r['sigma'] for r in records])
++        scale = np.sum(basis*values/sigma**2)/np.sum(basis*basis/sigma**2)
++        self.viscosity = float(1/np.clip(scale, 1/1.6, 1/.8))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

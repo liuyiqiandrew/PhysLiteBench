@@ -1,0 +1,18 @@
+--- before/model.py
++++ after/model.py
+@@ -39,7 +39,14 @@
+         self.hopping=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common hopping from the calibration records.')
++        from scipy.optimize import minimize_scalar
++        experiments=[r['input'] for r in records]
++        values=np.array([r['value'] for r in records])
++        sigma=np.array([r['sigma'] for r in records])
++        objective=lambda j:float(np.sum(((predict_at(experiments,j)-values)/sigma)**2))
++        optimum=minimize_scalar(objective,bounds=(.8,1.2),method='bounded',options={'xatol':1e-12})
++        self.hopping=float(optimum.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.hopping)

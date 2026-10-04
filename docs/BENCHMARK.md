@@ -1,8 +1,8 @@
 # Benchmark interface and validation
 
-The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **3 of 10 currently qualify**: insulating-mhd-duct, magnetic-tracer and reaction-diffusion. The other seven require revision or replacement. [Current goal status](../results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
+The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **4 of 10 currently qualify**: finite-layer-phoresis, insulating-mhd-duct, magnetic-tracer and reaction-diffusion. The other six require revision or replacement. [Current goal status](../results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
 
-PhysLiteBench tests whether a coding agent revises a physical approximation that fits calibration but fails elsewhere in the stated apparatus. Ten tasks were selected through a conditional screen with one reviewed physical failure each (0/1). A separate fresh three-trial confirmation found 6 of ten at or below one pass; [the dashboard](../DASHBOARD.md) separates both batches from archived scores.
+PhysLiteBench tests whether a coding agent revises a physical approximation that fits calibration but fails elsewhere in the stated apparatus. The previous roster was selected through a conditional screen with one reviewed physical failure per task (0/1). The current roster substitutes the source-matched phoresis revision 2, evaluated at 0/3 completed trials with separate outage accounting. A separate fresh three-trial confirmation found 6 of ten at or below one pass; [the dashboard](../DASHBOARD.md) separates both batches from archived scores.
 
 ## Agent task
 
@@ -35,6 +35,8 @@ The historical conditional screen used `run_neutrality_screen.py`: an initial pa
 
 An entirely unstarted initial or follow-up batch in the conditional runner may be replaced with `--retry-unstarted-job JOB` after review confirms a network setup failure, no agent execution, no verifier result and no native session. The runner verifies that source, grading, instruction and configuration still match the frozen task and preserves the failed attempts. A replacement initial trial follows the same conditional rule; replacement follow-ups run only the missing trials. Reports distinguish total attempts from actual model trials. A failure after the agent starts is never excluded by this rule.
 
+The later fixed-three evaluation has a separately documented [host-wide Docker outage recovery](../results/docker-outage-20261004-080748.json). Exactly five unfinished, unscored attempts were replaced under a plan recorded before any replacement outcome. The existing scored pass remained, sources and grading stayed frozen, and every interruption is reported separately. Phoresis revision 2 therefore has 0/3 completed scored trials across six total attempts; its three infrastructure attempts are not physics failures. This event-specific recovery does not authorize replacing completed scores or resampling an unchanged task.
+
 Pinned setup: Python 3.13, Harbor 0.21.0, Codex CLI 0.154.0, NumPy 2.3.3, SciPy 1.16.3 and pytest 8.4.2 in new task images. The agent/verifier timeouts are 600/60 seconds. Authentication remains outside the repository.
 
 Scientific validators run independently of agent trials:
@@ -50,12 +52,13 @@ Independent references use a different derivation or representation from the ora
 
 ## Evidence and selection
 
-The runner preserves a frozen task snapshot, native sessions, trajectory, final `/app` artifacts, source diffs, verifier metrics and timing under ignored `jobs/`. [The full candidate ledger](../results/candidates.json) summarizes all indexed batches and merges separate per-trial reviews. Regenerate it and the selection status with:
+The runner preserves a frozen task snapshot, native sessions, trajectory, final `/app` artifacts, source diffs, verifier metrics and timing under ignored `jobs/`. [The full candidate ledger](../results/candidates.json) summarizes all indexed batches and merges separate per-trial reviews. Regenerate the ledger with:
 
 ```bash
 python3 scripts/summarize_candidates.py
-python3 scripts/summarize_neutrality.py
 ```
+
+The historical conditional-screen generator is `scripts/summarize_neutrality.py`; its saved report describes the earlier roster. The current canonical roster and zero-pass qualifications are recorded in `results/zero-three-goal-status.json`.
 
 Selection includes every neutral-instruction batch matching the current environment, grading, instruction and configuration hashes. Do not rerun unchanged candidates until a favorable zero appears. A scientific revision is evaluated separately and its predecessor preserved. The original results and paired hint audits are historical and preserved in the pre-neutral archive. A current 0/1 failure is not interchangeable with an archived 0/3.
 

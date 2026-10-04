@@ -1,8 +1,8 @@
 # PhysLiteBench evaluation dashboard
 
-The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **3 of 10 currently qualify**: insulating-mhd-duct, magnetic-tracer and reaction-diffusion. The other seven require revision or replacement. [Current goal status](results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
+The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **4 of 10 currently qualify**: finite-layer-phoresis, insulating-mhd-duct, magnetic-tracer and reaction-diffusion. The other six require revision or replacement. [Current goal status](results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
 
-The fresh confirmation batch is complete: **6 of 10 tasks meet the at-most-1/3 pass cutoff**. There were **13 passes in 30 new unhinted Luna-high trials**. 3 tasks scored 0/3. Above cutoff: `electric-dipole-force` (3/3), `entropy-anomaly` (2/3), `spin-strain-response` (3/3), `superconducting-heat` (2/3).
+The earlier confirmation batch on the previous roster is complete: **6 of 10 tasks meet the at-most-1/3 pass cutoff**. There were **13 passes in 30 new unhinted Luna-high trials**. 3 tasks scored 0/3. Above cutoff: `electric-dipole-force` (3/3), `entropy-anomaly` (2/3), `spin-strain-response` (3/3), `superconducting-heat` (2/3).
 
 | Task | Fresh passes/trials | At most 1/3? |
 |---|---:|---|
@@ -17,9 +17,9 @@ The fresh confirmation batch is complete: **6 of 10 tasks meet the at-most-1/3 p
 | superconducting-heat | 2/3 | No |
 | thermoelastic-rod | 1/3 | Yes |
 
-These are three fresh trials per task on the retained revisions. The earlier 0/1 screening result for each task is kept separate. All 30 outcomes and prior revisions are retained; there was no outcome-dependent stopping, source revision or resampling during this batch. These observed counts do not establish population success probabilities.
+These are three fresh trials per task on the previous roster. The current roster replaces electric-dipole-force with finite-layer-phoresis; its result is listed below. The earlier 0/1 screening result for each task is kept separate. All 30 outcomes and prior revisions are retained; there was no outcome-dependent stopping, source revision or resampling during this batch. These observed counts do not establish population success probabilities.
 
-The current and frozen task files match the [batch plan](results/retained-three-r1-plan.json). All native sessions use `gpt-5.6-luna`, `high`, and Codex CLI 0.154.0, with the exact neutral task instruction and reviewed infrastructure inputs. Full counts, metrics, classifications and evidence are in [the fresh-batch report](results/retained-three-r1-results.json).
+The frozen files match the [batch plan](results/retained-three-r1-plan.json). Nine of those revisions remain canonical; [electric-dipole-force](archives/electric-dipole-force-r1) is archived unchanged. All native sessions use `gpt-5.6-luna`, `high`, and Codex CLI 0.154.0, with the exact neutral task instruction and reviewed infrastructure inputs. Full counts, metrics, classifications and evidence are in [the fresh-batch report](results/retained-three-r1-results.json).
 
 ## Current 0/3 hardening candidates
 
@@ -40,20 +40,22 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | finite-layer-phoresis r1 | 1/3 | [Archived: two physical failures; one physical pass](results/zero-three-phoresis-r1-results.json) |
 | finite-band-reservoir r1 | 2/3 | [Archived: two physical passes; one physical model-selection failure](results/zero-three-finiteband-r1-results.json) |
 | ionic-current-loops r3 | 1/3 | [Archived: two physical failures; one physical pass](results/zero-three-ionic-r3-results.json) |
-| finite-layer-phoresis r2 | 0/3 completed | [Three physical failures; one started interruption and two setup attempts preserved; canonical promotion pending](results/zero-three-phoresis-r2-results.json) |
-| hardcore-coherence r1 | 3/3 completed | [Three physical passes; two started infrastructure interruptions preserved; archive pending](results/zero-three-hardcore-r1-results.json) |
-| hardcore-ring r1 | 3/3 | Three scored passes; final causal review pending |
-| acoustic-cavity-pressure r1 | untested | Scientific validation and local controls complete; independent peer review pending |
+| finite-layer-phoresis r2 | 0/3 completed | [Three physical failures; one started interruption and two setup attempts preserved; promoted; replaced electric-dipole-force r1](results/zero-three-phoresis-r2-results.json) |
+| hardcore-coherence r1 | 3/3 completed | [Archived: three physical passes; two started infrastructure interruptions preserved](results/zero-three-hardcore-r1-results.json) |
+| hardcore-ring r1 | 3/3 | [Archived: three physical passes](results/zero-three-ring-r1-results.json) |
+| acoustic-cavity-pressure r1 | 3/3 | [Archived: three physical passes](results/zero-three-acoustic-r1-results.json) |
+| single-file-memory r1 | 0/3 completed | [Three reviewed physical failures; one unstarted setup failure preserved; canonical promotion pending](results/zero-three-singlefile-r1-results.json) |
+| nematic-wall-torque r1 | untested | Frozen scientific package and independent peer review complete |
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
 ## Prior conditional screen
 
-Updated 2026-10-03 05:38 UTC. The requested conditional screen is complete. **10 current tasks have a reviewed physical failure on their first run.** The old ten-task 0/3 result applies only to [archived instructions and sources](archives/pre-neutral-instructions).
+Updated 2026-10-03 05:38 UTC. The requested conditional screen is complete. **The ten tasks selected at that time each had a reviewed physical failure on their first run.** The old ten-task 0/3 result applies only to [archived instructions and sources](archives/pre-neutral-instructions).
 
 That screen used one unhinted trial per changed revision, followed by exactly two more if the first passed. An initial failure stops at **0/1**. These counts do not establish a new 0/3 result or guarantee future failures. Every initial result and follow-up is retained. Reviewed setup failures before model execution remain recorded as attempts and are excluded from model-trial counts only when the strict unstarted-retry criteria are met. The original target of at least ten 0/3 tasks has not been re-established under the neutral instruction.
 
-| Active task | Current scientific revision | Unhinted passes/trials | Status |
+| Historical screened task | Scientific revision at that screen | Unhinted passes/trials | Status |
 |---|---|---:|---|
 | electric-dipole-force | Optical force on an electric dipole, r1 | 0/1 | Reviewed physical failure |
 | entropy-anomaly | Magnetic kinetic heat transport, r3 | 0/1 | Reviewed physical failure |

@@ -1,0 +1,26 @@
+--- before/model.py
++++ after/model.py
+@@ -1,4 +1,5 @@
+ import numpy as np
++from scipy.optimize import minimize_scalar
+ 
+ 
+ def field_data(experiment):
+@@ -38,7 +39,16 @@
+         self.response_strength = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the electric response strength from calibration records.")
++        design = np.array([coefficients(r['input']) for r in records])
++        values = np.array([r['value'] for r in records])
++        sigma = np.array([r['sigma'] for r in records])
++        def objective(strength):
++            alpha = polarizability(strength)
++            residual = (design@np.array([alpha.real, alpha.imag])-values)/sigma
++            return float(residual@residual)
++        result = minimize_scalar(objective, bounds=(.6, 1.6), method='bounded', options={'xatol':1e-13})
++        self.response_strength = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.response_strength)

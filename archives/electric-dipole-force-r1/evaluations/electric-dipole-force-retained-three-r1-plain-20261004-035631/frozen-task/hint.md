@@ -1,0 +1,1 @@
+The detector measures force on a purely electric dipole. Derive its force from the local dipole-field interaction or integrate the total Maxwell stress around it. A structured field can have circulating energy flux that does not transfer the corresponding momentum to this particle, even though single-plane-wave pressure is reproduced correctly.

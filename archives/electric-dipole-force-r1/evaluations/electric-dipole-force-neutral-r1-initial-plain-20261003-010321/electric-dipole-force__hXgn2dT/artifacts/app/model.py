@@ -1,0 +1,119 @@
+import numpy as np
+
+
+_RESPONSE_BOUNDS = (0.6, 1.6)
+_RADIATION_CONSTANT = 6.0 * np.pi
+
+
+def field_data(experiment):
+    """Return the incident E, H, and spatial derivative of E at the particle."""
+    electric = np.zeros(3, dtype=np.complex128)
+    magnetic = np.zeros(3, dtype=np.complex128)
+    # derivative[j, i] is d E_i / d r_j.
+    derivative = np.zeros((3, 3), dtype=np.complex128)
+    position = np.asarray(experiment['position'], dtype=float)
+    for wave in experiment['waves']:
+        direction = np.asarray(wave['direction'], dtype=float)
+        amplitude = (np.asarray(wave['real'], dtype=float)
+                     + 1j * np.asarray(wave['imag'], dtype=float))
+        local = amplitude*np.exp(1j*direction@position)
+        electric += local
+        magnetic += np.cross(direction, local)
+        derivative += 1j*np.outer(direction, local)
+    return electric, magnetic, derivative
+
+
+def coefficients(experiment):
+    """Return the two force coefficients [gradient, momentum transfer].
+
+    For an electric dipole with p = alpha E and the stated time convention,
+    the time-averaged force is
+
+        F = Re(alpha) * gradient + Im(alpha) * momentum_transfer.
+
+    The incident fields used here intentionally do not include the dipole's
+    scattered field; radiation reaction is already included in alpha.
+    """
+    electric, magnetic, derivative = field_data(experiment)
+    axis = np.asarray(experiment['axis'], dtype=float)
+    first = .5*np.real(derivative@electric.conj())
+    second = .5*np.real(np.cross(electric, magnetic.conj()))
+    return np.array([axis@first, axis@second])
+
+
+def polarizability(response_strength):
+    response_strength = float(response_strength)
+    return response_strength/(1-1j*response_strength/_RADIATION_CONSTANT)
+
+
+def predict_at(experiments, response_strength):
+    alpha = polarizability(response_strength)
+    alpha_components = np.array([alpha.real, alpha.imag])
+    return np.asarray([coefficients(e) @ alpha_components for e in experiments],
+                      dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.response_strength = None
+
+    def fit(self, records):
+        """Fit response_strength by weighted least squares on the calibration."""
+        records = list(records)
+        if not records:
+            raise ValueError("At least one calibration record is required")
+
+        experiments = [record['input'] for record in records]
+        observations = np.asarray([record['value'] for record in records],
+                                  dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
+        if (not np.isfinite(observations).all()
+                or not np.isfinite(sigma).all()
+                or np.any(sigma <= 0.0)):
+            raise ValueError("Calibration values and sigmas must be finite, with sigma > 0")
+
+        # The experiment-dependent part is linear in Re(alpha), Im(alpha), so
+        # calculate it only once while minimizing the one remaining scalar.
+        design = np.asarray([coefficients(experiment) for experiment in experiments],
+                            dtype=float)
+        weights = 1.0 / sigma
+
+        def objective(response_strength):
+            prediction = design @ np.array([
+                polarizability(response_strength).real,
+                polarizability(response_strength).imag,
+            ])
+            residual = (prediction - observations) * weights
+            return float(residual @ residual)
+
+        # A bounded golden-section search is sufficient for this smooth,
+        # one-dimensional physical parameter and avoids an optional SciPy
+        # dependency.  Check the endpoints as well, since the best fit may
+        # legitimately lie on a physical bound.
+        lower, upper = _RESPONSE_BOUNDS
+        golden = (np.sqrt(5.0) - 1.0) / 2.0
+        left = upper - golden * (upper - lower)
+        right = lower + golden * (upper - lower)
+        f_left, f_right = objective(left), objective(right)
+        for _ in range(100):
+            if f_left <= f_right:
+                upper, right, f_right = right, left, f_left
+                left = upper - golden * (upper - lower)
+                f_left = objective(left)
+            else:
+                lower, left, f_left = left, right, f_right
+                right = lower + golden * (upper - lower)
+                f_right = objective(right)
+
+        candidates = [
+            (_RESPONSE_BOUNDS[0], objective(_RESPONSE_BOUNDS[0])),
+            (_RESPONSE_BOUNDS[1], objective(_RESPONSE_BOUNDS[1])),
+            (left, f_left),
+            (right, f_right),
+            ((left + right) / 2.0, objective((left + right) / 2.0)),
+        ]
+        self.response_strength = min(candidates, key=lambda item: item[1])[0]
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.response_strength)

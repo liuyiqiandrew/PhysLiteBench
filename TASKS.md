@@ -4,7 +4,7 @@ All active tasks use a neutral instruction that permits replacing all implementa
 
 | Active task | Physical issue | Public apparatus | Derivation and validation |
 |---|---|---|---|
-| electric-dipole-force | The particle force differs from pressure inferred from the total local Poynting flux. | [README](tasks/electric-dipole-force/environment/README.md) | [AUTHOR](tasks/electric-dipole-force/AUTHOR.md) |
+| finite-layer-phoresis | Navier slip changes the transmission of solute interaction force as well as translational drag. | [README](tasks/finite-layer-phoresis/environment/README.md) | [AUTHOR](tasks/finite-layer-phoresis/AUTHOR.md) |
 | entropy-anomaly | Magnetic rotation changes kinetic heat transport even when the magnetic force does no work. | [README](tasks/entropy-anomaly/environment/README.md) | [AUTHOR](tasks/entropy-anomaly/AUTHOR.md) |
 | hydrodynamic-heating | Regional heating follows carrier drag dissipation while pressure transports conservative energy. | [README](tasks/hydrodynamic-heating/environment/README.md) | [AUTHOR](tasks/hydrodynamic-heating/AUTHOR.md) |
 | insulating-mhd-duct | Oblique magnetic fields share one electrical current-closure problem. | [README](tasks/insulating-mhd-duct/environment/README.md) | [AUTHOR](tasks/insulating-mhd-duct/AUTHOR.md) |
@@ -14,6 +14,8 @@ All active tasks use a neutral instruction that permits replacing all implementa
 | spin-strain-response | Quantum equilibrium force fluctuations differ from the fully equilibrated displacement response. | [README](tasks/spin-strain-response/environment/README.md) | [AUTHOR](tasks/spin-strain-response/AUTHOR.md) |
 | superconducting-heat | The electron–hole heat coherence factor varies with quasiparticle energy. | [README](tasks/superconducting-heat/environment/README.md) | [AUTHOR](tasks/superconducting-heat/AUTHOR.md) |
 | thermoelastic-rod | Mechanical equilibration requires the viscosity-weighted common-stress constraint. | [README](tasks/thermoelastic-rod/environment/README.md) | [AUTHOR](tasks/thermoelastic-rod/AUTHOR.md) |
+
+Phoresis revision 2 has three reviewed physical failures in three completed unhinted Luna-high trials. Its [promotion audit](results/zero-three-phoresis-r2-promotion.json) also preserves one started outage interruption and two unstarted setup failures; those are not physics failures. It replaces [electric-dipole-force revision 1](archives/electric-dipole-force-r1), which passed the fresh confirmation 3/3. Source author notes describe the frozen pre-evaluation revision; current outcomes are in the dashboard.
 
 Weak candidates and their complete prior results are linked from the dashboard. Earlier task explanations, scores and hint comparisons remain in the [pre-neutral archive](archives/pre-neutral-instructions).
 

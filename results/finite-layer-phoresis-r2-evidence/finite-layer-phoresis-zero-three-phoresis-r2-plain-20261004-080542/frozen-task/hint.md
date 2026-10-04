@@ -1,0 +1,1 @@
+The traction boundary condition changes the auxiliary translating-sphere flow as well as its drag. Derive the force-free response with the stated Navier boundary and include the reaction of the carried solute potential.

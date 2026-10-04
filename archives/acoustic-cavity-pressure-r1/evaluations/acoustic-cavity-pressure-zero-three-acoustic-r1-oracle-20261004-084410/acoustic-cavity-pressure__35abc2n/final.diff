@@ -1,0 +1,28 @@
+--- before/model.py
++++ after/model.py
+@@ -21,7 +21,7 @@
+             value = abs(density)
+         else:
+             curvature = (EXPONENT-1)*BULK/RHO0**2
+-            value = .25*curvature*abs(density)**2
++            value = .25*RHO0*abs(velocity)**2+.125*curvature*abs(density)**2
+         result.append(float(value))
+     return np.array(result)
+ 
+@@ -31,7 +31,15 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        from scipy.optimize import minimize_scalar
++        records = list(records)
++        experiments = [r['input'] for r in records]
++        values = np.array([r['value'] for r in records])
++        sigma = np.array([r['sigma'] for r in records])
++        objective = lambda eta: float(np.sum(((predict_at(experiments, eta)-values)/sigma)**2))
++        optimum = minimize_scalar(objective, bounds=(.08, .18), method='bounded', options={'xatol':1e-13})
++        self.viscosity = float(optimum.x)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

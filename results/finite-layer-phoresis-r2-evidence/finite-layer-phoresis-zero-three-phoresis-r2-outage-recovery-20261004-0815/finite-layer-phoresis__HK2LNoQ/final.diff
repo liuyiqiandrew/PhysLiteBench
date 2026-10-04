@@ -1,0 +1,49 @@
+--- before/model.py
++++ after/model.py
+@@ -40,7 +40,45 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Fit the viscosity from independent Gaussian calibration records.
++
++        For a fixed experiment the response is proportional to the inverse
++        viscosity, so the weighted least-squares problem is linear in
++        ``inverse_viscosity``.  Solving it directly avoids an unnecessary
++        numerical optimizer and uses the supplied instrument uncertainties.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        calculated = np.asarray([
++            response(**record['input']) for record in records
++        ], dtype=float)
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if (not np.all(np.isfinite(calculated)) or
++                not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(sigmas)) or
++                np.any(sigmas <= 0)):
++            raise ValueError('Calibration values and uncertainties must be finite, with sigma > 0.')
++
++        weights = 1.0 / sigmas**2
++        numerator = np.sum(weights * calculated * values)
++        denominator = np.sum(weights * calculated**2)
++        if denominator == 0 or not np.isfinite(numerator):
++            raise ValueError('Calibration records do not identify the viscosity.')
++
++        inverse_viscosity = numerator / denominator
++        if not np.isfinite(inverse_viscosity) or inverse_viscosity <= 0:
++            raise ValueError('Calibration records imply a non-positive viscosity.')
++
++        # The apparatus specification gives the admissible viscosity range.
++        viscosity = 1.0 / inverse_viscosity
++        self.viscosity = float(np.clip(viscosity, 0.8, 1.6))
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError('Model must be fit before prediction.')
+         return predict_at(experiments, self.viscosity)
