@@ -1,0 +1,1 @@
+The common electrical potential acts on each ion's own charge in its electrochemical potential. A population-averaged cation charge cannot be inserted into the exponential partition law before resolving the monovalent and divalent populations. Enforce each species' electrochemical-potential equality and finite amount balance with one shared potential and bulk electroneutrality.

@@ -1,119 +1,90 @@
-# Latest evaluation dashboard
+# PhysLiteBench evaluation dashboard
 
-For the physics and calibration loopholes behind the three tasks, see [TASKS.md](TASKS.md).
+The fresh confirmation batch is complete: **6 of 10 tasks meet the at-most-1/3 pass cutoff**. There were **13 passes in 30 new unhinted Luna-high trials**. 3 tasks scored 0/3. Above cutoff: `electric-dipole-force` (3/3), `entropy-anomaly` (2/3), `spin-strain-response` (3/3), `superconducting-heat` (2/3).
 
-Updated 2026-09-17. **Only the newest completed three-trial batch for each task/model is included: 27 trials, nine batches.** Luna uses the fresh recheck; Terra and Sol use their latest comparison batches. Older results are excluded from these counts. Original raw artifacts are archived separately and are not included in this repository.
+| Task | Fresh passes/trials | At most 1/3? |
+|---|---:|---|
+| electric-dipole-force | 3/3 | No |
+| entropy-anomaly | 2/3 | No |
+| hydrodynamic-heating | 1/3 | Yes |
+| insulating-mhd-duct | 0/3 | Yes |
+| magnetic-tracer | 0/3 | Yes |
+| reaction-diffusion | 0/3 | Yes |
+| rotating-reservoir | 1/3 | Yes |
+| spin-strain-response | 3/3 | No |
+| superconducting-heat | 2/3 | No |
+| thermoelastic-rod | 1/3 | Yes |
 
-All models used **high reasoning effort**, Harbor 0.21.0, Codex CLI 0.154.0, and the same task files, data, and grading within each task. Agent/verifier limits were 600/60 seconds. The original audit checked native logs to confirm the requested models and effort. No new agent runs were made for this dashboard.
+These are three fresh trials per task on the retained revisions. The earlier 0/1 screening result for each task is kept separate. All 30 outcomes and prior revisions are retained; there was no outcome-dependent stopping, source revision or resampling during this batch. These observed counts do not establish population success probabilities.
 
-This repository includes the [per-trial statistics and spin diagnostic](results/latest.json) and a small [electrodiffusion endpoint diagnostic](results/electrodiffusion-endpoints.json). Full trajectories, command logs, final submissions, and batch audits are not bundled. The trajectory findings below summarize the original review of public messages, tool activity, and final code. Trial and batch IDs identify those archived records; they are not links to local files.
+The current and frozen task files match the [batch plan](results/retained-three-r1-plan.json). All native sessions use `gpt-5.6-luna`, `high`, and Codex CLI 0.154.0, with the exact neutral task instruction and reviewed infrastructure inputs. Full counts, metrics, classifications and evidence are in [the fresh-batch report](results/retained-three-r1-results.json).
 
-## Results
+## Prior conditional screen
 
-Cells show **passes out of three**.
+Updated 2026-10-03 05:38 UTC. The requested conditional screen is complete. **10 current tasks have a reviewed physical failure on their first run.** The old ten-task 0/3 result applies only to [archived instructions and sources](archives/pre-neutral-instructions).
 
-| Task | Luna high | Terra high | Sol high |
-|---|---:|---:|---:|
-| Spin probes, r6 | 1/3 | 3/3 | 3/3 |
-| Thermal piston, r9 | 0/3 | 1/3 | 3/3 |
-| Electrodiffusion, r6 | 0/3 | 0/3 | 3/3 |
-| **Total** | **1/9** | **4/9** | **9/9** |
+That screen used one unhinted trial per changed revision, followed by exactly two more if the first passed. An initial failure stops at **0/1**. These counts do not establish a new 0/3 result or guarantee future failures. Every initial result and follow-up is retained. Reviewed setup failures before model execution remain recorded as attempts and are excluded from model-trial counts only when the strict unstarted-retry criteria are met. The original target of at least ten 0/3 tasks has not been re-established under the neutral instruction.
 
-All 27 submissions passed calibration and parameter recovery. Every failed submission failed only hidden predictions; there were **no timeouts or Harbor exceptions**. Trajectory review distinguishes the causes:
+| Active task | Current scientific revision | Unhinted passes/trials | Status |
+|---|---|---:|---|
+| electric-dipole-force | Optical force on an electric dipole, r1 | 0/1 | Reviewed physical failure |
+| entropy-anomaly | Magnetic kinetic heat transport, r3 | 0/1 | Reviewed physical failure |
+| hydrodynamic-heating | Electron-fluid calorimetry, r1 | 0/1 | Reviewed physical failure |
+| insulating-mhd-duct | Oblique magnetic field, r2 | 0/1 | Reviewed physical failure |
+| magnetic-tracer | Finite-mass mechanical area, r2 | 0/1 | Reviewed physical failure |
+| reaction-diffusion | Coupled local conductivity, r7 | 0/1 | Reviewed physical failure |
+| rotating-reservoir | Calorimetry of a rotating bath, r1 | 0/1 | Reviewed physical failure |
+| spin-strain-response | Static molecular force response, r1 | 0/1 | Reviewed physical failure |
+| superconducting-heat | Phase-biased BCS heat transfer, r1 | 0/1 | Reviewed physical failure |
+| thermoelastic-rod | Heterogeneous Kelvin–Voigt rod, r3 | 0/1 | Reviewed physical failure |
 
-| Model | Pass | Physical-model failure | Mixed math diagnostic / model selection | Numerical implementation failure |
-|---|---:|---:|---:|---:|
-| Luna | 1 | 7 | 1 | 0 |
-| Terra | 4 | 4 | 0 | 1 |
-| Sol | 9 | 0 | 0 | 0 |
+For each reviewed physical failure, the submission fits calibration and recovers the parameter. A diagnostic correction at that same fitted parameter passes the hidden predictions. Reviews separate physical mistakes from algebra, implementation and infrastructure failures.
 
-**Classification qualification:** Luna spin trial `vYnEEHB` submitted the wrong physical model, but its trajectory includes a mathematical error in the comparison used to select that model. Its raw failure stands; it is separated here from clean physical-model failures. Under a strict “no mathematical cause” criterion, the newest spin batch supplies **one clean physical failure, one mixed failure, and one pass**—so it does not establish two clean physical failures. Thermal and electrodiffusion each retain three clean Luna physical failures.
+The following revisions were archived after review because they exceeded the pass-rate cutoff or missed the required physical failure mode. Prior revisions and every passing result remain available; none were replaced with unchanged retries.
 
-These are small batches on three tasks developed against Luna, not general model success rates.
+| Archived family | Latest unhinted passes/trials | Archive |
+|---|---:|---|
+| magnetic-bath-transfer | 3/3 | [Latest source and evidence](archives/magnetic-bath-transfer-r1) |
+| geometric-rotor r2 | 0/1 (implementation error) | [Latest source and evidence](archives/geometric-rotor-r2) |
+| geometric-rotor r1 | 3/3 | [Latest source and evidence](archives/geometric-rotor-r1) |
+| paired-spin-noise | 3/3 | [Latest source and evidence](archives/paired-spin-noise-r1) |
+| spin-body-torque | 3/3 | [Latest source and evidence](archives/spin-body-torque-r1) |
+| delta-box-force | 3/3 | [Latest source and evidence](archives/delta-box-force-r1) |
+| quantum-work r2 | 3/3 | [Latest source and evidence](archives/quantum-work-r2) |
+| quantum-work r1 | 2/3 (one implementation failure) | [Latest source and evidence](archives/quantum-work-r1) |
+| paired-resonators | 3/3 | [Latest source and evidence](archives/paired-resonators-r1) |
+| quantum-calorimetry | 3/3 | [Latest source and evidence](archives/screened/quantum-calorimetry-r1) |
+| gyroscopic-noise | 3/3 | [Latest source and evidence](archives/gyroscopic-noise-r1) |
+| boson-hall | 0/1 (sign error) | [Latest source and evidence](archives/screened/boson-hall-r1) |
+| resonator-energy | 3/3 | [Latest source and evidence](archives/resonator-energy-neutral-r1) |
+| optical-torque | 3/3 | [Latest source and evidence](archives/screened/optical-torque-r1) |
+| bogoliubov-momentum | 3/3 | [Latest source and evidence](archives/bogoliubov-momentum-r1) |
+| dressed-photodetection | 3/3 | [Latest source and evidence](archives/screened/dressed-photodetection-r1) |
+| actuator-frame-current | 3/3 | [Latest source and evidence](archives/actuator-frame-current-r1) |
+| circular-detector | 3/3 | [Latest source and evidence](archives/screened/circular-detector-r1) |
+| magnetic-bilayer | 2/3 | [Latest source and evidence](archives/magnetic-bilayer-neutral-r1) |
+| boson-transfer-noise | 3/3 | [Latest source and evidence](archives/boson-transfer-noise-r1) |
+| emitter-lifetime | 3/3 | [Latest source and evidence](archives/screened/emitter-lifetime-r1) |
+| elastic-ring | 3/3 | [Latest source and evidence](archives/elastic-ring-neutral-r1) |
+| metal-plate-force | 3/3 | [Latest source and evidence](archives/metal-plate-force-r1) |
+| active-bath-work | 3/3 | [Latest source and evidence](archives/active-bath-work-r1) |
+| quantum-residence | 3/3 | [Latest source and evidence](archives/screened/quantum-residence-r1) |
+| capillary-mixture | 3/3 | [Latest source and evidence](archives/capillary-mixture-neutral-r2) |
+| thermoelectric-rod | 3/3 | [Latest source and evidence](archives/thermoelectric-rod-neutral-r2) |
+| ternary-gas | 3/3 | [Latest source and evidence](archives/ternary-gas-neutral-r2) |
+| rotating-layer | 2/3 | [Latest source and evidence](archives/rotating-layer-neutral-r1) |
+| hall-bar | 3/3 | [Latest source and evidence](archives/screened/hall-bar-neutral-r3) |
+| nonreciprocal-cavity | 3/3 | [Latest source and evidence](archives/nonreciprocal-cavity-neutral-r3) |
+| qubit-control | 3/3 | [Latest source and evidence](archives/qubit-control-r9) |
+| superconducting-ring | 3/3 | [Latest source and evidence](archives/superconducting-ring-neutral-r1) |
+| thermal-bodies | 3/3 | [Latest source and evidence](archives/screened/thermal-bodies-r12) |
 
-## Interaction and resource statistics
+The first neutral screen produced 29 passing rewards in 32 trials: nine tasks returned 3/3, qubit-control returned 2/3, and entropy-anomaly and nonreciprocal-cavity returned 0/1. One MHD passing reward also had an agent timeout; both the solution and exception are recorded. All 32 submissions were reviewed. See [the complete initial screen](results/neutrality-initial-screen.json).
 
-Each row covers nine trials. Counts are totals; time is the median per trial.
+The cavity audit found a calibration side channel: uncertainty encoded the noiseless response. After replacing it with uncertainty determined by known instrument controls, that revision passed 2/3. A further physical revision passed 3/3 and was archived. Its earlier 0/1 is historical.
 
-| Model | Model rounds | Tool requests | Shell commands | Median agent time | Output tokens |
-|---|---:|---:|---:|---:|---:|
-| Luna | 111 | 102 | 104 | 123.4 s | 58,999 |
-| Terra | 71 | 62 | 50 | 102.2 s | 43,966 |
-| Sol | 89 | 80 | 64 | 159.1 s | 69,742 |
+Runs use GPT-5.6 Luna with high reasoning effort, Harbor 0.21.0, Codex CLI 0.154.0 and 600/60-second agent/verifier limits. Native sessions verify the setup. Before agent evaluation, each scientific revision receives an independent physics review, repeated-noise validation, and oracle/shortcut controls. Inputs and grading stay frozen throughout each batch.
 
-- **Model rounds / interactions:** sum of Harbor trajectory `llm_call_count` over agent steps, cross-checked against native token-usage records. These are model turns, not human conversations; no trial received a human follow-up.
-- **Tool requests:** unique top-level tool-call IDs in the model transcript, cross-checked against native logs. An orchestration request can contain multiple shell commands or patches, so shell counts need not match tool counts.
-- **Shell commands:** completed `command_execution` items, counted once by item ID. Setup and verifier commands are excluded.
-- **Agent time:** Harbor's agent-execution interval, excluding container setup and grading. Output tokens are Harbor's recorded completion-token totals; reasoning tokens are not added again.
+[Source-matched conditional-screen status](results/neutrality-status.json) is generated from [the complete candidate ledger](results/candidates.json). Reviews under `results/*trial-reviews.json` retain source hashes, public reasoning, verifier metrics and diagnostic repairs. Frozen tasks, native sessions and submissions remain in ignored `jobs/` directories.
 
-Luna used **111 model rounds versus Sol's 89**, yet passed one trial versus nine. More interaction was not sufficient to correct the physics in these runs. Nonzero shell exits occurred **11 / 12 / 8** times for Luna / Terra / Sol; these included fit checks, missing paths, and Git commands outside a repository. They are intermediate events, not trial verdicts.
-
-## Interesting trajectories
-
-**1. Recognizing the right issue did not prevent a wrong conclusion.** Luna spin `vYnEEHB` explicitly checked whether the probes' shared noise required correlation. Its temporary shared-noise candidate used incorrect preparation/readout rotations and reported reduced χ² **997**, versus **0.9924** for the supplied factorized model. Its next public update accepted the factorized model. A post-hoc recomputation corrects only those rotations at the retained fitted gamma and obtains **0.9924** for the shared-noise model too. This is a mixed diagnostic/model-selection failure, not simple forgetting. The recomputation is recorded in the [statistics data](results/latest.json), without changing the submission or running another agent.
-
-**2. Sol changed its initial physical assumption.** Thermal `3k2BgxE` initially endorsed the supplied constant-pressure model, then noticed that calibration keeps the temperature sum fixed and cannot validate general heating. It corrected the piston dynamics and checked a new `[320,300] K` preparation against the coupled first law; derivative disagreement was **2.38×10⁻⁸ K/s**. Its final hidden error was below **0.065%**. The public trajectory records the correction directly.
-
-**3. The longest Luna trajectory repaired fitting but left the physics wrong.** Thermal `QDbiKyo` used **26 model rounds, 25 tool requests, 20 shell commands, four patch events, 308 s, and 15,008 output tokens**. It fixed an intermediate golden-section-search bug and passed calibration, but kept the original constant-pressure predictor. Hidden errors remained **13.25–27.20%**. Successful numerical self-correction did not become a physical-model audit.
-
-**4. A conservation check can validate the wrong discretization.** Terra electrodiffusion `CMRj2xx` included the correct shared electric field and tested a mixture, but checked the unweighted mean over grid nodes. Its incorrect full-width endpoint cells conserve that quantity, while the physical spatial mass requires half-weight endpoints. The check passed; hidden error reached **9.004%**. Correcting only endpoint volumes at fixed diffusivity reduced it to **0.1192%** in the retained [diagnostic](results/electrodiffusion-endpoints.json). All three Sol trials checked correctly weighted mass; `KWp96WN` also compared the coupled solver with the binary-salt limit and tested a mixed profile with two spatial harmonics.
-
-**5. Several passing agents checked behavior outside calibration.** Terra spin `UAEzApH` compared its joint probability with one million shared-phase samples. Sol `yZc2yzY` used two million samples, agreeing within **0.000195**. In contrast, all three latest Luna electrodiffusion agents fitted the pure-salt data and left the independent-salt predictor unchanged. Their public tests passed, but they completely missed the initially uniform ion's induced redistribution in the hidden mixtures.
-
-## Per-trial statistics
-
-**P** = pass; **F** = physical-model failure; **M** = mixed mathematical diagnostic/model-selection failure; **N** = numerical implementation failure. Trial IDs identify the separately archived runs. All table values and classifications are included in the bundled [statistics](results/latest.json).
-
-### Spin
-
-| Model / trial | Result | Model rounds | Tool requests | Shell commands | Agent seconds | Output tokens |
-|---|---:|---:|---:|---:|---:|---:|
-| Luna / `gw836QL` | P | 16 | 15 | 15 | 211.7 | 9,150 |
-| Luna / `vYnEEHB` | M | 9 | 8 | 11 | 123.4 | 5,378 |
-| Luna / `vkqNyWU` | F | 11 | 10 | 17 | 114.8 | 5,091 |
-| Terra / `B7hhTin` | P | 9 | 8 | 6 | 114.5 | 5,114 |
-| Terra / `UAEzApH` | P | 10 | 9 | 7 | 133.7 | 6,354 |
-| Terra / `qdAqWSC` | P | 8 | 7 | 6 | 102.2 | 4,503 |
-| Sol / `4H7oWE6` | P | 7 | 6 | 5 | 99.5 | 4,416 |
-| Sol / `Yq6wDKj` | P | 10 | 9 | 7 | 130.7 | 5,118 |
-| Sol / `yZc2yzY` | P | 11 | 10 | 7 | 200.2 | 9,479 |
-
-### Thermal
-
-| Model / trial | Result | Model rounds | Tool requests | Shell commands | Agent seconds | Output tokens |
-|---|---:|---:|---:|---:|---:|---:|
-| Luna / `4wpYNZt` | F | 13 | 12 | 11 | 184.7 | 8,190 |
-| Luna / `QDbiKyo` | F | 26 | 25 | 20 | 308.3 | 15,008 |
-| Luna / `XiM8S5L` | F | 7 | 6 | 5 | 98.7 | 4,048 |
-| Terra / `8ZeNNqP` | F | 8 | 7 | 6 | 95.8 | 4,360 |
-| Terra / `DPmhFWA` | F | 7 | 6 | 5 | 83.1 | 3,744 |
-| Terra / `Hq9qXxN` | P | 8 | 7 | 6 | 125.0 | 5,539 |
-| Sol / `3k2BgxE` | P | 11 | 10 | 8 | 159.1 | 7,620 |
-| Sol / `JfrrvPr` | P | 11 | 10 | 9 | 141.8 | 5,812 |
-| Sol / `xgEJXCg` | P | 9 | 8 | 7 | 129.1 | 5,706 |
-
-### Electrodiffusion
-
-| Model / trial | Result | Model rounds | Tool requests | Shell commands | Agent seconds | Output tokens |
-|---|---:|---:|---:|---:|---:|---:|
-| Luna / `DQSz4mt` | F | 11 | 10 | 11 | 126.2 | 4,765 |
-| Luna / `igafNCt` | F | 10 | 9 | 8 | 98.2 | 4,337 |
-| Luna / `rWQHHqo` | F | 8 | 7 | 6 | 85.4 | 3,032 |
-| Terra / `CMRj2xx` | N | 9 | 8 | 6 | 154.8 | 7,149 |
-| Terra / `ZWrTrQ4` | F | 6 | 5 | 4 | 92.8 | 3,396 |
-| Terra / `cyEhdFf` | F | 6 | 5 | 4 | 86.7 | 3,807 |
-| Sol / `KWp96WN` | P | 13 | 12 | 9 | 350.0 | 14,351 |
-| Sol / `SNjmsdi` | P | 9 | 8 | 6 | 269.2 | 11,175 |
-| Sol / `bkh5WFN` | P | 8 | 7 | 6 | 166.0 | 6,065 |
-
-## Selected batches and evidence
-
-Only these nine batches contribute to this dashboard. These are archive identifiers, not bundled directories. The statistics preserve both the original final-artifact classification and the reviewed trajectory classification, including the mixed spin failure.
-
-| Task | Latest Luna | Latest Terra | Latest Sol |
-|---|---|---|---|
-| Spin | `qubit-r6-luna-high-recheck` | `qubit-r6-terra-high` | `qubit-r6-sol-high` |
-| Thermal | `thermal-v9-luna-high-recheck` | `thermal-v9-terra-high` | `thermal-v9-sol-high` |
-| Electrodiffusion | `reaction-v6-luna-high-recheck` | `reaction-v6-terra-high` | `reaction-v6-sol-high` |
-
-[Machine-readable statistics and diagnostic](results/latest.json). This summary supports recomputing the aggregate tables from the 27 per-trial rows. Independently checking interaction counts or trajectory interpretations requires the original raw traces, which are archived separately. When updating, replace each task/model cell with its newest completed batch; do not accumulate earlier batches into these totals.
+The [historical instruction audit](results/instruction-audit.json) identified the fit-only scope ambiguity and cavity side channel. The [conditional-screen input audit](results/neutrality-current-input-audit.json) records exact neutral prompts, source hashes, public image boundaries and native inputs. Public apparatus definitions retain necessary physical assumptions without prescribing the missing correction or a numerical method. Draft entries are explicitly marked pending review.

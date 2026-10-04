@@ -1,0 +1,34 @@
+import numpy as np
+from scipy.optimize import minimize_scalar
+
+DENSITY = 6000.
+SHEAR_MODULUS = 20e9
+DIELECTRIC = np.diag([8e-9,8e-9,1e-8])
+PIEZOELECTRIC = np.zeros((3,3,3))
+PIEZOELECTRIC[0,0,2] = PIEZOELECTRIC[0,2,0] = 12.
+PIEZOELECTRIC[1,1,2] = PIEZOELECTRIC[1,2,1] = 12.
+PIEZOELECTRIC[2,0,0] = PIEZOELECTRIC[2,1,1] = -7.
+PIEZOELECTRIC[2,2,2] = 18.
+
+
+def predict_at(experiments,lame_parameter):
+    out=[]
+    for e in experiments:
+        n=np.asarray(e['direction'],dtype=float)
+        mechanical=SHEAR_MODULUS*np.eye(3)+(lame_parameter*1e9+SHEAR_MODULUS)*np.outer(n,n)
+        polarization=np.einsum('kij,i->kj',PIEZOELECTRIC,n)
+        acoustic=mechanical+polarization.T@np.linalg.solve(DIELECTRIC,polarization)
+        speeds=np.sqrt(np.linalg.eigvalsh(acoustic)/DENSITY)
+        out.append(speeds[e['branch']])
+    return np.array(out)
+
+
+class Model:
+    def __init__(self):
+        self.lame_parameter=None
+
+    def fit(self,records):
+        raise NotImplementedError
+
+    def predict(self,experiments):
+        return predict_at(experiments,self.lame_parameter)

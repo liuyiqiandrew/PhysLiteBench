@@ -1,0 +1,1 @@
+Steady electric-current conservation constrains div(sigma E), not div(epsilon E). Compute the mechanical electric force from the Maxwell stress of the prescribed dielectric. Consider both the free-charge force and the permittivity-gradient force; proportional sigma and epsilon in calibration can hide one of them.

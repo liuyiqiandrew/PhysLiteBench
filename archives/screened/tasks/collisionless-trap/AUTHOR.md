@@ -1,0 +1,9 @@
+# Collisionless trap, revision1
+
+The completed shortcut assumes an equilibrium Gaussian with one temperature after isolated deformation, choosing that temperature to conserve total classical harmonic-gas entropy. This gives T_final/T_initial=sqrt(product(omega_final)/product(omega_initial)). The formula and Gaussian covariance are mathematically correct for that assumed equilibrated ensemble, and exactly match collisionless physics when every frequency changes by the same factor. Projected calibration variances from proportional changes identify the one unknown initial temperature.
+
+The stated gas has no bath, collisions, or other thermalization after preparation. In the noncrossing strict adiabatic limit, each normal mode retains its own action E_i/omega_i. Its final mean energy is T_initial*omega_final_i/omega_initial_i. Unequal frequency changes therefore generate different mode temperatures; a single Gibbs distribution is not the prepared state. Axis rotation affects only how the detector projects the final covariance.
+
+The oracle evaluates the action-invariant covariance. The independent reference propagates the full4-by-4 Hamiltonian fundamental matrix through the stated smooth time-dependent trap, starting from the initial canonical covariance. It phase-averages final modal energies to match the detector and verifies convergence with increasing ramp duration. It does not insert an action-conservation formula into the nonproportional hidden reference.
+
+The physical model is the strict adiabatic limit; the finite-duration reference is a converged numerical approximation checked independently. Both frequency branches remain separated throughout their interpolation. The slow ramp is not an assumption of continued canonical equilibrium. Calibration noise is0.002 in variance units; hidden relative RMS limit is1.5%. Run scripts/validate_collisionless_trap.py; --generate is required to alter calibration.

@@ -1,0 +1,13 @@
+# Heat in a two-fluid ring
+
+A narrow periodic ring of length 2*pi contains an incompressible superfluid described by linear Landau two-fluid hydrodynamics about temperature T0=1. Use reduced units. The constant total density is rho=1, with normal density rho_n=0.3 and superfluid density rho_s=0.7. The specific entropy per unit total mass is s=0.6, and specific heat per unit total mass is c_p=1.5. Thermal expansion is zero. Material coefficients remain constant in this exact linear-response model.
+
+The normal component carries all entropy. The superfluid component is entropy-free. Total mass current is rho_n*v_n+rho_s*v_s. The fluid obeys total momentum conservation and the superfluid acceleration equation driven by the chemical-potential gradient; chemical potential is per unit mass. There are no imposed pressure differences, rotations or external mechanical forces. Pressure and all fields are periodic, and total mass current is initially zero. Ignore ordinary viscous stresses and compressional sound in the incompressible limit.
+
+A statistically isotropic, fixed-density vortex tangle gives a known linear mutual drag. The force per volume on the normal component is -lambda*(v_n-v_s), with lambda=0.105; the equal opposite force acts on the superfluid. The tangle has no resolved net vorticity or separate inertia. This drag and the remaining two-fluid constitutive relations define the coarse-grained linear model. Frictional heating is quadratic in the small perturbation and is omitted at linear order.
+
+Intrinsic Fourier thermal conductivity is kappa=0.03, excluding heat transported by either component's motion. A weak distributed thermal bath at T0 removes heat per volume G*(T-T0). Its momentum transfer is negligible at the retained order. The one unknown heat-leak coefficient G is shared by every experiment and lies in [0.08,0.3].
+
+Prepare T(x,0)=T0+amplitude*cos(mode*x), with both component velocities initially zero. The integer mode is 0,1,2 or3; amplitude lies in [-0.03,0.03], and time is in [0,10]. For mode>0 the observable is the signed cosine temperature coefficient (1/pi)*integral_0^(2*pi) (T-T0)*cos(mode*x) dx. For mode=0 it is the spatial mean temperature departure. Thus its initial value is amplitude for every mode.
+
+Calibration uses only spatially uniform temperature preparations (mode=0). Records contain input, value, and independent Gaussian standard deviation sigma. Implement Model.fit(records), returning self and setting Model.heat_leak, and Model.predict(experiments), returning a finite NumPy array with one temperature coefficient per input. Fit the common G from data/calibration.json and predict all allowed preparations.

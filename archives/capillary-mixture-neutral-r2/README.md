@@ -1,0 +1,3 @@
+# Variable-viscosity capillary task: neutral revision2
+
+This complete weak candidate is archived after3/3 unhinted Luna-high passes: one initial run and both required follow-ups. All three are reviewed substantive physical corrections: they include the full symmetric Newtonian stress missing from the componentwise-diffusion starter. The complete task, controls, validator, science report, peer review, and per-trial reviews are retained. Original jobs and frozen artifacts are unchanged. The earlier neutral revision1 is separately preserved in archives/capillary-mixture-neutral-v1. Root authorized replacing this weak candidate with a distinct rotating-layer apparatus.

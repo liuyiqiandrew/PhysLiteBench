@@ -1,0 +1,1 @@
+The stationary transition rate probes vacuum correlations at all proper-time separations along the prescribed trajectory. Check whether a local expansion of the trajectory separation determines that entire response.

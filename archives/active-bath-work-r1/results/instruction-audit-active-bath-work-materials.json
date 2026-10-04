@@ -1,0 +1,82 @@
+{
+  "task": "active-bath-work",
+  "revision": 1,
+  "scope": "Read-only audit of all agent-visible instruction, README, implementation, public tests, calibration schema and Docker context; private model/reference/grader inspected only to distinguish apparatus facts from answer leakage or unintended restrictions.",
+  "conclusion": "No substantive unintended answer hint or solution-space restriction found. No frozen source changed.",
+  "findings": [
+    {
+      "classification": "necessary_apparatus_definition",
+      "evidence": [
+        "tasks/active-bath-work/environment/README.md:3",
+        "tasks/active-bath-work/environment/README.md:5",
+        "tasks/active-bath-work/environment/README.md:9",
+        "tasks/active-bath-work/environment/README.md:16"
+      ],
+      "finding": "The finite-mass dynamics and tau=memory_ratio*m/gamma jointly define a singular physical limit. Supplying this relation is essential: sequential small-mass and short-memory limits describe different apparatuses. It provides the microscopic model, not the evaluated work coefficient or a required solution algorithm.",
+      "proposed_change": null
+    },
+    {
+      "classification": "necessary_observable_and_preparation",
+      "evidence": [
+        "tasks/active-bath-work/environment/README.md:14",
+        "tasks/active-bath-work/environment/README.md:18",
+        "tasks/active-bath-work/environment/README.md:19"
+      ],
+      "finding": "Stationary preparation, the m/gamma measurement window, positive active-work convention and finite-mass ordinary integral are required to identify the measured quantity. The repeated limit order does draw attention to that order, but removing it would introduce a physical ambiguity rather than merely remove an answer hint. No warning about the supplied shortcut, instruction to retain inertial correlations, or limiting work formula is given.",
+      "proposed_change": null
+    },
+    {
+      "classification": "model_scope_not_method_mandate",
+      "evidence": [
+        "tasks/active-bath-work/environment/README.md:12",
+        "tasks/active-bath-work/environment/README.md:21",
+        "tasks/active-bath-work/environment/README.md:25",
+        "tasks/active-bath-work/instruction.md:3"
+      ],
+      "finding": "Independence of the two noises, externally maintained active force, no extra couplings, and a common D define the model. The neutral instruction allows all implementation changes. The interface does not require an analytic solver, finite-mass extrapolation, matrix Lyapunov solve or any other model representation.",
+      "proposed_change": null
+    },
+    {
+      "classification": "coherent_shortcut_not_accidental_clue",
+      "evidence": [
+        "tasks/active-bath-work/environment/model.py:14",
+        "tasks/active-bath-work/environment/model.py:18"
+      ],
+      "finding": "The work branch lacks chirality dependence, while the position branch uses chirality. This is a consequence of its specified instantaneous-mobility approximation and is the intended physical discrepancy; the source contains no unused oracle imports, diagnostic helper, correction comment or revealing variable name. Both imported numerical tools are used.",
+      "proposed_change": null
+    },
+    {
+      "classification": "no_response_side_channel",
+      "evidence": [
+        "tasks/active-bath-work/environment/README.md:23",
+        "tasks/active-bath-work/environment/data/calibration.json:1"
+      ],
+      "finding": "All192 calibration records use the same fixed sigma .001. Inputs contain only the documented spring, field, chirality, memory_ratio, readout and lag. There are no hidden parameter, noiseless response or diagnostic metadata fields.",
+      "proposed_change": null
+    },
+    {
+      "classification": "no_hidden_solver_restriction",
+      "evidence": [
+        "tasks/active-bath-work/environment/test_public.py:26",
+        "tasks/active-bath-work/tests/test_hidden.py:16",
+        "tasks/active-bath-work/environment/Dockerfile:7"
+      ],
+      "finding": "Public checks exercise documented parameter range, NumPy shape/finiteness and calibration fit. Private checks use parameter recovery and physical predictions without inspecting implementation structure. Docker copies only public README, model, test and data; no solution, hint or author material is exposed.",
+      "proposed_change": null
+    }
+  ],
+  "source_sha256": {
+    "tasks/active-bath-work/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/active-bath-work/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/active-bath-work/environment/README.md": "b26fdd702528e01453e5c0e3c7015bdcbad16cc4689e7fe8f2437412d4c7769f",
+    "tasks/active-bath-work/environment/data/calibration.json": "989dff2a526b3fe37bf1e75a19e420db9ad7d8ba11d2bddba721893b6ce92f21",
+    "tasks/active-bath-work/environment/model.py": "79661cc730935b18395fd14eb4407d59a01d954c3ad9bee86113b56398df79f2",
+    "tasks/active-bath-work/environment/test_public.py": "aff009f4df0b921f5c6abc3ea233422ef4c9e9857738a2d38ae3f37533de1208"
+  },
+  "private_comparison_files": [
+    "tasks/active-bath-work/solution/model.py",
+    "tasks/active-bath-work/tests/reference.py",
+    "tasks/active-bath-work/tests/test_hidden.py",
+    "tasks/active-bath-work/tests/metadata.json"
+  ]
+}

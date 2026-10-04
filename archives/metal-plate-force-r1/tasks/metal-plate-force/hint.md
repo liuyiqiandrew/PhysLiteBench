@@ -1,0 +1,1 @@
+Determine the zero-frequency electromagnetic boundary response of the specified dissipative normal metal before evaluating its thermal fluctuation force. Keep the positive residual relaxation rate fixed when taking frequency to zero.

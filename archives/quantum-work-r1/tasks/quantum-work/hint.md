@@ -1,0 +1,1 @@
+Follow the two energy analyzers through one repetition and construct the statistics of the recorded energy difference. Agreement of the mean and variance does not determine the higher cumulants of that measurement protocol.

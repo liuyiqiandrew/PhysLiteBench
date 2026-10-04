@@ -1,0 +1,155 @@
+{
+  "task": "delta-box-force",
+  "revision": 1,
+  "reviewer": "physics_review",
+  "reviewed_at_utc": "2026-10-03T03:29:19.227003+00:00",
+  "status": "passed_final_staged_source_input_and_grading_review",
+  "evaluation_status": "not_evaluated; scientific validation is not evidence of model difficulty",
+  "scope": "Read-only source and physics review of staged final offset-root implementation, all agent-visible files, independent verifier, grading, calibration, completed control, validator, author documentation, and existing final reports. No redundant numerical rerun was performed.",
+  "blockers": [],
+  "physics_derivation": [
+    "An even state is A*sin(k*(L/2-|x|)); q=kL/2 obeys q*cot(q)=-m*g*L/2. Its normalization is A^2=1/(L/2-sin(kL)/(2k)).",
+    "Right-wall momentum stress is |psi_prime(L/2)|^2/(2m), giving k^2/[m*(L-sin(kL)/k)]. Odd states have k=2(n+1)pi/L and force k^2/(mL). Oracle factors and sorting are consistent.",
+    "At fixed physical g, scale differentiation and Hellmann-Feynman give F=(2<E>-g<delta(x)>)/L. Symmetric wall displacement moves each wall by dL/2, so -dF_free/dL is the force on either wall, with no extra factor of two.",
+    "The completed shortcut computes the same exact spectrum and Gibbs probabilities, then applies 2<E>/L. It is exact on every g=0 calibration and free anchor, but drops the physical defect contribution when converting energy to wall force.",
+    "The offset equation (q0+d)*tan(d)=m*g*L/2 is monotone on [0,pi/2), includes g=0, and avoids a fixed lower-bracket offset skipping a tiny-positive-g root."
+  ],
+  "independent_reference_review": [
+    "The verifier discretizes the entire Dirichlet interval without using analytic parity roots. The central on-site g/dx term has the correct integrated delta strength.",
+    "Euclidean-normalized eigenvectors acquire a factor 1/sqrt(dx) as physical wavefunctions; the last-point derivative therefore gives |v_last|^2/(2m*dx^3). This matches the stated right-wall stress.",
+    "The 511/1023 Richardson pair and separate 2047 refinement address the leading discretization error. Independent fixed-g free-energy displacement supplies a distinct force check."
+  ],
+  "input_and_packaging_review": {
+    "instruction": "Exact common neutral instruction; all implementation changes are permitted.",
+    "apparatus": "Hamiltonian, fixed physical defect strength, pinned origin, hard walls, Gibbs preparation, one-wall outward-force readout, separate defect support, and neglected recoil define the observable without a force recipe.",
+    "public_clues": "No virial correction, pressure derivative, boundary-stress formula, hidden cases, true mass, or solution mandate in README/instruction. Starter helpers supply the intended correct spectral calculation without requiring their reuse.",
+    "api": "Only documented fit return, fitted mass, NumPy shape/order/finiteness, and physical predictions are constrained.",
+    "calibration": "144 measurements with fixed sigma=.001 independent of parameter and noiseless response; public and private JSON bytes match. Only input/value/sigma keys occur.",
+    "image_boundary": "Dockerfile explicitly copies README, model, public tests and data from environment; author material, private hint, oracle and private tests are outside this image.",
+    "runtime": "Pinned Python scientific dependencies; agent 600 seconds and verifier 60 seconds retained."
+  },
+  "grading_review": {
+    "calibration_reduced_chi2_limit": 1.5,
+    "mass_relative_error_limit": 0.03,
+    "prediction_group_nrmse_limit": 0.04,
+    "metric": "sqrt(mean((prediction-reference)^2)/mean(reference^2)) per hidden group.",
+    "coverage": "Temperature, length and strength sweeps at nonzero defect plus free off-calibration anchors; all controls fall within the public domain.",
+    "restrictions": "No solver, discretization, analytic form, or internal model architecture is graded.",
+    "tolerance_assessment": "The 4% prediction gate exceeds reported calibration-induced oracle errors and reference errors by large margins while remaining below the approximately 21% shortcut discrepancy.",
+    "regeneration": "Ordinary validator reads frozen calibration; explicit --generate intentionally writes both copies."
+  },
+  "reviewed_existing_evidence": {
+    "noise_trials": 256,
+    "noise": {
+      "calibration_passes": 256,
+      "parameter_passes": 256,
+      "oracle_passes": 256,
+      "shortcut_rejections": 256,
+      "maximum_chi2": 1.3597930331855366,
+      "parameter_min": 0.6299909620122386,
+      "parameter_max": 0.6300100911159449,
+      "oracle_hidden_max": 1.600818189310733e-05,
+      "shortcut_discriminating_min": 0.21286614319424937
+    },
+    "physical_checks": {
+      "full_domain_corner_oracle_reference_error": 9.79127889877418e-10,
+      "reference_1023_to_2047_Richardson_refinement": 1.3301004742061195e-09,
+      "fixed_strength_free_energy_displacement_error": 9.024603286889032e-11,
+      "thermal_32_to_48_level_error": 0.0,
+      "minimum_sampled_spectral_gap": 1.1754918450664107,
+      "wavefunction_normalization_error": 4.440892098500626e-16,
+      "defect_derivative_jump_error": 3.2862601528904634e-14,
+      "contact_virial_identity_error": 2.2737367544323206e-13,
+      "contact_Hellmann_Feynman_error": 1.3898615591756425e-10,
+      "hidden_reference_error": 3.4282976457689074e-10,
+      "cold_hidden_reference_seconds": 0.20804158301325515,
+      "calibration_equivalence": 3.552713678800501e-15,
+      "noiseless_mass_recovery_errors": [
+        4.931000718855216e-09,
+        1.142425487543619e-09,
+        5.5433588830311464e-09
+      ],
+      "full_range_mass_identifiability": [
+        {
+          "true_mass": 0.401,
+          "profile_minimum": 0.4,
+          "unique_profile_minimum": true
+        },
+        {
+          "true_mass": 0.63,
+          "profile_minimum": 0.6291666666666667,
+          "unique_profile_minimum": true
+        },
+        {
+          "true_mass": 0.899,
+          "profile_minimum": 0.9,
+          "unique_profile_minimum": true
+        }
+      ],
+      "public_input_domain_verified": true,
+      "near_zero_strength_continuity_error": 2.3668933479825682e-09
+    },
+    "nominal_controls": {
+      "oracle": {
+        "parameter": 0.6299986666335907,
+        "parameter_relative_error": 2.116454617895336e-06,
+        "calibration_chi2": 1.008207702742728,
+        "hidden": {
+          "temperature_sweep": 1.2539057224304858e-06,
+          "length_sweep": 1.359923486973533e-06,
+          "strength_sweep": 1.3554977378113508e-06,
+          "free_anchors": 2.115259857424471e-06
+        }
+      },
+      "shortcut": {
+        "parameter": 0.6299986666335907,
+        "parameter_relative_error": 2.116454617895336e-06,
+        "calibration_chi2": 1.0082077027430252,
+        "hidden": {
+          "temperature_sweep": 0.21287952295041593,
+          "length_sweep": 0.21721357899606936,
+          "strength_sweep": 0.2163700413597319,
+          "free_anchors": 2.115259857442639e-06
+        }
+      }
+    },
+    "local_controls": {
+      "oracle_exit": 0,
+      "oracle_summary": "8 passed",
+      "shortcut_exit": 1,
+      "shortcut_summary": "5 passed, 3 intended nonzero-defect prediction failures"
+    },
+    "limitations": "Noise trials sample calibration uncertainty; the reported corner/refinement checks are not an exhaustive numerical sweep of every allowed continuous input."
+  },
+  "nonblocking_author_note": {
+    "file": "scripts/validate_delta_box_force.py:1",
+    "observation": "The initial validator docstring says independently counted work cumulants; this is a copied author-only description, not executable behavior or agent-visible content.",
+    "disposition": "Resolved: only the first docstring was corrected. Reversing that text exactly reproduces the previously reviewed validator hash. All other source hashes remain unchanged; report/provenance hashes were refreshed without rerunning science."
+  },
+  "source_sha256": {
+    "scripts/delta_box_force_baseline.py": "acf351e4455f5cc3ec894921937ec1de70fbd3c25a00c9a3fbc9d62e64fa354b",
+    "scripts/validate_delta_box_force.py": "35923617e6a45876e258c1fe4532ba0173e507026c9c3bdbf67b2188aae624d0",
+    "tasks/delta-box-force/AUTHOR.md": "fd81e283b5ba8f241c3f11865d0fa7d0be5c80d1f98b13ddcbb4d19ceb3b2661",
+    "tasks/delta-box-force/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/delta-box-force/environment/README.md": "e20031125a8276f6f058180206c20a1ba5189a5cc6a5897167146fc7781e8ea4",
+    "tasks/delta-box-force/environment/data/calibration.json": "ace539acf9212ca151cac4d35a1b293ebe58ac064d346dc858519e45b515b171",
+    "tasks/delta-box-force/environment/model.py": "d161c91b320377f0f78e8d3d5f43c92530f7ff6fb1662babad5fc559fe9fabd4",
+    "tasks/delta-box-force/environment/test_public.py": "bf2f49cda73da3d437c51741152a586968ce6a4d677939311b17193f66b745aa",
+    "tasks/delta-box-force/hint.md": "0a5d725a01fe1d47ceba8d5e754f25198dcfeb4c2e2625bd9769afbe3b7094c1",
+    "tasks/delta-box-force/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/delta-box-force/solution/model.py": "01b642882135a15c5addf6c20a7ce35ee4ba7543e48b598ee52f02756595dd84",
+    "tasks/delta-box-force/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+    "tasks/delta-box-force/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/delta-box-force/tests/data/calibration.json": "ace539acf9212ca151cac4d35a1b293ebe58ac064d346dc858519e45b515b171",
+    "tasks/delta-box-force/tests/metadata.json": "5fb4e7c927118e45cc46a4302569430b59658e6aa9f7570cae4d45120e11f7e1",
+    "tasks/delta-box-force/tests/reference.py": "d16ac210b299b4de18b8cd9f67311098a6e64463d6e57a9d4f6e713a709fa907",
+    "tasks/delta-box-force/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+    "tasks/delta-box-force/tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a"
+  },
+  "report_sha256": {
+    "results/delta-box-force-validation.json": "8aac70807066691f402a99dc919a3737e8f78c7ca6eba339d4fd8a99c509f979",
+    "results/delta-box-force-local-controls.json": "0c66a1ca4c0d3f84139774d7275e702282fbf36e62fd043739da36c588cdb54d",
+    "results/delta-box-force-validator-docstring-update.json": "760ccbffabb7ab37a2115d0ffa9c83df12a53d014cced282f0a4ee3be3b73831",
+    "results/delta-box-force-source-provenance.json": "2727fbf0b0ec7806e961eda17d18baa22f3818e0b26ffc4a7002f8bdaadeda73"
+  }
+}

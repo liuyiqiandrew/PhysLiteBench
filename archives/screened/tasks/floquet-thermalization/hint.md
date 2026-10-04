@@ -1,0 +1,1 @@
+The population transition rates resolve the periodic drive into bath-coupled frequency channels. Determine the energy delivered to a reservoir by a transition in each channel before summing them. The change of the system quasienergy need not equal the calorimeter reading when the drive supplies work.

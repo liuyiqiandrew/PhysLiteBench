@@ -1,0 +1,1 @@
+The transverse ionic atmosphere contributes both convective current and migration current. In the open-circuit condition, evaluate axial ionic conductivity from the actual local equilibrium populations of both mobile ion species, including the diffuse layer.

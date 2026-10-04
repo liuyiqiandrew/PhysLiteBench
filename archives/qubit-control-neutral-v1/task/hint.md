@@ -1,0 +1,1 @@
+The spatially uniform field generates the same random phase on both probes in each shot. Compute the joint detection probability conditional on that common phase, then average it. Multiplying separately averaged one-probe probabilities discards the correlation that calibration may not reveal.

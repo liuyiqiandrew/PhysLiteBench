@@ -1,0 +1,1 @@
+The axial field cancels the total electric current. Pressure flow transports the diffuse charge, and the resulting electric field changes the velocity profile. That induced flow also transports charge. Impose current cancellation after including this feedback, using the same velocity that solves the momentum balance.

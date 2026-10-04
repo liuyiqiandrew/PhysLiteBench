@@ -1,0 +1,1 @@
+Follow the two energy analyzers through one repetition and construct the distribution of the recorded energy difference. Matching several lower cumulants does not establish that a single Hermitian energy-change observable has the same statistics as those two records.

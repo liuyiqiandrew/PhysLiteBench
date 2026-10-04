@@ -1,0 +1,1 @@
+The complete apparatus has a fixed energy and only two internal reservoir modes. Integrate its constant-energy phase-space measure over the unobserved coordinates and momenta. The reservoir's remaining phase volume depends on the probe's energy; matching a harmonic second moment does not make a canonical Boltzmann distribution exact for higher moments or another potential.

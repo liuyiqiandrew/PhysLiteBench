@@ -1,0 +1,182 @@
+{
+  "task": "paired-spin-noise",
+  "revision": 1,
+  "reviewer": "physics_review",
+  "reviewed_at_utc": "2026-10-03T04:09:49.986649+00:00",
+  "status": "passed_final_staged_source_input_grading_and_report_review",
+  "scope": "Independent physical and algebraic source review; final existing validation and isolated local-control reports read and checked. No additional broad numerical validation, source edits or evaluations were performed.",
+  "evaluation_status": "Staged and unevaluated; scientific separation is not evidence of model difficulty.",
+  "blockers": [],
+  "detector_and_frequency_review": [
+    "The public probes begin excited and transfer positive energy to the sample. Golden-rule absorption therefore uses Em-En>0 with initial sample population pn and matrix element Sz_mn. The finite-Fock reference uses exactly this ordering.",
+    "The defined 2*pi*nu(omega)*|lambda(omega)|^2 already equals gain times the stated omega^2 Gaussian weight. There is no additional 2*pi, normalized-Gaussian prefactor, or detector-emission reversal to apply.",
+    "The local operator is Sz=(n_up-n_down)/2. Both the BdG weights and the 64-state reference retain this factor; no extra BdG factor of one half is required in the physical contractions.",
+    "The readout is explicitly after the microscopic transient and before depletion in the leading weak-coupling regime. It is not the exactly zero first derivative at t=0 of an isolated finite-time transition probability.",
+    "The finite width describes probe spectral weighting, not lifetime broadening of sample levels. The omega^2 factor removes the zero-frequency/elastic contribution.",
+    "The validator tests S(-omega)=exp(-omega/T)*S(omega) on grouped underlying spectral lines. It does not impose an invalid detailed-balance identity at the center of a finite spectral window."
+  ],
+  "BdG_and_Wick_review": [
+    "For the full doubled Nambu vector Psi=(c,c_dagger), the antisymmetric pairing block gives the Hermitian BdG matrix [[h,Delta],[-Delta_star,-h_transpose]]. This matches the creation-operator ordering in the independent Hamiltonian.",
+    "The kernel weights expit(E/T)=1-f(E) represent <Psi(t) Psi_dagger(0)> with phase exp(-i E t). Products of its two factors therefore have the summed signed BdG frequencies used by the code.",
+    "The connected density contraction is <c_a_dagger(t)c_b(0)><c_a(t)c_b_dagger(0)> minus <c_a_dagger(t)c_b_dagger(0)><c_a(t)c_b(0)>. The oracle adds the latter with the correct minus sign and spin weights.",
+    "At equal time under spin symmetry the local variance is [n(1-n)-|<c_up c_down>|^2]/2. The reported sum-rule check agrees, independently supporting the anomalous sign.",
+    "The private reference constructs all fermionic annihilation matrices in the complete 64-state occupation space, builds the Hamiltonian including pairing and its conjugate, then sums actual spin-transition probabilities. It shares neither the BdG contraction formula nor its thermal-kernel implementation.",
+    "The six-canonical-mode particle-hole transformation provides an additional normalization check in the existing validator; it uses the local vertex 0.5*diag(P_i,P_i) without redundant-mode double counting."
+  ],
+  "shortcut_and_overlap_assessment": {
+    "physical_interpretation": "The source keeps exact normal one-particle spectra but treats opposite-spin fluctuations as independent. It can be realized by independent auxiliary number-conserving Gaussian systems having those normal spectra. Its positive stationary thermal line convolution is a coherent physical closure, although it is not the specified paired system.",
+    "calibration_nullspace": "All calibration preparations have pairing=0, when anomalous contractions vanish. Both controls retain the same nontrivial normal spectra and identify the detector gain.",
+    "global_conservation": "Singlet pairing preserves total Sz. The source violates that global finite-frequency identity; this is documented as a defect of the approximation and is not used as a zero-signal hidden test. Scored cases measure nonzero one-site rates.",
+    "related_retained_family": "Superconducting-heat shares BCS background but already includes anomalous phase-sensitive interference, approximating its energy dependence at the gap edge. This task instead discards joint spin covariance despite exact one-particle spectra. It is a defensible distinct measurement/modeling task, without claiming an independent theoretical principle.",
+    "later_trial_classification": "A retained independent-spin factorization may qualify as a physical failure. Recognition of pair covariance followed by a Wick sign/index error must instead be classified as mathematical or implementation failure. Any failed trial requires source/trajectory review and a fixed-gain repair diagnostic."
+  },
+  "input_and_packaging_review": {
+    "instruction": "Exact common neutral instruction permits changing or replacing all helpers/prediction code.",
+    "apparatus": "The defining finite Hamiltonian, imposed pair amplitudes, complete Gibbs occupation space, lack of parity constraints, precise local spin operator and probe preparation/coupling are sufficient.",
+    "unearned_hints": "No anomalous-contraction formula, independence diagnosis, KMS correction, solver prescription or private case list appears in the public README or instruction.",
+    "calibration": "144 records, constant sigma=.0005 independent of gain and signal, matching public/private bytes, documented input/value/sigma schema.",
+    "public_image": "Only README, model, public tests and data are copied from environment. Hint, author material, reference and oracle remain private.",
+    "runtime": "Pinned scientific dependencies and unchanged 600-second agent/60-second verifier limits."
+  },
+  "grading_review": {
+    "gain_relative_error_limit": 0.03,
+    "calibration_reduced_chi2_limit": 1.5,
+    "group_nrmse_limit": 0.04,
+    "coverage": "Pairing, phase and detector-frequency sweeps of positive one-site signals; additional normal-state anchors pass both closures.",
+    "metric": "sqrt(mean((prediction-reference)^2)/mean(reference^2)) per group.",
+    "margin": "Scored paired rates range .0977 to .4814; no near-zero or global-spin scored readout. Reported oracle calibration-noise errors remain below .000418 versus shortcut group minima .22699 or larger.",
+    "implementation_constraints": "Only API, calibration, inferred gain and output accuracy are tested; no internal model, Wick convention, numerical method or solver is mandated.",
+    "regeneration": "Calibration generation is explicitly gated by --generate; ordinary validation preserves both data copies."
+  },
+  "reviewed_existing_evidence": {
+    "controls": {
+      "oracle": {
+        "gain": 1.1001184095231449,
+        "parameter_relative_error_max": 0.00010764502104065876,
+        "calibration_chi2": 1.2104043536304148,
+        "hidden": {
+          "pairing_sweep": 0.00010764502103805455,
+          "phase_sweep": 0.00010764502103988503,
+          "detector_sweep": 0.00010764502103874459,
+          "normal_anchors": 0.0001076450210446273
+        }
+      },
+      "shortcut": {
+        "gain": 1.1001184095231449,
+        "parameter_relative_error_max": 0.00010764502104065876,
+        "calibration_chi2": 1.2104043536304148,
+        "hidden": {
+          "pairing_sweep": 1.1695042055734781,
+          "phase_sweep": 0.2275262000612231,
+          "detector_sweep": 1.1641491247394131,
+          "normal_anchors": 0.0001076450210446273
+        }
+      }
+    },
+    "noise": {
+      "oracle_passes": 256,
+      "shortcut_rejections": 256,
+      "all_calibration_pass": true,
+      "max_calibration_chi2": 1.4397769437656456,
+      "max_gain_relative_error": 0.00041741443445653115
+    },
+    "noise_extrema": {
+      "oracle": {
+        "pairing_sweep": {
+          "min": 1.7246323283080607e-07,
+          "max": 0.0004174144344591435
+        },
+        "phase_sweep": {
+          "min": 1.724632309895989e-07,
+          "max": 0.00041741443445728906
+        },
+        "detector_sweep": {
+          "min": 1.7246323216536282e-07,
+          "max": 0.0004174144344584767
+        },
+        "normal_anchors": {
+          "min": 1.7246322623600831e-07,
+          "max": 0.0004174144344526089
+        }
+      },
+      "shortcut": {
+        "pairing_sweep": {
+          "min": 1.1683957239120446,
+          "max": 1.170085817216312
+        },
+        "phase_sweep": {
+          "min": 0.2269855871073107,
+          "max": 0.2278100228531287
+        },
+        "detector_sweep": {
+          "min": 1.163013140403965,
+          "max": 1.1647451559879956
+        },
+        "normal_anchors": {
+          "min": 1.7246322623600831e-07,
+          "max": 0.0004174144344526089
+        }
+      }
+    },
+    "physical_checks": {
+      "independent_hidden_absolute_error": 1.4988010832439613e-15,
+      "normal_calibration_closure_equality": 0.0,
+      "normal_calibration_fock_error": 2.0539125955565396e-15,
+      "public_domain_corners": 384,
+      "max_corner_fock_error": 4.829470157119431e-15,
+      "max_reduced_canonical_basis_error": 1.5543122344752192e-15,
+      "equal_time_spin_sum_rule_error": 1.942890293094024e-16,
+      "total_spin_finite_frequency_weight_error": 2.3713425278565254e-17,
+      "shortcut_spurious_global_spin_rate_diagnostic": 0.46612425097024035,
+      "kms_error": {
+        "oracle": 3.129673603607941e-12,
+        "shortcut": 1.977822419729769e-12
+      },
+      "minimum_grouped_spectral_line": {
+        "oracle": -2.6020852139652106e-18,
+        "shortcut": 0.0
+      },
+      "minimum_scored_paired_rate": 0.0977345990029024,
+      "maximum_scored_paired_rate": 0.4813615540948047,
+      "gain_information": 36244146.86051523
+    },
+    "local_controls": {
+      "oracle": {
+        "exit_code": 0,
+        "summary": "7 passed in 0.28s"
+      },
+      "shortcut": {
+        "exit_code": 1,
+        "summary": "3 failed, 4 passed in 0.25s"
+      }
+    },
+    "limits": "Noise samples and 384 public-domain corners are finite validation checks, not an exhaustive proof over continuous controls."
+  },
+  "source_sha256": {
+    "scripts/paired_spin_noise_baseline.py": "4d5df56febaae2bb61599b572321ae9f9a0b0b34572c447b95d0b94c85c574d1",
+    "scripts/validate_paired_spin_noise.py": "2781986ca490659bbea9a7194a731f225d15a4bb404ad52660371abe894b20ff",
+    "tasks/paired-spin-noise/AUTHOR.md": "34f8ab3c7ebe9ce3b33132adceee69c7e93debf9647e0392f3bf71744b5bc377",
+    "tasks/paired-spin-noise/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/paired-spin-noise/environment/README.md": "07cfd735a980ce79ee8cc545230d35ed11c889f3819c9c35b30780ce5ea6a712",
+    "tasks/paired-spin-noise/environment/data/calibration.json": "8e1c22d3aec3aeaf326e501b738be04b883aba086016c7f5127c62d50dabeffc",
+    "tasks/paired-spin-noise/environment/model.py": "b033b00428b340a1ec6af61bb603c521ece82ee76d59bc04e48ca4f037a53dd4",
+    "tasks/paired-spin-noise/environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+    "tasks/paired-spin-noise/hint.md": "b58e50a34af71d55362e67c0ca0d1a19ec013a1136ca880dceb81b35e48910b9",
+    "tasks/paired-spin-noise/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/paired-spin-noise/solution/model.py": "65147c00bf81006c607e877f25662bab73dd09765671def2c8c99d288e3db488",
+    "tasks/paired-spin-noise/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+    "tasks/paired-spin-noise/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/paired-spin-noise/tests/data/calibration.json": "8e1c22d3aec3aeaf326e501b738be04b883aba086016c7f5127c62d50dabeffc",
+    "tasks/paired-spin-noise/tests/metadata.json": "8bcdd9fc786d015fa2db8d2b49d45a0a05fcf5d5e1c5f44c5bccabfc04d61e90",
+    "tasks/paired-spin-noise/tests/reference.py": "2e28d07f94c94870bcb4b22d106ecacf9c53beec5f8db40d100e8aacdbe6e422",
+    "tasks/paired-spin-noise/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+    "tasks/paired-spin-noise/tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a"
+  },
+  "report_sha256": {
+    "results/paired-spin-noise-validation.json": "780c6549b23d5d9ba1ca1b7f9f3fad8e5dc696a82df7cffbea9fcb21325baf80",
+    "results/paired-spin-noise-local-controls.json": "3838f572bfffc32e9b4d9149a3b6b0ac6d53863e968d15941bcc0d408e9ee74f",
+    "results/paired-spin-noise-prototype.json": "9c265a28dd5a0ec6c013d9472f4814d2bf4e1e2019ee34c340730386675b4a61",
+    "results/paired-spin-noise-source-provenance.json": "225a79b7cc2984e990e7a73ceda39be90c729aac91497bba32574c2288d20d55"
+  },
+  "author_packaging_status": "Final AUTHOR and provenance read and approved. All 18 source/control hashes and all three final report hashes match. The BCS-family overlap, approximation conservation defect and strict later trial-classification rule are explicitly documented."
+}

@@ -1,0 +1,28 @@
+{
+  "task": "entropy-anomaly",
+  "revision": 3,
+  "instruction_revision": "neutral-v1",
+  "trial": "entropy-anomaly__pZ6Gevo",
+  "fixed_friction": 1.0993577877540435,
+  "parameter_refitted": false,
+  "artifact_modified": false,
+  "repair": "Replace only the zero-field cubic heat coefficient by the Lorentz-coupled cubic relaxation response. Keep the fitted friction, complete positional current solver, temperature field, integration and all artifacts unchanged.",
+  "before_line": "heat_coefficient = .5*(1/friction+1/(friction+2*gamma_y))",
+  "after_block": "relaxation = np.diag([3*friction,2*friction+gamma_y,friction+2*gamma_y,3*gamma_y])\n    for i in range(3):\n        relaxation[i,i+1] = -magnetic*np.sqrt((3-i)*(i+1))\n        relaxation[i+1,i] = -relaxation[i,i+1]\n    source = np.array([np.sqrt(6),0.,np.sqrt(2),0.])\n    heat_coefficient = float(source@np.linalg.solve(relaxation,source)/4)",
+  "source_sha256": "be02c7ddb829a37ae34f83062ac317e6d79927f43d13f40790967b25262d7429",
+  "reference_sha256": "dc20940d52b78d277657ff3c4e76bbec6a39fe9c2bc0648e4f0528268ee2ad9d",
+  "hidden_before": {
+    "magnetic_heat": 0.7644016156480057,
+    "anisotropic_rotation": 0.9842799198421996,
+    "reversed_field_drive": 0.8434279048094657
+  },
+  "hidden_after": {
+    "magnetic_heat": 0.00024108507877142868,
+    "anisotropic_rotation": 0.00023986951373445003,
+    "reversed_field_drive": 0.0002852240567859015
+  },
+  "calibration_prediction_change_max": 4.440892098500626e-16,
+  "original_chi2": 0.9555661753224508,
+  "repaired_chi2": 0.9555661753224498,
+  "all_repaired_hidden_pass": true
+}

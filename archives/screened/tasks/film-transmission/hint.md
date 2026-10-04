@@ -1,0 +1,1 @@
+The transfer calculation returns an electric-field amplitude. The detector measures normal Poynting flux. For a propagating TE wave in a nonmagnetic dielectric, that flux is proportional to n*cos(theta)*|E_y|². Equal entrance and exit media conceal the conversion from transmitted amplitude to transmitted power in calibration.

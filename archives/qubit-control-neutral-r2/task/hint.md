@@ -1,0 +1,1 @@
+A quantum resonator is displaced by the probe state. Keep the phase of each conditional bath evolution as well as its thermal overlap when tracing out the resonators. Individual-probe calibration can cancel phases that affect a pair.

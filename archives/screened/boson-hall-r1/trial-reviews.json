@@ -1,0 +1,146 @@
+{
+  "boson-hall__EYkuugu": {
+    "task": "boson-hall",
+    "revision": 1,
+    "instruction_revision": "neutral-v1",
+    "condition": "plain",
+    "stage": "initial",
+    "job": "boson-hall-neutral-r1-initial-plain-20261003-013720",
+    "classification": "mathematical_derivation_failure",
+    "failure_subtype": "berry_curvature_sign_convention",
+    "desired_physical_failure": false,
+    "agent_started": true,
+    "reason": "The agent explicitly recognizes the energy-magnetization correction and implements the correct c2 Bose weighting. Its analytic lower-band Berry curvature has the opposite sign for the stated Hamiltonian, followed by the conventional -T prefactor, so every thermal response has the wrong overall sign. This is a mathematical sign/convention error after choosing the correct physical transport model.",
+    "qualification": "Do not count this raw 0/1 result toward the requested physical-model failures. A single thermal-response sign correction at the unchanged fitted parameter passes every group and matches the physical oracle to roundoff.",
+    "reward": 0.0,
+    "exception_type": null,
+    "metrics": {
+      "parameter_relative_error": 3.3242452026183145e-05,
+      "calibration_chi2": 1.097101150155942,
+      "hidden": {
+        "temperature_sweep": 1.9998935031862564,
+        "mass_sweep": 1.9998418414860426,
+        "orientation_reversal": 1.999861155648177
+      },
+      "parameter": 1.0400345721501072
+    },
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current model implementation, then implement the documented prediction API and run the available checks.",
+      "The calibration contains frequency data only, which identifies the common scale near 1.04. The remaining implementation work is the intrinsic bosonic thermal-Hall response: I\u2019m replacing the placeholder interband expression with the Berry-curvature/magnetization-corrected Bose thermal-Hall formula and will verify convergence numerically.",
+      "The implementation now fits the scale by weighted least squares, computes the two-band Berry curvature analytically, and integrates the Bose thermal-Hall weighting over the Brillouin zone with cached Gauss\u2013Legendre quadrature. Public tests pass, and quadrature convergence is stable well beyond the default order.",
+      "I\u2019m removing the optional SciPy dependency so the model remains self-contained with NumPy, while preserving the same dilogarithm accuracy over the README\u2019s bounded temperature and energy ranges.",
+      "Implemented `/app/model.py` with:\n\n- Weighted calibration fit for `exchange_scale`\n- Frequency predictions\n- Intrinsic bosonic thermal Hall response using Berry curvature and Bose weighting\n- Cached Brillouin-zone quadrature\n- Validated NumPy output shape and finiteness\n\n`pytest -q` passes successfully."
+    ],
+    "model_effort_cli": {
+      "version": "0.154.0",
+      "reasoning_effort": "high",
+      "model": "gpt-5.6-luna"
+    },
+    "native_task_prompts_exactly_neutral": true,
+    "current_source_matches_frozen": true,
+    "source_sha256": "fc7df9c8fe66727c3428ab3f04b80de1807befe6bbc99d0b212b703c5531df44",
+    "fixed_parameter_diagnostic": {
+      "trial": "boson-hall__EYkuugu",
+      "classification": "mathematical_derivation_failure",
+      "failure_subtype": "berry_curvature_sign_convention",
+      "fixed_parameter": 1.0400345721501072,
+      "refit": false,
+      "repair": "Negate only the submitted thermal_response; leave frequency predictions and fitted exchange_scale unchanged. Equivalent single-sign edit: lower_curvature=+triple/(2*radius**3) with its existing -T prefactor.",
+      "calibration_chi2_unchanged": 1.0971011501559158,
+      "groups": {
+        "temperature_sweep": {
+          "raw_nrmse": 1.9998935031862461,
+          "sign_repaired_nrmse": 0.00010919272789913415,
+          "repaired_vs_oracle_fixed_parameter_max_abs": 5.551115123125783e-17,
+          "raw_prediction": [
+            -0.0020690425617796776,
+            -0.011709744208464856,
+            -0.0315222366798698,
+            0.0020690425617796776,
+            0.011709744208464856,
+            0.0315222366798698
+          ],
+          "truth": [
+            0.0020697465717763697,
+            0.011711592472994069,
+            0.03152533900745939,
+            -0.0020697465717763697,
+            -0.011711592472994069,
+            -0.03152533900745939
+          ]
+        },
+        "mass_sweep": {
+          "raw_nrmse": 1.9998418414860342,
+          "sign_repaired_nrmse": 0.0001582065643079894,
+          "repaired_vs_oracle_fixed_parameter_max_abs": 7.632783294297951e-17,
+          "raw_prediction": [
+            -0.010601663281090253,
+            0.010601663281090253,
+            -0.011630983600035049,
+            0.011630983600035049,
+            -0.011536007050640094,
+            0.011536007050640094
+          ],
+          "truth": [
+            0.010603394260602987,
+            -0.010603394260602987,
+            0.01163282730814444,
+            -0.01163282730814444,
+            0.011537778346972408,
+            -0.011537778346972408
+          ]
+        },
+        "orientation_reversal": {
+          "raw_nrmse": 1.9998611556481682,
+          "sign_repaired_nrmse": 0.00014095689303814866,
+          "repaired_vs_oracle_fixed_parameter_max_abs": 4.597017211338539e-17,
+          "raw_prediction": [
+            -0.0015556084319713036,
+            -0.006821600722210514,
+            -0.016239505668824886,
+            0.0015556084319713036,
+            0.006821600722210514,
+            0.016239505668824886
+          ],
+          "truth": [
+            0.0015561003895915814,
+            0.006822841782878811,
+            0.01624161089489851,
+            -0.0015561003895915814,
+            -0.006822841782878811,
+            -0.01624161089489851
+          ]
+        }
+      },
+      "all_repaired_groups_pass": true,
+      "source_sha256": "fc7df9c8fe66727c3428ab3f04b80de1807befe6bbc99d0b212b703c5531df44"
+    },
+    "evidence_sha256": {
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/boson-hall__EYkuugu/artifacts/app/model.py": "fc7df9c8fe66727c3428ab3f04b80de1807befe6bbc99d0b212b703c5531df44",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/boson-hall__EYkuugu/agent/codex.txt": "a60df43ecc88159f4bb69231f699c75129b4425bdbdd5dc668394f13dd8542b3",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/boson-hall__EYkuugu/verifier/metrics.json": "f1d0fb7a11c4b9d948d582b51834c6ec44be592562c14cafbad29ad13b41f73e",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/boson-hall__EYkuugu/verifier/test-stdout.txt": "10da7163d4b317ad962184fbc2b7fe1b33b3e05542b19c27ef160f77a05af2fb",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/boson-hall__EYkuugu/result.json": "14bdfc98af0ca0f55aea7dbd6986c92f26d8b3b69b69fed2506330573ba1962d",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/config.json": "33666ae2e119a289a03c8a7767c427086948d82912199759aa1cc63d5a4cbcfa",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/run-timing.json": "bdcb1b1f2f5d02b87580e8d327a58198478b6a8f5db1aa82e1d970af82167d4e",
+      "results/boson-hall-r1-trial-diagnostic.json": "1d9c5a057b570249539afd717ad06a5e2be57b78a18acb385de2b2c637dc776f",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/hint.md": "44def9a6983a7bffdf7f4f3d0825d07ede8e4f5ee6834cd1f80b02eb1ea0db8e",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/AUTHOR.md": "9a7d12ccdf5be16db451f2d95e6427851518a246f3a5c9b1c37b5250ca3ca316",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/tests/metadata.json": "a72a21e8c3729246fcc387d6667f95fced31ac57d96333d4bc3c0254083725d3",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/tests/reference.py": "5fdc6d717285b148f9c062bbfda71be3c6aef3f5f1f2a093bde32bdff938dc8c",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/tests/test_hidden.py": "127fd753c26766e9efb2dc2d5f30812144659eb677a6a3d96cad1fd4d7f1c0a4",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/solution/model.py": "5acb553caa4e15b874fd932de554c5e85f5367380e20e886d9b2888b040f54c0",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/environment/model.py": "b2118785dd479de4ec8d5c1a70802501a300a1ab9bb21977113e8ef1cc7264fb",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/environment/README.md": "e561745f8160e76985526084fc5098ca2a63bb71c15aadf6182fc032c354a590",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/environment/data/calibration.json": "c2c953dae60d79ae8354436783c371a1274b11db21dc893ec1b2ec2335ee38c1",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/frozen-task/tests/data/calibration.json": "c2c953dae60d79ae8354436783c371a1274b11db21dc893ec1b2ec2335ee38c1",
+      "jobs/boson-hall-neutral-r1-initial-plain-20261003-013720/boson-hall__EYkuugu/agent/sessions/2026/10/03/rollout-2026-10-03T01-38-05-01a0ff69-4b44-7240-90d5-4c63158106f9.jsonl": "23909666757c3675d34ed46188e9aa920ad9fce00809d895aa1d9a2be61efe90"
+    }
+  }
+}

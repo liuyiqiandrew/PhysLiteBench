@@ -1,0 +1,1 @@
+The local Newtonian stress depends on the symmetric velocity gradient. For constant viscosity, incompressibility reduces its divergence to a componentwise Laplacian. When viscosity varies with composition, the discarded transpose-gradient term need not be a pressure gradient. Enforce the full local constitutive stress together with incompressibility.

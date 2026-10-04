@@ -1,0 +1,142 @@
+{
+  "task": "spin-body-torque",
+  "revision": 1,
+  "reviewer": "physics_review",
+  "reviewed_at_utc": "2026-10-03T03:47:12.831430+00:00",
+  "status": "passed_final_scientific_source_input_and_grading_review",
+  "evaluation_status": "staged and unevaluated; no model difficulty claim",
+  "scope": "Read-only independent derivation and source review; existing full validation and local controls inspected. No additional numerical validation was run.",
+  "blockers": [],
+  "physical_findings": [
+    "For rotating-frame transverse u=n_x+i*n_y and z=n_z>0, the Gilbert equation gives u=gamma*b*z/(gamma*B0-omega+i*alpha*omega*z). Normalization produces (1-z^2)[(gamma*B0-omega)^2+alpha^2*omega^2*z^2]=gamma^2*b^2*z^2. The implemented quadratic and stable branches match this equation.",
+    "At exact resonance the selected north-connected root is z^2=1-(gamma*b/(alpha*omega))^2. The public parameter range keeps this positive; the noncancelling quadratic branch handles the zero-detuning case.",
+    "Multiplying Gilbert dynamics by -M/gamma gives spin_rate=external_torque-alpha*M*(m cross m_rate)/gamma. Thus torque delivered into the lattice/support is alpha*M*(m cross m_rate)/gamma, exactly the oracle output. The source external torque is mathematically correct but refers to a different physical angular-momentum transfer.",
+    "For rigid precession, body torque is alpha*M*omega/gamma*(e_z-n_z*m). Its z component equals the external z torque; the transverse components differ by the spin angular-momentum rate. Finite-drive z calibration is therefore exactly shared, not merely equal to leading order.",
+    "The applied-field power -M*m dot B_rate equals the positive Gilbert loss alpha*M*|m_rate|^2/gamma on the periodic state. This independently fixes the damping and torque signs."
+  ],
+  "preparation_and_reference_review": [
+    "Public north-pole preparation followed by RF switch-on specifies which stable periodic solution is measured. The source chooses the corresponding positive-z state rather than an arbitrary algebraic root.",
+    "The independent reference solves the explicit nonlinear laboratory-frame Gilbert ODE from the north pole, then samples a final complete RF cycle at the requested phase. It does not use the scalar stationary-root formula.",
+    "Reference torque is the applied magnetic torque minus the spin angular-momentum rate, with S=-M*m/gamma. This has the stated sign for torque exerted by the body onto its support.",
+    "Existing validation checks the tangent Jacobian at 484 allowed controls, direct nonlinear transients and tighter/longer integration at 15 corners or off-grid points, and periodic convergence. These checks support the north-connected state; the discrete grid is not described as an exhaustive proof over every continuous input."
+  ],
+  "input_and_packaging_review": {
+    "neutral_instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "physical_sufficiency": "The unit magnetic moment, spin relation, exact Gilbert model, isotropic magnetic energy, clamp orientation, RF history, damping into the measured lattice, absence of other spin sinks, preparation and support-torque sign define the observable.",
+    "unearned_clues": "No external-minus-spin-rate conversion formula, body-torque formula, solver mandate, or hidden preparation is supplied publicly. Stating where Gilbert angular momentum is deposited is a necessary apparatus fact.",
+    "source": "Correct finite-drive state solver and all controls are used; no unused physics import or explanatory diagnosis comment. The neutral instruction permits changing every predictor/helper.",
+    "calibration": "216 z-torque measurements with fixed sigma=1e-5 independent of response and moment; public/private bytes match. Positive nonzero unit-moment design makes moment identifiable by a strictly convex weighted fit.",
+    "public_api": "Only fit returning self, finite numeric moment, and ordered one-dimensional NumPy prediction arrays are required.",
+    "packaging": "Docker copies only README, model, public tests and data; author/hint/oracle/private tests remain outside the public image. Agent600/verifier60 and pinned dependencies retained."
+  },
+  "grading_review": {
+    "calibration_chi2_limit": 1.5,
+    "parameter_relative_error_limit": 0.03,
+    "prediction_group_nrmse_limit": 0.04,
+    "metric": "sqrt(mean((prediction-reference)^2)/mean(reference^2)) within each group.",
+    "coverage": "Three transverse component/phase groups and independent z anchors within the public domain.",
+    "numerical_margin": "Reported reference error is approximately 6e-12 on hidden cases; minimum hidden transverse absolute signal exceeds .0025; noise-induced oracle error stays below .00102. These are separated from the .04 gate and shortcut error above4.92.",
+    "implementation_constraints": "No internal solver, model form, root algorithm, or array intermediates are graded.",
+    "regeneration": "Only --generate writes calibration; final rerun read the existing data."
+  },
+  "pre_freeze_change": {
+    "description": "One hidden phase changed from -.8 to -1.2 after the first validator flagged a near-zero physical transverse readout. Public apparatus, dynamics, calibration, grading threshold and instructions were unchanged; full validation was rerun before any model evaluation.",
+    "purpose": "Keep the physical torque signal away from a zero crossing."
+  },
+  "reviewed_existing_validation": {
+    "controls": {
+      "oracle": {
+        "moment": 1.0696847400707221,
+        "parameter_relative_error": 0.0002946354479232971,
+        "calibration_chi2": 0.9593564094664705,
+        "hidden": {
+          "transverse_x": 0.00029463556644572123,
+          "transverse_y": 0.0002946354659859996,
+          "phase_scan": 0.00029463561943820934,
+          "longitudinal_checks": 0.0002946354608889337
+        }
+      },
+      "shortcut": {
+        "moment": 1.069684740070722,
+        "parameter_relative_error": 0.00029463544792351914,
+        "calibration_chi2": 0.959356409466467,
+        "hidden": {
+          "transverse_x": 7.076856629915323,
+          "transverse_y": 5.729134618565041,
+          "phase_scan": 4.931900013401,
+          "longitudinal_checks": 0.000294635460889162
+        }
+      }
+    },
+    "noise": {
+      "realizations": 256,
+      "calibration_passes": 256,
+      "parameter_passes": 256,
+      "oracle_passes": 256,
+      "shortcut_rejections": 256,
+      "maximum_chi2": 1.2785920413004943,
+      "maximum_relative_parameter_error": 0.0010134120688778392,
+      "parameter_range": [
+        1.0689613828346103,
+        1.0710843509136994
+      ],
+      "oracle_hidden_max": 0.0010134120558951162,
+      "shortcut_hidden_min": 4.928474753189441
+    },
+    "physical_checks": {
+      "grid_points": 484,
+      "minimum_north_branch_z": 0.9606453592105879,
+      "maximum_stability_eigenvalue": -0.13399160376118296,
+      "orientation_normalization": 3.3306690738754696e-16,
+      "stationary_Gilbert_residual": 2.6020852139652106e-17,
+      "dc_torque_equivalence": 3.469446951953614e-18,
+      "energy_balance": 2.6020852139652106e-18,
+      "nonlinear_reference_max": 1.980522863764822e-11,
+      "reference_refinement_max": 1.9821883717741073e-11,
+      "periodic_convergence_max": 4.067313152944507e-11,
+      "calibration_equivalence": 8.673617379884035e-19,
+      "minimum_calibration_design": 7.538059181293424e-05,
+      "weighted_fit_curvature": 16091375.130902853,
+      "noiseless_absolute_parameter_recovery": 2.220446049250313e-16,
+      "hidden_reference_error": 5.959191907295436e-12,
+      "cold_hidden_reference_seconds": 0.49080729199340567,
+      "minimum_absolute_hidden_transverse_signal": 0.0025328471815828646,
+      "public_domain_verified": true
+    },
+    "local_controls": {
+      "oracle": {
+        "returncode": 0,
+        "summary": "8 passed in 0.78s"
+      },
+      "shortcut": {
+        "returncode": 1,
+        "summary": "3 failed, 5 passed in 0.78s"
+      }
+    }
+  },
+  "source_sha256": {
+    "scripts/spin_body_torque_baseline.py": "57241f527d20cb149124f66521848f21759eef0adca8aaa5bd1b55eaee7568f2",
+    "scripts/validate_spin_body_torque.py": "485a3a0572cedd24b6fdc2f2d87f5a75ce4911693f4f257a9d7834fa61e25be5",
+    "tasks/spin-body-torque/AUTHOR.md": "4d9934c036ec11fc112ce0f12da84a5dcf31282089fed567ad5063d1cfdafab0",
+    "tasks/spin-body-torque/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/spin-body-torque/environment/README.md": "30b38f595417a0abc7d7be0024313a728f1ae109086f7f2ee6e27bc8a1a3ecc4",
+    "tasks/spin-body-torque/environment/data/calibration.json": "1ef0a5307a44078bf5129d9c0654eacf7238c04f7005d3ef98910b0e97374372",
+    "tasks/spin-body-torque/environment/model.py": "21f66faf65f3638acb90cf492ba79536bdb3c130f8851627fe473910fc8ee39f",
+    "tasks/spin-body-torque/environment/test_public.py": "bc6d6d97bccd776576f527b3b802a5c2fe5ee84a22a8743547d0bbde9cfe083c",
+    "tasks/spin-body-torque/hint.md": "207a9851b2ba5a3bc36828a29d617b96b9df44858d32b85e9d1ee6b3423af3e4",
+    "tasks/spin-body-torque/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/spin-body-torque/solution/model.py": "1c637e45dbb05f5f9fd42ebe1b8eef92e1b4d10623e0ce4c0aa21b69bf250417",
+    "tasks/spin-body-torque/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+    "tasks/spin-body-torque/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/spin-body-torque/tests/data/calibration.json": "1ef0a5307a44078bf5129d9c0654eacf7238c04f7005d3ef98910b0e97374372",
+    "tasks/spin-body-torque/tests/metadata.json": "ebe8bc297911e3acf938f82b6b2d6bd56a2fcf989940c392ed13067d363118d5",
+    "tasks/spin-body-torque/tests/reference.py": "9236a0de920093de99b392af0370dd033b96f6a5fd115f43278ad4895d24ecf8",
+    "tasks/spin-body-torque/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+    "tasks/spin-body-torque/tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a"
+  },
+  "report_sha256": {
+    "results/spin-body-torque-validation.json": "07bea51ae1cba2b806a2031f82be4da4198c2005e0964800cf85d294ba6e37e9",
+    "results/spin-body-torque-provenance.json": "206ed78753c8a0228791dbe193fccb727fc9273ca54b3632e84476482b4983a4"
+  },
+  "author_packaging_status": "Final AUTHOR and provenance read and approved. All 18 source/control files and the validation report match their final hashes. No scientific source changed after validation."
+}

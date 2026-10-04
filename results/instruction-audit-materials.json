@@ -1,0 +1,452 @@
+{
+  "scope": [
+    "capillary-mixture",
+    "nonreciprocal-cavity",
+    "ternary-gas",
+    "thermoelectric-rod"
+  ],
+  "mode": "read-only review of frozen task files; only this findings report was written",
+  "summary": {
+    "public_hidden_solution_leak_found": false,
+    "explicit_solver_or_internal_model_form_mandate_found": false,
+    "findings": "One exact calibration side channel in cavity uncertainty metadata, one shared soft ambiguity about replacing supplied helpers, and optional reduction of procedural guidance in the capillary stress definition. No correction formula appears in ordinary instructions or public tests. Necessary apparatus assumptions should be retained.",
+    "frozen_revision_policy": "Recommendations apply to a future separately evaluated revision. No task source, data, grader, hint, or retained trial artifact was changed.",
+    "physics_answer_leakage_found": false,
+    "calibration_metadata_side_channel_found": true
+  },
+  "findings": [
+    {
+      "id": "cavity_sigma_side_channel",
+      "severity": "medium",
+      "category": "calibration_metadata_side_channel",
+      "tasks": [
+        "nonreciprocal-cavity"
+      ],
+      "finding": "Public sigma values encode the noiseless total-output response. The unknown loss rate can be recovered nearly exactly without reading any measured value, by fitting the shape of sigma with an unknown common proportionality constant.",
+      "agent_visible_evidence": [
+        {
+          "file": "tasks/nonreciprocal-cavity/environment/data/calibration.json",
+          "line_start": 14,
+          "line_end": 15,
+          "quote": "\"value\": 0.22094237363826072, \"sigma\": 0.0013282006776377901"
+        },
+        {
+          "file": "tasks/nonreciprocal-cavity/environment/README.md",
+          "line_start": 23,
+          "line_end": 23,
+          "quote": "Records contain input, measured value, and independent Gaussian standard deviation sigma."
+        }
+      ],
+      "private_confirmation": [
+        {
+          "file": "scripts/validate_nonreciprocal_cavity.py",
+          "line_start": 82,
+          "line_end": 87,
+          "quote": "sigma=metadata['measurement_relative_sigma']*np.maximum(abs(exact),metadata['measurement_scale_floor'])"
+        }
+      ],
+      "read_only_diagnostic": {
+        "uses_measurement_values": false,
+        "uses_private_reference_or_true_parameter": false,
+        "loss_rate_from_sigma_only": 0.26999999956359855,
+        "proportionality_fit": 0.0060000000065491685,
+        "sigma_only_residual_rmse": 9.94013300261816e-13
+      },
+      "impact": "This bypasses the intended noisy calibration inference. It does not reveal the hidden outgoing-emission law because the shortcut and oracle have exactly the same total output; it does not invalidate the observed physical classification of the existing three unhinted failures.",
+      "minimal_proposal": "For a future revision, choose sigma from known controls and fixed instrument specifications, independent of loss_rate and noiseless output; for example sigma=s0*body_occupation for the cold-input total-output calibration. Regenerate both data copies and rerun validation. Wording alone cannot remove this side channel.",
+      "minimal_public_wording": "The supplied standard deviations are fixed by the instrument settings.",
+      "qualification": "Known experimental uncertainties can legitimately carry information about a response. The issue here is their deterministic construction from the exact noiseless response, which gives an unadvertised route around the noisy-value fit. This is separate from leakage of the hidden physical correction."
+    },
+    {
+      "id": "helper_edit_scope_ambiguity",
+      "severity": "low",
+      "category": "soft_solution_space_narrowing",
+      "tasks": [
+        "capillary-mixture",
+        "nonreciprocal-cavity",
+        "ternary-gas",
+        "thermoelectric-rod"
+      ],
+      "finding": "The instructions ask the agent to complete a class or fit/predict methods, while only fit raises NotImplementedError and the prediction helpers are fully implemented. There is no explicit prohibition on revising helpers, but the framing can imply that those helpers are authoritative and only the stub should be filled. This is an ambiguity, not a hard model-form mandate.",
+      "agent_visible_evidence": [
+        {
+          "file": "tasks/capillary-mixture/instruction.md",
+          "line_start": 1,
+          "line_end": 1,
+          "quote": "Complete Model.fit(records) and Model.predict(experiments) in /app/model.py using the apparatus and interface in /app/README.md."
+        },
+        {
+          "file": "tasks/capillary-mixture/environment/model.py",
+          "line_start": 99,
+          "line_end": 112,
+          "quote": "fit raises NotImplementedError; predict delegates multiple-mode dynamics to profile."
+        },
+        {
+          "file": "tasks/nonreciprocal-cavity/instruction.md",
+          "line_start": 1,
+          "line_end": 1,
+          "quote": "Complete Model.fit(records) and Model.predict(experiments) in /app/model.py using the apparatus and interface in /app/README.md."
+        },
+        {
+          "file": "tasks/nonreciprocal-cavity/environment/model.py",
+          "line_start": 38,
+          "line_end": 41,
+          "quote": "fit raises NotImplementedError; predict delegates to predict_at."
+        },
+        {
+          "file": "tasks/ternary-gas/instruction.md",
+          "line_start": 1,
+          "line_end": 1,
+          "quote": "Complete model.py using the apparatus documentation and calibration measurements in README.md."
+        },
+        {
+          "file": "tasks/ternary-gas/environment/model.py",
+          "line_start": 26,
+          "line_end": 33,
+          "quote": "fit raises NotImplementedError; predict already dispatches to binary_solution."
+        },
+        {
+          "file": "tasks/thermoelectric-rod/instruction.md",
+          "line_start": 1,
+          "line_end": 1,
+          "quote": "Complete model.py using the apparatus documentation and calibration measurements in README.md."
+        },
+        {
+          "file": "tasks/thermoelectric-rod/environment/model.py",
+          "line_start": 38,
+          "line_end": 45,
+          "quote": "fit raises NotImplementedError; predict delegates to thermal_solution and terminal_voltage."
+        }
+      ],
+      "minimal_proposal": "Use one neutral edit-scope sentence consistently across tasks. It should permit alternative valid implementations without identifying a wrong assumption or a missing physical term.",
+      "minimal_public_wording": "You may replace any supplied helper or method; preserve the documented public API."
+    },
+    {
+      "id": "capillary_virtual_work_route",
+      "severity": "low",
+      "category": "derivation_route_guidance",
+      "tasks": [
+        "capillary-mixture"
+      ],
+      "finding": "The material-displacement work sentence supplies a specific derivation route for the reversible stress. It remains a valid constitutive definition and does not give the Korteweg force or diagnose the pressure-only starter, but it is more procedural than a minimal statement that the mechanical stress is the thermodynamic stress of the prescribed free energy.",
+      "agent_visible_evidence": [
+        {
+          "file": "tasks/capillary-mixture/environment/README.md",
+          "line_start": 9,
+          "line_end": 9,
+          "quote": "the reversible composition stress obtained from this free energy: its work under any volume-preserving material displacement is minus the corresponding change in F when the composition is carried with the liquid"
+        }
+      ],
+      "minimal_proposal": "If the aim is apparatus-only prose in a future revision, replace the procedural work explanation with a compact constitutive statement. Keep the explicit Helmholtz free energy, incompressible material advection, viscosity, stress scope, and absence of other stresses; deleting the mechanical/free-energy relation altogether would underdefine the answer. Retain the virtual-work derivation in author documentation.",
+      "minimal_public_wording": "At each instant the liquid obeys periodic quasistatic Stokes balance. Its stresses are incompressibility pressure, Newtonian viscous stress with viscosity 0.004, and the thermodynamic stress of the specified Helmholtz free energy. There are no other stresses or thermal noise.",
+      "assessment_limit": "This is optional reduction of derivation guidance, not evidence that the current task states its answer. The proposed wording still fixes the same physical stress up to an irrelevant isotropic pressure."
+    }
+  ],
+  "task_reviews": {
+    "capillary-mixture": {
+      "necessary_apparatus_facts": [
+        {
+          "evidence": {
+            "file": "tasks/capillary-mixture/environment/README.md",
+            "line_start": 3,
+            "line_end": 9,
+            "quote": "Constant-density incompressible liquid, explicit gradient free energy, relative diffusive flux, viscosity, periodic Stokes balance and reversible stress defined by material-displacement work."
+          },
+          "assessment": "The free energy and its relation to reversible mechanical stress are required for a unique physical answer. The current virtual-work definition is sufficient and gives no explicit Korteweg tensor or projected force, but it also states a derivation route that could be compressed; see capillary_virtual_work_route."
+        },
+        {
+          "evidence": {
+            "file": "tasks/capillary-mixture/environment/README.md",
+            "line_start": 15,
+            "line_end": 19,
+            "quote": "Preparation and detector ranges, signed amplitude convention, calibration subset and API."
+          },
+          "assessment": "Needed to define observables and valid inputs. Single-stripe calibration is directly visible in the records and is not a private diagnostic clue."
+        }
+      ],
+      "answer_hints": "None in the ordinary instruction/README. The private hint explicitly names anisotropic stress and unequal wavelengths, but is outside the ordinary Docker context.",
+      "model_form_constraints": {
+        "evidence": {
+          "file": "tasks/capillary-mixture/environment/README.md",
+          "line_start": 9,
+          "line_end": 9,
+          "quote": "Use this continuum model at the stated coefficients, without noise or additional constitutive terms."
+        },
+        "assessment": "This excludes different physical apparatus, not valid numerical methods or pressure-equivalent force representations. No change required. If shortened, preserve the defined reversible stress and the absence of thermal noise; do not delete the virtual-work rule."
+      },
+      "names_comments_imports": "Names such as osmotic_pressure and velocity_and_advection describe the supplied approximation. The force is a pure gradient, but that fact is the intended physical error, not a leaked correct force. All solver imports are used except minimize_scalar, which is a generic fitting aid for the unfinished fit rather than leftover oracle machinery.",
+      "data": {
+        "records": 120,
+        "record_keys": [
+          "input",
+          "value",
+          "sigma"
+        ],
+        "input_keys": [
+          "modes",
+          "time",
+          "detector_wave",
+          "quadrature"
+        ],
+        "sigma": 0.0007,
+        "private_parameter_or_solution_keys": false
+      },
+      "grading": {
+        "evidence": [
+          {
+            "file": "tasks/capillary-mixture/environment/test_public.py",
+            "line_start": 23,
+            "line_end": 35,
+            "quote": "Documented attribute, parameter bounds, NumPy shape/finite outputs, and calibration chi-square."
+          },
+          {
+            "file": "tasks/capillary-mixture/tests/test_hidden.py",
+            "line_start": 20,
+            "line_end": 50,
+            "quote": "Parameter recovery and output error versus an independent reference; no helper inspection."
+          }
+        ],
+        "assessment": "No solver, mesh, integration scheme, force representation, or internal state is required. The hidden numerical tolerances are not stated publicly; publishing an accuracy target would be an optional evaluation-transparency choice, not a correction to leaked physics."
+      }
+    },
+    "nonreciprocal-cavity": {
+      "necessary_apparatus_facts": [
+        {
+          "evidence": {
+            "file": "tasks/nonreciprocal-cavity/environment/README.md",
+            "line_start": 3,
+            "line_end": 13,
+            "quote": "Static Hermitian Hamiltonian, magnetic bias, independent Markov baths, amplitude decay r/2, Langevin coupling sqrt(r), input-output convention and normally ordered spectral normalization."
+          },
+          "assessment": "These fix reciprocity breaking, noise covariance and units. The detailed bath definition is sufficient to derive the answer, as an apparatus must be, but does not state either scattering-defect identity or compare emission with absorption. Removing it risks ambiguous bath normalization or an unspecified equilibrium model."
+        }
+      ],
+      "answer_hints": "No outgoing-vs-incoming diagnosis appears in ordinary README/model/tests. The task identifier mentions nonreciprocity, but that is a stated physical property of the apparatus rather than the hidden emission correction.",
+      "model_form_constraints": "Linear passive Markov dynamics and the documented bath ensemble are legitimate apparatus constraints. The grader permits direct bath propagation, a scattering-defect formula, or another numerically equivalent implementation.",
+      "names_comments_imports": "No answer-revealing comments or unused bath-propagation helper. Generic minimize_scalar is imported for the unfinished fit. The single axis=1 emission line implements the supplied reciprocal directional-emission assumption; the correct axis is not given.",
+      "data": {
+        "records": 144,
+        "record_keys": [
+          "input",
+          "value",
+          "sigma"
+        ],
+        "input_keys": [
+          "frequency",
+          "flux_phase",
+          "body_occupation",
+          "external_occupation",
+          "output_port"
+        ],
+        "private_parameter_or_solution_keys": false,
+        "qualification": "See cavity_sigma_side_channel: absence of a truth key does not prevent truth encoding in sigma."
+      },
+      "grading": {
+        "evidence": [
+          {
+            "file": "tasks/nonreciprocal-cavity/environment/test_public.py",
+            "line_start": 23,
+            "line_end": 35,
+            "quote": "Documented attribute/bounds and calibration output checks."
+          },
+          {
+            "file": "tasks/nonreciprocal-cavity/tests/test_hidden.py",
+            "line_start": 20,
+            "line_end": 50,
+            "quote": "Parameter and scalar observable errors; no scattering/noise helper inspection."
+          }
+        ],
+        "assessment": "No restriction to the oracle representation. Documented NumPy-array shape and parameter attribute requirements are enforced consistently."
+      }
+    },
+    "ternary-gas": {
+      "necessary_apparatus_facts": [
+        {
+          "evidence": {
+            "file": "tasks/ternary-gas/environment/README.md",
+            "line_start": 3,
+            "line_end": 14,
+            "quote": "Equal molecular masses, constant total molar density, sealed ends, pairwise intermolecular collisions, binary diffusion ratios and negligible inertia."
+          },
+          "assessment": "These determine the relevant mixture transport law and the zero bulk-flux frame. Pairwise collisions are a necessary physical mechanism, not an instruction to implement a named matrix or a supplied Maxwell-Stefan formula."
+        },
+        {
+          "evidence": {
+            "file": "tasks/ternary-gas/environment/README.md",
+            "line_start": 19,
+            "line_end": 27,
+            "quote": "Initial profiles are linear between nodes, mesh includes both ends, and predictions may use any mixture."
+          },
+          "assessment": "Piecewise-linear interpolation fixes preparation between measured nodes. It does not prescribe a spatial discretization or exclude continuum/spectral methods."
+        }
+      ],
+      "answer_hints": "The ordinary README never names Maxwell-Stefan, gives the hidden coupled friction matrix, or diagnoses the common-flux correction. The explicit diagnosis is confined to the private hint.",
+      "model_form_constraints": "The one shared diffusivity and ideal equal-mass gas apparatus are physical assumptions. Any correct transport implementation is permitted by the output-based grader.",
+      "names_comments_imports": "binary_solution and PAIR_RATIOS reflect known calibration physics. Every numerical import except the generic fitting aid minimize_scalar is used by the completed shortcut; no unused full-friction solve is left as a clue.",
+      "data": {
+        "format": "npz",
+        "keys": [
+          "t",
+          "x",
+          "initial",
+          "mole_fraction",
+          "sigma"
+        ],
+        "sigma_unique_values": [
+          0.002
+        ],
+        "private_parameter_or_solution_keys": false
+      },
+      "grading": {
+        "evidence": [
+          {
+            "file": "tasks/ternary-gas/environment/test_public.py",
+            "line_start": 6,
+            "line_end": 16,
+            "quote": "Calibration shape, positivity of fitted diffusivity, finite predictions and chi-square."
+          },
+          {
+            "file": "tasks/ternary-gas/tests/reference.py",
+            "line_start": 55,
+            "line_end": 67,
+            "quote": "Hidden comparison uses mole-fraction outputs and fitted diffusivity; no internal implementation check."
+          }
+        ],
+        "assessment": "No prescribed mesh refinement, finite-volume form or pair-matrix representation. The private normalized RMSE limit is not a model-form restriction."
+      }
+    },
+    "thermoelectric-rod": {
+      "necessary_apparatus_facts": [
+        {
+          "evidence": {
+            "file": "tasks/thermoelectric-rod/environment/README.md",
+            "line_start": 3,
+            "line_end": 16,
+            "quote": "Fixed end temperatures, imposed current density, local equilibrium, reciprocal linear thermoelectric transport, constant zero-current conductivity and measured S(T) with E sign convention."
+          },
+          "assessment": "Reciprocity is needed to infer the heat/charge cross coefficient from the specified Seebeck coefficient. The README does not give Pi=T*S, name Thomson heat, or provide the corrected heat equation. Removing reciprocity would leave the heat transport coefficient underdetermined."
+        }
+      ],
+      "answer_hints": "No direct hint to differentiate S(T) or add reversible bulk heating in the ordinary prompt. The private hint supplies that derivation and is not copied by Docker.",
+      "model_form_constraints": "Constant material properties, ideal reservoirs, one fitted conductivity and piecewise-linear initial temperature describe the intended apparatus. Neither the prompt nor grader mandates Fourier/Joule-only heating, the supplied sine transform, or a particular PDE solver.",
+      "names_comments_imports": {
+        "evidence": {
+          "file": "tasks/thermoelectric-rod/environment/model.py",
+          "line_start": 11,
+          "line_end": 18,
+          "quote": "seebeck(temperature) is defined but unused; terminal_voltage expands the same measured affine coefficient explicitly."
+        },
+        "assessment": "This unused helper is minor cleanup and could draw attention to thermoelectric coupling, but it supplies only the already-public measured S(T), not the missing Kelvin/Thomson law. Optional future cleanup: use the helper when evaluating the terminal-voltage integral or remove it. The imported minimize_scalar is a generic fitting aid."
+      },
+      "data": {
+        "format": "npz",
+        "keys": [
+          "x",
+          "t",
+          "initial",
+          "current",
+          "boundary",
+          "sigma_temperature",
+          "temperature",
+          "sigma_voltage",
+          "voltage"
+        ],
+        "sigma_temperature_unique_values": [
+          0.04
+        ],
+        "sigma_voltage_unique_values": [
+          2e-05
+        ],
+        "private_parameter_or_solution_keys": false
+      },
+      "grading": {
+        "evidence": [
+          {
+            "file": "tasks/thermoelectric-rod/environment/test_public.py",
+            "line_start": 6,
+            "line_end": 19,
+            "quote": "API shape, fitted conductivity and weighted calibration outputs."
+          },
+          {
+            "file": "tasks/thermoelectric-rod/tests/reference.py",
+            "line_start": 53,
+            "line_end": 71,
+            "quote": "Hidden temperature and voltage errors plus parameter recovery; no heat-flux or PDE implementation inspection."
+          }
+        ],
+        "assessment": "No restrictions on valid heat-equation derivations or numerical representations. The voltage convention and absolute temperature units are expressly public."
+      }
+    }
+  },
+  "public_private_boundary": {
+    "evidence": [
+      {
+        "file": "tasks/capillary-mixture/environment/Dockerfile",
+        "line_start": 5,
+        "line_end": 7,
+        "quote": "COPY README.md model.py test_public.py ./; COPY data/ ./data/"
+      },
+      {
+        "file": "tasks/nonreciprocal-cavity/environment/Dockerfile",
+        "line_start": 5,
+        "line_end": 7,
+        "quote": "COPY README.md model.py test_public.py ./; COPY data/ ./data/"
+      },
+      {
+        "file": "tasks/ternary-gas/environment/Dockerfile",
+        "line_start": 4,
+        "line_end": 6,
+        "quote": "COPY README.md model.py test_public.py ./; COPY data/ ./data/"
+      },
+      {
+        "file": "tasks/thermoelectric-rod/environment/Dockerfile",
+        "line_start": 4,
+        "line_end": 6,
+        "quote": "COPY README.md model.py test_public.py ./; COPY data/ ./data/"
+      }
+    ],
+    "assessment": "The public trees contain only those files and calibration data. No author document, true-parameter metadata, private reference, hidden-case name, or hint file is copied into the ordinary image. The separately enabled hinted condition intentionally provides a diagnosis and is not accidental leakage."
+  },
+  "inspected_sha256": {
+    "tasks/capillary-mixture/instruction.md": "9e8a8f8226899e4034c3259ceb114a8bc1a36444f495dd2a42f64cbbb0f0dfe6",
+    "tasks/capillary-mixture/environment/README.md": "42354b4c17882606bfce718bbb1038cc4d966265db22a115c08c27313ae23e4d",
+    "tasks/capillary-mixture/environment/model.py": "a813f8a8a77d35cd832be903fab6f95ca3beea62e38ba83aa90c74ae7c6554b9",
+    "tasks/capillary-mixture/environment/test_public.py": "21005a17739fe4a46aefd0bce0de6b319199b37c01f9f0ce2e24c3458365641e",
+    "tasks/capillary-mixture/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/capillary-mixture/tests/test_hidden.py": "48d97081156980e687c1420707356e9ea21fbaa8d49827e8b0d6d44631bc09e6",
+    "tasks/capillary-mixture/tests/reference.py": "7b994eb9b4c0197a9877f247242a07b5cd7aa7d2afe1d530097cfdea1d239467",
+    "tasks/capillary-mixture/tests/metadata.json": "eed3a9f63c0435adefd3befc919dfcd8e0c4d3d1a1e442e0cd4ea07f8b04268b",
+    "tasks/capillary-mixture/hint.md": "10433265f950856ad7e253e8c22ae198c30d22afb80c5f4d868ef0ef5ed357fd",
+    "tasks/capillary-mixture/environment/data/calibration.json": "af52f7017e7ec1860279cb8f230b7492e2f06d55dcf60cb94bacded3a374a973",
+    "tasks/nonreciprocal-cavity/instruction.md": "9e8a8f8226899e4034c3259ceb114a8bc1a36444f495dd2a42f64cbbb0f0dfe6",
+    "tasks/nonreciprocal-cavity/environment/README.md": "89b392d0678eadaa1a907935cf008ce609531426b524e138a39953c7be7eff9c",
+    "tasks/nonreciprocal-cavity/environment/model.py": "bf12fbb2c26d4f08b6b66c65b6f0abbcbd9ca29c7f2035e97c4395179ed76fa8",
+    "tasks/nonreciprocal-cavity/environment/test_public.py": "3b2e2771ec67b934b10cd6da80cc0150cc7463d085af42d7a6ba954c7670f45b",
+    "tasks/nonreciprocal-cavity/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/nonreciprocal-cavity/tests/test_hidden.py": "48d97081156980e687c1420707356e9ea21fbaa8d49827e8b0d6d44631bc09e6",
+    "tasks/nonreciprocal-cavity/tests/reference.py": "fa581f8cd93e06b1c8c41fd776bd8d58b10af1a607471a6d0c2ac2d282a45c10",
+    "tasks/nonreciprocal-cavity/tests/metadata.json": "1b1e4d81a6252f58ed90069fa1dc6c0ba9f462d46132273855136c8b5f40d6f8",
+    "tasks/nonreciprocal-cavity/hint.md": "a84d52358659bb45b396d9418d3ff0a5ed3fe3632eeeaa0d8071af23f9978168",
+    "tasks/nonreciprocal-cavity/environment/data/calibration.json": "f28a8614576cd420d0b8b520ef587fbfa9832f1c2fe28c1fd585f8fc07c68b75",
+    "tasks/ternary-gas/instruction.md": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+    "tasks/ternary-gas/environment/README.md": "ce3fee2b82b7f59c67275ff3ef98ac2a3184a80d1058234298b86762233e51a8",
+    "tasks/ternary-gas/environment/model.py": "6c073c4af4165988395fdf20e7d1dea5fff27f196249d6dea91d9bf0cdc52fc1",
+    "tasks/ternary-gas/environment/test_public.py": "fb85b78186d9222e062f9dacceebff3e1dbb9babd292f4d0f3536da6d13091ed",
+    "tasks/ternary-gas/environment/Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+    "tasks/ternary-gas/tests/test_hidden.py": "3dd771a11869255dd9ece468fc07dc24c518d08070d55dc963f12bd0f0cbc5be",
+    "tasks/ternary-gas/tests/reference.py": "82e53ec002355695529d8c80ef19637c10732e35fb2ebc0ca27717f9c7c238c2",
+    "tasks/ternary-gas/tests/metadata.json": "4c9caee8f21256ba13aac3666891de80337bbb72c8c3a1803291af4fe0c557fd",
+    "tasks/ternary-gas/hint.md": "1822c1aa5604636f8d9b729ac5af39e3aa10fa3e6c54dd44f6a86549864d4fb8",
+    "tasks/ternary-gas/environment/data/calibration.npz": "098d75b0fa67ed01c6b48c0987f297d1f11defe45a7fe4a7e926a6402fb5dc3b",
+    "tasks/thermoelectric-rod/instruction.md": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+    "tasks/thermoelectric-rod/environment/README.md": "048ef263f0cc59ec1059f4bbb8fc57358e9cdad09c17964be5f5a6f859e1482a",
+    "tasks/thermoelectric-rod/environment/model.py": "61e570f2281fafb048184ab6293ea5c3df6f462ba94be4f75476fc2ca6dcaf97",
+    "tasks/thermoelectric-rod/environment/test_public.py": "cb86fffc82ded0dbf1022934f8aef651f65f6a23a978d0268406a591611bf191",
+    "tasks/thermoelectric-rod/environment/Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+    "tasks/thermoelectric-rod/tests/test_hidden.py": "8888d348584bb4f9a05dac70c8d935359e1d3df761e87e45f46314d729de1489",
+    "tasks/thermoelectric-rod/tests/reference.py": "94fc5099e1b291b616092db15cbe9a95d9ea2ec599ba478bb5b9e9d1286e4544",
+    "tasks/thermoelectric-rod/tests/metadata.json": "e8858c6406388d9072f6868a45a039be8cfd30c9ab64a0a30b8906e121418713",
+    "tasks/thermoelectric-rod/hint.md": "c628f9dd08853d2f21d921bb9c74b8a28b172f5ad39d21160f8dd396218d187a",
+    "tasks/thermoelectric-rod/environment/data/calibration.npz": "86f7140bc4a1ede801e76882b19336d8940d14d3191b5dddf2b949888866468f"
+  }
+}

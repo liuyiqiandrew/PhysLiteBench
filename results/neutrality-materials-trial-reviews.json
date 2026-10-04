@@ -1,0 +1,2202 @@
+{
+  "ternary-gas__fSv7kf9": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "initial",
+    "job": "ternary-gas-neutral-v1-initial-plain-20261002-152431",
+    "classification": "pass",
+    "reason": "The final source solves the full constrained Maxwell-Stefan friction equations at each face, then conservatively evolves all three species. Public trajectory explicitly identifies the supplied mixture-averaged flux as an approximation or chooses the coupled pair-friction equations. Binary calibration fits diffusivity accurately, and every mixed-species hidden group passes. Temporary batched-linear-solve or Jacobian-sparsity mistakes were corrected before submission; these are substantive physical passes.",
+    "reward": 1.0,
+    "metrics": {
+      "parameter": 0.03514892611249468,
+      "parameter_relative_error": 0.00425503178556208,
+      "calibration_chi2": 0.9854613899384945,
+      "hidden": {
+        "mixture_0": 0.0012360714490870334,
+        "mixture_1": 0.001379463843445525,
+        "mixture_2": 0.0009463076528026137
+      }
+    },
+    "source_sha256": "7ac6f460a793dc166431f262455423a52c2a40d873c859f83db1991ee725d899",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-v1-initial-plain-20261002-152431/ternary-gas__fSv7kf9/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-v1-initial-plain-20261002-152431/ternary-gas__fSv7kf9/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-v1-initial-plain-20261002-152431/ternary-gas__fSv7kf9/agent/codex.txt",
+      "jobs/ternary-gas-neutral-v1-initial-plain-20261002-152431/ternary-gas__fSv7kf9/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-v1-initial-plain-20261002-152431/ternary-gas__fSv7kf9/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API, then implement and test the model against the documented behavior.",
+      "The calibration contains three binary preparations, so the diffusivity can be identified analytically from the Neumann diffusion modes. For mixtures with all three gases present, I\u2019m implementing the full Maxwell\u2013Stefan flux system at cell faces and integrating the resulting conservative finite-volume equations.",
+      "The implementation now passes the public calibration test, recovering `D \u2248 0.03515 mm\u00b2/s`. I also exercised a genuine ternary prediction: it returns the required shape, remains finite, conserves total mole fraction to numerical precision, and leaves a uniform mixture unchanged.",
+      "One stress check exposed a performance concern for strongly mixed, long-time ternary trajectories, so I\u2019m checking the integrator behavior before wrapping up. The required calibration path remains fast because binary preparations use the exact modal solution.",
+      "Implemented `/app/model.py` with:\n\n- Diffusivity fitting from calibration data (`D \u2248 0.03515 mm\u00b2/s`)\n- Exact binary Neumann diffusion solution\n- Full ternary Maxwell\u2013Stefan transport\n- Conservative finite-volume integration\n- Required prediction shape and finite outputs\n- Edge-case handling and API preservation\n\nVerified with:\n\n```text\n1 passed\n```"
+    ],
+    "public_tool_count": 26,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "ternary-gas__7aN6pUm": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "followup",
+    "job": "ternary-gas-neutral-v1-followup-plain-20261002-153409",
+    "classification": "pass",
+    "reason": "The final source solves the full constrained Maxwell-Stefan friction equations at each face, then conservatively evolves all three species. Public trajectory explicitly identifies the supplied mixture-averaged flux as an approximation or chooses the coupled pair-friction equations. Binary calibration fits diffusivity accurately, and every mixed-species hidden group passes. Temporary batched-linear-solve or Jacobian-sparsity mistakes were corrected before submission; these are substantive physical passes.",
+    "reward": 1.0,
+    "metrics": {
+      "parameter": 0.03514892631315001,
+      "parameter_relative_error": 0.004255037518571703,
+      "calibration_chi2": 0.9854613899385063,
+      "hidden": {
+        "mixture_0": 0.0012360739067111548,
+        "mixture_1": 0.001379466322086305,
+        "mixture_2": 0.0009463092467790395
+      }
+    },
+    "source_sha256": "e3f674c2a5e0d6f0d1e2713c62de555fbe7ad5b2bde377f118f7189dad8a9f44",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__7aN6pUm/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__7aN6pUm/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__7aN6pUm/agent/codex.txt",
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__7aN6pUm/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__7aN6pUm/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current model API first, then implement the model and run the available checks/tests against the documented interface.",
+      "The calibration set contains three binary preparations, so the scale can be estimated directly from the exact no-flux cosine-mode solution. I\u2019m also correcting the ternary transport step to solve the full Maxwell\u2013Stefan flux equations, while retaining the fast exact binary path.",
+      "The public calibration test now passes with a fitted diffusivity of about `0.0351489 mm\u00b2/s` and normalized residual sum-of-squares `0.9855`. I also checked ternary cases for finiteness, conservation, constant states, pure-component states, and the zero-time edge case.",
+      "Implemented `/app/model.py` with:\n\n- Diffusivity fitting from calibration data.\n- Exact binary no-flux diffusion via cosine modes.\n- Ternary Maxwell\u2013Stefan diffusion.\n- Validated prediction shapes, finite outputs, conservation, and edge cases.\n\nVerification: `python -m pytest -q` passes."
+    ],
+    "public_tool_count": 28,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "ternary-gas__JPiUQgk": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "followup",
+    "job": "ternary-gas-neutral-v1-followup-plain-20261002-153409",
+    "classification": "pass",
+    "reason": "The final source solves the full constrained Maxwell-Stefan friction equations at each face, then conservatively evolves all three species. Public trajectory explicitly identifies the supplied mixture-averaged flux as an approximation or chooses the coupled pair-friction equations. Binary calibration fits diffusivity accurately, and every mixed-species hidden group passes. Temporary batched-linear-solve or Jacobian-sparsity mistakes were corrected before submission; these are substantive physical passes.",
+    "reward": 1.0,
+    "metrics": {
+      "parameter": 0.035148926112505335,
+      "parameter_relative_error": 0.004255031785866725,
+      "calibration_chi2": 0.9854613899384947,
+      "hidden": {
+        "mixture_0": 0.001236071448470692,
+        "mixture_1": 0.001379463843577176,
+        "mixture_2": 0.0009463076528872114
+      }
+    },
+    "source_sha256": "42cb547e9252f7a11154e32f941be4feeb4d9ba81c7343a675b5d4df5c5c4d7d",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__JPiUQgk/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__JPiUQgk/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__JPiUQgk/agent/codex.txt",
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__JPiUQgk/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-v1-followup-plain-20261002-153409/ternary-gas__JPiUQgk/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then replace or refine the model and run the repository\u2019s available checks against the documented interface.",
+      "The public test confirms the required output shape and a tight calibration threshold. The current file has no fitting logic and its multicomponent flux is an approximation, so I\u2019m checking the calibration preparations and deriving the exact constrained Maxwell\u2013Stefan flux before implementing `fit` and robust prediction behavior.",
+      "The calibration set contains three binary preparations, which makes the common diffusivity directly identifiable from the exact Neumann diffusion solution. For general three-gas predictions I\u2019ll use the constrained Maxwell\u2013Stefan flux system at cell faces, with zero-flux walls and a stiff method-of-lines integrator; binary cases will retain the spectral solution for accuracy and speed.",
+      "The calibration test now passes with a fitted \\(D \\approx 0.03515\\ \\mathrm{mm^2/s}\\). I also exercised a ternary preparation: predictions are finite, conserve the local sum of mole fractions, and conserve each species\u2019 integrated amount to numerical precision. I\u2019m doing a final code review for edge cases and numerical consistency.",
+      "Implemented `/app/model.py` with:\n\n- Weighted diffusivity fitting from calibration data.\n- Exact binary diffusion via DCT solution.\n- General three-species Maxwell\u2013Stefan flux solver.\n- Robust validation and documented prediction shape.\n- Zero-flux boundary conditions and conservation checks.\n\nValidation: `python -m pytest -q test_public.py` passes. Fitted diffusivity is approximately `0.03515 mm\u00b2/s`."
+    ],
+    "public_tool_count": 16,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "capillary-mixture__wT4vSuw": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "initial",
+    "job": "capillary-mixture-neutral-v1-initial-plain-20261002-153851",
+    "classification": "pass",
+    "reason": "The final source derives the reversible force -c*grad(mu), removes its pressure component by the incompressible Stokes projection, and includes the resulting composition advection. Public trajectory explicitly identifies the pure-gradient starter force or states the variational stress law. Mobility is correctly fitted and all hidden groups pass with the intended physical model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameters": {
+        "mobility": 0.03997691423215762
+      },
+      "parameter_relative_error_max": 0.0005771441960594759,
+      "calibration_chi2": 0.9361885087489814,
+      "hidden": {
+        "mode_redistribution": 4.064685089895806e-06,
+        "oblique_patterns": 1.7443626372732892e-05,
+        "generated_modes": 1.998356784701899e-06
+      }
+    },
+    "source_sha256": "88d597ea51859692e5ba092b7f41e28f48a05cceb605436214bc81a344b7bf30",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement and test the model against the documented interface.",
+      "The calibration records are 120 noisy single-stripe measurements across three wave numbers and two signed amplitudes. They identify mobility at about 0.04; the existing fit is unimplemented, and its hydrodynamic force projection cancels out. I\u2019m replacing that with the variational composition force, dealiased spectral evolution, and a weighted calibration fit.",
+      "The implementation is in place and the public calibration tests pass. I\u2019m doing a final numerical/API check now, including signed detector quadratures, unsorted query times, fresh-preparation grouping, and energy decay for a coupled two-mode state.",
+      "Implemented `/app/model.py` with:\n\n- Variational composition stress and incompressible Stokes coupling\n- Dealiased Fourier spectral solver with ETDRK4 integration\n- Weighted mobility calibration using `data/calibration.json`\n- Signed cosine/sine detector predictions\n- Fresh-preparation grouping and input-order preservation\n- Robust finite NumPy outputs\n\nValidation: `2 passed`; fitted mobility \u2248 `0.03998`."
+    ],
+    "public_tool_count": 13,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "capillary-mixture__7LjXsrh": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "followup",
+    "job": "capillary-mixture-neutral-v1-followup-plain-20261002-154501",
+    "classification": "pass",
+    "reason": "The final source derives the reversible force -c*grad(mu), removes its pressure component by the incompressible Stokes projection, and includes the resulting composition advection. Public trajectory explicitly identifies the pure-gradient starter force or states the variational stress law. Mobility is correctly fitted and all hidden groups pass with the intended physical model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameters": {
+        "mobility": 0.03997691423215762
+      },
+      "parameter_relative_error_max": 0.0005771441960594759,
+      "calibration_chi2": 0.9361885087489814,
+      "hidden": {
+        "mode_redistribution": 4.064685089869036e-06,
+        "oblique_patterns": 1.7443626372736226e-05,
+        "generated_modes": 1.998356784702834e-06
+      }
+    },
+    "source_sha256": "cb24cd4bd14c1a27e35951963ec1cf2b61ff9651978b23cf33ea2770f2dbd139",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement the model and run the available checks against the documented interface.",
+      "The calibration stripes isolate mobility cleanly: a single mode has no incompressible flow, so its decay rate is \\(M|k|^2(1+0.2|k|^2)\\). For multi-mode predictions I\u2019m implementing the coupled spectral evolution: Cahn\u2013Hilliard diffusion plus the quasistatic Stokes flow driven by the variational force \\(-c\\nabla\\mu\\), with dealiased Fourier products.",
+      "The implementation now fits the calibration set to mobility \u2248 0.03998 (consistent with the records\u2019 \u22480.04 signal), and the public tests pass. I also checked timestep and grid convergence on coupled multi-mode cases; the predictions remained stable and finite through the full time range.",
+      "Implemented `/app/model.py`.\n\n- Added weighted mobility fitting from calibration records.\n- Implemented coupled Cahn\u2013Hilliard/Stokes spectral dynamics with variational force `-c\u2207\u03bc`.\n- Added dealiased Fourier products and stable ETD integration.\n- Preserved documented prediction API and signed detector outputs.\n- Verified with `pytest`: 2 tests passed.\n- Fitted mobility: approximately `0.03998`."
+    ],
+    "public_tool_count": 13,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "capillary-mixture__QrvzKWi": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "followup",
+    "job": "capillary-mixture-neutral-v1-followup-plain-20261002-154501",
+    "classification": "pass",
+    "reason": "The final source derives the reversible force -c*grad(mu), removes its pressure component by the incompressible Stokes projection, and includes the resulting composition advection. Public trajectory explicitly identifies the pure-gradient starter force or states the variational stress law. Mobility is correctly fitted and all hidden groups pass with the intended physical model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameters": {
+        "mobility": 0.03997691423215762
+      },
+      "parameter_relative_error_max": 0.0005771441960594759,
+      "calibration_chi2": 0.9361885087489814,
+      "hidden": {
+        "mode_redistribution": 4.064685089892676e-06,
+        "oblique_patterns": 1.744362637273249e-05,
+        "generated_modes": 1.998356784702092e-06
+      }
+    },
+    "source_sha256": "987c95685569dd71a97da8efe0cf4a064c495216a3f420996fc5b072d9acf509",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API/tests, then implement and validate the model against the documented interface.",
+      "The calibration set is 120 noisy single-stripe measurements, so mobility can be fit directly with a weighted Gaussian least-squares objective. For general experiments, I\u2019m implementing the coupled incompressible Cahn\u2013Hilliard/Stokes evolution spectrally, including the variational composition force and the signed detector convention.",
+      "The public calibration and interface tests now pass, with a fitted mobility of about `0.03998` (consistent with the intended `0.04` scale). I\u2019m doing a final numerical sanity check on mode-sign handling, zero-time detector amplitudes, and timestep convergence before handing it over.",
+      "Implemented `/app/model.py` with:\n\n- Weighted mobility fitting from calibration records\n- Spectral Cahn\u2013Hilliard evolution\n- Quasistatic incompressible Stokes flow with reversible composition stress\n- Dealiased ETDRK4 integration\n- Correct signed cosine/sine detector predictions\n- Batched predictions for repeated preparations\n\nValidation: all public tests pass (`2 passed`), with fitted mobility \u2248 `0.03998`."
+    ],
+    "public_tool_count": 21,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "nonreciprocal-cavity__goMTqDM": {
+    "task": "nonreciprocal-cavity",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "initial",
+    "job": "nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459",
+    "classification": "physics_model_failure",
+    "reason": "The final source retains diag(I-S\u2020S), incoming absorptivity, for outgoing thermal emission in the biased circuit. It fits the correct loss rate, and total-output calibration is exactly blind to that reciprocal-emission approximation. Public trajectory accepts the supplied forward calculation and focuses on weighted fitting and interface behavior, without identifying the correct outgoing covariance. This is a physical-model failure under the neutral edit-permission instruction.",
+    "reward": 0.0,
+    "metrics": {
+      "parameters": {
+        "loss_rate": 0.2700427989863407
+      },
+      "parameter_relative_error_max": 0.00015851476422468203,
+      "calibration_chi2": 0.9023136465489543,
+      "hidden": {
+        "clockwise_ports": 0.131141413672621,
+        "reversed_bias": 0.19367749255556865,
+        "thermal_background": 0.159483508299608
+      }
+    },
+    "source_sha256": "35b68734e86cc7ef8fab93e15d73513c75481bc1b3f72ff9051b40397231a2e4",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/artifacts/app/model.py",
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/agent/trajectory.json",
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/agent/codex.txt",
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/verifier/metrics.json",
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API, then implement and test the model against the documented interface.",
+      "The scattering calculation already follows the stated input\u2013output convention, but fitting is missing. I\u2019m checking the calibration residual structure now so the fit uses the recorded uncertainties correctly and remains stable for all documented experiment shapes.",
+      "The calibration is consistent with a weighted one-parameter least-squares fit; the optimum is near `loss_rate = 0.27004`. I\u2019ll add that constrained fit and keep the prediction path vectorized, including total-output and per-port cases.",
+      "Implemented [`model.py`](/app/model.py).\n\n- Added uncertainty-weighted calibration fitting for `loss_rate`.\n- Constrained fit to `[0.1, 0.6]`.\n- Preserved prediction API and empty-input behavior.\n- Calibration fit: `loss_rate \u2248 0.27004`.\n- Tests pass: `2 passed`.\n"
+    ],
+    "public_tool_count": 11,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups.",
+    "fixed_parameter_repair": {
+      "parameter_name": "loss_rate",
+      "parameter": 0.2700427989863407,
+      "change": "Only replace incoming-absorption emission closure by outgoing Langevin-noise covariance; scattering matrix, fitted rate, external background and all remaining source unchanged.",
+      "before_line": "emission=1-np.sum(powers,axis=1)",
+      "after_line": "emission=1-np.sum(powers,axis=2)",
+      "before": {
+        "clockwise_ports": 0.13114141367262103,
+        "reversed_bias": 0.19367749255556851,
+        "thermal_background": 0.15948350829960806
+      },
+      "after": {
+        "clockwise_ports": 4.023216752561143e-05,
+        "reversed_bias": 6.122294909928791e-05,
+        "thermal_background": 4.050975713482082e-05
+      },
+      "calibration_prediction_max_change": 8.881784197001252e-16,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "execution": "In-memory copy only; no retained artifact was edited."
+    }
+  },
+  "thermoelectric-rod__N4B5d7A": {
+    "task": "thermoelectric-rod",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "initial",
+    "job": "thermoelectric-rod-neutral-v1-initial-plain-20261002-155400",
+    "classification": "pass",
+    "reason": "The final source includes -J*T*Sprime(T)*T_x, or its equivalent conservative derivative of T squared, together with Fourier conduction and Joule heat. Public trajectory derives the term from reciprocal thermoelectric heat flux and electrical work. Conductivity calibration and every current-driven thermal/voltage group pass. This is a substantive correction of the physical heat model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameter": 1.2520817935888304,
+      "parameter_relative_error": 0.0016654348710642974,
+      "calibration_chi2": 0.983521602221394,
+      "hidden": {
+        "current_0": 0.0009590381649760962,
+        "current_1": 0.001329424695735916,
+        "current_2": 0.0014267351346073718
+      },
+      "voltage_absolute_error": [
+        6.938893903907228e-18,
+        3.469446951953614e-18,
+        3.469446951953614e-18
+      ]
+    },
+    "source_sha256": "576201e7e03f49269de0a775bafef257ad0fdd34b677019f2fd0409cebdfcaf4",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/thermoelectric-rod-neutral-v1-initial-plain-20261002-155400/thermoelectric-rod__N4B5d7A/artifacts/app/model.py",
+      "jobs/thermoelectric-rod-neutral-v1-initial-plain-20261002-155400/thermoelectric-rod__N4B5d7A/agent/trajectory.json",
+      "jobs/thermoelectric-rod-neutral-v1-initial-plain-20261002-155400/thermoelectric-rod__N4B5d7A/agent/codex.txt",
+      "jobs/thermoelectric-rod-neutral-v1-initial-plain-20261002-155400/thermoelectric-rod__N4B5d7A/verifier/metrics.json",
+      "jobs/thermoelectric-rod-neutral-v1-initial-plain-20261002-155400/thermoelectric-rod__N4B5d7A/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current model implementation, then derive the required behavior and run the available tests or validation checks.",
+      "The public calibration uses zero current, so it identifies conductivity from transient diffusion; hidden checks are likely to exercise the current-dependent thermoelectric terms described in the README. I\u2019m deriving and implementing the full 1-D coupled thermal model while preserving the exact terminal-voltage integral.",
+      "The governing heat equation implied by reciprocity and energy balance is\n\\(c\\,T_t=k\\,T_{xx}+\\rho J^2-J\\,T\\,S'(T)\\,T_x\\), with fixed endpoint temperatures. I\u2019ll use the exact sine-series solution for zero current (including calibration fitting) and a high-order method-of-lines integration for nonzero current, while computing voltage analytically from the endpoint temperatures.",
+      "The implementation now passes the required public test. I also exercised both current polarities at the stated current limit; predictions remain finite and the endpoint voltage uses the exact Seebeck antiderivative. I\u2019m doing one final API/edge-case check and cleanup.",
+      "Implemented `/app/model.py` with:\n\n- Conductivity fitting from calibration data\n- Zero-current spectral thermal solution\n- Current-dependent Joule and Thomson heating\n- Numerical integration for nonzero currents\n- Exact terminal voltage calculation\n- Documented API and output shapes\n\nValidation: `python -m pytest -q test_public.py` passes. Fitted conductivity is approximately `1.25208 W/(m\u00b7K)`."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "thermoelectric-rod__55eQGwu": {
+    "task": "thermoelectric-rod",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "followup",
+    "job": "thermoelectric-rod-neutral-v1-followup-plain-20261002-160145",
+    "classification": "pass",
+    "reason": "The final source includes -J*T*Sprime(T)*T_x, or its equivalent conservative derivative of T squared, together with Fourier conduction and Joule heat. Public trajectory derives the term from reciprocal thermoelectric heat flux and electrical work. Conductivity calibration and every current-driven thermal/voltage group pass. This is a substantive correction of the physical heat model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameter": 1.252081793588307,
+      "parameter_relative_error": 0.0016654348706457434,
+      "calibration_chi2": 0.9835216022213434,
+      "hidden": {
+        "current_0": 0.001123864154559574,
+        "current_1": 0.0013329255843593064,
+        "current_2": 0.0014217296284548821
+      },
+      "voltage_absolute_error": [
+        6.938893903907228e-18,
+        3.469446951953614e-18,
+        3.469446951953614e-18
+      ]
+    },
+    "source_sha256": "73d7b0b30bc9f6d586928ebbd0c74f2ae50740165a2989afa8f69346f4c88aca",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__55eQGwu/artifacts/app/model.py",
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__55eQGwu/agent/trajectory.json",
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__55eQGwu/agent/codex.txt",
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__55eQGwu/verifier/metrics.json",
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__55eQGwu/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current implementation, then derive the model and run the available tests or validation checks against the documented interface.",
+      "The documented voltage is determined exactly by the endpoint temperatures, while the thermal dynamics require the Thomson term implied by reciprocity: with \\(\\Pi=TS\\), the heat equation is \\(cT_t=kT_{xx}+\\rho J^2-JT\\,S'(T)T_x\\). I\u2019m checking the calibration numerically and will implement a stable solver that also handles nonzero-current hidden cases.",
+      "The calibration contains three zero-current preparations, and weighted fitting gives a conductivity near 1.25 W/(m\u00b7K). I\u2019m now replacing the placeholder fit with weighted scalar calibration and adding a transient solver for the current-dependent thermoelectric equation, while retaining the exact sine-mode solution for the zero-current case.",
+      "The implementation passes the public calibration test and recovers \\(k \\approx 1.25208\\ \\mathrm{W/(m\\,K)}\\). I also exercised positive and negative currents, including \\(t=0\\), duplicate/unsorted query times, and confirmed finite arrays with the required shapes.",
+      "Implemented `/app/model.py` with:\n\n- Weighted conductivity calibration from the provided data.\n- Thermoelectric transient heat model including Joule and Thomson effects.\n- Stable refined numerical integration for nonzero currents.\n- Exact zero-current solution.\n- Documented temperature and terminal-voltage prediction API.\n\nValidation passed:\n\n```text\n1 passed in 0.16s\n```\n\nFitted conductivity: approximately `1.25208 W/(m\u00b7K)`."
+    ],
+    "public_tool_count": 15,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "thermoelectric-rod__Atu8uVC": {
+    "task": "thermoelectric-rod",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "followup",
+    "job": "thermoelectric-rod-neutral-v1-followup-plain-20261002-160145",
+    "classification": "pass",
+    "reason": "The final source includes -J*T*Sprime(T)*T_x, or its equivalent conservative derivative of T squared, together with Fourier conduction and Joule heat. Public trajectory derives the term from reciprocal thermoelectric heat flux and electrical work. Conductivity calibration and every current-driven thermal/voltage group pass. This is a substantive correction of the physical heat model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameter": 1.2520817935888247,
+      "parameter_relative_error": 0.0016654348710596345,
+      "calibration_chi2": 0.9835216022213962,
+      "hidden": {
+        "current_0": 0.0009600557196393336,
+        "current_1": 0.0013296322251338632,
+        "current_2": 0.0014271873061087147
+      },
+      "voltage_absolute_error": [
+        6.938893903907228e-18,
+        3.469446951953614e-18,
+        3.469446951953614e-18
+      ]
+    },
+    "source_sha256": "17adbb09e115b225d7a7be89fb475959a3f26b832bef9f363a1374ddf83313e9",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__Atu8uVC/artifacts/app/model.py",
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__Atu8uVC/agent/trajectory.json",
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__Atu8uVC/agent/codex.txt",
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__Atu8uVC/verifier/metrics.json",
+      "jobs/thermoelectric-rod-neutral-v1-followup-plain-20261002-160145/thermoelectric-rod__Atu8uVC/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then fit/validate the model against the documented interface and update `/app/model.py`.",
+      "The calibration set has three zero-current preparations, so conductivity is identifiable from transient diffusion; hidden checks are likely to exercise nonzero current and sign conventions. I\u2019m deriving the coupled thermoelectric heat equation and checking the calibration numerically before editing.",
+      "The governing temperature equation is\n\\[\nC\\,T_t=k\\,T_{xx}+\\rho J^2-J\\,T\\,S'(T)\\,T_x,\n\\]\nwith fixed endpoint temperatures; the last term is the Thomson contribution implied by the stated electric-field convention. I\u2019ll preserve the exact sine-series solution at zero current, add a stable method-of-lines solver for nonzero current, and fit conductivity using both independent calibration measurements.",
+      "The public calibration test passes. I found one compatibility issue in the new nonzero-current path (`np.math` is unavailable in this environment), so I\u2019m correcting it and then exercising current-driven predictions, including `t=0`, endpoint temperatures, and both current directions.",
+      "The nonzero-current checks now pass: zero-time predictions preserve the preparation, Joule heating is even in current, Thomson asymmetry reverses with current, endpoints remain reservoir-fixed, and terminal voltage changes sign as expected. I\u2019m doing the final full test and sanity checks.",
+      "Implemented `/app/model.py` with:\n\n- Conductivity fitting from calibration temperature and voltage data.\n- Exact zero-current heat diffusion solution.\n- Nonzero-current Joule and Thomson thermoelectric effects.\n- Correct terminal voltage integration.\n- Required prediction shapes and finite outputs.\n\nValidation: `python -m pytest -q` passes. Fitted conductivity is approximately `1.25208 W/(m\u00b7K)`."
+    ],
+    "public_tool_count": 19,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "capillary-mixture__2fxGMNH": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "capillary-mixture-neutral-r2-initial-plain-20261002-181212",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The submitted source implements the full symmetric Newtonian stress eta*(grad u+grad u transpose), correctly projected capillary forcing, and inverse-viscosity weighted fitting. Public messages explicitly commit to the symmetric stress after checking the uniform-viscosity calibration. Temporary exploratory sign/fit coding mistakes were fixed before submission. The fitted parameter and all hidden groups pass; this is a substantive physical solution, not a lucky shortcut.",
+    "metrics": {
+      "parameters": {
+        "viscosity": 0.00399692103514514
+      },
+      "parameter_relative_error_max": 0.0007697412137150916,
+      "calibration_chi2": 0.9321426960397707,
+      "hidden": {
+        "crossed_waves": 0.00020514957432732575,
+        "oblique_waves": 0.00012122730211527099,
+        "unequal_waves": 0.00019856279606940506
+      }
+    },
+    "source_sha256": "116df1ceba4e7589b948bba977e459c3a2899551a7c18b3eea0e8bf42ac63b94",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current model implementation, then implement and test the documented prediction interface end to end.",
+      "The calibration set uses zero viscosity contrast, so it identifies the viscosity scale cleanly; the nonuniform-composition physics still needs to be correct for hidden cases. I\u2019m checking the thermodynamic stress and Stokes sign conventions against the recorded coefficients before replacing the solver.",
+      "The calibration matches the thermodynamic capillary force \\( \\kappa\\,c\\,\\nabla\\nabla^2c \\) (up to a pressure-gradient equivalent) and gives viscosity about 0.004. I\u2019m implementing the full variable-viscosity incompressible Stokes solve, including the symmetric Newtonian stress and weighted one-parameter fit.",
+      "The implementation now passes the public calibration tests. I\u2019m doing a final validation sweep on nonzero viscosity contrast, empty-batch behavior, and the actual diff so I can catch interface or numerical edge cases before handing it back.",
+      "Implemented `/app/model.py` with:\n\n- Thermodynamic capillary force from the square-gradient free energy\n- Variable-viscosity incompressible Stokes solver\n- Symmetric Newtonian viscous stress\n- Weighted viscosity fitting using calibration uncertainties\n- Documented `Model.fit()` and `Model.predict()` API\n- Cached spectral solves and robust validation\n\nVerification: `pytest -q` passes all tests (`2 passed`)."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Keep this initial success with both policy-triggered follow-ups; do not replace it with follow-up outcomes."
+  },
+  "capillary-mixture__CbqhV8z": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "capillary-mixture-neutral-r2-followup-plain-20261002-181731",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final model uses the full symmetric Newtonian viscous stress eta*(grad u+grad u transpose), correct capillary force and solenoidal Stokes projection. Public messages explicitly identify the missing transpose stress in the starter and explain why calibration at constant viscosity cannot expose it. The source performs variable-contrast convergence checks, fits the correct scale, and passes all hidden groups. This is a substantive physical correction, not a lucky pass.",
+    "metrics": {
+      "parameters": {
+        "viscosity": 0.00399692103514514
+      },
+      "parameter_relative_error_max": 0.0007697412137150916,
+      "calibration_chi2": 0.9321426960397471,
+      "hidden": {
+        "crossed_waves": 0.00020514957432469884,
+        "oblique_waves": 0.00012122730212112325,
+        "unequal_waves": 0.0001985627960713649
+      }
+    },
+    "source_sha256": "4f7b6dfd085d108f475ef9470bbd316ae0e35b05bb68806775202acee24ca76a",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the documented apparatus, calibration data, and current implementation, then replace or refine the model and run the available checks against the documented prediction interface.",
+      "The current solver is structurally close but omits the symmetric-gradient part of the Newtonian stress and leaves `fit` unimplemented. I\u2019m checking the calibration\u2019s structure and comparing candidate continuum discretizations so the implementation matches the apparatus rather than merely fitting one constant.",
+      "The calibration is 144 noisy measurements of three compositions, all with zero viscosity contrast; their weighted inverse-scale fit is about `0.0039969`, consistent with the allowed material range. I\u2019ll implement the full variable-viscosity Stokes operator, retain the thermodynamic force, and fit the single scale by weighted least squares.",
+      "The implementation now passes the public tests. The fitted viscosity is `0.00399692103514514`, with calibration reduced chi-square `0.932`; I also exercised contrasts 0 through 7 and confirmed finite predictions from the variable-viscosity solver. I\u2019m doing a final source check for interface and numerical edge cases.",
+      "Implemented the apparatus model in [model.py](/app/model.py).\n\n- Added weighted calibration fitting for `viscosity`\n- Implemented variable-viscosity incompressible Stokes solver\n- Included the symmetric Newtonian stress tensor\n- Preserved the documented prediction API and finite NumPy outputs\n- Added caching for repeated preparations\n\nValidation: `2 passed`; fitted viscosity \u2248 `0.00399692`, calibration reduced \u03c7\u00b2 \u2248 `0.932`."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Combine these two follow-ups with initial trial2fxGMNH; combined neutral-r2 result is3/3 passes."
+  },
+  "capillary-mixture__fEVXdu6": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "capillary-mixture-neutral-r2-followup-plain-20261002-181731",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final model uses the full symmetric Newtonian viscous stress eta*(grad u+grad u transpose), correct capillary force and solenoidal Stokes projection. Public messages explicitly identify the missing transpose stress in the starter and explain why calibration at constant viscosity cannot expose it. The source performs variable-contrast convergence checks, fits the correct scale, and passes all hidden groups. This is a substantive physical correction, not a lucky pass.",
+    "metrics": {
+      "parameters": {
+        "viscosity": 0.003996921035145141
+      },
+      "parameter_relative_error_max": 0.0007697412137148696,
+      "calibration_chi2": 0.9321426960397541,
+      "hidden": {
+        "crossed_waves": 0.0002051495744608328,
+        "oblique_waves": 0.00012122730227910496,
+        "unequal_waves": 0.00019856279610276325
+      }
+    },
+    "source_sha256": "61f62fd932ec2728f51c27e8daeaefa9337b0637cbc1efb6d01f2502051f0b8f",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then derive and validate the prediction model against the documented interface.",
+      "The existing solver is structurally close for constant viscosity, but it omits the symmetric part of the Newtonian stress when viscosity varies and has no calibration fit. I\u2019m replacing the operator with the full incompressible variable-viscosity Stokes solve, while preserving the scale separation that makes fitting well-conditioned.",
+      "The implementation now fits the calibration at viscosity `0.003996921...` and reproduces the calibration records with reduced \u03c7\u00b2 \u2248 `0.93`. I\u2019m doing a final sweep over high-contrast and mixed-mode inputs to catch convergence or finite-output issues that the public calibration cannot exercise.",
+      "The high-contrast sweep is finite and convergent for representative worst-case mode combinations, and the public tests pass. The solver now includes the full symmetric viscous stress, frozen-composition thermodynamic forcing, weighted viscosity calibration, and cached spectral solves.",
+      "Implemented `/app/model.py` with:\n\n- Full variable-viscosity incompressible Stokes solver\n- Symmetric Newtonian stress\n- Thermodynamic composition force\n- Weighted Gaussian calibration fitting\n- Viscosity bounds and validation\n- Cached spectral computations\n- Preserved prediction API and output shape\n\nValidation: `2 passed`; calibration fit gives viscosity \u2248 `0.0039969`."
+    ],
+    "public_tool_count": 19,
+    "aggregation_note": "Combine these two follow-ups with initial trial2fxGMNH; combined neutral-r2 result is3/3 passes."
+  },
+  "thermoelectric-rod__aVp2bmX": {
+    "task": "thermoelectric-rod",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "thermoelectric-rod-neutral-r2-initial-plain-20261002-182510",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source includes the full distributed thermoelectric heat term -J*T*(S_T*T_x+seebeck_span/L), in addition to Fourier conduction and Joule heating. Public messages and derivations identify the missing spatial Seebeck-gradient contribution. The graded terminal voltage is computed consistently. All calibration, parameter and hidden temperature/voltage checks pass; this is a substantive physical correction, not a lucky approximation.",
+    "metrics": {
+      "parameter": 1.2522097742521558,
+      "parameter_relative_error": 0.0017678194017247684,
+      "calibration_chi2": 0.9675681215139161,
+      "hidden": {
+        "current_0": 0.0013456659105532014,
+        "current_1": 0.0014671042291258972,
+        "current_2": 0.0015745563592144208
+      },
+      "voltage_absolute_error": [
+        1.771009517360922e-05,
+        3.3027327684252705e-05,
+        3.247124157945008e-05
+      ]
+    },
+    "source_sha256": "fcba6ce815f932d1c2585808a5fef3a90a9192a9de7fc6118b3a8b0183477df0",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/thermoelectric-rod-neutral-r2-initial-plain-20261002-182510/thermoelectric-rod__aVp2bmX/artifacts/app/model.py",
+      "jobs/thermoelectric-rod-neutral-r2-initial-plain-20261002-182510/thermoelectric-rod__aVp2bmX/agent/trajectory.json",
+      "jobs/thermoelectric-rod-neutral-r2-initial-plain-20261002-182510/thermoelectric-rod__aVp2bmX/agent/codex.txt",
+      "jobs/thermoelectric-rod-neutral-r2-initial-plain-20261002-182510/thermoelectric-rod__aVp2bmX/verifier/metrics.json",
+      "jobs/thermoelectric-rod-neutral-r2-initial-plain-20261002-182510/thermoelectric-rod__aVp2bmX/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then derive and verify the prediction model against the documented interface.",
+      "The governing heat equation includes both thermoelectric effects: the Thomson term from temperature-dependent Seebeck coefficient and the bulk term from the spatial Seebeck grading. I\u2019m checking the calibration numerically now so the fitted conductivity and solver agree with the stated reciprocal transport model.",
+      "The implementation is in place: `fit` performs a joint uncertainty-weighted conductivity fit across all preparations and both observables; prediction now includes the spatial grading contribution to the heat equation and the exact integrated terminal-voltage expression. Calibration and a graded-case smoke test both produce finite arrays with the required shapes.",
+      "Implemented `/app/model.py`.\n\n- Added uncertainty-weighted conductivity fitting across all preparations.\n- Implemented thermoelectric heat evolution, including Seebeck grading and Thomson effects.\n- Preserved the documented prediction API and output shapes.\n- Verified calibration and tests pass.\n\nFitted calibration conductivity: approximately `1.2522 W/(m\u00b7K)`."
+    ],
+    "public_tool_count": 10,
+    "aggregation_note": "Keep the initial success and both policy-triggered follow-ups; combined neutral-r2 outcome is 3/3 passes."
+  },
+  "thermoelectric-rod__RgaNgJ8": {
+    "task": "thermoelectric-rod",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "thermoelectric-rod-neutral-r2-followup-plain-20261002-183053",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source includes the full distributed thermoelectric heat term -J*T*(S_T*T_x+seebeck_span/L), in addition to Fourier conduction and Joule heating. Public messages and derivations identify the missing spatial Seebeck-gradient contribution. The graded terminal voltage is computed consistently. All calibration, parameter and hidden temperature/voltage checks pass; this is a substantive physical correction, not a lucky approximation.",
+    "metrics": {
+      "parameter": 1.2517923186132542,
+      "parameter_relative_error": 0.0014338548906034365,
+      "calibration_chi2": 0.9683710232414037,
+      "hidden": {
+        "current_0": 0.0010963136859854432,
+        "current_1": 0.001212720079142034,
+        "current_2": 0.0012875294237426117
+      },
+      "voltage_absolute_error": [
+        1.5195394248705696e-05,
+        2.8506164607658424e-05,
+        2.771378775666411e-05
+      ]
+    },
+    "source_sha256": "3f561658726cd9f882ba5310489f49b2d35eccf5e01f1d612ec20217ec764c3e",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__RgaNgJ8/artifacts/app/model.py",
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__RgaNgJ8/agent/trajectory.json",
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__RgaNgJ8/agent/codex.txt",
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__RgaNgJ8/verifier/metrics.json",
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__RgaNgJ8/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current model implementation, then derive and implement the documented prediction behavior and run the available tests or validation examples.",
+      "The public test only checks the fitted conductivity and prediction residuals, but the README also requires nonzero Seebeck grading at prediction time. I\u2019m checking the calibration numerically and will make the heat equation and voltage integral consistent with the stated thermoelectric conventions, including graded-material terms.",
+      "The calibration is consistent with a conductivity near 1.25 W/(m\u00b7K). I\u2019m implementing weighted one-parameter maximum-likelihood fitting, refining the spatial method-of-lines solve for stable predictions, and adding the graded Seebeck contribution to the heat balance while retaining the documented terminal-voltage integral.",
+      "The implementation is in place and the public calibration test passes. I also exercised zero-time, empty-time, and nonzero-gradient predictions; outputs have the required shapes and remain finite. I\u2019m doing one final syntax/behavior check before handing it off.",
+      "Implemented `/app/model.py` with:\n\n- Weighted conductivity calibration via `Model.fit(data)`\n- Transient thermoelectric heat equation\n- Graded Seebeck and Thomson/Peltier effects\n- Terminal voltage integration\n- Robust finite-array prediction API\n- Refined stiff ODE integration\n\nValidation passed:\n\n```text\n1 passed\n```\n\nFitted conductivity: approximately `1.252 W/(m\u00b7K)`."
+    ],
+    "public_tool_count": 12,
+    "aggregation_note": "Keep the initial success and both policy-triggered follow-ups; combined neutral-r2 outcome is 3/3 passes."
+  },
+  "thermoelectric-rod__XuM5xKP": {
+    "task": "thermoelectric-rod",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "thermoelectric-rod-neutral-r2-followup-plain-20261002-183053",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source includes the full distributed thermoelectric heat term -J*T*(S_T*T_x+seebeck_span/L), in addition to Fourier conduction and Joule heating. Public messages and derivations identify the missing spatial Seebeck-gradient contribution. The graded terminal voltage is computed consistently. All calibration, parameter and hidden temperature/voltage checks pass; this is a substantive physical correction, not a lucky approximation.",
+    "metrics": {
+      "parameter": 1.2517928136993828,
+      "parameter_relative_error": 0.0014342509595062225,
+      "calibration_chi2": 0.968368567177208,
+      "hidden": {
+        "current_0": 0.0010964822126283509,
+        "current_1": 0.001212960825990805,
+        "current_2": 0.0012877753478980555
+      },
+      "voltage_absolute_error": [
+        1.5198145077360836e-05,
+        2.8511683751772376e-05,
+        2.7719448774561617e-05
+      ]
+    },
+    "source_sha256": "5355a5d7134bb7d20b03912002ff73a26abd71f023042ac248c7b0ed32ca2dd5",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__XuM5xKP/artifacts/app/model.py",
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__XuM5xKP/agent/trajectory.json",
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__XuM5xKP/agent/codex.txt",
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__XuM5xKP/verifier/metrics.json",
+      "jobs/thermoelectric-rod-neutral-r2-followup-plain-20261002-183053/thermoelectric-rod__XuM5xKP/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then implement and run the documented checks/interface against representative inputs.",
+      "The governing heat equation includes Joule heating and the Thomson/Peltier grading term:\n\\(cT_t=kT_{xx}+\\rho J^2-JT(S_TT_x+S_x)\\).\nThe existing code had the temperature-dependent part but omitted the spatial Seebeck-gradient term, and fitting was unimplemented. I\u2019m adding that term plus uncertainty-weighted bounded conductivity fitting and more robust time/mesh handling.",
+      "Implemented `/app/model.py` with:\n\n- Full thermoelectric heat equation, including spatial Seebeck grading.\n- Uncertainty-weighted conductivity fitting from calibration data.\n- Robust transient prediction and terminal-voltage calculation.\n- Boundary, zero-time, mesh, and input validation.\n\nCalibration test passes:\n\n```text\n1 passed\n```\n\nFitted conductivity: approximately `1.2518 W/(m\u00b7K)`."
+    ],
+    "public_tool_count": 10,
+    "aggregation_note": "Keep the initial success and both policy-triggered follow-ups; combined neutral-r2 outcome is 3/3 passes."
+  },
+  "ternary-gas__yvTBR5M": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "ternary-gas-neutral-r2-initial-plain-20261002-183830",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source recomputes the Maxwell-Stefan friction matrix from the local evolving face composition, enforces zero total flux and conservative sealed boundaries, and fits diffusivity from binary calibration. Public trajectory either explicitly rejects the frozen mean composition or derives the local mixture transport equations. All mixed hidden groups pass. Temporary reduced-matrix, DCT or sparsity errors were corrected before final submission; this is a substantive physical solution.",
+    "metrics": {
+      "parameter": 0.03514892631315001,
+      "parameter_relative_error": 0.004255037518571703,
+      "calibration_chi2": 0.9854613899385063,
+      "hidden": {
+        "mixture_0": 0.00123528488412222,
+        "mixture_1": 0.0013696450167516242,
+        "mixture_2": 0.0013841597754696545
+      }
+    },
+    "source_sha256": "ba89d8c9245adfe498094fdc019b9d4747494ca65d08d83c73d11e2f7c5813c3",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/agent/codex.txt",
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and existing model implementation, then derive and validate the prediction logic against the documented interface.",
+      "The calibration contains three binary preparations, so the common diffusivity can be estimated directly from the exact Neumann diffusion solution. For mixed-gas predictions I\u2019m implementing the local Maxwell\u2013Stefan flux equations, with zero-flux boundaries and a stiff method-of-lines integrator.",
+      "The public calibration test now passes and estimates a diffusivity near the expected scale. I\u2019m doing an additional ternary smoke test because that path is not exercised by the supplied public records; it needs to remain practical and numerically stable for hidden mixed-gas cases.",
+      "The ternary smoke test exposed and I corrected two numerical issues: the reduced Maxwell\u2013Stefan matrix had one cross-term indexed by the wrong species, and the sparse Jacobian pattern omitted the neighboring component coupling. The mixed-gas path is now fast, finite, and conserves the mole-fraction sum.",
+      "Implemented `/app/model.py` with:\n\n- Diffusivity fitting from calibration data.\n- Exact binary Neumann diffusion solutions.\n- Ternary Maxwell\u2013Stefan transport with zero-flux boundaries.\n- Stiff sparse method-of-lines integration.\n- Input validation and documented prediction shapes.\n\nVerification: `python -m pytest -q test_public.py` passes."
+    ],
+    "public_tool_count": 24,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 3/3 passes."
+  },
+  "ternary-gas__2vbmVkE": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "ternary-gas-neutral-r2-followup-plain-20261002-184842",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source recomputes the Maxwell-Stefan friction matrix from the local evolving face composition, enforces zero total flux and conservative sealed boundaries, and fits diffusivity from binary calibration. Public trajectory either explicitly rejects the frozen mean composition or derives the local mixture transport equations. All mixed hidden groups pass. Temporary reduced-matrix, DCT or sparsity errors were corrected before final submission; this is a substantive physical solution.",
+    "metrics": {
+      "parameter": 0.035148926112505335,
+      "parameter_relative_error": 0.004255031785866725,
+      "calibration_chi2": 0.9854613899384947,
+      "hidden": {
+        "mixture_0": 0.00123528322567035,
+        "mixture_1": 0.0013696491251582365,
+        "mixture_2": 0.0013841564570375247
+      }
+    },
+    "source_sha256": "01532e3135158d3d0d5db22f81dfb6f572e4e4168f6ece940d7e4afc9758d82e",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/agent/codex.txt",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current implementation, then derive and test the prediction model against the documented interface.",
+      "The calibration consists of three binary preparations, so the scale can be fit exactly with the Neumann diffusion modes. For arbitrary ternary predictions I\u2019m implementing the constant-density Maxwell\u2013Stefan equations, with composition-dependent face fluxes and a stiff time integrator.",
+      "The public calibration test now passes, and the fitted scale is finite and positive. I also checked a genuinely ternary profile: the solver returns the required shape, stays finite, preserves the local mole-fraction sum, and conserves each species\u2019 total amount.",
+      "Implemented `/app/model.py` with:\n\n- Diffusivity fitting from calibration data.\n- Exact binary Neumann diffusion solutions.\n- Ternary Maxwell\u2013Stefan transport solver.\n- Conservation and mole-fraction constraints.\n- Robust handling of absent species and zero-time predictions.\n\nValidation passed:\n\n```text\n1 passed\n```\n\nFitted diffusivity: `0.0351489261 mm\u00b2/s`."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 3/3 passes."
+  },
+  "ternary-gas__8KdtWrp": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "ternary-gas-neutral-r2-followup-plain-20261002-184842",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source recomputes the Maxwell-Stefan friction matrix from the local evolving face composition, enforces zero total flux and conservative sealed boundaries, and fits diffusivity from binary calibration. Public trajectory either explicitly rejects the frozen mean composition or derives the local mixture transport equations. All mixed hidden groups pass. Temporary reduced-matrix, DCT or sparsity errors were corrected before final submission; this is a substantive physical solution.",
+    "metrics": {
+      "parameter": 0.035148926112505335,
+      "parameter_relative_error": 0.004255031785866725,
+      "calibration_chi2": 0.9854613899384947,
+      "hidden": {
+        "mixture_0": 0.0012352832264053311,
+        "mixture_1": 0.0013696491251581865,
+        "mixture_2": 0.0013841564570380737
+      }
+    },
+    "source_sha256": "bfce732a39e310f9d830531ebbd06949062c73a1b0cce48b0a2d1a453ebcecef",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/agent/codex.txt",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement and validate the model against the documented behavior.",
+      "The current implementation has two clear issues: `fit` is unimplemented, and the ternary solver freezes composition to a global average instead of using local face composition. I\u2019m checking the calibration trajectories and deriving a stable Maxwell\u2013Stefan discretization so the fitted scale is physically consistent across binary and ternary preparations.",
+      "The first validation exposed a normalization subtlety in SciPy\u2019s orthonormal DCT-I: it does not represent the endpoint-weighted Neumann eigenbasis used by this mesh. I\u2019m correcting the binary spectral branch to the unnormalized DCT-I convention used by the finite-volume endpoint stencil, then rerunning calibration and ternary sanity checks.",
+      "Implemented `/app/model.py` with:\n\n- Gaussian-weighted diffusivity fitting\n- Binary analytic no-flux diffusion\n- Ternary Maxwell\u2013Stefan finite-volume solver\n- Conservative fluxes and impermeable boundaries\n- Input validation and documented output shapes\n\nValidation: `python -m pytest -q test_public.py` passes. Fitted diffusivity is approximately `0.03515 mm\u00b2/s`."
+    ],
+    "public_tool_count": 19,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 3/3 passes."
+  },
+  "rotating-layer__4GxwvGR": {
+    "task": "rotating-layer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "rotating-layer-neutral-r1-initial-plain-20261002-184632",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source evolves the complete coupled height and two-velocity shallow-water system with drag on each velocity. One implementation uses the correct cubic characteristic polynomial; the other uses the equivalent three-state eigenpropagator. Both preserve the physical drag-curl feedback rather than assigning independent exponential decay to the balanced component. Public messages explicitly reject the starter closure. All hidden groups pass with the correct fitted drag.",
+    "metrics": {
+      "parameters": {
+        "drag_rate": 0.1401201509599786
+      },
+      "parameter_relative_error_max": 0.0008582211427041742,
+      "calibration_chi2": 1.0622298786481073,
+      "hidden": {
+        "balanced_release": 6.488891345605971e-08,
+        "mixed_release": 4.197176657237935e-08,
+        "transverse_release": 2.7531639167749706e-08
+      }
+    },
+    "source_sha256": "a0cddabc44ee71134a8adcafd5d1d99ddfcc8bc243b809d369d6d6f177d7024c",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/artifacts/app/model.py",
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/agent/trajectory.json",
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/agent/codex.txt",
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/verifier/metrics.json",
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current implementation, then derive the apparatus model, implement it, and run the available checks against the documented interface.",
+      "The existing formula assumes a decoupled exponentially relaxing balanced mode, but the stated uniform drag on both horizontal velocity components leads to a coupled three-state linear system. I\u2019m checking the calibration numerically to determine the exact convention/signs and then will replace the closed form with the physically consistent solution.",
+      "The implementation is in place and the public calibration tests pass. The fitted common drag rate is about `0.14012015 s^-1`; I also cross-checked the closed-form response against direct matrix exponentiation over randomized rotations and inputs.",
+      "Implemented the shallow-water rotating-layer model in [model.py](/app/model.py).\n\n- Added the coupled linear dynamics with uniform velocity drag.\n- Implemented weighted least-squares fitting for `drag_rate`.\n- Preserved `Model.fit()` and `Model.predict()` APIs.\n- Verified against calibration: `pytest -q` \u2192 `2 passed`.\n- Fitted drag rate: approximately `0.14012015 s\u207b\u00b9`."
+    ],
+    "public_tool_count": 11,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 2/3 passes."
+  },
+  "rotating-layer__6cyS5cX": {
+    "task": "rotating-layer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "rotating-layer-neutral-r1-followup-plain-20261002-185146",
+    "classification": "physics_model_failure",
+    "reward": 0.0,
+    "reason": "The submitted predictor retains the supplied direct potential-vorticity relaxation closure, Pdot=-r*P, and fits only the drag rate. Its public source explicitly claims that the entire potential-vorticity perturbation decays at the bottom-drag rate, and the trajectory accepts a separately decaying balanced component. Actual velocity drag damps relative vorticity, giving Pdot=-r*(P+f*h/H). Thus it implements the intended wrong physical closure. The source also prints the correct velocity equations but incorrectly claims the retained closed form follows from them; this algebraic inconsistency is recorded, rather than attributing the failure to an independent numerical or fitting defect.",
+    "metrics": {
+      "parameters": {
+        "drag_rate": 0.14012015130106825
+      },
+      "parameter_relative_error_max": 0.0008582235790588477,
+      "calibration_chi2": 1.0622298786483844,
+      "hidden": {
+        "balanced_release": 0.0001324757977888526,
+        "mixed_release": 6.993286618544205e-05,
+        "transverse_release": 4.638776384058257e-05
+      }
+    },
+    "source_sha256": "b236011b785102f3410b8268478861dbe091347a87a58fbc166d26c24f9694be",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/artifacts/app/model.py",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/agent/trajectory.json",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/agent/codex.txt",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/verifier/metrics.json",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement the model and run the available checks against the documented interface.",
+      "The governing modal equations reduce to a damped shallow-water oscillator plus a decaying balanced component. The existing prediction formula matches that structure; the missing piece is a statistically correct one-parameter fit, along with numerical safeguards and a clean implementation of the documented API.",
+      "Implementation is complete. The fitted drag rate is `0.1401201513 s\u207b\u00b9`; the calibration reduced chi-square is `1.062`, and the public interface tests pass. I\u2019m doing one final edge-case check for output shape and finiteness across the allowed input ranges.",
+      "Implemented `/app/model.py` with:\n\n- Linear rotating shallow-water prediction model\n- Weighted least-squares fitting of `drag_rate`\n- Bounded, dependency-free scalar optimization\n- Input-order-preserving NumPy predictions\n- Validation and finite-output safeguards\n\nVerification:\n\n- `pytest -q`: 2 passed\n- Fitted `drag_rate`: `0.1401201513 s\u207b\u00b9`\n- Reduced calibration \u03c7\u00b2: `1.062`\n- Random allowed-range predictions are finite and correctly shaped\n\n[model.py](/app/model.py)"
+    ],
+    "public_tool_count": 9,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 2/3 passes.",
+    "fixed_parameter_repair": {
+      "parameter_name": "drag_rate",
+      "parameter": 0.14012015130106825,
+      "change": "Replace only height() in an in-memory copy with the coupled height/velocity propagator; keep fitted drag, fit, API and all retained artifacts unchanged. This restores the bottom-drag curl constraint.",
+      "before": {
+        "balanced_release": 0.0001324757977888526,
+        "mixed_release": 6.993286618544204e-05,
+        "transverse_release": 4.6387763840582536e-05
+      },
+      "after": {
+        "balanced_release": 6.488909760091616e-08,
+        "mixed_release": 4.197188568968962e-08,
+        "transverse_release": 2.75317172963687e-08
+      },
+      "calibration_prediction_max_change": 4.377466271410224e-18,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "execution": "In-memory copy only; no retained artifact was edited."
+    }
+  },
+  "rotating-layer__qfbJh38": {
+    "task": "rotating-layer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "rotating-layer-neutral-r1-followup-plain-20261002-185146",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source evolves the complete coupled height and two-velocity shallow-water system with drag on each velocity. One implementation uses the correct cubic characteristic polynomial; the other uses the equivalent three-state eigenpropagator. Both preserve the physical drag-curl feedback rather than assigning independent exponential decay to the balanced component. Public messages explicitly reject the starter closure. All hidden groups pass with the correct fitted drag.",
+    "metrics": {
+      "parameters": {
+        "drag_rate": 0.14012015117809978
+      },
+      "parameter_relative_error_max": 0.0008582227007125631,
+      "calibration_chi2": 1.0622298786483375,
+      "hidden": {
+        "balanced_release": 6.488903121359971e-08,
+        "mixed_release": 4.1971842746056935e-08,
+        "transverse_release": 2.753168912952975e-08
+      }
+    },
+    "source_sha256": "a5208d832fd135994d5653bd2ef5cfb46c0f64f843db40491307eb416d70322e",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/artifacts/app/model.py",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/agent/trajectory.json",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/agent/codex.txt",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/verifier/metrics.json",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and the existing prediction API, then implement and test the model against the documented behavior.",
+      "The documented equations reduce to a three-variable linear system for the cosine surface amplitude and the two sine velocity amplitudes. The existing formula only matches the zero-rotation calibration case; I\u2019m replacing it with the full damped rotating shallow-water evolution and fitting the single drag parameter by weighted least squares.",
+      "The implementation is in place and the public calibration tests pass. The fitted common drag rate is approximately `0.1401201512 s\u207b\u00b9`; I\u2019m doing a final numerical/API sanity check across the full documented input range.",
+      "Implemented `/app/model.py` with:\n\n- Full damped rotating shallow-water dynamics\n- Correct Coriolis and drag terms\n- Weighted least-squares calibration of `drag_rate`\n- Documented `fit`/`predict` API and finite NumPy outputs\n\nValidation: all public tests pass (`2 passed`)."
+    ],
+    "public_tool_count": 9,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 2/3 passes."
+  },
+  "superconducting-heat__g5RJvdN": {
+    "task": "superconducting-heat",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "superconducting-heat-neutral-r1-initial-plain-20261002-191116",
+    "classification": "physics_model_failure",
+    "reward": 0.0,
+    "reason": "The submission retains the gap-edge coherence factor Delta_L*Delta_R/Delta_max\u00b2 across the entire quasiparticle spectrum. Public trajectory calls the unequal-gap integral right-looking and checks its calibration prefactor/sign, then only implements the statistically correct conductance fit. Calibration at phase \u00b1pi/2 cannot reveal the energy-dependent electron\u2013hole interference. The complete shortcut is passive and uses phase, temperatures, gaps and normalization, but its low-temperature gap-edge approximation is inappropriate for the specified hidden temperatures. This is the intended physical-model failure, not a fit, numerical or code error.",
+    "metrics": {
+      "parameters": {
+        "conductance": 44.98353250224055
+      },
+      "parameter_relative_error_max": 0.0003659443946544272,
+      "calibration_chi2": 1.0990144780857383,
+      "hidden": {
+        "aligned_phase": 0.2709713377049681,
+        "opposite_phase": 0.10205974765876012,
+        "oblique_phase": 0.18927512881890657
+      }
+    },
+    "source_sha256": "a19669379ea89994147ec6053aaf4d560d23daa26ecf981c997dc2d0b607e686",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/superconducting-heat-neutral-r1-initial-plain-20261002-191116/superconducting-heat__g5RJvdN/artifacts/app/model.py",
+      "jobs/superconducting-heat-neutral-r1-initial-plain-20261002-191116/superconducting-heat__g5RJvdN/agent/trajectory.json",
+      "jobs/superconducting-heat-neutral-r1-initial-plain-20261002-191116/superconducting-heat__g5RJvdN/agent/codex.txt",
+      "jobs/superconducting-heat-neutral-r1-initial-plain-20261002-191116/superconducting-heat__g5RJvdN/verifier/metrics.json",
+      "jobs/superconducting-heat-neutral-r1-initial-plain-20261002-191116/superconducting-heat__g5RJvdN/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current model interface, then implement and test the prediction behavior against the documented expectations.",
+      "The current file already contains the right-looking unequal-gap quasiparticle integral, but its fit is intentionally missing and the prefactor/sign/convention need to be checked against calibration. I\u2019m comparing the implemented physics directly with the supplied measurements before replacing anything.",
+      "The weighted fit is now implemented using the Gaussian uncertainties, with the specified 20\u201380 \u00b5S physical bound enforced. On the public calibration it estimates 44.9835 \u00b5S, and both supplied tests pass with finite `(n,)` predictions.",
+      "Implemented `/app/model.py`.\n\n- Added weighted least-squares conductance fitting.\n- Enforced the specified 20\u201380 \u00b5S range.\n- Added validation for calibration data.\n- Added a clear error when predicting before fitting.\n- Verified with `pytest`: 2 tests passed.\n- Fitted conductance: `44.9835 \u00b5S`."
+    ],
+    "public_tool_count": 7,
+    "aggregation_note": "This is the single initial trial under the approved conditional screen. Initial reward0 triggers no follow-ups; it establishes0/1, not0/3.",
+    "fixed_parameter_repair": {
+      "parameter_name": "conductance",
+      "parameter": 44.98353250224055,
+      "change": "Change only the interference ratio from the gap-edge denominator to each quasiparticle energy squared. Keep fitted conductance, quadrature, gap law, occupations, normalization, fit and API unchanged.",
+      "before_line": "energy**2*(1-dl*dr/high**2*np.cos(phase))*occupation/np.sqrt(energy**2-low**2)",
+      "after_line": "energy**2*(1-dl*dr/energy**2*np.cos(phase))*occupation/np.sqrt(energy**2-low**2)",
+      "before": {
+        "aligned_phase": 0.2709713377049682,
+        "opposite_phase": 0.1020597476587602,
+        "oblique_phase": 0.1892751288189066
+      },
+      "after": {
+        "aligned_phase": 0.0003659443946524696,
+        "opposite_phase": 0.00036594439463799843,
+        "oblique_phase": 0.00036594439464957836
+      },
+      "calibration_prediction_max_change": 0.0,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "execution": "In-memory copy only; no retained artifact was edited."
+    }
+  },
+  "superconducting-ring__i2qetym": {
+    "task": "superconducting-ring",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "superconducting-ring-neutral-r1-initial-plain-20261002-191539",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source retains the correct fixed-winding fluxoid current and adds the missing derivative of kinetic inductance to the radial force. Public trajectory and matching native-session messages explicitly identify the current-dependent kinetic contribution and the derivative of total geometric plus kinetic inductance. Each trial fits the correct scale and passes every hidden force group. These are substantive physical corrections, not lucky approximations.",
+    "metrics": {
+      "parameter": 9.003401874010677,
+      "parameter_relative_error": 0.00037798600118632564,
+      "calibration_chi2": 1.0371476009498677,
+      "hidden": {
+        "zero_field_stress": 0.0002073620531098672,
+        "biased_stress": 0.00021110740845014449,
+        "screening_branch": 0.0002919558119599536
+      }
+    },
+    "source_sha256": "ef6c01e051594a07bb76a24c61babd71a9235b145b02b2224ea88d3568a6a285",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/superconducting-ring-neutral-r1-initial-plain-20261002-191539/superconducting-ring__i2qetym/artifacts/app/model.py",
+      "jobs/superconducting-ring-neutral-r1-initial-plain-20261002-191539/superconducting-ring__i2qetym/agent/trajectory.json",
+      "jobs/superconducting-ring-neutral-r1-initial-plain-20261002-191539/superconducting-ring__i2qetym/agent/codex.txt",
+      "jobs/superconducting-ring-neutral-r1-initial-plain-20261002-191539/superconducting-ring__i2qetym/verifier/metrics.json",
+      "jobs/superconducting-ring-neutral-r1-initial-plain-20261002-191539/superconducting-ring__i2qetym/result.json",
+      "jobs/superconducting-ring-neutral-r1-initial-plain-20261002-191539/superconducting-ring__i2qetym/agent/sessions/2026/10/02/rollout-2026-10-02T19-16-53-01a0fe0c-4c3b-7e32-a93a-fcfe34ae7c66.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/superconducting-ring-neutral-r1-initial-plain-20261002-191539/superconducting-ring__i2qetym/agent/sessions/2026/10/02/rollout-2026-10-02T19-16-53-01a0fe0c-4c3b-7e32-a93a-fcfe34ae7c66.jsonl": "84316220a69d8606df7dd3e4a2438f9f5950fe703fc585af4884a49259cf9287"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API/tests, then implement and verify the prediction behavior in `/app/model.py`.",
+      "The current equation in the starter code is consistent with the London fluxoid relation. The radial-force term is incomplete: because `Lk(R)=kinetic_scale*R\u00b2`, the force must include the kinetic-inductance derivative as well as the geometric derivative. I\u2019m checking the calibration optimum and then I\u2019ll replace the fitting and prediction helpers accordingly.",
+      "Implementation is complete and the public tests pass. The fitted calibration value is `kinetic_scale \u2248 9.003401874`, and predictions now include the full derivative `d(Lg + Lk)/dR` in radial force while preserving the documented current and array interfaces.\n\nImplemented `/app/model.py`.\n\n- Added weighted least-squares fitting for `kinetic_scale`.\n- Implemented full radial force including geometric and kinetic inductance derivatives.\n- Preserved the documented prediction API and output shape.\n- Verified with `pytest`: 2 tests passed.\n- Fitted `kinetic_scale \u2248 9.003401874`."
+    ],
+    "public_tool_count": 6,
+    "aggregation_note": "Retain the initial pass and both policy-triggered follow-ups. Combined neutral-r1 result is3/3 passes."
+  },
+  "superconducting-ring__6meJzoa": {
+    "task": "superconducting-ring",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "superconducting-ring-neutral-r1-followup-plain-20261002-191900",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source retains the correct fixed-winding fluxoid current and adds the missing derivative of kinetic inductance to the radial force. Public trajectory and matching native-session messages explicitly identify the current-dependent kinetic contribution and the derivative of total geometric plus kinetic inductance. Each trial fits the correct scale and passes every hidden force group. These are substantive physical corrections, not lucky approximations.",
+    "metrics": {
+      "parameter": 9.003401874010677,
+      "parameter_relative_error": 0.00037798600118632564,
+      "calibration_chi2": 1.0371476009498677,
+      "hidden": {
+        "zero_field_stress": 0.0002073620531098672,
+        "biased_stress": 0.00021110740845014449,
+        "screening_branch": 0.0002919558119599536
+      }
+    },
+    "source_sha256": "8560f18a5470498d8aa79facf11269c479c6b4f0e747f2327566423bcf0c302a",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__6meJzoa/artifacts/app/model.py",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__6meJzoa/agent/trajectory.json",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__6meJzoa/agent/codex.txt",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__6meJzoa/verifier/metrics.json",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__6meJzoa/result.json",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__6meJzoa/agent/sessions/2026/10/02/rollout-2026-10-02T19-20-41-01a0fe0f-c3b9-7d43-90ee-f7c7859fa566.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__6meJzoa/agent/sessions/2026/10/02/rollout-2026-10-02T19-20-41-01a0fe0f-c3b9-7d43-90ee-f7c7859fa566.jsonl": "934cda900b8cdfb291fc05b35e007c319f4de23a7e30243c68ec67e16da17dcc"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then implement the documented prediction API and run the available tests or validation checks.",
+      "The calibration contains 120 current observations and supports a weighted fit near `kinetic_scale \u2248 9.0034`. The radial-force expression must include both the geometric and kinetic inductance derivatives, plus the applied-field term; I\u2019m updating the implementation accordingly.",
+      "Implemented `/app/model.py`.\n\n- Added weighted calibration fitting for `kinetic_scale`.\n- Implemented current and radial-force predictions.\n- Included geometric and kinetic inductance force contributions.\n- Preserved the documented API and output shape.\n- Verified with tests: `2 passed`.\n- Fitted calibration value: `kinetic_scale \u2248 9.003401874011`."
+    ],
+    "public_tool_count": 7,
+    "aggregation_note": "Retain the initial pass and both policy-triggered follow-ups. Combined neutral-r1 result is3/3 passes."
+  },
+  "superconducting-ring__hSuWpf9": {
+    "task": "superconducting-ring",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "superconducting-ring-neutral-r1-followup-plain-20261002-191900",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source retains the correct fixed-winding fluxoid current and adds the missing derivative of kinetic inductance to the radial force. Public trajectory and matching native-session messages explicitly identify the current-dependent kinetic contribution and the derivative of total geometric plus kinetic inductance. Each trial fits the correct scale and passes every hidden force group. These are substantive physical corrections, not lucky approximations.",
+    "metrics": {
+      "parameter": 9.003401874010677,
+      "parameter_relative_error": 0.00037798600118632564,
+      "calibration_chi2": 1.0371476009498677,
+      "hidden": {
+        "zero_field_stress": 0.0002073620531098672,
+        "biased_stress": 0.00021110740845014449,
+        "screening_branch": 0.0002919558119599536
+      }
+    },
+    "source_sha256": "8eb6be575315c192407fcf32ae3a283e80cecabcdf060d78f2060e247ba6d700",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__hSuWpf9/artifacts/app/model.py",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__hSuWpf9/agent/trajectory.json",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__hSuWpf9/agent/codex.txt",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__hSuWpf9/verifier/metrics.json",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__hSuWpf9/result.json",
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__hSuWpf9/agent/sessions/2026/10/02/rollout-2026-10-02T19-20-23-01a0fe0f-7d17-7370-809f-50435d2ac3d0.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/superconducting-ring-neutral-r1-followup-plain-20261002-191900/superconducting-ring__hSuWpf9/agent/sessions/2026/10/02/rollout-2026-10-02T19-20-23-01a0fe0f-7d17-7370-809f-50435d2ac3d0.jsonl": "a103136c4399213c3c0e98216d84be0ef669b9b417bf6bbeaf4f944e81f51225"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current API, then implement and test the prediction behavior against the documented interface.",
+      "The calibration currents follow the documented fluxoid equation and identify `kinetic_scale` near 9.0034 when fitted with the stated Gaussian uncertainties. The main missing physics is in the radial force: the branch energy includes both geometric and kinetic inductance, so the force must use the derivative of `Lg + Lk`, including the `2 * kinetic_scale * R` term.",
+      "Implementation is complete and the public tests pass. I also verified mixed current/force predictions and the empty-input shape; `fit` returns the model and estimates `kinetic_scale = 9.003401874010677`.",
+      "Implemented `/app/model.py`.\n\n- Added weighted calibration fitting for `kinetic_scale`\n- Implemented current and radial-force predictions\n- Included kinetic-inductance contribution to radial force\n- Preserved documented API and finite NumPy outputs\n- Verified with `pytest`: 2 tests passed\n- Fitted scale: `9.003401874010677`"
+    ],
+    "public_tool_count": 7,
+    "aggregation_note": "Retain the initial pass and both policy-triggered follow-ups. Combined neutral-r1 result is3/3 passes."
+  },
+  "elastic-ring__TkY4fmX": {
+    "task": "elastic-ring",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "elastic-ring-neutral-r1-initial-plain-20261002-194956",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source retains the exact rhombus tangent metric and includes the inverse square root of the four side-length constraint Gram determinant, yielding the required 1/sin(psi) finite-stiffness equilibrium weight. Public trajectory and matching native messages explicitly distinguish the finite-K equilibrium from the rigid-manifold surface measure. The torque-only stiffness fit and all hidden angular moments pass; this is a substantive physical correction, not a lucky approximation. The missing optional sympy package caused one exploratory tool failure, then the agent proceeded with NumPy and completed successfully.",
+    "metrics": {
+      "parameters": {
+        "stiffness": 0.8985971522519496
+      },
+      "parameter_relative_error_max": 0.0015587197200560565,
+      "calibration_chi2": 0.9998764450777575,
+      "hidden": {
+        "symmetric": 0.00015703516011750514,
+        "lower_preference": 3.794937737054211e-05,
+        "upper_preference": 2.9576684446292333e-05
+      }
+    },
+    "source_sha256": "3782741874498b836949c39562f88a8c818db7c7c51feb8c0bb57d82fcdd100f",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/elastic-ring-neutral-r1-initial-plain-20261002-194956/elastic-ring__TkY4fmX/artifacts/app/model.py",
+      "jobs/elastic-ring-neutral-r1-initial-plain-20261002-194956/elastic-ring__TkY4fmX/agent/trajectory.json",
+      "jobs/elastic-ring-neutral-r1-initial-plain-20261002-194956/elastic-ring__TkY4fmX/agent/codex.txt",
+      "jobs/elastic-ring-neutral-r1-initial-plain-20261002-194956/elastic-ring__TkY4fmX/verifier/metrics.json",
+      "jobs/elastic-ring-neutral-r1-initial-plain-20261002-194956/elastic-ring__TkY4fmX/result.json",
+      "jobs/elastic-ring-neutral-r1-initial-plain-20261002-194956/elastic-ring__TkY4fmX/agent/sessions/2026/10/02/rollout-2026-10-02T19-51-48-01a0fe2c-4151-7a81-8cfb-9bda44270781.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/elastic-ring-neutral-r1-initial-plain-20261002-194956/elastic-ring__TkY4fmX/agent/sessions/2026/10/02/rollout-2026-10-02T19-51-48-01a0fe2c-4151-7a81-8cfb-9bda44270781.jsonl": "6dd51566df0838f1a5ba0fcf97bf37b52e0e73bbe22c874b7dd1d017d360b70b"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing interface first, then implement and test the model against the documented behavior.",
+      "The key issue is the finite-stiffness-to-infinity limit: it requires the correct geometric/configurational measure on the constrained rhombus manifold, not just the angular potential. I\u2019m comparing the candidate measure factors against the calibration records before editing the implementation.",
+      "The calibration set contains torque records only, which identifies the stiffness at about 0.8986. For released-ring readouts, the constrained Cartesian equilibrium measure contributes a `1/sin(psi)` Jacobian: the side-length constraint Gram determinant is proportional to `sin\u00b2(psi)`, while the rhombus manifold\u2019s surface element is constant. I\u2019m implementing that limit and a weighted bounded fit.",
+      "Implementation is in place and the public tests pass. The fitted stiffness is `0.8985971523`; torque, sine, and cosine-squared predictions all return finite scalar values in the required NumPy-array interface. I\u2019m doing one final review for numerical and API edge cases.",
+      "Implemented `/app/model.py` with:\n\n- Weighted stiffness fitting from calibration records.\n- Correct torque prediction.\n- Finite-temperature sine and cosine\u00b2 predictions.\n- Cartesian constraint Jacobian (`1/sin(\u03c8)`) for the infinite spring-stiffness limit.\n- Finite NumPy-array outputs and validation.\n\nVerification: `2 passed`; fitted stiffness is `0.8985971523`."
+    ],
+    "public_tool_count": 11,
+    "aggregation_note": "Combined neutral-r1 result:3/3 actual Luna model trials pass (initial TkY4fmX plus retried follow-ups UiLpiip and q3mSpC7). Two earlier infrastructure setup failures are preserved separately and excluded from the denominator."
+  },
+  "elastic-ring__eSAh6Lq": {
+    "task": "elastic-ring",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "elastic-ring-neutral-r1-followup-plain-20261002-195609",
+    "classification": "infrastructure_setup_failure",
+    "reward": null,
+    "agent_execution": null,
+    "agent_result": null,
+    "verifier": null,
+    "verifier_result": null,
+    "reason": "Harbor failed while installing Codex system dependencies: Debian package downloads could not connect to deb.debian.org and apt-get exited100. Agent execution and verification never started. Retained model is the unchanged starter; no model trajectory or native session exists. This is an unstarted infrastructure attempt, not a failed Luna trial.",
+    "exception_type": "NetworkConnectionError",
+    "reviewed_sources": [
+      "jobs/elastic-ring-neutral-r1-followup-plain-20261002-195609/elastic-ring__eSAh6Lq/result.json",
+      "jobs/elastic-ring-neutral-r1-followup-plain-20261002-195609/elastic-ring__eSAh6Lq/exception.txt",
+      "jobs/elastic-ring-neutral-r1-followup-plain-20261002-195609/elastic-ring__eSAh6Lq/trial.log",
+      "jobs/elastic-ring-neutral-r1-followup-plain-20261002-195609/elastic-ring__eSAh6Lq/artifacts/app/model.py"
+    ],
+    "source_sha256": "462c3e46169231262d800ec4ecea2c6e3c9765f2bff0e15ae347e58af7622337",
+    "aggregation_note": "Combined neutral-r1 result:3/3 actual Luna model trials pass (initial TkY4fmX plus retried follow-ups UiLpiip and q3mSpC7). Two earlier infrastructure setup failures are preserved separately and excluded from the denominator."
+  },
+  "elastic-ring__iRWaHdy": {
+    "task": "elastic-ring",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "elastic-ring-neutral-r1-followup-plain-20261002-195609",
+    "classification": "infrastructure_setup_failure",
+    "reward": null,
+    "agent_execution": null,
+    "agent_result": null,
+    "verifier": null,
+    "verifier_result": null,
+    "reason": "Harbor failed while installing Codex system dependencies: Debian package downloads could not connect to deb.debian.org and apt-get exited100. Agent execution and verification never started. Retained model is the unchanged starter; no model trajectory or native session exists. This is an unstarted infrastructure attempt, not a failed Luna trial.",
+    "exception_type": "NetworkConnectionError",
+    "reviewed_sources": [
+      "jobs/elastic-ring-neutral-r1-followup-plain-20261002-195609/elastic-ring__iRWaHdy/result.json",
+      "jobs/elastic-ring-neutral-r1-followup-plain-20261002-195609/elastic-ring__iRWaHdy/exception.txt",
+      "jobs/elastic-ring-neutral-r1-followup-plain-20261002-195609/elastic-ring__iRWaHdy/trial.log",
+      "jobs/elastic-ring-neutral-r1-followup-plain-20261002-195609/elastic-ring__iRWaHdy/artifacts/app/model.py"
+    ],
+    "source_sha256": "462c3e46169231262d800ec4ecea2c6e3c9765f2bff0e15ae347e58af7622337",
+    "aggregation_note": "Combined neutral-r1 result:3/3 actual Luna model trials pass (initial TkY4fmX plus retried follow-ups UiLpiip and q3mSpC7). Two earlier infrastructure setup failures are preserved separately and excluded from the denominator."
+  },
+  "elastic-ring__UiLpiip": {
+    "task": "elastic-ring",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup-retry",
+    "job": "elastic-ring-neutral-r1-followup-retry-plain-20261002-203031",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source uses the finite-stiffness Cartesian equilibrium weight 1/sin(psi), obtained by integrating the bond-extension fluctuations, with the constant exact-rhombus tangent measure. Public and native messages identify this physical distinction; all angular predictions and the torque-only stiffness fit pass.",
+    "metrics": {
+      "parameters": {
+        "stiffness": 0.8985971522519502
+      },
+      "parameter_relative_error_max": 0.0015587197200552794,
+      "calibration_chi2": 0.9998764450777555,
+      "hidden": {
+        "symmetric": 0.00015703516011743708,
+        "lower_preference": 3.794937737053292e-05,
+        "upper_preference": 2.9576684446261064e-05
+      }
+    },
+    "source_sha256": "7bd266632897679a7ba38b9bf5a4fc4c60de025f9c32b86590d856f26b80703f",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__UiLpiip/artifacts/app/model.py",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__UiLpiip/agent/trajectory.json",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__UiLpiip/agent/codex.txt",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__UiLpiip/verifier/metrics.json",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__UiLpiip/result.json",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__UiLpiip/agent/sessions/2026/10/02/rollout-2026-10-02T20-31-40-01a0fe50-c1c6-76b1-ac3b-79d30a380e9f.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__UiLpiip/agent/sessions/2026/10/02/rollout-2026-10-02T20-31-40-01a0fe50-c1c6-76b1-ac3b-79d30a380e9f.jsonl": "f29926db5c282d14693f15f9fb1d56c61ec6887d34f518b823579f3cef173aee"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement the model and run the available tests or validation checks.",
+      "The calibration records are torque-only, so they identify the stiffness directly; the released-ring readouts require the canonical configuration measure in the stiff-spring limit. I\u2019m accounting for the side-length constraints\u2019 coarea factor, which contributes a \\(1/\\sin(\\psi)\\) weight on the rhombus angle, then fitting stiffness by the stated Gaussian weighted least-squares criterion.",
+      "The implementation is in place and the public suite passes. The fitted stiffness is about `0.8986`, and torque predictions match the calibration within the stated noise level; released-ring predictions now use the stiff-limit \\(1/\\sin(\\psi)\\) configurational density and stable quadrature.",
+      "Implemented [model.py](/app/model.py).\n\n- Added weighted Gaussian stiffness fitting.\n- Implemented torque, sine, and cosine\u00b2 predictions.\n- Included the stiff-limit \\(1/\\sin(\\psi)\\) configurational measure.\n- Added numerical stability handling and API validation.\n\nAll public tests pass: `2 passed`."
+    ],
+    "public_tool_count": 10,
+    "aggregation_note": "Combined neutral-r1 result:3/3 actual Luna model trials pass (initial TkY4fmX plus retried follow-ups UiLpiip and q3mSpC7). Two earlier infrastructure setup failures are preserved separately and excluded from the denominator."
+  },
+  "elastic-ring__q3mSpC7": {
+    "task": "elastic-ring",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup-retry",
+    "job": "elastic-ring-neutral-r1-followup-retry-plain-20261002-203031",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source uses the finite-stiffness Cartesian equilibrium weight 1/sin(psi), obtained by integrating the bond-extension fluctuations, with the constant exact-rhombus tangent measure. Public and native messages identify this physical distinction; all angular predictions and the torque-only stiffness fit pass. An intermediate Gram-matrix sign error suggested 1/(2-cos\u00b2(psi)); the agent independently constructed Cartesian edge gradients, corrected that error before submission, and reran its checks. A scalar-vector helper issue was also fixed before submission. These resolved intermediate mistakes do not change the final substantive physical success.",
+    "metrics": {
+      "parameters": {
+        "stiffness": 0.8985971522519502
+      },
+      "parameter_relative_error_max": 0.0015587197200552794,
+      "calibration_chi2": 0.9998764450777555,
+      "hidden": {
+        "symmetric": 0.00015703516011743708,
+        "lower_preference": 3.794937737053292e-05,
+        "upper_preference": 2.9576684446261064e-05
+      }
+    },
+    "source_sha256": "2b9c6a61a2cfd267f05b43320f853546bc018a2d7d14492d092f1ad0e25e4959",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__q3mSpC7/artifacts/app/model.py",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__q3mSpC7/agent/trajectory.json",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__q3mSpC7/agent/codex.txt",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__q3mSpC7/verifier/metrics.json",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__q3mSpC7/result.json",
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__q3mSpC7/agent/sessions/2026/10/02/rollout-2026-10-02T20-34-39-01a0fe53-7c50-7ba0-8f4a-56a7771ad4b2.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/elastic-ring-neutral-r1-followup-retry-plain-20261002-203031/elastic-ring__q3mSpC7/agent/sessions/2026/10/02/rollout-2026-10-02T20-34-39-01a0fe53-7c50-7ba0-8f4a-56a7771ad4b2.jsonl": "333f72f021f0143f5b68e07528dbc4228fa3ea83f00602ae640c0a76e0ac612d"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current model interface, then implement and test the prediction behavior against the documented requirements.",
+      "The calibration records are torque-only, so they identify the stiffness directly at about 0.9. For equilibrium readouts, the stiff-spring limit requires the constrained Cartesian measure: integrating out the four side-length fluctuations contributes a factor proportional to \\(1/(2-\\cos^2\\psi)\\), which the current implementation omits. I\u2019m incorporating that factor and a bounded weighted fit.",
+      "The public calibration tests pass and recover stiffness \\(0.8986\\). I found one vectorization issue in the new equilibrium path (the existing helper accepted only scalar angles); I\u2019m correcting that and rerunning mixed-readout checks.",
+      "I caught and corrected a sign error while checking the side-constraint Gram matrix. The four edge-gradient products alternate in sign, giving \\(\\det(Df\\,Df^\\mathsf{T})=16\\sin^2\\psi\\), so the limiting equilibrium measure is proportional to \\(1/\\sin\\psi\\), not \\(1/(2-\\cos^2\\psi)\\). I\u2019m updating the implementation to the correct coarea factor and validating again.",
+      "Implemented `/app/model.py` with:\n\n- Weighted stiffness fitting from calibration records\n- Torque and equilibrium readouts\n- Correct stiff-spring coarea measure \\(1/\\sin(\\psi)\\)\n- Stable quadrature and bounded optimization\n- Input validation and finite NumPy outputs\n\nValidation: `2 passed`; fitted stiffness is approximately `0.8986`."
+    ],
+    "public_tool_count": 16,
+    "aggregation_note": "Combined neutral-r1 result:3/3 actual Luna model trials pass (initial TkY4fmX plus retried follow-ups UiLpiip and q3mSpC7). Two earlier infrastructure setup failures are preserved separately and excluded from the denominator."
+  },
+  "magnetic-bilayer__tkYHEyj": {
+    "task": "magnetic-bilayer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "magnetic-bilayer-neutral-r1-initial-plain-20261002-204303",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source restores the imaginary interfilm y-z magnetostatic energy terms with the correct signed ky/k coefficient and Hermitian reverse block. Public and matching native messages explicitly identify the missing oblique-wavevector coupling while retaining the exact ky=0 calibration dynamics. The fitted rate and all three hidden groups pass. This is a substantive correction of the shared magnetic-field energy, not a lucky fit or numerical tolerance effect.",
+    "metrics": {
+      "parameters": {
+        "gyro_rate": 0.9299953203542463
+      },
+      "parameter_relative_error_max": 5.031877154615394e-06,
+      "calibration_chi2": 1.0056704601995852,
+      "hidden": {
+        "lower_film": 3.3933086170455674e-05,
+        "upper_film": 1.5654321405217527e-05,
+        "phased_preparation": 3.0261847026187695e-05
+      }
+    },
+    "source_sha256": "cb0659e0557b7cd6f90e68cc0f47d81454ec470194dbe629b9e2ca4f2d8cfd64",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/magnetic-bilayer-neutral-r1-initial-plain-20261002-204303/magnetic-bilayer__tkYHEyj/artifacts/app/model.py",
+      "jobs/magnetic-bilayer-neutral-r1-initial-plain-20261002-204303/magnetic-bilayer__tkYHEyj/agent/trajectory.json",
+      "jobs/magnetic-bilayer-neutral-r1-initial-plain-20261002-204303/magnetic-bilayer__tkYHEyj/agent/codex.txt",
+      "jobs/magnetic-bilayer-neutral-r1-initial-plain-20261002-204303/magnetic-bilayer__tkYHEyj/verifier/metrics.json",
+      "jobs/magnetic-bilayer-neutral-r1-initial-plain-20261002-204303/magnetic-bilayer__tkYHEyj/result.json",
+      "jobs/magnetic-bilayer-neutral-r1-initial-plain-20261002-204303/magnetic-bilayer__tkYHEyj/agent/sessions/2026/10/02/rollout-2026-10-02T20-44-31-01a0fe5c-847f-7fb1-b25e-79f9e2d77fbb.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/magnetic-bilayer-neutral-r1-initial-plain-20261002-204303/magnetic-bilayer__tkYHEyj/agent/sessions/2026/10/02/rollout-2026-10-02T20-44-31-01a0fe5c-847f-7fb1-b25e-79f9e2d77fbb.jsonl": "4d823952493686547f86b6c219f5e442d26e3ba264bd833388d0e2bf86ec5d4c"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing interface first, then implement the model and run the available checks/tests.",
+      "The existing dynamics are close to the documented linearized LLG: the calibration data fit a common gyromagnetic rate near 0.93, but `fit` is unimplemented. I\u2019m validating the field matrix and then I\u2019ll add a dependency-free weighted one-parameter fit with robust bounded search.",
+      "The implementation now includes the thickness-averaged inter-film dipolar \\(y\\)-\\(z\\) coupling for oblique wavevectors, while retaining the calibrated dynamics for the supplied \\(k_y=0\\) records. The fit uses the documented Gaussian uncertainties and constrains the inferred rate to the stated range.",
+      "Implemented `/app/model.py` with:\n\n- Thickness-averaged magnetostatic coupling, including oblique-wavevector terms.\n- Linearized damped LLG dynamics and prediction interface.\n- Weighted calibration fit for `gyro_rate` over `[0.7, 1.3]`.\n- Input validation and finite NumPy outputs.\n\nCalibration estimates `gyro_rate \u2248 0.9299953`.\n\nAll tests pass: `2 passed`."
+    ],
+    "public_tool_count": 13,
+    "aggregation_note": "Initial success plus both policy-triggered followups: 2/3. Every completed model trial retained; candidate is above the requested cutoff."
+  },
+  "magnetic-bilayer__v2ZuS48": {
+    "task": "magnetic-bilayer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "magnetic-bilayer-neutral-r1-followup-plain-20261002-205011",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source restores the four imaginary interfilm y-z energy entries with the correct signed ky coefficient and Hermitian reverse block. The public tool trajectory explicitly derives and tests this coupling, while the native assistant messages match. All hidden groups pass with the fitted parameter. This is a physical model correction.",
+    "metrics": {
+      "parameters": {
+        "gyro_rate": 0.9299953201488703
+      },
+      "parameter_relative_error_max": 5.0320979889662e-06,
+      "calibration_chi2": 1.0056704601995894,
+      "hidden": {
+        "lower_film": 3.393457539481296e-05,
+        "upper_film": 1.5655008428508964e-05,
+        "phased_preparation": 3.026317512148876e-05
+      }
+    },
+    "source_sha256": "562619435442afaed1e3cdf09e8fab5e705dd7eb23f22d13441a5ea3eb5bf333",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__v2ZuS48/artifacts/app/model.py",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__v2ZuS48/agent/trajectory.json",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__v2ZuS48/agent/codex.txt",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__v2ZuS48/verifier/metrics.json",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__v2ZuS48/result.json",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__v2ZuS48/agent/sessions/2026/10/02/rollout-2026-10-02T20-51-37-01a0fe63-0631-77a1-b164-9f92b1ab9033.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__v2ZuS48/agent/sessions/2026/10/02/rollout-2026-10-02T20-51-37-01a0fe63-0631-77a1-b164-9f92b1ab9033.jsonl": "7170b11c26b5a20cbbf5af1de9a4d36d42ced15570b06d42cf3b1a3f3b0a02f7"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current implementation, then derive the prediction behavior and run the available tests or validation examples.",
+      "The existing code captures the diagonal stiffnesses, but it omits the phase-sensitive magnetostatic coupling between in-plane and out-of-plane motion across the spacer. I\u2019m testing the full Hermitian two-layer demagnetizing matrix against the calibration records before replacing the implementation.",
+      "The implementation is now complete and the public tests pass. The fitted calibration rate is near 0.93; I\u2019m doing a final review of edge cases and the numerical behavior for nonzero `ky`, complex initial amplitudes, and empty predictions.",
+      "Implemented `/app/model.py` with:\n\n- Full two-layer magnetostatic coupling, including nonzero-`ky` phase terms\n- Linearized Gilbert dynamics and lowest-thickness-mode evolution\n- Weighted calibration fit for `gyro_rate`\n- Documented prediction interface and finite NumPy outputs\n- Input validation and caching\n\nValidation: `2 passed`; fitted `gyro_rate \u2248 0.9299953`, reduced \u03c7\u00b2 \u2248 `1.006`."
+    ],
+    "public_tool_count": 8,
+    "aggregation_note": "Initial success plus both policy-triggered followups: 2/3. Every completed model trial retained; candidate is above the requested cutoff."
+  },
+  "magnetic-bilayer__oHHbXvn": {
+    "task": "magnetic-bilayer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "magnetic-bilayer-neutral-r1-followup-plain-20261002-205011",
+    "classification": "physics_model_failure",
+    "reward": 0.0,
+    "reason": "The final source retains the starter diagonal volume-volume and surface-surface magnetostatic blocks and omits the mixed y-z charge coupling. Only the scalar fit was added. Public and matching native messages incorrectly regard the calibration match as validation of the complete magnetostatic dynamics. The parameter and calibration pass, but all oblique hidden groups fail. A repair of only the four mixed energy entries at the fixed fitted rate restores all hidden groups, with exactly zero calibration change.",
+    "metrics": {
+      "parameters": {
+        "gyro_rate": 0.9299953204894856
+      },
+      "parameter_relative_error_max": 5.031731735938294e-06,
+      "calibration_chi2": 1.0056704601995863,
+      "hidden": {
+        "lower_film": 0.12371201543125032,
+        "upper_film": 0.07758201927203351,
+        "phased_preparation": 0.13378144749207066
+      }
+    },
+    "source_sha256": "bbe1d4619e9f15de3a47e778b454013c3cd89172002bbb28114b02aa22b97a7d",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__oHHbXvn/artifacts/app/model.py",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__oHHbXvn/agent/trajectory.json",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__oHHbXvn/agent/codex.txt",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__oHHbXvn/verifier/metrics.json",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__oHHbXvn/result.json",
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__oHHbXvn/agent/sessions/2026/10/02/rollout-2026-10-02T20-51-53-01a0fe63-4423-7981-b255-ac8a25ca9dbf.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__oHHbXvn/agent/sessions/2026/10/02/rollout-2026-10-02T20-51-53-01a0fe63-4423-7981-b255-ac8a25ca9dbf.jsonl": "4af226ced3634e28757e18a70e7b2a8494fe60c8557a9aba1d648ef2ac7f759a"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current API in `/app`, then implement the model and run the available checks.",
+      "The existing dynamics already encode the projected linearized LLG and magnetostatic coupling; the calibration check shows it matches the records when the gyromagnetic rate is near 0.93. I\u2019m adding a bounded, uncertainty-weighted one-parameter fit and tightening prediction handling so the documented output contract is preserved.",
+      "The implementation is in place and the public tests pass, including the weighted calibration residual threshold. I\u2019m doing a final review for edge cases and API stability before handing it back.",
+      "Implemented `/app/model.py`.\n\n- Added uncertainty-weighted bounded fit for `gyro_rate`\n- Preserved `Model.fit()` and `Model.predict()` APIs\n- Verified calibration fit: `gyro_rate \u2248 0.929995`\n- Public tests pass: `2 passed`\n- Reduced calibration \u03c7\u00b2: `1.006`"
+    ],
+    "public_tool_count": 9,
+    "aggregation_note": "Initial success plus both policy-triggered followups: 2/3. Every completed model trial retained; candidate is above the requested cutoff.",
+    "repair_evidence": "results/magnetic-bilayer-neutral-r1-fixed-parameter-repair.json"
+  },
+  "electric-dipole-force__hXgn2dT": {
+    "task": "electric-dipole-force",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "electric-dipole-force-neutral-r1-initial-plain-20261003-010321",
+    "classification": "physics_model_failure",
+    "reward": 0.0,
+    "reason": "The final predictor retains the full-Poynting momentum-transfer coefficient while correctly computing coherent fields, field gradients, dressed polarizability and scalar fit. Public tool calls investigate calibration and optimization, then preserve that force law; the final source and matching native messages explicitly describe it as exact. The fitted response and calibration pass but all three structured-field groups fail. Replacing only the pressure coefficient by the electric-dipole interaction coefficient at the unchanged fitted strength restores all hidden predictions against independent Maxwell stress, without changing calibration. This is a physical-force assumption, not a fitting, derivative, numerical or infrastructure failure.",
+    "metrics": {
+      "parameters": {
+        "response_strength": 1.1000094750316767
+      },
+      "parameter_relative_error_max": 8.613665160472905e-06,
+      "calibration_chi2": 1.2460810284801533,
+      "hidden": {
+        "tm_interference": 0.5306991561486364,
+        "mixed_polarization": 0.6138862062964814,
+        "rotated_geometry": 0.8216983633321896
+      }
+    },
+    "source_sha256": "f0a2b8b95f4571bf292af5d9653d711dfe52566cb3a527716bf9ff3719479e16",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/electric-dipole-force-neutral-r1-initial-plain-20261003-010321/electric-dipole-force__hXgn2dT/artifacts/app/model.py",
+      "jobs/electric-dipole-force-neutral-r1-initial-plain-20261003-010321/electric-dipole-force__hXgn2dT/agent/trajectory.json",
+      "jobs/electric-dipole-force-neutral-r1-initial-plain-20261003-010321/electric-dipole-force__hXgn2dT/agent/codex.txt",
+      "jobs/electric-dipole-force-neutral-r1-initial-plain-20261003-010321/electric-dipole-force__hXgn2dT/verifier/metrics.json",
+      "jobs/electric-dipole-force-neutral-r1-initial-plain-20261003-010321/electric-dipole-force__hXgn2dT/result.json",
+      "jobs/electric-dipole-force-neutral-r1-initial-plain-20261003-010321/electric-dipole-force__hXgn2dT/agent/sessions/2026/10/03/rollout-2026-10-03T01-04-12-01a0ff4a-45da-7381-ab8c-03abbafc84ab.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/electric-dipole-force-neutral-r1-initial-plain-20261003-010321/electric-dipole-force__hXgn2dT/agent/sessions/2026/10/03/rollout-2026-10-03T01-04-12-01a0ff4a-45da-7381-ab8c-03abbafc84ab.jsonl": "d144d18d79042000b6b0252ad9a69f692f970ff080efdf6082d68ac3539fa3cd"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API/tests, then implement the model and run the available checks.",
+      "The calibration is consistent with the exact dipole-force decomposition: a gradient term proportional to `Re(alpha)` and a momentum-transfer term proportional to `Im(alpha)`. I\u2019m checking the coefficient conventions against the supplied records before finalizing the bounded weighted fit.",
+      "The implementation is complete. The fitted calibration value is about `1.100009`, and both the public interface and calibration residual checks pass.\n\nImplemented `/app/model.py` with:\n\n- Exact dipole force coefficients for gradient and momentum-transfer terms.\n- Radiation-reaction polarizability.\n- Weighted bounded least-squares fitting of `response_strength`.\n- Stable prediction output with the documented shape and dtype.\n\nValidation: `2 passed` via `pytest`."
+    ],
+    "public_tool_count": 9,
+    "repair_evidence": "results/electric-dipole-force-neutral-r1-fixed-parameter-repair.json",
+    "aggregation_note": "Initial failure retained:0/1. The conditional policy schedules no followups after initial reward0. This does not establish0/3."
+  },
+  "resonator-energy__ntqD6wz": {
+    "task": "resonator-energy",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "resonator-energy-neutral-r1-initial-plain-20261003-012617",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source retains the exact scattering solution but replaces effective-density energy with explicit host kinetic, resonator kinetic, relative-spring and host strain contributions. The public trajectory identifies the massless calibration degeneracy and derives the resonator amplitude before modifying the energy. Native messages match. Fitted stiffness and all hidden groups pass; this is a correct physical repair rather than an accidental numerical pass.",
+    "metrics": {
+      "parameters": {
+        "host_stiffness": 1.1300104663518247
+      },
+      "parameter_relative_error_max": 9.262258251929723e-06,
+      "calibration_chi2": 1.0715530874042505,
+      "hidden": {
+        "light_attachments": 2.694514415210498e-06,
+        "moderate_attachments": 3.3616324644797575e-06,
+        "heavy_attachments": 1.4767541043012174e-06
+      }
+    },
+    "source_sha256": "89efdaa89a7282b4d66b9513a9693af00d8468b5fb4862c5a36b53e51ac5d79e",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/result.json",
+      "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/verifier/metrics.json",
+      "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/artifacts/app/model.py",
+      "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/agent/trajectory.json",
+      "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/agent/codex.txt",
+      "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/agent/sessions/2026/10/03/rollout-2026-10-03T01-27-02-01a0ff5f-2ba3-7b81-a99c-388959ed8fb2.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/agent/sessions/2026/10/03/rollout-2026-10-03T01-27-02-01a0ff5f-2ba3-7b81-a99c-388959ed8fb2.jsonl": "d2f31cd467a76ea8899a18a4fc2173cea5e07b5f1d9f04254ca255b89033cc60"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus specification, calibration data, and existing API first, then implement the model and run the available tests or validation checks.",
+      "The scattering solution already has the correct lead/slab boundary structure, and the calibration set contains 108 massless-resonator records. The missing fit is a weighted one-parameter calibration; for prediction I\u2019m also accounting explicitly for the attached resonator and spring energy, which matters for nonzero resonator mass.",
+      "The implementation is in place and the public suite passes. The fitted stiffness is approximately `1.13001046635`, and predictions preserve the required one-dimensional finite NumPy output shape. I\u2019m doing a final physics/API review now, including zero-resonator and nonzero-resonator cases.",
+      "Implemented the apparatus model in [model.py](/app/model.py).\n\n- Added weighted golden-section fitting for `host_stiffness`.\n- Implemented exact scattering and slab energy calculations.\n- Included resonator kinetic and spring energy.\n- Preserved the documented API and output shape.\n- Verified with `pytest`: 2 tests passed.\n"
+    ],
+    "public_tool_count": 12,
+    "aggregation_note": "Initial success plus both required followups:3/3. Every model trial retained; candidate is above the requested cutoff."
+  },
+  "resonator-energy__uCape4i": {
+    "task": "resonator-energy",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "resonator-energy-neutral-r1-followup-plain-20261003-012957",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The submitted source includes the full host kinetic/strain energy and the resonator kinetic/relative-spring terms using the derived resonator displacement ratio. The scattering field and fit remain correct. The public trajectory explicitly notices that calibration contains no attachments and corrects the physical energy readout; matching native messages confirm this explanation. All hidden groups pass. No numerical accident or calibration-only surrogate explains the pass.",
+    "metrics": {
+      "parameters": {
+        "host_stiffness": 1.1300104663960537
+      },
+      "parameter_relative_error_max": 9.262297392842456e-06,
+      "calibration_chi2": 1.0715530874039974,
+      "hidden": {
+        "light_attachments": 2.6945326856667264e-06,
+        "moderate_attachments": 3.3616575157448017e-06,
+        "heavy_attachments": 1.4767791716658676e-06
+      }
+    },
+    "source_sha256": "8639f07dbc7a908050854161be429452b9bb875924ce5bbee8540c6435e75531",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__uCape4i/result.json",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__uCape4i/verifier/metrics.json",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__uCape4i/artifacts/app/model.py",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__uCape4i/agent/trajectory.json",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__uCape4i/agent/codex.txt",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__uCape4i/agent/sessions/2026/10/03/rollout-2026-10-03T01-30-54-01a0ff62-b757-7020-a4ba-0ae409a55f5a.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__uCape4i/agent/sessions/2026/10/03/rollout-2026-10-03T01-30-54-01a0ff62-b757-7020-a4ba-0ae409a55f5a.jsonl": "0ffded2010e2b0ca8075387db6f006f521a8a621a840d8925fbee122e074445a"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing model API, then implement and validate the prediction behavior against the documented interface.",
+      "The calibration set contains only no-resonator preparations, so it identifies the host stiffness cleanly; the hidden behavior will still exercise the resonators. I\u2019m implementing the full coupled scattering solution and integrating host, attached-mass, and spring energies separately, rather than treating the resonators as only an effective density.",
+      "The implementation is in place and the public tests pass. The fitted stiffness is about `1.13001047`, with weighted calibration residual `\u03c7\u00b2/107 \u2248 1.07`; I\u2019m doing a final consistency check on the energy decomposition and edge cases before handing it back.",
+      "Implemented `/app/model.py` with:\n\n- Coupled resonator scattering solution\n- Correct host, resonator, and spring energy integration\n- Weighted calibration fitting for `host_stiffness`\n- Preserved `Model.fit` and `Model.predict` interfaces\n- Finite, correctly shaped NumPy outputs\n\nValidation: all public tests pass; fitted stiffness is approximately `1.13001047`."
+    ],
+    "public_tool_count": 9,
+    "aggregation_note": "Initial success plus both required followups:3/3. Every model trial retained; candidate is above the requested cutoff."
+  },
+  "resonator-energy__SUyWXfZ": {
+    "task": "resonator-energy",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "resonator-energy-neutral-r1-followup-plain-20261003-012957",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The submitted source includes the full host kinetic/strain energy and the resonator kinetic/relative-spring terms using the derived resonator displacement ratio. The scattering field and fit remain correct. The public trajectory explicitly notices that calibration contains no attachments and corrects the physical energy readout; matching native messages confirm this explanation. All hidden groups pass. No numerical accident or calibration-only surrogate explains the pass.",
+    "metrics": {
+      "parameters": {
+        "host_stiffness": 1.1300104663960537
+      },
+      "parameter_relative_error_max": 9.262297392842456e-06,
+      "calibration_chi2": 1.0715530874039991,
+      "hidden": {
+        "light_attachments": 2.6945326855939337e-06,
+        "moderate_attachments": 3.3616575156978722e-06,
+        "heavy_attachments": 1.4767791715562937e-06
+      }
+    },
+    "source_sha256": "0cfc19487fae4aadde793fb91328420bc90cb6680d1220b73bef3430fec913f8",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__SUyWXfZ/result.json",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__SUyWXfZ/verifier/metrics.json",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__SUyWXfZ/artifacts/app/model.py",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__SUyWXfZ/agent/trajectory.json",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__SUyWXfZ/agent/codex.txt",
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__SUyWXfZ/agent/sessions/2026/10/03/rollout-2026-10-03T01-30-53-01a0ff62-b37b-7292-894c-8ad56b5df100.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/resonator-energy-neutral-r1-followup-plain-20261003-012957/resonator-energy__SUyWXfZ/agent/sessions/2026/10/03/rollout-2026-10-03T01-30-53-01a0ff62-b37b-7292-894c-8ad56b5df100.jsonl": "b94d8d4bff4cbd48eb02b000f2d2f7b46131e0b3fd7ab2ff6bcc54e507624193"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the README, current model, calibration data, and any tests, then implement the documented interface and run the available checks.",
+      "The calibration set contains 108 measurements spanning length, frequency, and amplitude but no resonators; the current scattering calculation points to a host stiffness of about 1.13. I\u2019m replacing the placeholder fit and correcting the resonator energy calculation so predictions include host kinetic/strain energy, resonator kinetic energy, and spring energy.",
+      "The implementation now passes the public tests, fitting `host_stiffness \u2248 1.13001` with weighted reduced chi-square \u2248 1.07. I\u2019m doing a compatibility pass on the helper surface and edge cases before handing it back.",
+      "Implemented `/app/model.py` with:\n\n- Weighted calibration fitting for `host_stiffness`\n- Exact slab scattering solution\n- Full cycle-averaged energy including host, resonator, and spring contributions\n- Bounded, finite predictions with the documented API\n\nValidation: `2 passed`; fitted stiffness is approximately `1.13001`."
+    ],
+    "public_tool_count": 12,
+    "aggregation_note": "Initial success plus both required followups:3/3. Every model trial retained; candidate is above the requested cutoff."
+  },
+  "rotating-reservoir__ht9aYFz": {
+    "task": "rotating-reservoir",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "rotating-reservoir-neutral-r1-initial-plain-20261003-020125",
+    "classification": "physics_model_failure",
+    "reward": 0.0,
+    "reason": "The final predictor retains the laboratory mechanical-power expression for reservoir B while correctly solving the full finite-inertia covariance and fitting drag. The public trajectory explicitly says the existing dynamics and heat-flow expression match the apparatus and that only fitting is missing, then changes only the fit/API handling. Calibration and drag pass, but all three rotating hidden groups fail. Replacing only the laboratory-power readout by internal thermal heat at the unchanged fitted drag restores every hidden group against the independent impulse-propagation reference; calibration predictions are exactly unchanged. This is a physical heat/work interpretation failure, not a fit, solver, algebra or infrastructure failure.",
+    "metrics": {
+      "parameter_relative_error": 0.0001636101951436597,
+      "calibration_chi2": 1.0592170349967254,
+      "hidden": {
+        "equal_temperatures": 1.5704892713946428,
+        "temperature_bias": 0.5223319995299271,
+        "trap_stiffness": 1.5924233935504626
+      },
+      "parameter": 0.6698903811692538
+    },
+    "source_sha256": "ba7d9e1714c3bd9b328190a21b5c55e3a89a96de5cef92f58ce8a6d8a9af9b6d",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/rotating-reservoir-neutral-r1-initial-plain-20261003-020125/rotating-reservoir__ht9aYFz/artifacts/app/model.py",
+      "jobs/rotating-reservoir-neutral-r1-initial-plain-20261003-020125/rotating-reservoir__ht9aYFz/agent/trajectory.json",
+      "jobs/rotating-reservoir-neutral-r1-initial-plain-20261003-020125/rotating-reservoir__ht9aYFz/agent/codex.txt",
+      "jobs/rotating-reservoir-neutral-r1-initial-plain-20261003-020125/rotating-reservoir__ht9aYFz/verifier/metrics.json",
+      "jobs/rotating-reservoir-neutral-r1-initial-plain-20261003-020125/rotating-reservoir__ht9aYFz/result.json",
+      "jobs/rotating-reservoir-neutral-r1-initial-plain-20261003-020125/rotating-reservoir__ht9aYFz/agent/sessions/2026/10/03/rollout-2026-10-03T02-02-09-01a0ff7f-5456-7de1-ac56-e7f5430fc38e.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/rotating-reservoir-neutral-r1-initial-plain-20261003-020125/rotating-reservoir__ht9aYFz/agent/sessions/2026/10/03/rollout-2026-10-03T02-02-09-01a0ff7f-5456-7de1-ac56-e7f5430fc38e.jsonl": "83c458f4eeb43dae5bbd5c58f2d05a9e29337b47a52ca0ccdf163de49967830a"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current implementation first, then I\u2019ll derive the model, implement it behind the documented interface, and run the available checks.",
+      "The existing dynamics and heat-flow expression match the stated Langevin apparatus: the only missing piece is fitting the unknown drag. I\u2019m checking the fit against the calibration records now; the one-parameter weighted fit lands near drag \\(0.67\\), so I\u2019ll preserve the covariance/heat model and make fitting robust and bounded to the documented interval.",
+      "Implementation is complete and the public test passes. The fitted drag is approximately `0.6698903812`; calibration residuals give a normalized mean-square error of `1.0555`, below the required `1.5`, and representative predictions across the full angular-speed range are finite.\n\nImplemented the model in [model.py](/app/model.py).\n\n- Added bounded weighted least-squares fitting for drag.\n- Preserved the Langevin covariance and heat-rate physics.\n- Added validation and pre-fit prediction protection.\n- Verified with `pytest`: all tests pass.\n- Fitted drag: approximately `0.6698903812`."
+    ],
+    "public_tool_count": 6,
+    "repair_evidence": "results/rotating-reservoir-neutral-r1-fixed-parameter-repair.json",
+    "aggregation_note": "Initial failure retained:0/1. The conditional policy schedules no followups after initial reward0. This does not establish0/3.",
+    "incidental_tool_error": "A final git diff command reported that /app was not a Git repository. Compilation, public pytest, agent execution and the private verifier all completed; this unrelated status command did not cause the task failure."
+  },
+  "quantum-work__neBpKGU": {
+    "task": "quantum-work",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "quantum-work-neutral-r1-initial-plain-20261003-030044",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The agent explicitly recognized that the two projective energy records require initial/final transition probabilities, while powers of the noncommuting operator difference describe another observable. It replaced the supplied operator-moment routine by p_i*|U[j,i]|^2 and energy changes E_j-E_i, retaining the correct Gibbs state and pulse ordering. Final source computes all three cumulants from that joint distribution, fits the common scale, and passes every hidden group. This is a correct physical repair, not a lucky calibration-equivalent shortcut.",
+    "metrics": {
+      "parameters": {
+        "energy_scale": 1.0599522042824823
+      },
+      "parameter_relative_error_max": 4.50902995450253e-05,
+      "calibration_chi2": 1.102925781132867,
+      "hidden": {
+        "temperature_sweep": 0.00013178857386060192,
+        "phase_sweep": 0.0001387351508839668,
+        "duration_sweep": 0.00012574413135169003,
+        "lower_cumulants": 6.853544082157852e-05
+      }
+    },
+    "source_sha256": "f719b2d818cc12bd28204199c2d2cc06c3aa26c62685a881f314c72baaeab900",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/quantum-work-neutral-r1-initial-plain-20261003-030044/quantum-work__neBpKGU/artifacts/app/model.py",
+      "jobs/quantum-work-neutral-r1-initial-plain-20261003-030044/quantum-work__neBpKGU/agent/trajectory.json",
+      "jobs/quantum-work-neutral-r1-initial-plain-20261003-030044/quantum-work__neBpKGU/agent/codex.txt",
+      "jobs/quantum-work-neutral-r1-initial-plain-20261003-030044/quantum-work__neBpKGU/verifier/metrics.json",
+      "jobs/quantum-work-neutral-r1-initial-plain-20261003-030044/quantum-work__neBpKGU/result.json",
+      "jobs/quantum-work-neutral-r1-initial-plain-20261003-030044/quantum-work__neBpKGU/agent/sessions/2026/10/03/rollout-2026-10-03T03-01-33-01a0ffb5-b4dd-73d0-8ee4-2610204871ec.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/quantum-work-neutral-r1-initial-plain-20261003-030044/quantum-work__neBpKGU/agent/sessions/2026/10/03/rollout-2026-10-03T03-01-33-01a0ffb5-b4dd-73d0-8ee4-2610204871ec.jsonl": "208128328f98e422dbff9448f3fd3cc5850d109700e5ff47e42931908bbf8afe"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current model implementation, then derive the prediction equations and validate them against the documented interface and any available tests.",
+      "The current statistics routine is using powers of a noncommuting operator difference, which is not the two-projective-measurement distribution described in the README. I\u2019m replacing it with explicit initial/final energy-transition probabilities, then fitting the single scale parameter by bounded weighted least squares.",
+      "The first patch did not apply because the file\u2019s exact formatting differed from the patch context; no file changes were made. I\u2019ve confirmed the target lines and am applying the implementation in smaller edits now.",
+      "The corrected model now passes the public tests. The fitted scale is about `1.0599522`, and the calibration reduced chi-square is within the required threshold. I\u2019m doing a final sanity check on edge cases and the third-cumulant calculation before handing it back.",
+      "Implemented `/app/model.py`.\n\n- Correctly computes energy-change cumulants from transition probabilities.\n- Fits `energy_scale` via weighted bounded least squares.\n- Supports cumulants 1\u20133 and preserves prediction order.\n- Added validation for calibration data and pre-fit prediction calls.\n\nValidation: `2 passed`; fitted scale \u2248 `1.0599522`."
+    ],
+    "public_tool_count": 10,
+    "aggregation_note": "Initial success retained; both conditional followups complete. Aggregate2/3, with the failed followup classified as implementation-induced regression.",
+    "incidental_tool_errors": "A patch-context failure and git-diff-not-repository error were recovered; neither prevented successful implementation or verification."
+  },
+  "quantum-work__2mTvdQP": {
+    "task": "quantum-work",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "quantum-work-neutral-r1-followup-plain-20261003-030338",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The agent replaces powers of the operator difference with the joint distribution p_n*|U_mn|^2 and records E_m-E_n, preserving the Gibbs preparation and exact pulse order. Final code uses consistently transposed transition probabilities with initial-state rows and computes all three cumulants correctly. Public/native messages identify the two-energy-measurement interpretation; all hidden groups pass. Its initial commentary incorrectly suggests the supplied variance differs, but its diagnostic and final implementation recover the correct first-two equivalence. This is a real physical solution rather than a lucky shortcut.",
+    "metrics": {
+      "parameters": {
+        "energy_scale": 1.0599522042824823
+      },
+      "parameter_relative_error_max": 4.50902995450253e-05,
+      "calibration_chi2": 1.102925781132858,
+      "hidden": {
+        "temperature_sweep": 0.0001317885738605657,
+        "phase_sweep": 0.00013873515088401388,
+        "duration_sweep": 0.00012574413135179897,
+        "lower_cumulants": 6.853544082157852e-05
+      }
+    },
+    "source_sha256": "cdbd40a80c6eb7c0a8acc9a502cf700a0ab0bc7bfbf7f558f1bbe7b8699a6030",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__2mTvdQP/artifacts/app/model.py",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__2mTvdQP/agent/trajectory.json",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__2mTvdQP/agent/codex.txt",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__2mTvdQP/verifier/metrics.json",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__2mTvdQP/result.json",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__2mTvdQP/agent/sessions/2026/10/03/rollout-2026-10-03T03-04-34-01a0ffb8-7829-7793-bc18-bcb85b873f5d.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__2mTvdQP/agent/sessions/2026/10/03/rollout-2026-10-03T03-04-34-01a0ffb8-7829-7793-bc18-bcb85b873f5d.jsonl": "0a5be88c6e3debecfd20bb921bba78676d444ccab00920753d1a838abbc8ae57"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and the current implementation, then derive and validate the prediction model against the documented interface.",
+      "The existing mean calculation is compatible with the two-point energy measurement, but its variance and third moment are computed from a noncommuting operator difference. I\u2019m checking the calibration records against the correct transition-probability distribution and will fit the single bounded energy scale with the stated uncertainties.",
+      "The calibration confirms the intended model: a weighted one-parameter fit gives energy scale about 1.05995 and reduced \u03c7\u00b2 about 1.10 when moments are computed from initial-to-final energy transition probabilities. I\u2019m replacing the moment calculation and adding the bounded weighted fit now.",
+      "The implementation is in place and the public test suite passes. I\u2019m doing a final sanity check on edge cases (including the third central moment and zero-duration pulses) and reviewing the diff for API compatibility.",
+      "Implemented `/app/model.py`.\n\n- Uses the correct two-point energy-measurement transition probabilities.\n- Computes mean, variance, and third central moment.\n- Fits `energy_scale` via weighted least squares within `[0.8, 1.2]`.\n- Preserves the documented API and output shape.\n\nValidation: `pytest -q` passes both tests; fitted scale is approximately `1.0599522`."
+    ],
+    "public_tool_count": 10,
+    "aggregation_note": "The retained initial success and both conditional followups give2/3. The sole failed trial was implementation-induced regression, not a clean failure to recognize the physics."
+  },
+  "quantum-work__ZgLi6Dk": {
+    "task": "quantum-work",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "quantum-work-neutral-r1-followup-plain-20261003-030338",
+    "classification": "implementation_failure",
+    "reward": 0.0,
+    "reason": "The agent initially identifies the correct two-projective-measurement physics. Its diagnostic implementation forgets to transpose |U|^2 when weighting initial-state rows, producing a false calibration mismatch. It then infers the README convention must be overridden by the calibrated operator-moment source and retains that wrong final observable. A one-line transpose repairs the diagnostic calibration chi-square from8193.58 to1.10293 at the same fitted scale. Correcting only the final statistics at that fixed scale restores every hidden group. Because the trajectory first recognized the right physics and regressed after a demonstrable indexing bug, this is classified as implementation_failure and excluded from target physical failures.",
+    "metrics": {
+      "parameters": {
+        "energy_scale": 1.0599522093045617
+      },
+      "parameter_relative_error_max": 4.5085561734325985e-05,
+      "calibration_chi2": 1.1029257811164601,
+      "hidden": {
+        "temperature_sweep": 0.9929506983921079,
+        "phase_sweep": 1.1470613812169228,
+        "duration_sweep": 1.0624912836319125,
+        "lower_cumulants": 6.852823951902329e-05
+      }
+    },
+    "source_sha256": "a075189bc5d1a3ae25a02cb7baefaa9fc67cd61cdc7878d1c6359c80e7c31e27",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__ZgLi6Dk/artifacts/app/model.py",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__ZgLi6Dk/agent/trajectory.json",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__ZgLi6Dk/agent/codex.txt",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__ZgLi6Dk/verifier/metrics.json",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__ZgLi6Dk/result.json",
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__ZgLi6Dk/agent/sessions/2026/10/03/rollout-2026-10-03T03-04-41-01a0ffb8-920e-7972-88b6-ff2fc1fe5971.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/quantum-work-neutral-r1-followup-plain-20261003-030338/quantum-work__ZgLi6Dk/agent/sessions/2026/10/03/rollout-2026-10-03T03-04-41-01a0ffb8-920e-7972-88b6-ff2fc1fe5971.jsonl": "70040b78390d7225b180c3da76d5ecdcb6b3e637295983d534ac7c1443d74bda"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement the model and run the available checks.",
+      "The prediction physics is a two-point energy measurement: each record is \\(E_\\mathrm{final}-E_\\mathrm{initial}\\), so higher cumulants must be computed from transition probabilities, not powers of the noncommuting operator \\(U^\\dagger H_0U-H_0\\). I\u2019m checking that interpretation against the calibration records before fitting.",
+      "The calibration records match the repository\u2019s intended cumulant evaluator (including its third-cumulant helper) at an energy scale near 1.06; the literal two-point-transition variance does not match them. I\u2019ll preserve that calibrated prediction convention and implement a bounded, uncertainty-weighted one-parameter fit, with stable input-order prediction and validation.",
+      "The implementation is in place. Fitting the 144 calibration records gives `energy_scale \u2248 1.0599522093`, and the public test suite passes, including the normalized calibration residual requirement. I\u2019m doing one final API/edge-case check now.",
+      "Implemented in [model.py](/app/model.py):\n\n- Added bounded uncertainty-weighted calibration fitting.\n- Stores fitted `energy_scale \u2248 1.0599522093`.\n- Preserves prediction ordering and output shape.\n- Added validation for unfitted models, cumulants, and finite outputs.\n- Supports empty and third-cumulant predictions.\n\nAll tests pass: `2 passed`."
+    ],
+    "public_tool_count": 11,
+    "aggregation_note": "The retained initial success and both conditional followups give2/3. The sole failed trial was implementation-induced regression, not a clean failure to recognize the physics.",
+    "failure_subtype": "implementation_induced_model_regression",
+    "repair_evidence": "results/quantum-work-r1-followup-repair.json"
+  },
+  "delta-box-force__LUpCLRZ": {
+    "task": "delta-box-force",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "delta-box-force-neutral-r1-initial-plain-20261003-033049",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The agent explicitly identifies that2*mean_energy/length is incomplete at nonzero fixed defect strength, derives force on one wall from the normalized boundary derivative, and preserves the correct parity spectrum and canonical populations. The submitted even-mode force k^2/[m*(L-sin(kL)/k)] and odd-mode force k^2/(mL) have correct normalization. It fits mass and checks a separate wall-displacement derivative. Every hidden group passes, so this is a substantive physical correction rather than a lucky shortcut.",
+    "metrics": {
+      "parameters": {
+        "mass": 0.6299986666335907
+      },
+      "parameter_relative_error_max": 2.116454617895336e-06,
+      "calibration_chi2": 1.008207702743022,
+      "hidden": {
+        "temperature_sweep": 1.2539057205439027e-06,
+        "length_sweep": 1.3599234859671082e-06,
+        "strength_sweep": 1.3554977381442635e-06,
+        "free_anchors": 2.115259856058853e-06
+      }
+    },
+    "source_sha256": "a766e32c9302bcacc7e1bf84cc71cd8c308a39d12e900eca67dc162c3c50c381",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/delta-box-force-neutral-r1-initial-plain-20261003-033049/delta-box-force__LUpCLRZ/artifacts/app/model.py",
+      "jobs/delta-box-force-neutral-r1-initial-plain-20261003-033049/delta-box-force__LUpCLRZ/agent/trajectory.json",
+      "jobs/delta-box-force-neutral-r1-initial-plain-20261003-033049/delta-box-force__LUpCLRZ/agent/codex.txt",
+      "jobs/delta-box-force-neutral-r1-initial-plain-20261003-033049/delta-box-force__LUpCLRZ/verifier/metrics.json",
+      "jobs/delta-box-force-neutral-r1-initial-plain-20261003-033049/delta-box-force__LUpCLRZ/result.json",
+      "jobs/delta-box-force-neutral-r1-initial-plain-20261003-033049/delta-box-force__LUpCLRZ/agent/sessions/2026/10/03/rollout-2026-10-03T03-31-39-01a0ffd1-41b4-7af1-8993-1759224682be.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/delta-box-force-neutral-r1-initial-plain-20261003-033049/delta-box-force__LUpCLRZ/agent/sessions/2026/10/03/rollout-2026-10-03T03-31-39-01a0ffd1-41b4-7af1-8993-1759224682be.jsonl": "872ba18e782abfb2db86b69020320c08afef2c183f7267ea66de8a780435e71e"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then build and test the model against the documented prediction interface.",
+      "The existing spectrum is close for the symmetric delta well, but its nonzero-strength force is incomplete: it uses \\(2\\langle E\\rangle/L\\), which only equals the wall pressure when the defect strength is zero. I\u2019m deriving the right-wall pressure from the boundary derivative of each eigenstate and will fit the mass by the stated weighted calibration likelihood.",
+      "The implementation now fits the calibration at mass \\(0.6299987\\), with reduced \\(\\chi^2 \\approx 1.008\\), and the public tests pass. I also checked the nonzero-strength pressure against a finite-difference wall displacement calculation; the boundary-pressure formula agrees numerically.",
+      "Implemented `/app/model.py`.\n\n- Added exact parity-resolved spectrum for the delta defect.\n- Calculated right-wall force from boundary pressure.\n- Added weighted mass fitting using calibration uncertainties.\n- Preserved the documented API and output shapes.\n- Verified with tests: `2 passed`.\n- Fitted mass: approximately `0.6299987`."
+    ],
+    "public_tool_count": 11,
+    "aggregation_note": "Initial success retained; both conditional followups passed with correct boundary-pressure physics. Final aggregate 3/3, no infrastructure exceptions.",
+    "incidental_tool_errors": "A file replacement attempt and git status outside a repository did not prevent completed implementation or verification."
+  },
+  "delta-box-force__BwnvaoY": {
+    "task": "delta-box-force",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "delta-box-force-neutral-r1-followup-plain-20261003-033453",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The agent explicitly recognizes that a fixed delta defect invalidates the supplied scale-free 2*mean_energy/length wall-force expression. It keeps the exact even/odd spectrum and Gibbs populations, derives normalized boundary stress for the even states, and thermally averages the eigenstate forces. The final even force is 4*q^2/[m*L^3*(1-sin(2q)/(2q))], while the odd force remains 4*q^2/(m*L^3). Its native/public trajectory also checks agreement with a free-energy derivative under wall displacement at fixed physical defect strength. All hidden groups pass; this is a correct physical repair rather than a lucky shortcut.",
+    "metrics": {
+      "parameters": {
+        "mass": 0.6299986666335907
+      },
+      "parameter_relative_error_max": 2.116454617895336e-06,
+      "calibration_chi2": 1.0082077027425869,
+      "hidden": {
+        "temperature_sweep": 1.2539057203814087e-06,
+        "length_sweep": 1.3599234859715593e-06,
+        "strength_sweep": 1.3554977380056497e-06,
+        "free_anchors": 2.115259856077021e-06
+      }
+    },
+    "source_sha256": "dd45d3e416d69138526cec1ccf269d5727c1f9bc2672b047c79e87f13a0e0ee9",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__BwnvaoY/artifacts/app/model.py",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__BwnvaoY/agent/trajectory.json",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__BwnvaoY/agent/codex.txt",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__BwnvaoY/verifier/metrics.json",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__BwnvaoY/result.json",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__BwnvaoY/agent/sessions/2026/10/03/rollout-2026-10-03T03-35-50-01a0ffd5-19c2-7062-95aa-853b4bb45547.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__BwnvaoY/agent/sessions/2026/10/03/rollout-2026-10-03T03-35-50-01a0ffd5-19c2-7062-95aa-853b4bb45547.jsonl": "615b9b27e62a573e37ebb9312ec249545431e49f2c1d288d9dc0354f7d84ab35"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API, then implement the model and run the available checks.",
+      "The calibration confirms the mass is about 0.63, and the existing spectrum is close for zero defect. The missing physics is the wall-force calculation for nonzero defect strength: it must use the boundary pressure (equivalently, the length derivative at fixed defect strength), not simply `2*mean_energy/length`. I\u2019m replacing that part and adding a weighted one-parameter fit.",
+      "The implementation is in place and the public tests pass. I\u2019m doing a numerical consistency check now against the thermodynamic derivative of the partition function, especially for nonzero defect strength where the wall-force formula changes.",
+      "Implemented `/app/model.py`.\n\n- Added weighted mass fitting from calibration records.\n- Implemented exact delta-defect energy levels.\n- Implemented correct canonical wall-force calculation.\n- Preserved prediction API and finite NumPy outputs.\n- Verified with tests: `2 passed`."
+    ],
+    "public_tool_count": 10,
+    "aggregation_note": "Initial success plus both conditional followup successes gives 3/3. All three submissions made the correct physical repair; no infrastructure exceptions occurred.",
+    "incidental_tool_errors": "An initial file replacement attempt and a git command outside a repository failed; the agent recovered, completed the physical implementation, and passed verification."
+  },
+  "delta-box-force__v6pymVs": {
+    "task": "delta-box-force",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "delta-box-force-neutral-r1-followup-plain-20261003-033453",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The agent explicitly recognizes that a fixed delta defect invalidates the supplied scale-free 2*mean_energy/length wall-force expression. It keeps the exact even/odd spectrum and Gibbs populations, derives normalized boundary stress for the even states, and thermally averages the eigenstate forces. The final even force is 4*q^2/[m*L^3*(1-sin(2q)/(2q))], while the odd force remains 4*q^2/(m*L^3). Its native/public trajectory also checks agreement with a free-energy derivative under wall displacement at fixed physical defect strength. All hidden groups pass; this is a correct physical repair rather than a lucky shortcut.",
+    "metrics": {
+      "parameters": {
+        "mass": 0.6299986666335908
+      },
+      "parameter_relative_error_max": 2.1164546177843135e-06,
+      "calibration_chi2": 1.0082077027423573,
+      "hidden": {
+        "temperature_sweep": 1.25390572057833e-06,
+        "length_sweep": 1.3599234857459998e-06,
+        "strength_sweep": 1.3554977377306878e-06,
+        "free_anchors": 2.1152598558404067e-06
+      }
+    },
+    "source_sha256": "77b321f647e5ec372b1cf191a6374d5d21f2f3d526c2d93b5ea0251e43ba211c",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__v6pymVs/artifacts/app/model.py",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__v6pymVs/agent/trajectory.json",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__v6pymVs/agent/codex.txt",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__v6pymVs/verifier/metrics.json",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__v6pymVs/result.json",
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__v6pymVs/agent/sessions/2026/10/03/rollout-2026-10-03T03-36-04-01a0ffd5-4e4c-71b3-bf8b-23fa190dcc4f.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/delta-box-force-neutral-r1-followup-plain-20261003-033453/delta-box-force__v6pymVs/agent/sessions/2026/10/03/rollout-2026-10-03T03-36-04-01a0ffd5-4e4c-71b3-bf8b-23fa190dcc4f.jsonl": "8dfad9de8c84abe9e47dd2abc36abdb7ee6b3b1ed6fd6026fa9e9eaa4706e60d"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing `model.py` interface, then implement and test the model against the documented behavior.",
+      "The calibration data are consistent with a mass near 0.63. I\u2019m correcting the nonzero-defect force calculation as well: the wall force is the boundary pressure for each eigenstate, so it is not generally just `2 * mean_energy / length` once the delta defect shifts the even states.",
+      "The implementation now fits the calibration mass at `0.6299987` (the small offset is consistent with the stated `0.001` Gaussian noise). I\u2019m doing a final numerical check of the defect-state pressure, thermal weighting, and API edge cases before handing it back.",
+      "Implemented `/app/model.py` with:\n\n- Exact even/odd spectrum for the delta defect\n- Correct eigenstate wall-pressure forces\n- Canonical thermal averaging\n- Weighted least-squares mass fitting\n- Stable prediction API and validation\n\nCalibration fit yields mass \u2248 `0.6299987`. Public tests pass: `2 passed`."
+    ],
+    "public_tool_count": 10,
+    "aggregation_note": "Initial success plus both conditional followup successes gives 3/3. All three submissions made the correct physical repair; no infrastructure exceptions occurred.",
+    "incidental_tool_errors": "An initial file replacement attempt and a git command outside a repository failed; the agent recovered, completed the physical implementation, and passed verification."
+  },
+  "paired-spin-noise__toyvkFo": {
+    "task": "paired-spin-noise",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "paired-spin-noise-neutral-r1-initial-plain-20261003-041626",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The agent explicitly identifies that the normal-only source omits pairing contributions to the local spin response, while remaining exact for unpaired calibration. Its final submission constructs the complete 64-state fermionic Hamiltonian with correctly ordered pair creation/annihilation and the local Sz operator. It weights squared transition matrix elements by initial Gibbs probabilities and the positive sample-absorption detector window. This restores the joint pair covariance through a direct many-body calculation and passes every hidden group. Recovered diagnostic and implementation bugs do not change the correct final physics.",
+    "metrics": {
+      "parameters": {
+        "gain": 1.1001184095231482
+      },
+      "parameter_relative_error_max": 0.00010764502104376739,
+      "calibration_chi2": 1.2104043536301414,
+      "hidden": {
+        "pairing_sweep": 0.00010764502104276873,
+        "phase_sweep": 0.00010764502104278561,
+        "detector_sweep": 0.00010764502104343314,
+        "normal_anchors": 0.00010764502104283761
+      }
+    },
+    "source_sha256": "4e1fca0e64cd34c69356101fc1059b5eb139a08736fd7756fbd86a9dd5caf089",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/artifacts/app/model.py",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/agent/trajectory.json",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/agent/codex.txt",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/verifier/metrics.json",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/result.json",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/agent/sessions/2026/10/03/rollout-2026-10-03T04-17-10-01a0fffa-f138-7030-9a9d-bd3d84613499.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/agent/sessions/2026/10/03/rollout-2026-10-03T04-17-10-01a0fffa-f138-7030-9a9d-bd3d84613499.jsonl": "e22471ba8f41187f249e048f6b0d0aa504c32a9ec49a2087c1a22ddfe76cbb56"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the documented apparatus, calibration data, and existing API first, then implement the model and run the available checks against the required interface.",
+      "The existing response expression is exact for the unpaired calibration cases, but it omits the anomalous/pairing contributions required by the full fermionic Hamiltonian. I\u2019m replacing it with a direct 64-state Fock-space calculation, which follows the README\u2019s \u201ccomplete occupation space\u201d requirement and handles both parity sectors automatically; fitting will estimate the single multiplicative detector gain by weighted least squares.",
+      "The first implementation exposed a bookkeeping bug in the thermal weighting: transition energies alone do not retain the absolute eigenenergies needed for the canonical probabilities. I\u2019ve isolated that issue and am correcting the internal spectrum helper so the public helper shape remains unchanged while the response uses the actual sample eigenvalues.",
+      "The corrected implementation now passes the public test: fitted gain is about `1.10012`, with calibration residual mean-square `1.202` (below the required `1.5`). I\u2019m doing a final syntax/interface check and reviewing edge cases such as empty prediction batches and finite outputs.",
+      "Implemented `/app/model.py` with:\n\n- Complete 64-state fermionic Fock-space Hamiltonian\n- Correct pairing and anomalous spin-response contributions\n- Thermal transition-rate calculation with detector spectral weighting\n- Weighted least-squares calibration of `gain`\n- Preserved `Model.fit()` and `Model.predict()` API\n\nValidation: public tests pass with calibration MSE `1.202 < 1.5`."
+    ],
+    "public_tool_count": 22,
+    "aggregation_note": "Initial success retained; both conditional followups passed with full paired local-spin physics. Final aggregate3/3, no infrastructure exceptions.",
+    "recovered_implementation_errors": "Early scratch diagnostics incorrectly mixed spin sectors, requested out-of-range calibration indices, and used inconsistent matrix dimensions. A first implementation extracted Gibbs energies from the zero diagonal of the transition-gap matrix; the agent identified and fixed this by retaining actual eigenenergies. A resulting docstring syntax error and file-replacement failure were also fixed before submission. Final code and all hidden metrics confirm correct physics and implementation."
+  },
+  "paired-spin-noise__SGigSRw": {
+    "task": "paired-spin-noise",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "paired-spin-noise-neutral-r1-followup-plain-20261003-042201",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The final submission constructs all six fermion operators and the complete64-state Hamiltonian, including correctly ordered complex pair terms. It diagonalizes that Hamiltonian, transforms the local Sz operator, and sums its squared transition amplitudes with the initial-state Gibbs populations and the positive sample-energy-gain detector window. This directly restores the paired two-particle response. The public/native trajectory identifies inadequacy of the supplied response for finite pairing and all hidden groups pass. No independent-spin approximation remains.",
+    "metrics": {
+      "parameters": {
+        "gain": 1.1001184095231478
+      },
+      "parameter_relative_error_max": 0.0001076450210433233,
+      "calibration_chi2": 1.2104043536301496,
+      "hidden": {
+        "pairing_sweep": 0.00010764502104670805,
+        "phase_sweep": 0.00010764502104072831,
+        "detector_sweep": 0.00010764502104426536,
+        "normal_anchors": 0.00010764502104282359
+      }
+    },
+    "source_sha256": "c80eb5d5fd0b0fcf22b8fb31918919e20f10797ef822bccd4ddf12a4db40d041",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/artifacts/app/model.py",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/agent/trajectory.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/agent/codex.txt",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/verifier/metrics.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/result.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/agent/sessions/2026/10/03/rollout-2026-10-03T04-22-54-01a10000-2d6a-77c3-917b-1dd5c1162b7c.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/agent/sessions/2026/10/03/rollout-2026-10-03T04-22-54-01a10000-2d6a-77c3-917b-1dd5c1162b7c.jsonl": "f349ef16679ef4e29f503a795a830721c425943f21d4c0ec273928f0cddb9ea6"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current model API, then implement and validate the prediction behavior against the documented requirements.",
+      "The existing implementation is not physically consistent with the stated finite fermionic system: its BdG correlation construction does not produce the many-body transition spectrum required by the rate. I\u2019m checking the calibration numerically against an exact 64-state Fock-space calculation, then I\u2019ll use the simplest validated implementation that preserves the API.",
+      "The exact Fock-space response now matches the calibration with a fitted detector scale of about `1.10012`; the public calibration test passes with weighted mean squared residual `1.20`. I\u2019m doing a final review for edge cases and API behavior before handing it off.",
+      "Implemented `/app/model.py` with:\n\n- Exact 64-state fermionic Fock-space Hamiltonian\n- Thermal transition spectrum for local `S_z`\n- Detector-weighted response calculation\n- Weighted least-squares fitting of `gain`\n- Documented `Model.fit` / `Model.predict` API\n- Input validation and finite NumPy outputs\n\nValidation: `pytest -q` passes, with calibration weighted MSE \u2248 `1.20`."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Initial success plus both conditional followup successes gives3/3. All three submissions made the correct physical repair; no infrastructure exceptions occurred.",
+    "incidental_tool_errors": "File replacement/patch attempts and git commands outside a repository failed; the agent recovered and completed the correct implementation and verification."
+  },
+  "paired-spin-noise__TvzrAAq": {
+    "task": "paired-spin-noise",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "paired-spin-noise-neutral-r1-followup-plain-20261003-042201",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The final submission constructs all six fermion operators and the complete64-state Hamiltonian, including correctly ordered complex pair terms. It diagonalizes that Hamiltonian, transforms the local Sz operator, and sums its squared transition amplitudes with the initial-state Gibbs populations and the positive sample-energy-gain detector window. This directly restores the paired two-particle response. The public/native trajectory identifies inadequacy of the supplied response for finite pairing and all hidden groups pass. No independent-spin approximation remains. The agent first completed only the gain fit, then independently compared a paired example to a Fock calculation, observed the physical discrepancy, and replaced the response before submission. The initial fit-only draft is not a terminal failure.",
+    "metrics": {
+      "parameters": {
+        "gain": 1.1001184095231482
+      },
+      "parameter_relative_error_max": 0.00010764502104376739,
+      "calibration_chi2": 1.2104043536301399,
+      "hidden": {
+        "pairing_sweep": 0.00010764502104276873,
+        "phase_sweep": 0.0001076450210427241,
+        "detector_sweep": 0.00010764502104341877,
+        "normal_anchors": 0.00010764502104283761
+      }
+    },
+    "source_sha256": "69fa864973cd2ac3f85f9702192e03d495702e49e9076a732160bf4c4f8f5414",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/artifacts/app/model.py",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/agent/trajectory.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/agent/codex.txt",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/verifier/metrics.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/result.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/agent/sessions/2026/10/03/rollout-2026-10-03T04-22-58-01a10000-3d05-7280-af63-7da7747da800.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/agent/sessions/2026/10/03/rollout-2026-10-03T04-22-58-01a10000-3d05-7280-af63-7da7747da800.jsonl": "5f7a0a336d02f172d7ed5ad02a065b5d972a453b3cf4a6fe03827ed5d4a0acd4"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then implement the documented model and run the available checks.",
+      "The existing spectral calculation matches the calibration measurements up to a single common scale of about 1.10; the missing piece is fitting that scale from the records. I\u2019m checking the weighted calibration fit and edge behavior before patching the implementation.",
+      "The pairing sector exposed an important issue: the current helper reproduces the zero-pairing calibration but does not correctly evaluate transitions of the full many-body Hamiltonian when pairing is nonzero. I\u2019m replacing that shortcut with an exact 64-state Fock-space calculation, which directly matches the README\u2019s \u201ccomplete fermionic occupation space\u201d requirement.",
+      "The exact Fock-space implementation now passes the public calibration test, recovers `gain \u2248 1.10012`, and agrees with an independent direct many-body calculation in a paired example. I\u2019m doing a final interface and numerical sanity check.",
+      "Implemented the model in [model.py](/app/model.py).\n\n- Added exact 64-state fermionic Hamiltonian and thermal transition calculation.\n- Included pairing, phases, spin-site coupling, and detector spectral weighting.\n- Implemented weighted least-squares calibration of `gain`, constrained to `[0.6, 1.6]`.\n- Preserved the documented `fit`/`predict` interface.\n\nValidation: `pytest -q` passes; fitted gain is approximately `1.10012`."
+    ],
+    "public_tool_count": 18,
+    "aggregation_note": "Initial success plus both conditional followup successes gives3/3. All three submissions made the correct physical repair; no infrastructure exceptions occurred.",
+    "incidental_tool_errors": "File replacement/patch attempts and git commands outside a repository failed; the agent recovered and completed the correct implementation and verification."
+  },
+  "geometric-rotor__8H4GDTH": {
+    "task": "geometric-rotor",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "geometric-rotor-neutral-r2-initial-plain-20261003-045716",
+    "classification": "implementation_failure",
+    "failure_subtype": "implementation_induced_model_regression",
+    "reward": 0.0,
+    "reason": "The exploratory code correctly constructs the complete projected derivative Gram matrix, including the doublet connection and endpoint parity. After fixing an early extra FFT normalization, it still returns eigenvalues of H and scales by1/inertia, omitting the kinetic prefactor1/2. This produces a false calibration mismatch, after which the agent explicitly elects to preserve the calibrated supplied spectrum. At its fixed final inertia, changing only eigh(H) to eigh(H/2) in that exact diagnostic lowers chi-square from1686145.62 to1.07114 and restores every hidden group. Thus the final omission of physical transport follows a demonstrable implementation mistake in an otherwise complete physical diagnostic and is excluded from the intended physical-failure count.",
+    "metrics": {
+      "parameters": {
+        "inertia": 1.0699072779593213
+      },
+      "parameter_relative_error_max": 8.665611278391161e-05,
+      "calibration_chi2": 1.0717189013106307,
+      "hidden": {
+        "tilt_sweep": 0.6530342136385491,
+        "temperature_sweep": 0.6683444636208904,
+        "textures": 0.5918081531462648,
+        "central_holonomy_anchors": 7.815638744863553e-05
+      }
+    },
+    "source_sha256": "a6bb6899d2b1ea3062027c5031699909febe40d5f994fd7ffbc61375cdd03937",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/artifacts/app/model.py",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/agent/trajectory.json",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/agent/codex.txt",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/verifier/metrics.json",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/result.json",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/agent/sessions/2026/10/03/rollout-2026-10-03T04-58-02-01a10020-59b6-7f11-a214-a1bb1ccf48d2.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/agent/sessions/2026/10/03/rollout-2026-10-03T04-58-02-01a10020-59b6-7f11-a214-a1bb1ccf48d2.jsonl": "0b4daa88a6a7112674b5473384c33813c66ef02bae7e3dddcbaf716e16b4eb9d"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then derive and validate the prediction model against the documented interface.",
+      "The calibration data matches the supplied spectral construction: a one-parameter weighted fit lands near inertia 1.07 with residuals at the stated instrument-noise level. I\u2019ll preserve that calibrated prediction path, add the fit, and make the thermal averaging numerically stable.",
+      "Implemented `/app/model.py`:\n\n- Added weighted least-squares fitting for `inertia`\n- Added stable thermal prediction calculations\n- Preserved the documented API and output shape\n- Verified calibration performance\n\nTests: `2 passed`; fitted inertia \u2248 `1.0699073`, reduced \u03c7\u00b2 \u2248 `1.072`."
+    ],
+    "public_tool_count": 20,
+    "aggregation_note": "Raw result0/1, with no infrastructure exception. The conditional runner correctly stopped after the initial failure; no followups were launched. This implementation-induced regression does not qualify as a target physical-model failure.",
+    "repair_evidence": "results/geometric-rotor-r2-initial-repair.json",
+    "exploratory_evidence": "results/geometric-rotor-r2-exploratory-probes.json",
+    "incidental_tool_errors": "One inefficient scratch computation produced no output within its tool interval and a nonexistent scratch path failed. The agent continued; neither prevented final submission or verification."
+  },
+  "spin-strain-response__u22cuVy": {
+    "task": "spin-strain-response",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "spin-strain-response-neutral-r1-initial-plain-20261003-053210",
+    "classification": "physics_model_failure",
+    "reward": 0.0,
+    "reason": "The submission correctly diagonalizes the complete Hamiltonian, computes exact Gibbs equal-time moments and fits the positive coupling, but explicitly identifies the static equilibrated force slope with coupling squared times Var(Sz squared)/temperature. For a transverse field the quadrupole does not commute with the Hamiltonian, so this classical fluctuation relation is not the isothermal quantum response. Full native commands show no Gibbs-displacement derivative, spectral divided difference or other correct response implementation that subsequently regressed. Only fitting, formatting and interface checks were attempted. Replacing the response law at fixed fitted coupling restores every hidden group and leaves calibration unchanged. This is the intended physical-observable error, not a numerical, fit, coding or infrastructure failure.",
+    "metrics": {
+      "parameters": {
+        "coupling": 1.0999309869658642
+      },
+      "parameter_relative_error_max": 6.273912194165732e-05,
+      "calibration_chi2": 1.0371791870015479,
+      "hidden": {
+        "transverse": 1.5602191796490612,
+        "temperature": 2.510646385772645,
+        "anisotropy_bias": 1.292158183734186,
+        "commuting_anchors": 0.00012547430768564312
+      }
+    },
+    "source_sha256": "1a67493d5f26785abef5386215be24006bea140bfeaf9db982700043cf49d30f",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/spin-strain-response-neutral-r1-initial-plain-20261003-053210/spin-strain-response__u22cuVy/artifacts/app/model.py",
+      "jobs/spin-strain-response-neutral-r1-initial-plain-20261003-053210/spin-strain-response__u22cuVy/agent/trajectory.json",
+      "jobs/spin-strain-response-neutral-r1-initial-plain-20261003-053210/spin-strain-response__u22cuVy/agent/codex.txt",
+      "jobs/spin-strain-response-neutral-r1-initial-plain-20261003-053210/spin-strain-response__u22cuVy/verifier/metrics.json",
+      "jobs/spin-strain-response-neutral-r1-initial-plain-20261003-053210/spin-strain-response__u22cuVy/result.json",
+      "jobs/spin-strain-response-neutral-r1-initial-plain-20261003-053210/spin-strain-response__u22cuVy/agent/sessions/2026/10/03/rollout-2026-10-03T05-32-54-01a10040-4403-7932-ace8-5be071afbfa7.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/spin-strain-response-neutral-r1-initial-plain-20261003-053210/spin-strain-response__u22cuVy/agent/sessions/2026/10/03/rollout-2026-10-03T05-32-54-01a10040-4403-7932-ace8-5be071afbfa7.jsonl": "f6fe8dae87fe050c6378e33456040203297f599cad4191095830c10054160641"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current implementation, then derive the model and run the available tests or interface checks.",
+      "The physics reduces to a one-parameter weighted fit: the force slope is `coupling\u00b2 \u00d7 Var(Sz\u00b2)/temperature`, evaluated in the canonical state at `x=0`. The calibration data are consistent with `coupling \u2248 1.10`; I\u2019m implementing the exact weighted least-squares estimate with the documented `[0.8, 1.4]` bound and stable prediction behavior.",
+      "Implementation is complete and the public calibration test passes. The fitted parameter is `1.09993`, and predictions return the required one-dimensional finite NumPy array. I\u2019m doing one final diff check for accidental changes and edge-case regressions.",
+      "Implemented [`model.py`](/app/model.py).\n\n- Added canonical spin-response calculation.\n- Implemented sigma-weighted calibration fit for `coupling`.\n- Enforced the documented coupling bounds.\n- Preserved `fit`/`predict` API and finite NumPy output.\n- Public tests pass; fitted coupling is approximately `1.09993`."
+    ],
+    "public_tool_count": 7,
+    "native_model_effort": [
+      {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      }
+    ],
+    "native_user_input_blocks": [
+      {
+        "line": 4,
+        "sha256": "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "characters": 920
+      },
+      {
+        "line": 4,
+        "sha256": "d13b7386b1fc52aa76edfa1c5809e583c19386e0b52fedc5c2687f4785559853",
+        "characters": 329
+      },
+      {
+        "line": 7,
+        "sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+        "characters": 318
+      }
+    ],
+    "frozen_measured_source_sha256": {
+      "instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "environment/README.md": "25da0123676e52c84587df75c6f6d854a7beb768bf0d9aac6672e1f067e340b1",
+      "environment/model.py": "ebd2b37009bf56d8d04e27c5aa1b0e60322951c76ebc4fbe584f9f358ba805f3",
+      "environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+      "environment/data/calibration.json": "4dbcd31ed5a0ba081c0716993cf27a53956309c9e109c45ab8ffc671b949a43b",
+      "tests/data/calibration.json": "4dbcd31ed5a0ba081c0716993cf27a53956309c9e109c45ab8ffc671b949a43b",
+      "tests/metadata.json": "f98865037536f38d863b39c95843c695b011870c346ff395e5579d084476aef1",
+      "tests/reference.py": "cf2347100d058e52fd81d5b9e9c89d3bc09928dbc8ab71fe88b7f8168a86b735",
+      "tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a",
+      "tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c"
+    },
+    "public_native_message_match": true,
+    "aggregation_note": "One initial unhinted Luna-high trial:0 passes/1 completed model trial, no infrastructure exception. The conditional rule stopped correctly after this failure; no followups ran. This does not establish a0/3 result.",
+    "repair_evidence": "results/spin-strain-response-initial-repair.json",
+    "repair_source": "results/spin-strain-response-initial-repair.py",
+    "repair_evidence_sha256": "f71d0e1b421e91c40f28f49e48c28e2cc45486df3c827a4a4fb99048953e839b",
+    "incidental_tool_errors": "A final git diff command failed because /app was not a Git repository. Its chained edge checks were immediately rerun successfully; the source was already complete and no model change followed. This is unrelated to the physical error.",
+    "trajectory_review": "All seven native tool calls and their public outputs were inspected. The only source edit preserves the variance response; its added docstring calls those canonical moments susceptibility. The single numerical exploratory command fits coupling squared to the starter responses. No implementation-induced physical regression is present."
+  }
+}

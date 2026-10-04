@@ -1,63 +1,64 @@
-# Benchmark author guide
+# Benchmark interface and validation
 
-These three tasks test whether an agent checks a supplied physical model rather than only completing its parameter fit. Each starter contains a working predictor and an unfinished fit method. A completed shortcut fits the calibration but makes wrong predictions for other preparations. [TASKS.md](../TASKS.md) explains the physics and exact solutions.
+PhysLiteBench tests whether a coding agent revises a physical approximation that fits calibration but fails elsewhere in the stated apparatus. Ten tasks were selected through a conditional screen with one reviewed physical failure each (0/1). A separate fresh three-trial confirmation found 6 of ten at or below one pass; [the dashboard](../DASHBOARD.md) separates both batches from archived scores.
 
-For a new system, follow [Adding a physics task](ADDING_TASKS.md). This page documents the interfaces and thresholds of the current three tasks.
+## Agent task
 
-## Current tasks and interfaces
+Each task supplies an `instruction.md`, a public Docker environment, calibration data, a Python predictor and public tests. Its README defines the apparatus, allowed preparations, observables, units, parameter ranges and API. The instruction explicitly permits modifying or replacing every prediction function and helper while preserving the documented API. Private cases use the same stated apparatus with preparations outside the calibration subset.
 
-| Task | Revision and physical assumption to repair | Interface |
-|---|---|---|
-| [qubit-control](../tasks/qubit-control/environment/README.md) | 6: two spins experience one fluctuating field; the shortcut treats their noise independently. | `QubitModel.fit(runs)` stores positive `.gamma` (s⁻¹); `predict(experiments)` returns shape `(N,)`. |
-| [thermal-bodies](../tasks/thermal-bodies/environment/README.md) | 9: two gases share a moving piston inside a rigid vessel; the shortcut treats their common pressure as constant. | `ThermalModel.fit(runs)` stores positive `.conductance` (W/K); `predict(t, initial_temperature)` returns shape `(N, 2)`. |
-| [reaction-diffusion](../tasks/reaction-diffusion/environment/README.md) | 6: two salts share a counterion; the shortcut extends separate binary-salt diffusion to a mixture. | `TransportModel.fit(data)` stores positive `.diffusivity` (m²/s); `predict(t, x, initial)` returns shape `(T, X, 2)`. |
+The ordinary image contains only `environment/`. Private `tests/`, `solution/`, `AUTHOR.md` and `hint.md` stay outside it. The runner adds the hint only to the instruction when `--hint` is requested. The frozen environment, grading and configuration must remain byte-identical between paired ordinary and hinted batches.
 
-All fit methods return `self`. The linked apparatus documents define input schemas, units, and preparation conventions. The transport directory retains its original name; the current system has no chemical reactions.
+Each task uses a model with `fit` returning itself and a prediction method documented in its public README. Inputs and shapes vary by apparatus. Follow each task's interface rather than assuming a shared prediction signature. Public tests check interface and calibration; the private verifier owns its own calibration copy and physical reference.
 
-## Agent and author boundary
+## Reward and diagnosis
 
-The agent receives the task instruction and the files copied by `environment/Dockerfile`: apparatus README, starter `model.py`, public tests, and calibration data. Docker builds only that environment context. Author documentation, `solution/`, `tests/`, and repository scripts are outside the agent workspace. Harbor supplies the private tests during verification after the agent finishes. Private calibration copies keep grading independent of edits to public data.
+A trial receives reward 1 only if every required check passes. The verifier tests interface, finite outputs, calibration goodness of fit, parameter recovery and multiple physical predictions. Most new tasks require reduced calibration chi-square below 1.5 and relative parameter error below 3%; hidden tolerances and normalization are task-specific. Their author notes explain numerical convergence and separation from measurement noise.
 
-The shareable repository contains the answers for reproducibility. Run tasks through Harbor; do not give the solving agent the entire checkout or this guide. Edit the model freely within the stated API: the task asks for a complete model, not just the missing fit method.
+A failed unfinished fit is not the intended shortcut control. Every candidate includes a completed calibration fit for both a correct oracle and the supplied physical approximation. Both must recover the parameter and fit calibration; only the wrong physical approximation should fail the distinguishing experiments.
 
-## Grading and controls
-
-Reward is 1 only when every public and private test passes. All tasks require reduced calibration χ² below 1.5 and relative fitted-parameter error below 5%. Reduced χ² divides the uncertainty-weighted squared residual sum by the number of scalar measurements minus one.
-
-| Task | Additional private prediction requirement |
-|---|---|
-| Spin | Each of two groups has absolute probability RMSE below 0.03. This is not a relative percentage error. |
-| Piston | Each of three cases has `norm(prediction − truth) / norm(truth − 293 K) < 0.05`, pooling times and both gases. |
-| Electrolyte | Each of three cases has NRMSE below 0.05 for both species. Each species is normalized by its reference trajectory's departure from its initial spatial mean; the case score is the larger species error. |
-
-The exact oracle must pass everything. Completed shortcuts must pass the API, calibration, and parameter checks, while failing hidden predictions. These controls are [spin](../scripts/qubit_noise_baseline.py), [piston](../scripts/thermal_piston_baseline.py), and [electrolyte](../scripts/reaction_baseline.py). A `nop` run leaves the fit unfinished and is not this control.
-
-Classify an agent result as an intended physical failure only after inspecting its final source, public trajectory, and verifier metrics: the fit and API must work, and the retained physical assumption must explain the prediction error. Record code/math errors, timeouts, and infrastructure failures separately. Public tests passing alone does not establish physical correctness.
+Review final code, public messages, commands and verifier metrics before classifying an agent failure. Separate incorrect physical assumptions from algebra, discretization, coding, optimizer and infrastructure failures. Diagnostic repairs run in memory at the retained fitted parameter; they never modify the original submission or its recorded reward.
 
 ## Reproduction
 
-Run from the repository root with Docker running and `uv` available. The task images pin Python 3.13, uv 0.12.5, NumPy 2.3.3, SciPy 1.16.3, and pytest 8.4.2. The [runner](../scripts/run_science.py) pins Harbor 0.21.0 and Codex CLI 0.154.0; agent/verifier limits are 600/60 seconds. Codex runs require authentication as described in the [setup README](../README.md).
-
-For example, check both piston controls, then run three agents concurrently:
+Use Docker and uv. From the repository root:
 
 ```bash
-python3 scripts/run_science.py tasks/thermal-bodies --agent oracle --trials 1 --concurrency 1
-python3 scripts/run_science.py tasks/thermal-bodies --agent oracle --solution-model scripts/thermal_piston_baseline.py --trials 1 --concurrency 1
-python3 scripts/run_science.py tasks/thermal-bodies --model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3
+python3 scripts/run_science.py tasks/magnetic-tracer --agent oracle --trials 1
+python3 scripts/run_science.py tasks/magnetic-tracer --agent oracle --trials 1 \
+  --solution-model scripts/magnetic_tracer_baseline.py
+python3 scripts/run_neutrality_screen.py magnetic-tracer --workers 1 --label neutral-new --controls
 ```
 
-Substitute either other task and its shortcut path; `--model` selects another available Codex model. Each run creates a fresh job containing its frozen task, logs, metrics, final files, and diffs.
+The conditional runner checks the oracle and completed shortcut, then runs one plain Luna high trial. An initial pass triggers exactly two more trials; an initial failure stops at 0/1. Infrastructure errors stop that task for review. The initial outcome is never discarded. `run_candidate_matrix.py --conditions plain` runs fixed three-trial unhinted batches. The fresh confirmation used this option for all ten retained tasks; it did not use conditional stopping or hints. The oracle reward should be 1 and the completed shortcut reward 0. New job names must be unique; never overwrite an existing result.
 
-Run the independent-reference and 256-noise-realization checks without Harbor:
+An entirely unstarted initial or follow-up batch may be replaced with `--retry-unstarted-job JOB` after review confirms a network setup failure, no agent execution, no verifier result and no native session. The runner verifies that source, grading, instruction and configuration still match the frozen task and preserves the failed attempts. A replacement initial trial follows the same conditional rule; replacement follow-ups run only the missing trials. Reports distinguish total attempts from actual model trials. A failure after the agent starts is never excluded by this rule.
+
+Pinned setup: Python 3.13, Harbor 0.21.0, Codex CLI 0.154.0, NumPy 2.3.3, SciPy 1.16.3 and pytest 8.4.2 in new task images. The agent/verifier timeouts are 600/60 seconds. Authentication remains outside the repository.
+
+Scientific validators run independently of agent trials:
 
 ```bash
-validate() {
-  OPENBLAS_NUM_THREADS=1 uv run --no-project --python 3.13 \
-    --with numpy==2.3.3 --with scipy==1.16.3 --with pytest==8.4.2 "$@"
-}
-validate scripts/validate_qubit_noise.py
-validate scripts/validate_thermal_piston.py
-validate scripts/validate_reaction.py
+uv run --python 3.13 --with numpy==2.3.3 --with scipy==1.16.3 \
+  --with pytest==8.4.2 python scripts/validate_magnetic_tracer.py
 ```
 
-These commands write validation reports under `jobs/`; they need no existing results. Repeating a validator replaces its reports; Harbor batches use separate fresh job directories. Use the checked-in calibration data. Data-regeneration options are for intentional benchmark changes, not ordinary reproduction.
+Check each task's author notes for its exact command and report. Ordinary validation reads fixed data; `--generate` intentionally replaces both public and private calibration copies. New candidate validators use 256 noisy calibration fits. Some also evaluate every hidden case on every draw; others check hidden sensitivity at the observed parameter extrema. These are different checks and are labeled as such in the reports.
+
+Independent references use a different derivation or representation from the oracle: examples include constrained pair-friction elimination, conservative heat-flux balance, entropy/strain constitutive systems, finite-volume current closure and Fourier-moment evolution. Check relevant conservation laws, stable/positive limits and numerical refinement as well as prediction agreement.
+
+## Evidence and selection
+
+The runner preserves a frozen task snapshot, native sessions, trajectory, final `/app` artifacts, source diffs, verifier metrics and timing under ignored `jobs/`. [The full candidate ledger](../results/candidates.json) summarizes all indexed batches and merges separate per-trial reviews. Regenerate it and the selection status with:
+
+```bash
+python3 scripts/summarize_candidates.py
+python3 scripts/summarize_neutrality.py
+```
+
+Selection includes every neutral-instruction batch matching the current environment, grading, instruction and configuration hashes. Do not rerun unchanged candidates until a favorable zero appears. A scientific revision is evaluated separately and its predecessor preserved. The original results and paired hint audits are historical and preserved in the pre-neutral archive. A current 0/1 failure is not interchangeable with an archived 0/3.
+
+The user authorized archiving tasks above the 1/3 cutoff. [Screened tasks](../archives/screened/README.md) remain runnable by passing their archive path to `run_science.py`; their source hashes and evaluation IDs are in the archive manifest. Their individual validators and baselines moved with them. The shared first-wave validator resolves retained and archived paths.
+
+One or three conditional trials measure a development outcome, not a population success probability. Selection against Luna and reuse of calibration observations are disclosed. No held-out generalization or future 3/3-failure guarantee is claimed.
+
+For a new task's files, assumptions, review and validation requirements, use [ADDING_TASKS.md](ADDING_TASKS.md). Prior versions of this guide are preserved in the documentation archive.

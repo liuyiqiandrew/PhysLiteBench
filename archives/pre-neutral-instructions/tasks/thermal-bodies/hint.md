@@ -1,0 +1,1 @@
+Pressure equality across a freely moving piston does not fix the common pressure in a rigid closed vessel. Apply the first law to each gas, including piston work, together with pressure balance and fixed total volume. The volume fractions follow the gas temperatures; calibration with a constant temperature sum hides the response of the common-pressure mode.

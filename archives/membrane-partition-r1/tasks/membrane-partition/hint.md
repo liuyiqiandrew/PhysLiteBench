@@ -1,0 +1,1 @@
+At equilibrium all permeating ions share the same electrical potential difference between gel and bath. There is only one chloride species: splitting the system into independent neutral salt partitions invents separate chloride populations. Enforce the electrochemical-potential equalities, each ion's finite total amount, and bulk electroneutrality together.

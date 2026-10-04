@@ -1,0 +1,1 @@
+The measured noise counts the energy difference between outgoing and incoming reservoir modes. Derive its second moment from the thermal bosonic input fields and unitary scattering, keeping their input–output correlations. Agreement with the mean current and equal-temperature noise does not determine the unequal-temperature transfer variance.

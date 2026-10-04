@@ -1,0 +1,541 @@
+{
+  "audit": "Read-only instruction leakage and solution-space audit",
+  "scope": [
+    "entropy-anomaly",
+    "insulating-mhd-duct",
+    "thermoelastic-rod",
+    "hall-bar"
+  ],
+  "summary": {
+    "direct_plain_answer_leaks_found": 0,
+    "algorithm_specific_grader_mandates_found": 0,
+    "blocking_apparatus_omissions_found": 0,
+    "findings": "Five low-severity wording/cue issues and two optional solver/grading-contract clarifications. A separate possible parameter-dependent sigma channel is recorded without claiming demonstrated exact recovery.",
+    "frozen_task_files_modified": false
+  },
+  "visibility_and_packaging": {
+    "assessment": "All four Dockerfiles explicitly copy only README.md, model.py, test_public.py and data/. No AUTHOR, hint, private tests or solution is copied into /app. Public data directories each contain only calibration.json. Hall has generated __pycache__ files in its source context, but the explicit COPY list excludes them, and run_science.py:63 also excludes caches from the frozen task copy.",
+    "evidence": [
+      {
+        "file": "scripts/run_science.py",
+        "line_start": 63,
+        "line_end": 69,
+        "quote": "copytree ignores __pycache__; hint.md is read and appended to instruction only inside if args.hint"
+      },
+      {
+        "file": "tasks/entropy-anomaly/environment/Dockerfile",
+        "line_start": 6,
+        "line_end": 7,
+        "quote": "COPY README.md model.py test_public.py ./; COPY data/ ./data/"
+      },
+      {
+        "file": "tasks/insulating-mhd-duct/environment/Dockerfile",
+        "line_start": 5,
+        "line_end": 6,
+        "quote": "COPY README.md model.py test_public.py ./; COPY data/ ./data/"
+      },
+      {
+        "file": "tasks/thermoelastic-rod/environment/Dockerfile",
+        "line_start": 5,
+        "line_end": 6,
+        "quote": "COPY README.md model.py test_public.py ./; COPY data/ ./data/"
+      },
+      {
+        "file": "tasks/hall-bar/environment/Dockerfile",
+        "line_start": 5,
+        "line_end": 6,
+        "quote": "COPY README.md model.py test_public.py ./; COPY data/ ./data/"
+      }
+    ],
+    "intentional_hint_condition": "hint.md gives corrective physics only for explicitly hinted runs. Those prompts intentionally narrow the route; they are not accidental leakage into the ordinary condition."
+  },
+  "findings": [
+    {
+      "id": "mhd-signed-directions",
+      "task": "insulating-mhd-duct",
+      "severity": "low",
+      "category": "apparatus_wording_ambiguity",
+      "status": "prospective clarification; frozen files unchanged",
+      "evidence": [
+        {
+          "file": "tasks/insulating-mhd-duct/environment/README.md",
+          "line_start": 8,
+          "line_end": 11,
+          "quote": "The applied static magnetic field is uniform, B in the +y direction. ... velocity is u(x,y,t) in the +z direction"
+        },
+        {
+          "file": "tasks/insulating-mhd-duct/environment/README.md",
+          "line_start": 29,
+          "line_end": 30,
+          "quote": "magnetic_field (B, -0.65 to 0.65 tesla), pressure_gradient (g, -0.2 to 0.2 Pa/m)"
+        }
+      ],
+      "assessment": "The signed input ranges allow fields and velocities in either direction. The earlier prose can be read as excluding the negative half of those ranges. The current predictor and private cases use the signed amplitudes correctly; this is a wording inconsistency, not answer leakage.",
+      "minimal_proposed_wording": "The applied field is B times the y unit vector. The fully developed velocity is u(x,y,t) times the z unit vector; B and u may have either sign."
+    },
+    {
+      "id": "hall-signed-field",
+      "task": "hall-bar",
+      "severity": "low",
+      "category": "apparatus_wording_ambiguity",
+      "status": "prospective clarification; frozen files unchanged",
+      "evidence": [
+        {
+          "file": "tasks/hall-bar/environment/README.md",
+          "line_start": 10,
+          "line_end": 11,
+          "quote": "A uniform magnetic field B points along +z."
+        },
+        {
+          "file": "tasks/hall-bar/environment/README.md",
+          "line_start": 16,
+          "line_end": 17,
+          "quote": "magnetic_field (B, tesla, -6 to 6)"
+        }
+      ],
+      "assessment": "The direction sentence is looser than the signed-field interface and can be read as forbidding negative B. No such sign restriction is imposed by the grader.",
+      "minimal_proposed_wording": "The uniform magnetic field is B times the z unit vector, where B is the signed input."
+    },
+    {
+      "id": "rod-redundant-coupling-cue",
+      "task": "thermoelastic-rod",
+      "severity": "low",
+      "category": "redundant_physics_cue",
+      "status": "optional prospective edit; not a leaked solution",
+      "evidence": [
+        {
+          "file": "tasks/thermoelastic-rod/environment/README.md",
+          "line_start": 10,
+          "line_end": 19,
+          "quote": "Use the one-dimensional linear thermoelastic material ... heat capacity at fixed local axial strain ... Retain terms linear ... including reversible thermoelastic coupling"
+        }
+      ],
+      "assessment": "The material type, fixed-strain heat capacity and expansion coefficient already define reversible thermoelastic coupling. Calling out that coupling again supplies a mild topic cue. It does not reveal the weighted clamp correction or its rank-one form. Removing the repeated phrase would preserve the specified physical model; removing the fixed-strain convention or clamp conditions would not.",
+      "minimal_proposed_wording": "Work to first order in temperature departures and axial strain about T0; neglect changes of geometry in the thermal problem."
+    },
+    {
+      "id": "rod-initial-amplitude-domain",
+      "task": "thermoelastic-rod",
+      "severity": "low",
+      "category": "input_domain_ambiguity",
+      "status": "prospective clarification; hidden inputs are within either natural interpretation",
+      "evidence": [
+        {
+          "file": "tasks/thermoelastic-rod/environment/README.md",
+          "line_start": 30,
+          "line_end": 32,
+          "quote": "Initially, theta(x)=a+b*cos(pi*x/L)+c*cos(2*pi*x/L), and the body's departure is bath_initial. All specified departures have magnitude at most 1 K"
+        }
+      ],
+      "assessment": "It is unclear whether the 1 K bound applies separately to the coefficients or to the actual initial temperature field. Separate coefficient bounds alone allow a pointwise departure as large as 3 K. Private preparations remain inside the stronger pointwise bound, so this does not explain current scores.",
+      "minimal_proposed_wording": "The inputs satisfy max over x of |a+b*cos(pi*x/L)+c*cos(2*pi*x/L)| <= 1 K and |bath_initial| <= 1 K."
+    },
+    {
+      "id": "rod-contact-parentheses",
+      "task": "thermoelastic-rod",
+      "severity": "low",
+      "category": "units_wording_ambiguity",
+      "status": "prospective clarification",
+      "evidence": [
+        {
+          "file": "tasks/thermoelastic-rod/environment/README.md",
+          "line_start": 23,
+          "line_end": 26,
+          "quote": "Heat flowing into the rod is H times the body's temperature minus the rod's surface temperature."
+        }
+      ],
+      "assessment": "The intended temperature difference is clear from units, but the prose can be parsed as H*T_body-T_surface. Explicit parentheses define the contact law without revealing the missing mechanical constraint.",
+      "minimal_proposed_wording": "The heat-flow rate into the rod is H*(T_body-T_surface)."
+    },
+    {
+      "id": "entropy-replacement-permission",
+      "task": "entropy-anomaly",
+      "severity": "informational",
+      "category": "solver_freedom",
+      "status": "optional consistency edit; no current mandate found",
+      "evidence": [
+        {
+          "file": "tasks/entropy-anomaly/instruction.md",
+          "line_start": 1,
+          "line_end": 1,
+          "quote": "Implement model.py using the apparatus and calibration described in README.md."
+        },
+        {
+          "file": "tasks/entropy-anomaly/environment/README.md",
+          "line_start": 29,
+          "line_end": 29,
+          "quote": "Implement Model.fit(records) ... Model.predict(experiments) ... Expose Model.friction."
+        }
+      ],
+      "assessment": "These instructions permit a new implementation, and the grader inspects only the API, parameter and predictions. Unlike the other three tasks, this README does not explicitly say the entire predictor may be replaced. Adding that neutral permission would reduce the chance that a solver interprets the unfinished fit as its only editable scope.",
+      "minimal_proposed_wording": "You may replace any part of the supplied implementation while preserving this API."
+    },
+    {
+      "id": "shared-accuracy-disclosure",
+      "task": "all four",
+      "severity": "informational",
+      "category": "grader_contract",
+      "status": "optional prospective documentation; no algorithm-specific grading found",
+      "evidence": [
+        {
+          "file": "tasks/entropy-anomaly/tests/test_hidden.py",
+          "line_start": 19,
+          "line_end": 30,
+          "quote": "parameter recovery and prediction errors are computed from public API outputs"
+        },
+        {
+          "file": "tasks/insulating-mhd-duct/tests/test_hidden.py",
+          "line_start": 19,
+          "line_end": 30,
+          "quote": "parameter recovery and prediction errors are computed from public API outputs"
+        },
+        {
+          "file": "tasks/thermoelastic-rod/tests/test_hidden.py",
+          "line_start": 19,
+          "line_end": 30,
+          "quote": "parameter recovery and prediction errors are computed from public API outputs"
+        },
+        {
+          "file": "tasks/hall-bar/tests/test_hidden.py",
+          "line_start": 19,
+          "line_end": 30,
+          "quote": "parameter recovery and prediction errors are computed from public API outputs"
+        },
+        {
+          "file": "tasks/entropy-anomaly/tests/test_hidden.py",
+          "line_start": 41,
+          "line_end": 47,
+          "quote": "parameter_relative_error < .03; prediction thresholds .04 for entropy/MHD/Hall, .025 K for thermoelastic rod"
+        },
+        {
+          "file": "tasks/insulating-mhd-duct/tests/test_hidden.py",
+          "line_start": 41,
+          "line_end": 47,
+          "quote": "parameter_relative_error < .03; prediction thresholds .04 for entropy/MHD/Hall, .025 K for thermoelastic rod"
+        },
+        {
+          "file": "tasks/thermoelastic-rod/tests/test_hidden.py",
+          "line_start": 41,
+          "line_end": 47,
+          "quote": "parameter_relative_error < .03; prediction thresholds .04 for entropy/MHD/Hall, .025 K for thermoelastic rod"
+        },
+        {
+          "file": "tasks/hall-bar/tests/test_hidden.py",
+          "line_start": 41,
+          "line_end": 47,
+          "quote": "parameter_relative_error < .03; prediction thresholds .04 for entropy/MHD/Hall, .025 K for thermoelastic rod"
+        }
+      ],
+      "assessment": "The parameter name and physical range are public, but the private 3% recovery threshold and prediction tolerances are not. The tests do not require a particular equation, solver, grid, modal count, fit objective, function name beyond the API, or source-code structure. Exposing aggregate accuracy targets would help solvers choose numerical resolution without exposing hidden preparations. Runtime limits can likewise constrain expensive valid methods, but they are standard task limits, not an unannounced physical model mandate.",
+      "minimal_proposed_wording": "Any consistent analytical or numerical method is allowed. Hidden checks require the shared parameter within 3%; prediction RMSE must be below 4% of the reference group RMS (entropy, MHD, Hall), or .025 K (thermoelastic rod).",
+      "qualification": "This is a suggested future contract clarification, not a recommendation to change thresholds or frozen grading."
+    }
+  ],
+  "task_reviews": {
+    "entropy-anomaly": {
+      "verdict": "No direct plain-condition answer leakage or solver mandate found. The starter gives substantial intentional physical scaffolding, but omits the magnetic kinetic correction.",
+      "necessary_apparatus": [
+        {
+          "file": "tasks/entropy-anomaly/environment/README.md",
+          "line_start": 3,
+          "line_end": 11,
+          "quote": "Exactly two velocity components; underdamped Langevin dynamics, anisotropic drag and Lorentz signs"
+        },
+        {
+          "file": "tasks/entropy-anomaly/environment/README.md",
+          "line_start": 17,
+          "line_end": 25,
+          "quote": "External profile-maintenance heat excluded; local Stratonovich bath calorimetry; stationary/time-average limit before m -> 0"
+        }
+      ],
+      "why_keep": "Changing the number of velocity components, heat convention, reservoir noise or order of limits changes the observable. These details are necessary to distinguish bath calorimetry from position-only entropy, and do not prescribe a Hermite or cubic-moment solution.",
+      "starter_scaffolding": [
+        {
+          "file": "tasks/entropy-anomaly/environment/model.py",
+          "line_start": 13,
+          "line_end": 31,
+          "quote": "positional_state computes the magnetic stationary position/current problem"
+        },
+        {
+          "file": "tasks/entropy-anomaly/environment/model.py",
+          "line_start": 40,
+          "line_end": 42,
+          "quote": "positional dissipation plus heat_coefficient=.5*(1/friction+1/(friction+2*gamma_y)) times the temperature-gradient integral"
+        }
+      ],
+      "scaffolding_assessment": "The decomposition and heat_coefficient name localize the remaining model choice. This is intentional exposure of a completed zero-field closure, not a hidden answer or a requirement to keep that decomposition. Cosmetic renaming would not meaningfully improve fairness. The correct magnetic 4x4 cubic-moment system appears only in solution/model.py:41-46 and the optional hint.",
+      "names_comments_imports": "The image README title is Calorimetry of a charged Brownian particle, not entropy-anomaly. Public imports are used generic NumPy/lru_cache tools. The repository slug entropy-anomaly is diagnostic if an external interface displays it, but it was not found in the copied public text or instruction; no in-image name leak is established.",
+      "data_assessment": "192 records, only input/value/sigma; input keys are the seven documented controls. Every calibration magnetic value is zero, as explicitly documented. No true parameter, hidden cases, label or oracle output is included beyond the requested noisy measurements.",
+      "private_comparison": "Hidden conditions use nonzero signed magnetic coefficients and valid anisotropic drag/temperature settings; the independent finite-mass calorimetric reference matches the public definition. No extra boundary condition or degree of freedom is introduced."
+    },
+    "insulating-mhd-duct": {
+      "verdict": "No direct answer leakage. One signed-direction wording issue; no numerical-method mandate.",
+      "necessary_apparatus": [
+        {
+          "file": "tasks/insulating-mhd-duct/environment/README.md",
+          "line_start": 3,
+          "line_end": 17,
+          "quote": "Insulating no-slip walls; no electrodes; fully developed flow; no imposed axial electric field; moving-conductor Ohm law; negligible magnetic Reynolds number"
+        },
+        {
+          "file": "tasks/insulating-mhd-duct/environment/README.md",
+          "line_start": 19,
+          "line_end": 21,
+          "quote": "Initially at rest; pressure step; magnetic field already present"
+        }
+      ],
+      "why_keep": "Electrical and mechanical boundary conditions define which current can close through the liquid. The constitutive Ohm law is a material assumption, not the missing electrostatic-potential algorithm. Removing wall insulation or axial-field information would make the apparatus underdetermined.",
+      "starter_scaffolding": [
+        {
+          "file": "tasks/insulating-mhd-duct/environment/model.py",
+          "line_start": 5,
+          "line_end": 8,
+          "quote": "Odd sine modes and mean weights"
+        },
+        {
+          "file": "tasks/insulating-mhd-duct/environment/model.py",
+          "line_start": 21,
+          "line_end": 27,
+          "quote": "Viscous modal decay plus local sigma B^2/rho drag"
+        }
+      ],
+      "scaffolding_assessment": "The supplied modal count and sine basis are an editable implementation. The private verifier neither reads these constants nor requires modal methods. No potential solver, projection operator, current-loop correction or unused revealing import is present.",
+      "names_comments_imports": "The title describes the physical duct. The sole import is used NumPy; there are no corrective public comments.",
+      "data_assessment": "160 records, only input/value/sigma, with the documented magnetic_field/pressure_gradient/time/observable/x/y keys. All calibration fields are zero. Coordinates supplied for mean readings are explicitly declared irrelevant in README.md:33.",
+      "private_comparison": "Hidden mean and point velocities at signed nonzero fields remain within the public ranges. The independent finite-volume current constraint adds no unannounced electrode, grounding condition or imposed current; its potential pin is only a gauge."
+    },
+    "thermoelastic-rod": {
+      "verdict": "No corrective clamp formula is leaked. A redundant coupling cue and two small input/contact wording ambiguities could be cleaned up prospectively.",
+      "necessary_apparatus": [
+        {
+          "file": "tasks/thermoelastic-rod/environment/README.md",
+          "line_start": 3,
+          "line_end": 19,
+          "quote": "Fixed end separation, transverse relaxation, quasistatic mechanics, spatial expansion, fixed-local-axial-strain heat capacity and one-dimensional linear thermoelastic material"
+        },
+        {
+          "file": "tasks/thermoelastic-rod/environment/README.md",
+          "line_start": 22,
+          "line_end": 28,
+          "quote": "Insulating surfaces, finite thermal body/contact, independent preparations mechanically equilibrated under the clamps"
+        }
+      ],
+      "why_keep": "The fixed-strain heat-capacity convention distinguishes c_e from c_sigma; the end separation and quasistatic force balance determine the nonlocal reaction stress. Effective one-dimensional properties avoid an unspecified Poisson ratio. These are indispensable apparatus facts, not optional hints.",
+      "starter_scaffolding": [
+        {
+          "file": "tasks/thermoelastic-rod/environment/model.py",
+          "line_start": 20,
+          "line_end": 29,
+          "quote": "Local c_e+T0 E alpha^2 capacity integrated in a cosine basis"
+        },
+        {
+          "file": "tasks/thermoelastic-rod/environment/model.py",
+          "line_start": 32,
+          "line_end": 42,
+          "quote": "Generalized eigenproblem with a finite-bath contact"
+        }
+      ],
+      "scaffolding_assessment": "The starter already supplies the local reversible heat-capacity contribution, but no weighted outer-product subtraction or fixed-mean-strain condition appears in it. The eigenproblem, quadrature and MODES value do not restrict accepted solutions. All imports are used by this completed approximate predictor.",
+      "names_comments_imports": "Thermoelastic and clamped describe the apparatus. HEAT_FIXED_STRAIN matches the necessary public parameter definition. There is no public comment identifying the omitted weighted global constraint.",
+      "data_assessment": "160 records, only input/value/sigma. Calibration uses only the first projection of an antisymmetric initial profile, with zero contact; this limited observation is experimental data, not a label saying the weighted constraint is absent. The explicit nullspace explanation occurs only in hint.md.",
+      "private_comparison": "Hidden finite-contact and insulated-even preparations use documented observables and inputs. The verifier independently evolves entropy and mechanical constraints, but it grades only the resulting temperatures; it does not demand that representation."
+    },
+    "hall-bar": {
+      "verdict": "No direct answer leakage or solver mandate. One signed-field wording issue.",
+      "necessary_apparatus": [
+        {
+          "file": "tasks/hall-bar/environment/README.md",
+          "line_start": 3,
+          "line_end": 12,
+          "quote": "One isotropic classical carrier population, field-independent momentum relaxation, prescribed longitudinal field, insulating sides, steady state after charge redistribution"
+        }
+      ],
+      "why_keep": "The insulating sidewalls and charge-equilibrated central section determine the transverse electrical boundary condition. Removing them would admit the starter's different physical circuit. The public text never states j_y=0, the Hall field formula, or cancellation of longitudinal magnetoresistance.",
+      "starter_scaffolding": [
+        {
+          "file": "tasks/hall-bar/environment/model.py",
+          "line_start": 13,
+          "line_end": 16,
+          "quote": "Longitudinal conductivity evaluated with denominator 1+(mu*B)^2"
+        }
+      ],
+      "scaffolding_assessment": "This is the complete zero-transverse-field constitutive shortcut; the physical Hall boundary correction is not present. Only generic NumPy is imported. Model.predict may be replaced, explicitly permitted by README.md:22.",
+      "names_comments_imports": "Hall bar is the apparatus name and a topic cue, not a formula or private diagnostic label. No unused import or corrective comment is present.",
+      "data_assessment": "200 records with only input/value/sigma and electric_field/magnetic_field inputs. All calibration B values are zero; no true mobility or hidden field values appear in the data schema.",
+      "private_comparison": "The reference tensor enforces the sidewall current condition implied by the public apparatus. Its three nonzero signed field groups lie inside the public range. It does not require a tensor implementation or a Hall-voltage output."
+    }
+  },
+  "public_inventory": {
+    "entropy-anomaly": [
+      "tasks/entropy-anomaly/instruction.md",
+      "tasks/entropy-anomaly/environment/Dockerfile",
+      "tasks/entropy-anomaly/environment/README.md",
+      "tasks/entropy-anomaly/environment/data/calibration.json",
+      "tasks/entropy-anomaly/environment/model.py",
+      "tasks/entropy-anomaly/environment/test_public.py"
+    ],
+    "insulating-mhd-duct": [
+      "tasks/insulating-mhd-duct/instruction.md",
+      "tasks/insulating-mhd-duct/environment/Dockerfile",
+      "tasks/insulating-mhd-duct/environment/README.md",
+      "tasks/insulating-mhd-duct/environment/data/calibration.json",
+      "tasks/insulating-mhd-duct/environment/model.py",
+      "tasks/insulating-mhd-duct/environment/test_public.py"
+    ],
+    "thermoelastic-rod": [
+      "tasks/thermoelastic-rod/instruction.md",
+      "tasks/thermoelastic-rod/environment/Dockerfile",
+      "tasks/thermoelastic-rod/environment/README.md",
+      "tasks/thermoelastic-rod/environment/data/calibration.json",
+      "tasks/thermoelastic-rod/environment/model.py",
+      "tasks/thermoelastic-rod/environment/test_public.py"
+    ],
+    "hall-bar": [
+      "tasks/hall-bar/instruction.md",
+      "tasks/hall-bar/environment/Dockerfile",
+      "tasks/hall-bar/environment/README.md",
+      "tasks/hall-bar/environment/data/calibration.json",
+      "tasks/hall-bar/environment/model.py",
+      "tasks/hall-bar/environment/test_public.py"
+    ]
+  },
+  "reviewed_public_sha256": {
+    "tasks/entropy-anomaly/instruction.md": "83692df23bfcb4f616fa2ca9a540594821e93edf126637ea0f0a46fa1e5a64e1",
+    "tasks/entropy-anomaly/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/entropy-anomaly/environment/README.md": "52eb0cbcca73b1e157c664ee09717db8575a7254eb14a34f683f99d8b841a600",
+    "tasks/entropy-anomaly/environment/data/calibration.json": "d4fe975bb771ddc877982e0ce37f6b7a2ef8af9af1e53bb751b9ba4501781e7b",
+    "tasks/entropy-anomaly/environment/model.py": "363400581c911a7cc9a963b3df9817fd8d17c836a9181f35bec9687aa7d9dff8",
+    "tasks/entropy-anomaly/environment/test_public.py": "a01b9371b53416294816d94c17555e839b5fff3177ec2a81ec071cf6ae5d18c4",
+    "tasks/insulating-mhd-duct/instruction.md": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+    "tasks/insulating-mhd-duct/environment/Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+    "tasks/insulating-mhd-duct/environment/README.md": "460fe14a19d4a5385aaf34940724aaa59f93a2088e56c9b0a28bed3a2d33adcc",
+    "tasks/insulating-mhd-duct/environment/data/calibration.json": "7f7c1c3c2236066a748a141cfd3c04b793ab78217cd992d0bfcb133aefc7c0ab",
+    "tasks/insulating-mhd-duct/environment/model.py": "fbfe50ffeaba6757b075402a6e5b5daf4c49f513173c7f2f2b7aca6c4460bf84",
+    "tasks/insulating-mhd-duct/environment/test_public.py": "d4c25d38184a8e199dd4f3443d83b4c08d37350d65322715c3c17b966c51b1e1",
+    "tasks/thermoelastic-rod/instruction.md": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+    "tasks/thermoelastic-rod/environment/Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+    "tasks/thermoelastic-rod/environment/README.md": "0223844a1e55249cfce7d47861f9d44966e740964ab1269743342841dd4db1c6",
+    "tasks/thermoelastic-rod/environment/data/calibration.json": "8e2834761d444e0897585e3865ea2dcd60b5178c126178aef5769d1a7327cb6e",
+    "tasks/thermoelastic-rod/environment/model.py": "415e7c837583150dc906776a95e012a97d2251a98c9c645ba7336b9f59745125",
+    "tasks/thermoelastic-rod/environment/test_public.py": "bd769554c0922ffef8a013a94c7709f3c13a8bfe2790384ef8763817445b447c",
+    "tasks/hall-bar/instruction.md": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+    "tasks/hall-bar/environment/Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+    "tasks/hall-bar/environment/README.md": "c64b8da481c24155474c856e2c42d0529305e5aa0b163e4b264ed54a1d7bd662",
+    "tasks/hall-bar/environment/data/calibration.json": "b8cdc95758d942aac21cbfd8fccad452642b9158f78a67a89649efc63a97729b",
+    "tasks/hall-bar/environment/model.py": "e4a2ec2798cb2f4f82ada096c491a3e5c3043b367735416b0daf04988d39ca92",
+    "tasks/hall-bar/environment/test_public.py": "9a99464e435a0428e5dc4d909579dd3723264d38f22222faf74457b342f7e50e"
+  },
+  "reviewed_private_comparison_sha256": {
+    "tasks/entropy-anomaly/solution/model.py": "f52e0c56f9c079c52155f85f5989d990caa18e380312be904490e366c464bb11",
+    "tasks/entropy-anomaly/tests/reference.py": "dc20940d52b78d277657ff3c4e76bbec6a39fe9c2bc0648e4f0528268ee2ad9d",
+    "tasks/entropy-anomaly/tests/test_hidden.py": "19668aef9f18489f6f3db31bc1aa5526f43959e7bdceb816bddaab290555766c",
+    "tasks/entropy-anomaly/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/entropy-anomaly/hint.md": "fcb00a267e0c588db4457c8a414cc29537180d1f97cf00672a0f75e69691fda4",
+    "tasks/insulating-mhd-duct/solution/model.py": "1085a98c2c0c3634ce670dba9a43a9e59b1c3dbf2816f91e54bd188fbe426905",
+    "tasks/insulating-mhd-duct/tests/reference.py": "da30701420f0a8fe2424e9d60fa0b2710501945b6c760949a47e7f1104adeae9",
+    "tasks/insulating-mhd-duct/tests/test_hidden.py": "4b4075762a082227e831dad7ada6b2f73216eb7f1bc713dc1a34cc40cb19c4f6",
+    "tasks/insulating-mhd-duct/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/insulating-mhd-duct/hint.md": "1504b74af47b104f3fbb8d9b7ec81ca43ee82929615b00362d4c578ca70323b9",
+    "tasks/thermoelastic-rod/solution/model.py": "a3a3b0ff90d261efd648db06e3ad73044232df548738fdfbb8449ca68cbce470",
+    "tasks/thermoelastic-rod/tests/reference.py": "e886798d339e80bc9196d7b4a1a330bcfbf73538ca5c2cb2d45fa3f394ce224a",
+    "tasks/thermoelastic-rod/tests/test_hidden.py": "10ec3e2467b82d5389a3059decd0b10c8e7943b5885a5aa9e7c01607d7a6f01e",
+    "tasks/thermoelastic-rod/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/thermoelastic-rod/hint.md": "d1b14d2b539f01357055571941251a687c27da2103d06e08654fe208db419ace",
+    "tasks/hall-bar/solution/model.py": "93786c519809a526623cce0331cfceab790142ed0d2ba2f713716108076b2335",
+    "tasks/hall-bar/tests/reference.py": "79bdde466620339d78a38a4eb1780aa753a76a7718b94ef546984d89d20ce0b4",
+    "tasks/hall-bar/tests/test_hidden.py": "19668aef9f18489f6f3db31bc1aa5526f43959e7bdceb816bddaab290555766c",
+    "tasks/hall-bar/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/hall-bar/hint.md": "a8fd6a801fa3926476f230f39a4334ffecd5ee96624a16b1018a23cf66cedb6d"
+  },
+  "method": "Read every agent-visible source file and calibration schema/values, compared independent private physics and test contracts, and inspected Docker copy rules plus conditional runner hint injection. No task, hint, grader, data or runner was edited. No additional agent evaluation was launched.",
+  "recommendation": "Make any wording edits only in a separately versioned future revision. Preserve current frozen evidence and do not remove apparatus facts merely because they make the intended physics inferable.",
+  "uncertainty_metadata_side_channel": {
+    "separate_from_instruction_leakage": true,
+    "status": "Potential global response-scale channel; exploitation or exact recovery not numerically demonstrated in this audit.",
+    "assessment": "All four families use one constant sigma across every record, generated as a fixed fraction of the maximum absolute noiseless calibration response. Thus the uncertainty encodes one parameter-dependent aggregate response scale, not a separate noiseless target per record. If the generation fraction is known or guessed, sigma/fraction supplies that exact aggregate target. The fractions and generation rules are not stated in the agent-visible files, so the public data alone does not establish unique exact parameter recovery. The main instruction-leakage verdict should not be read as dismissing this separate metadata concern.",
+    "families": [
+      {
+        "task": "entropy-anomaly",
+        "record_count": 192,
+        "distinct_sigma_count": 1,
+        "sigma_values": [
+          0.015887380700169502
+        ],
+        "private_generation_fraction": 0.008,
+        "generation_evidence": {
+          "file": "scripts/validate_entropy_anomaly.py",
+          "line_start": 42,
+          "line_end": 42,
+          "quote": "    sigma = .008*max(np.max(np.abs(noiseless)), 1e-10)"
+        },
+        "public_sigma_evidence": {
+          "file": "tasks/entropy-anomaly/environment/data/calibration.json",
+          "line_start": 13,
+          "line_end": 13
+        }
+      },
+      {
+        "task": "insulating-mhd-duct",
+        "record_count": 160,
+        "distinct_sigma_count": 1,
+        "sigma_values": [
+          3.6282958549615506e-07
+        ],
+        "private_generation_fraction": 0.004,
+        "generation_evidence": {
+          "file": "scripts/validate_insulating_mhd_duct.py",
+          "line_start": 34,
+          "line_end": 34,
+          "quote": "    sigma=meta['measurement_sigma_fraction']*max(abs(noiseless))"
+        },
+        "public_sigma_evidence": {
+          "file": "tasks/insulating-mhd-duct/environment/data/calibration.json",
+          "line_start": 12,
+          "line_end": 12
+        }
+      },
+      {
+        "task": "thermoelastic-rod",
+        "record_count": 160,
+        "distinct_sigma_count": 1,
+        "sigma_values": [
+          0.0014726782449104167
+        ],
+        "private_generation_fraction": 0.006,
+        "generation_evidence": {
+          "file": "scripts/validate_thermoelastic_rod.py",
+          "line_start": 37,
+          "line_end": 37,
+          "quote": "    sigma=meta['measurement_sigma_fraction']*max(abs(noiseless))"
+        },
+        "public_sigma_evidence": {
+          "file": "tasks/thermoelastic-rod/environment/data/calibration.json",
+          "line_start": 13,
+          "line_end": 13
+        }
+      },
+      {
+        "task": "hall-bar",
+        "record_count": 200,
+        "distinct_sigma_count": 1,
+        "sigma_values": [
+          2.1629384559
+        ],
+        "private_generation_fraction": 0.006,
+        "generation_evidence": {
+          "file": "scripts/validate_candidates.py",
+          "line_start": 52,
+          "line_end": 52,
+          "quote": "    sigma = .006*max(np.max(np.abs(noiseless)), 1e-10)"
+        },
+        "public_sigma_evidence": {
+          "file": "tasks/hall-bar/environment/data/calibration.json",
+          "line_start": 8,
+          "line_end": 8
+        }
+      }
+    ],
+    "minimal_future_design_change": "Choose an absolute instrument-noise standard deviation before drawing the true apparatus parameter, or choose it from a fixed public scale independent of that parameter. Preserve frozen calibration and scores; test any changed noise design as a new revision.",
+    "impact_qualification": "This could simplify parameter estimation. It does not itself reveal the missing magnetic heat, electrical boundary, or thermoelastic constraint needed for hidden predictions."
+  }
+}

@@ -1,0 +1,1 @@
+Determine the force on the wall from the confined stationary states or from a displacement of that wall with the defect strength held fixed. Check which energy terms change under that physical displacement.

@@ -1,0 +1,1 @@
+The propulsion magnitude is fixed while its direction diffuses. Matching its two-time correlation determines position second moments in a linear trap, but does not make the propulsion Gaussian. Retain the orientation process when predicting the stationary position characteristic function.

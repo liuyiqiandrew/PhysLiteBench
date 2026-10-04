@@ -1,0 +1,1 @@
+All three ions share one electric field. Derive their Nernst-Planck fluxes and impose zero total charge current before eliminating the common anion using bulk electroneutrality. Separate binary-salt diffusion coefficients reproduce pure-salt calibrations but do not determine mixed-salt transport.

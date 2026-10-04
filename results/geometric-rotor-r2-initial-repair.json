@@ -1,0 +1,51 @@
+{
+  "task": "geometric-rotor",
+  "revision": 2,
+  "trial": "geometric-rotor__8H4GDTH",
+  "job": "geometric-rotor-neutral-r2-initial-plain-20261003-045716",
+  "classification": "implementation_failure",
+  "failure_subtype": "implementation_induced_model_regression",
+  "fixed_fitted_inertia": 1.0699072779593213,
+  "exact_original_tool_call": "call_vLpEz8BKTjDJ865V8pjwAt03",
+  "exact_original_diagnostic": "import json,numpy as np\nfrom scipy.linalg import eigh\nfrom scipy.optimize import minimize_scalar\nD=json.load(open('/app/data/calibration.json')); Ns=256;M=10\ndef lev(th,q,r,cols):\n ph=2*np.pi*np.arange(Ns)/Ns;I=np.eye(4);X=np.array([[0,1],[1,0]],complex);Z=np.diag([1.,-1.]);g=np.kron(np.eye(2),X);j=np.kron(np.cos(th)*Z+np.sin(th)*X,Z)\n f=np.cos(q*ph/2)[:,None,None]*I-1j*np.sin(q*ph/2)[:,None,None]*g;s=np.cos(r*ph/2)[:,None,None]*I-1j*np.sin(r*ph/2)[:,None,None]*j\n u=f@s;d=(-1j*q/2*g)@u+f@((-1j*r/2*j)@s);w=u[:,:,cols];d=d[:,:,cols]\n A=np.einsum('nka,nkb->nab',d.conj(),d);B=np.einsum('nka,nkb->nab',d.conj(),w);C=np.einsum('nka,nkb->nab',w.conj(),d)\n Ah=np.fft.fft(A,axis=0)/Ns;Bh=np.fft.fft(B,axis=0)/Ns;Ch=np.fft.fft(C,axis=0)/Ns\n ns=np.arange(-M,M+1);ks=ns-((q+r)%2)/2;H=np.zeros((2*len(ks),2*len(ks)),complex)\n for ii,k in enumerate(ks):\n  for jj,l in enumerate(ks):\n   m=(int(round(k-l)))%Ns;H[2*ii:2*ii+2,2*jj:2*jj+2]+=Ah[m]+1j*l*Bh[m]-1j*k*Ch[m]\n   if ii==jj:H[2*ii:2*ii+2,2*jj:2*jj+2]+=k*l*np.eye(2)\n return eigh(H,eigvals_only=True)\nfor cols in [slice(0,2),slice(2,4)]:\n c={}\n for x in D[:1]: pass\n for x in D:\n  e=x['input']; key=(e['theta'],e['q'],e['r'])\n  if key not in c:c[key]=lev(*key,cols)\n def o(I):\n  ss=0\n  for a in D:\n   e=a['input'];x=c[(e['theta'],e['q'],e['r'])]/I;z=np.exp(-(x-x.min())/e['temperature']); y=z@x/z.sum();ss+=((y-a['value'])/.0005)**2\n  return ss\n res=minimize_scalar(o,bounds=(.8,1.2),method='bounded');print(cols,res.x,res.fun,res.fun/287,flush=True)\n",
+  "minimal_repair": "The diagnostic builds the complete derivative Gram matrix H, whose physical kinetic operator is H/(2*inertia). Replace return eigh(H,eigvals_only=True) by return eigh(H/2,eigvals_only=True); retain every connection term, endpoint parity, Fourier cutoff, state choice and the fitted inertia.",
+  "original_diagnostic_sha256": "13ac61e65a11051ac43f47d9da7a66e482fda0c6bd3f2283c2a482c51338526a",
+  "submitted_source_sha256": "a6bb6899d2b1ea3062027c5031699909febe40d5f994fd7ffbc61375cdd03937",
+  "calibration_chi2": {
+    "diagnostic_original": 1686145.6174479818,
+    "diagnostic_half_factor": 1.0711376653004452,
+    "submitted": 1.0717189013188535,
+    "physical_oracle_fixed_inertia": 1.0717189013264896
+  },
+  "maximum_corrected_diagnostic_vs_oracle_calibration_difference": 3.8736019041252234e-06,
+  "maximum_submitted_vs_correct_calibration_difference": 1.871836019518014e-13,
+  "maximum_lower_vs_upper_doublet_diagnostic_difference": 8.43769498715119e-15,
+  "hidden": {
+    "tilt_sweep": {
+      "submitted": 0.6530342136386461,
+      "diagnostic_original": 0.9578786823644189,
+      "diagnostic_half_factor": 7.862736008290345e-05,
+      "physical_oracle_fixed_inertia": 7.862735943160326e-05
+    },
+    "temperature_sweep": {
+      "submitted": 0.6683444636193568,
+      "diagnostic_original": 0.822366570766545,
+      "diagnostic_half_factor": 6.241786842236278e-05,
+      "physical_oracle_fixed_inertia": 6.241786858764777e-05
+    },
+    "textures": {
+      "submitted": 0.5918081531448062,
+      "diagnostic_original": 0.9596533306217306,
+      "diagnostic_half_factor": 7.869786514909728e-05,
+      "physical_oracle_fixed_inertia": 7.869124233473227e-05
+    },
+    "central_holonomy_anchors": {
+      "submitted": 7.815638867207089e-05,
+      "diagnostic_original": 0.9585014893828521,
+      "diagnostic_half_factor": 7.815638870299786e-05,
+      "physical_oracle_fixed_inertia": 7.81563884855628e-05
+    }
+  },
+  "causal_evidence": "The public tool trajectory first constructs all derivative terms, corrects an earlier double FFT normalization, and retries both lower/upper columns. The remaining factor-two kinetic scaling causes huge false calibration errors. It then explicitly elects to preserve the supplied calibrated prediction path. Thus the final physical omission follows a demonstrable arithmetic error in an otherwise physically complete diagnostic; it is excluded from the intended physical-failure count.",
+  "artifacts_modified": false
+}

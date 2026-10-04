@@ -1,0 +1,1 @@
+The measurement adds physical particle momenta within each shot before computing a variance. Derive that operator in the normal modes of the specified quadratic Hamiltonian, or evaluate the normal and anomalous atomic covariances together. The number of particles outside the condensate does not by itself determine the variance of their total momentum.

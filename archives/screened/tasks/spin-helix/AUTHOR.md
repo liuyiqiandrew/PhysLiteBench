@@ -1,0 +1,9 @@
+# Spin helix, revision 1
+
+The completed shortcut combines exact scalar position diffusion with the exact relaxation tensor for spatially uniform spin. It retains both D and Q, predicts the correct conserved y spin and DQ² decay of uniform x/z spin, and calibrates perfectly. It neglects the correlation between displacement and spin rotation when the prepared spin varies in space.
+
+If L_y is the classical Bloch-vector rotation generator, trajectory transport gives d_t S=D(∂x−Q L_y)²S. The cross derivative is invisible for every spatially uniform calibration. The right-handed texture (sinQx,0,cosQx) is constant under the actual dynamics, because each displaced spin rotates exactly into the locally prescribed helix. The opposite handedness and a standing wave expose different coupled spatial-spin modes. No additional stochastic bath or pulse-boundary memory is introduced.
+
+The oracle propagates each complex Fourier spin vector with the 3x3 covariant generator. The reference averages actual spin rotations and spatial phases over Gaussian displacements using independent Gauss-Hermite quadrature. For this ring QL=2pi, full winding rotates the Bloch vector by 2pi and does not introduce a boundary ambiguity. Checks include a persistent helix, unaffected spin-axis diffusion, quadrature refinement, and extreme-parameter adaptive displacement integration.
+
+Hidden RMS errors are normalized by group RMS reference coefficient, limit .04. The apparatus specifies the free-flight rotation law and strict diffusion limit, not the reduced spin PDE. Validation command: `uv run --python 3.13 --with numpy==2.3.3 --with scipy==1.16.3 --with pytest==8.4.2 python scripts/validate_spin_helix.py --noise-trials 256`. Regeneration is explicit with `--generate`. Final peer review and measured scores pending.

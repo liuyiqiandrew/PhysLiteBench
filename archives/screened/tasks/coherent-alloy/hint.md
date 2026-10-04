@@ -1,0 +1,1 @@
+Fixed mean strain constrains the uniform deformation. A nonuniform composition wave can still induce a compatible periodic displacement. Determine that displacement from mechanical equilibrium before taking the chemical-potential derivative of elastic energy. The relaxation can depend on the wavevector direction even though the elastic moduli are isotropic.

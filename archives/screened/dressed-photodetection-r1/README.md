@@ -1,0 +1,3 @@
+# Dressed photodetection revision 1 archive
+
+One setup attempt failed before agent execution during a Node download. The strict byte-identical retry supplied the first actual model trial; all three completed unhinted Luna-high trials corrected the detector transition weighting while retaining the exact coupled Gibbs state and passed every hidden group. The task was screened out; no unchanged retry followed. Complete sources, scripts, science, peer review and native trial evidence are preserved, including full public trajectories and session files. Original jobs and shareable results remain available.

@@ -1,0 +1,11 @@
+# Collective spin relaxation, revision 1
+
+The mathematical shortcut diagonalizes the correct four-state Hamiltonian and uses its full Gibbs distribution. It implements the detector gate and all observables correctly. Its global-ergodicity assumption is physically invalid: both bath operators and H preserve total spin, and the prepared up-up state has no singlet population. The actual stationary state is the spin-one Gibbs ensemble. This is reachability under the specified reservoir, not a transient or an unknown relaxation time.
+
+All calibration measurements are triplet conditioned. Conditioning the full Gibbs state removes its spurious singlet weight, so the shortcut has exactly the correct calibration curve for every temperature. The fitted temperature cannot diagnose its false ergodicity assumption. Unconditioned predictions distinguish the models. The projection required by dynamics must precede normalization, independently of the detector gate.
+
+The oracle uses spin matrices, Hamiltonian diagonalization, and projection to the accessible sector. The independent reference uses analytic spin-one weights. Validation additionally evolves an independently constructed detailed-balance population generator from the specified initial state, verifies spin commutators, normalization, absence of inaccessible singlet population, field reflection, and low/high-temperature limits. Hidden errors use absolute RMS in dimensionless observables with limit .025, well above measurement and numerical error. Calibration parameter tolerance is 3%, and reduced chi squared must be below 1.5.
+
+Collective thermal relaxation and the protected singlet sector are established physical effects; see Li and Xu, [Stationary entanglement and nonlocality of two qubits or qutrits collectively interacting with the thermal environment](https://arxiv.org/abs/quant-ph/0505216). The present exchange Hamiltonian, detector protocol, datasets, and evaluation are independently constructed.
+
+Validation: `uv run --python 3.13 --with numpy==2.3.3 --with scipy==1.16.3 --with pytest==8.4.2 python scripts/validate_collective_spin_relaxation.py --noise-trials 256`. Generation is opt-in with `--generate`. Oracle and completed shortcut are evaluated with identical task files and runner limits. Peer review and empirical model scores are pending.

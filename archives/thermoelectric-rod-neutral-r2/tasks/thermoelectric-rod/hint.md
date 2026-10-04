@@ -1,0 +1,1 @@
+Reciprocity applies locally in the graded solid. Form the local Peltier heat flux from its actual Seebeck coefficient, then balance its divergence against electrical work. Differentiate both the temperature dependence and the fixed spatial dependence of that coefficient.

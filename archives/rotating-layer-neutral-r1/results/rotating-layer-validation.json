@@ -1,0 +1,98 @@
+{
+  "revision": 1,
+  "calibration_seed": 32021,
+  "noise_seed": 42021,
+  "noise_trials": 256,
+  "controls": {
+    "oracle": {
+      "parameter": 0.14012015103579356,
+      "parameter_relative_error": 0.0008582216842396573,
+      "calibration_chi2": 1.062229878648403,
+      "hidden": {
+        "balanced_release": 6.488895438643415e-08,
+        "mixed_release": 4.197179304896364e-08,
+        "transverse_release": 2.753165653370051e-08
+      }
+    },
+    "shortcut": {
+      "parameter": 0.14012015103579356,
+      "parameter_relative_error": 0.0008582216842396573,
+      "calibration_chi2": 1.062229878648403,
+      "hidden": {
+        "balanced_release": 0.00013247579767033916,
+        "mixed_release": 6.993286613402165e-05,
+        "transverse_release": 4.638776380771135e-05
+      }
+    }
+  },
+  "noise": {
+    "parameter_min": 0.13950303645160067,
+    "parameter_max": 0.1403924980477199,
+    "parameter_relative_error_max": 0.0035497396314239094,
+    "calibration_chi2_max": 1.4588503225987552,
+    "calibration_pass_fraction": 1.0
+  },
+  "hidden_parameter_extrema_check": {
+    "oracle": {
+      "min": 8.986071048139705e-08,
+      "max": 2.688750650352346e-07
+    },
+    "shortcut": {
+      "min": 4.631113012344788e-05,
+      "max": 0.00013259731649537974
+    }
+  },
+  "physical_checks": {
+    "oracle_momentum_reference_max_m": 1.7663550743590717e-15,
+    "reference_dop853_vs_rk45_max_state_error": 1.2697341008477414e-13,
+    "initial_height_error_both_controls_m": 0.0,
+    "initial_height_derivative_error_both_controls_m_per_s": 1.0529546337493048e-09,
+    "source_analytic_vs_independent_approximate_generator_m": 1.2874900798265365e-18,
+    "mechanical_energy_balance_error_per_density": 6.617444900424221e-23,
+    "drag_curl_PV_balance_error": 1.7076184216646695e-18,
+    "inviscid_equivalence_m": 1.1527779598952126e-16,
+    "nonrotating_equivalence_m": 0.0,
+    "maximum_generator_real_eigenvalue_domain": {
+      "oracle": -0.00413215485024306,
+      "shortcut": -0.03999999999999966
+    },
+    "domain_corner_reference_error_m": 2.9857301526992064e-15,
+    "shortcut_energy_defect": {
+      "input": {
+        "wave": 1,
+        "rotation": 2.0,
+        "height": 0.0002,
+        "along_velocity": 0.0,
+        "across_velocity": 0.004,
+        "time": 0.0
+      },
+      "physical_energy_rate_per_density": -5.6000000000000005e-08,
+      "shortcut_energy_rate_per_density": 5.600000000000002e-08,
+      "interpretation": "Direct PV relaxation adds height-dependent transverse forcing. This stable approximation can inject mechanical energy; it is a consequence of its incorrect dissipative law, not a coding defect."
+    }
+  },
+  "seconds": 4.345836162567139,
+  "source_sha256": {
+    "tasks/rotating-layer/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/rotating-layer/environment/README.md": "1df5e15e94b6874df9c62e40e68a1af1233d03bee9072dea75ed554fec76a621",
+    "tasks/rotating-layer/environment/model.py": "a270c3ab9121e86b81cac329412a973c9286c4c6cb38d5bb0c5a3352d36ccb59",
+    "tasks/rotating-layer/solution/model.py": "ff3811805ca7d26d8a217df89039db88c22818fa6c0fd4304f9399435bd129be",
+    "tasks/rotating-layer/tests/reference.py": "ac8e269f4be6d9922c63a8bd6a0493fd7238f148e37866845016e5a91c3e5554",
+    "tasks/rotating-layer/tests/metadata.json": "589f94c55b8a9a71d0a1541988f100d0b1291f6069be1e31c1d26cfe6e97ca7c",
+    "tasks/rotating-layer/environment/data/calibration.json": "3ad8cd75fe42c57c478bd74da3bab7c190d84fa9c5ddfc3c7d3c2b7d89fa7bb1",
+    "scripts/rotating_layer_baseline.py": "7bb7687ee1ac247bbdd44cb39bf8e7187f4a4d700283eb8df3022afc347b5a1d",
+    "scripts/validate_rotating_layer.py": "45064f19c8f7f6c738a778b26c6a230d98e3e991373a31d4f21bdc0fc165350a"
+  },
+  "local_pytest": {
+    "oracle": {
+      "exit_code": 0,
+      "stdout": ".......                                                                  [100%]\n7 passed in 0.61s\n",
+      "stderr": ""
+    },
+    "shortcut": {
+      "exit_code": 1,
+      "stdout": "....FFF                                                                  [100%]\n=================================== FAILURES ===================================\n______________________ test_prediction[balanced_release] _______________________\n\nevaluated = {'calibration_chi2': 1.062229878648403, 'hidden': {'balanced_release': 0.00013247579767033916, 'mixed_release': 6.9932...80771135e-05}, 'parameter_relative_error_max': 0.0008582216842396573, 'parameters': {'drag_rate': 0.14012015103579356}}\ncase = 'balanced_release'\n\n    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))\n    def test_prediction(evaluated, case):\n>       assert evaluated['hidden'][case] < METADATA['prediction_limit']\nE       assert 0.00013247579767033916 < 1.5e-05\n\n/var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/rotating-layer-shortcut-1nneguiv/tests/test_hidden.py:50: AssertionError\n________________________ test_prediction[mixed_release] ________________________\n\nevaluated = {'calibration_chi2': 1.062229878648403, 'hidden': {'balanced_release': 0.00013247579767033916, 'mixed_release': 6.9932...80771135e-05}, 'parameter_relative_error_max': 0.0008582216842396573, 'parameters': {'drag_rate': 0.14012015103579356}}\ncase = 'mixed_release'\n\n    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))\n    def test_prediction(evaluated, case):\n>       assert evaluated['hidden'][case] < METADATA['prediction_limit']\nE       assert 6.993286613402165e-05 < 1.5e-05\n\n/var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/rotating-layer-shortcut-1nneguiv/tests/test_hidden.py:50: AssertionError\n_____________________ test_prediction[transverse_release] ______________________\n\nevaluated = {'calibration_chi2': 1.062229878648403, 'hidden': {'balanced_release': 0.00013247579767033916, 'mixed_release': 6.9932...80771135e-05}, 'parameter_relative_error_max': 0.0008582216842396573, 'parameters': {'drag_rate': 0.14012015103579356}}\ncase = 'transverse_release'\n\n    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))\n    def test_prediction(evaluated, case):\n>       assert evaluated['hidden'][case] < METADATA['prediction_limit']\nE       assert 4.638776380771135e-05 < 1.5e-05\n\n/var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/rotating-layer-shortcut-1nneguiv/tests/test_hidden.py:50: AssertionError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../../var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/rotating-layer-shortcut-1nneguiv/tests/test_hidden.py::test_prediction[balanced_release]\nFAILED ../../../../../../../../../var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/rotating-layer-shortcut-1nneguiv/tests/test_hidden.py::test_prediction[mixed_release]\nFAILED ../../../../../../../../../var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/rotating-layer-shortcut-1nneguiv/tests/test_hidden.py::test_prediction[transverse_release]\n3 failed, 4 passed in 0.66s\n",
+      "stderr": ""
+    }
+  }
+}

@@ -44,6 +44,7 @@ def main():
     parser.add_argument("--model", default="gpt-5.6-luna", help="Codex model ID")
     parser.add_argument("--reasoning-effort", choices=("low", "medium", "high"), default="high")
     parser.add_argument("--job-name")
+    parser.add_argument("--hint", action="store_true", help="Append the task's author-owned physics hint to the instruction")
     args = parser.parse_args()
     source = args.task.resolve()
     if args.trials < 1 or args.concurrency < 1:
@@ -60,6 +61,12 @@ def main():
     with tempfile.TemporaryDirectory(prefix="science-task-") as tmp:
         task = Path(tmp) / source.name
         shutil.copytree(source, task, ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", ".git"))
+        if args.hint:
+            hint = source / "hint.md"
+            if not hint.is_file():
+                parser.error(f"missing physics hint: {hint}")
+            instruction = task / "instruction.md"
+            instruction.write_text(instruction.read_text().rstrip()+"\n\nPhysics hint:\n"+hint.read_text())
         if args.solution_model:
             shutil.copyfile(args.solution_model, task / "solution/model.py")
         command = ["uvx", "--python", "3.13", "harbor@0.21.0", "run", "-p", str(task),
@@ -87,6 +94,7 @@ def main():
                     "agent": args.agent, "task": source.name,
                     "model": args.model if args.agent == "codex" else None,
                     "reasoning_effort": args.reasoning_effort if args.agent == "codex" else None,
+                    "physics_hint": args.hint,
                     "started_at": started.isoformat(), "finished_at": finished.isoformat(),
                     "wall_seconds": wall, "monotonic_seconds": elapsed,
                     "wall_minus_monotonic_seconds": wall-elapsed,

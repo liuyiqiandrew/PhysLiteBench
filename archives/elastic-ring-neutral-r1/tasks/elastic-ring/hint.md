@@ -1,0 +1,1 @@
+Calibration determines the angular element's stiffness. For the released ring, equilibrium is prepared before the side springs become infinitely stiff. Integrate the fluctuations transverse to the unit-side shape family when obtaining its statistical weight. Their shape-dependent phase-space volume can survive that limit even though the bond extensions vanish.

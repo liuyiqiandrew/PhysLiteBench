@@ -1,0 +1,125 @@
+{
+  "capillary-mixture__2fxGMNH": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "capillary-mixture-neutral-r2-initial-plain-20261002-181212",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The submitted source implements the full symmetric Newtonian stress eta*(grad u+grad u transpose), correctly projected capillary forcing, and inverse-viscosity weighted fitting. Public messages explicitly commit to the symmetric stress after checking the uniform-viscosity calibration. Temporary exploratory sign/fit coding mistakes were fixed before submission. The fitted parameter and all hidden groups pass; this is a substantive physical solution, not a lucky shortcut.",
+    "metrics": {
+      "parameters": {
+        "viscosity": 0.00399692103514514
+      },
+      "parameter_relative_error_max": 0.0007697412137150916,
+      "calibration_chi2": 0.9321426960397707,
+      "hidden": {
+        "crossed_waves": 0.00020514957432732575,
+        "oblique_waves": 0.00012122730211527099,
+        "unequal_waves": 0.00019856279606940506
+      }
+    },
+    "source_sha256": "116df1ceba4e7589b948bba977e459c3a2899551a7c18b3eea0e8bf42ac63b94",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-r2-initial-plain-20261002-181212/capillary-mixture__2fxGMNH/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current model implementation, then implement and test the documented prediction interface end to end.",
+      "The calibration set uses zero viscosity contrast, so it identifies the viscosity scale cleanly; the nonuniform-composition physics still needs to be correct for hidden cases. I\u2019m checking the thermodynamic stress and Stokes sign conventions against the recorded coefficients before replacing the solver.",
+      "The calibration matches the thermodynamic capillary force \\( \\kappa\\,c\\,\\nabla\\nabla^2c \\) (up to a pressure-gradient equivalent) and gives viscosity about 0.004. I\u2019m implementing the full variable-viscosity incompressible Stokes solve, including the symmetric Newtonian stress and weighted one-parameter fit.",
+      "The implementation now passes the public calibration tests. I\u2019m doing a final validation sweep on nonzero viscosity contrast, empty-batch behavior, and the actual diff so I can catch interface or numerical edge cases before handing it back.",
+      "Implemented `/app/model.py` with:\n\n- Thermodynamic capillary force from the square-gradient free energy\n- Variable-viscosity incompressible Stokes solver\n- Symmetric Newtonian viscous stress\n- Weighted viscosity fitting using calibration uncertainties\n- Documented `Model.fit()` and `Model.predict()` API\n- Cached spectral solves and robust validation\n\nVerification: `pytest -q` passes all tests (`2 passed`)."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Keep this initial success with both policy-triggered follow-ups; do not replace it with follow-up outcomes."
+  },
+  "capillary-mixture__CbqhV8z": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "capillary-mixture-neutral-r2-followup-plain-20261002-181731",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final model uses the full symmetric Newtonian viscous stress eta*(grad u+grad u transpose), correct capillary force and solenoidal Stokes projection. Public messages explicitly identify the missing transpose stress in the starter and explain why calibration at constant viscosity cannot expose it. The source performs variable-contrast convergence checks, fits the correct scale, and passes all hidden groups. This is a substantive physical correction, not a lucky pass.",
+    "metrics": {
+      "parameters": {
+        "viscosity": 0.00399692103514514
+      },
+      "parameter_relative_error_max": 0.0007697412137150916,
+      "calibration_chi2": 0.9321426960397471,
+      "hidden": {
+        "crossed_waves": 0.00020514957432469884,
+        "oblique_waves": 0.00012122730212112325,
+        "unequal_waves": 0.0001985627960713649
+      }
+    },
+    "source_sha256": "4f7b6dfd085d108f475ef9470bbd316ae0e35b05bb68806775202acee24ca76a",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__CbqhV8z/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the documented apparatus, calibration data, and current implementation, then replace or refine the model and run the available checks against the documented prediction interface.",
+      "The current solver is structurally close but omits the symmetric-gradient part of the Newtonian stress and leaves `fit` unimplemented. I\u2019m checking the calibration\u2019s structure and comparing candidate continuum discretizations so the implementation matches the apparatus rather than merely fitting one constant.",
+      "The calibration is 144 noisy measurements of three compositions, all with zero viscosity contrast; their weighted inverse-scale fit is about `0.0039969`, consistent with the allowed material range. I\u2019ll implement the full variable-viscosity Stokes operator, retain the thermodynamic force, and fit the single scale by weighted least squares.",
+      "The implementation now passes the public tests. The fitted viscosity is `0.00399692103514514`, with calibration reduced chi-square `0.932`; I also exercised contrasts 0 through 7 and confirmed finite predictions from the variable-viscosity solver. I\u2019m doing a final source check for interface and numerical edge cases.",
+      "Implemented the apparatus model in [model.py](/app/model.py).\n\n- Added weighted calibration fitting for `viscosity`\n- Implemented variable-viscosity incompressible Stokes solver\n- Included the symmetric Newtonian stress tensor\n- Preserved the documented prediction API and finite NumPy outputs\n- Added caching for repeated preparations\n\nValidation: `2 passed`; fitted viscosity \u2248 `0.00399692`, calibration reduced \u03c7\u00b2 \u2248 `0.932`."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Combine these two follow-ups with initial trial2fxGMNH; combined neutral-r2 result is3/3 passes."
+  },
+  "capillary-mixture__fEVXdu6": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "capillary-mixture-neutral-r2-followup-plain-20261002-181731",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final model uses the full symmetric Newtonian viscous stress eta*(grad u+grad u transpose), correct capillary force and solenoidal Stokes projection. Public messages explicitly identify the missing transpose stress in the starter and explain why calibration at constant viscosity cannot expose it. The source performs variable-contrast convergence checks, fits the correct scale, and passes all hidden groups. This is a substantive physical correction, not a lucky pass.",
+    "metrics": {
+      "parameters": {
+        "viscosity": 0.003996921035145141
+      },
+      "parameter_relative_error_max": 0.0007697412137148696,
+      "calibration_chi2": 0.9321426960397541,
+      "hidden": {
+        "crossed_waves": 0.0002051495744608328,
+        "oblique_waves": 0.00012122730227910496,
+        "unequal_waves": 0.00019856279610276325
+      }
+    },
+    "source_sha256": "61f62fd932ec2728f51c27e8daeaefa9337b0637cbc1efb6d01f2502051f0b8f",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-r2-followup-plain-20261002-181731/capillary-mixture__fEVXdu6/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then derive and validate the prediction model against the documented interface.",
+      "The existing solver is structurally close for constant viscosity, but it omits the symmetric part of the Newtonian stress when viscosity varies and has no calibration fit. I\u2019m replacing the operator with the full incompressible variable-viscosity Stokes solve, while preserving the scale separation that makes fitting well-conditioned.",
+      "The implementation now fits the calibration at viscosity `0.003996921...` and reproduces the calibration records with reduced \u03c7\u00b2 \u2248 `0.93`. I\u2019m doing a final sweep over high-contrast and mixed-mode inputs to catch convergence or finite-output issues that the public calibration cannot exercise.",
+      "The high-contrast sweep is finite and convergent for representative worst-case mode combinations, and the public tests pass. The solver now includes the full symmetric viscous stress, frozen-composition thermodynamic forcing, weighted viscosity calibration, and cached spectral solves.",
+      "Implemented `/app/model.py` with:\n\n- Full variable-viscosity incompressible Stokes solver\n- Symmetric Newtonian stress\n- Thermodynamic composition force\n- Weighted Gaussian calibration fitting\n- Viscosity bounds and validation\n- Cached spectral computations\n- Preserved prediction API and output shape\n\nValidation: `2 passed`; calibration fit gives viscosity \u2248 `0.0039969`."
+    ],
+    "public_tool_count": 19,
+    "aggregation_note": "Combine these two follow-ups with initial trial2fxGMNH; combined neutral-r2 result is3/3 passes."
+  }
+}

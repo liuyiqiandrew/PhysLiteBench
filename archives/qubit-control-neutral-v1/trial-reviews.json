@@ -1,0 +1,79 @@
+{
+  "qubit-control__dH4iEbp": {
+    "classification": "pass",
+    "reason": "Correct common-phase joint readout: conditional single-probe probabilities retain both sine and cosine factors, and their product is averaged using E[cos(phi)]=exp(-gamma*t) and E[cos(2phi)]=exp(-4*gamma*t). Public trajectory explicitly derives spatially shared noise before implementing the joint expectation. Exploratory sine-squared formula and a manual zero-wait comparison were mistaken, but final model uses the correct analytic expression; both hidden groups pass. Weighted fitting identifies gamma without changing the physical correlation model.",
+    "task": "qubit-control",
+    "condition": "plain",
+    "stage": "initial",
+    "evaluation": "neutral-v1",
+    "job": "qubit-control-neutral-v1-initial-plain-20261002-154417",
+    "reward": 1.0,
+    "metrics": {
+      "gamma_s_minus_1": 0.42644799624979385,
+      "relative_parameter_error": 0.008260473837688687,
+      "calibration_reduced_chi2": 0.9924230127443271,
+      "hidden_probability_rmse": [
+        0.0013785376559345935,
+        0.00017679674491140682
+      ]
+    },
+    "source_sha256": "1800dafa6b6de4e6781560f9d66e9e289cc8d7896b3d9f0bd30ce977dbdeff1e",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-v1-initial-plain-20261002-154417/qubit-control__dH4iEbp/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-v1-initial-plain-20261002-154417/qubit-control__dH4iEbp/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-v1-initial-plain-20261002-154417/qubit-control__dH4iEbp/verifier/metrics.json"
+    }
+  },
+  "qubit-control__h8Mac4S": {
+    "classification": "physical_model_failure",
+    "reason": "Final model multiplies independently averaged single-probe probabilities despite the spatially common noise. It fits gamma and calibration correctly but misses the shared-phase joint statistics in both hidden groups. Public step 6 explicitly claims independence. After repairing an unrelated optimizer plateau, step 16 explores a common-phase formula but omits its linear exp(-gamma*t) terms and never installs it; this exploratory algebra error is a contributing reason the correct physical alternative was not adopted. Fixed-gamma replacement of the independent average by the common-phase density-matrix channel reduces hidden RMSE from .0901/.1142 to .00138/.000177 with calibration predictions unchanged to 4.45e-16.",
+    "task": "qubit-control",
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-v1",
+    "job": "qubit-control-neutral-v1-followup-plain-20261002-155035",
+    "reward": 0.0,
+    "metrics": {
+      "gamma_s_minus_1": 0.4264479319598231,
+      "relative_parameter_error": 0.008260623349248597,
+      "calibration_reduced_chi2": 0.9924230127342727,
+      "hidden_probability_rmse": [
+        0.09005559552410669,
+        0.11416358253236361
+      ]
+    },
+    "source_sha256": "edff2534e734e9ecd9f14e20ee37c673dd445d66d2c344050da8114d7192697d",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__h8Mac4S/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__h8Mac4S/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__h8Mac4S/verifier/metrics.json"
+    },
+    "repair_diagnostic": "results/neutrality-qubit-h8Mac4S-fixed-parameter-repair.json",
+    "contributing_issue": "Exploratory common-phase alternative had a mathematical omission; final submitted failure is an independent-noise physical model."
+  },
+  "qubit-control__Ew49nY2": {
+    "classification": "pass",
+    "reason": "Correct common Gaussian phase average with all first- and second-harmonic terms, including the sine-sine correlation. The public trajectory identifies shared noise immediately, corrects an exploratory missing linear term, then fixes a log-optimizer plateau and validates the final expression against a common-phase Monte Carlo check. Calibration and both hidden groups pass; no final physical failure remains.",
+    "task": "qubit-control",
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-v1",
+    "job": "qubit-control-neutral-v1-followup-plain-20261002-155035",
+    "reward": 1.0,
+    "metrics": {
+      "gamma_s_minus_1": 0.4264479317409763,
+      "relative_parameter_error": 0.008260623858194704,
+      "calibration_reduced_chi2": 0.9924230127342711,
+      "hidden_probability_rmse": [
+        0.001378562818686219,
+        0.00017679997578081143
+      ]
+    },
+    "source_sha256": "be881c384eec93c46867274d327b198412a22398ded053c91e6c47fd530ccb73",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__Ew49nY2/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__Ew49nY2/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__Ew49nY2/verifier/metrics.json"
+    }
+  }
+}

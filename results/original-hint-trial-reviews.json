@@ -1,0 +1,545 @@
+{
+  "thermal-bodies__CR92gBX": {
+    "task": "thermal-bodies",
+    "revision": 9,
+    "condition": "hint",
+    "job": "thermal-bodies-original-hint-hint-20261002-053434",
+    "classification": "pass",
+    "reason": "Final implementation derives the coupled piston-work equations, using the constant-volume heat capacity for the temperature sum and constant-pressure capacity plus the sum-dependent factor for the temperature difference. The public trajectory explicitly enforces equal pressure, chamber-volume motion and first-law work. All calibration, parameter and hidden checks pass.",
+    "metrics": {
+      "conductance_W_per_K": 0.0007990647622484861,
+      "relative_conductance_error": 0.0011690471893924803,
+      "calibration_reduced_chi2": 0.9773822206226803,
+      "hidden_nrmse": [
+        0.0006497512568228277,
+        0.000346909362226416,
+        0.0006243458159516957
+      ]
+    },
+    "reward": 1.0,
+    "source_sha256": "1abf32521db98aadfb663e630ddf7e76c04f559216bb0ba21ae2463a91bc2d67",
+    "public_messages": [
+      "I\u2019ll inspect the apparatus documentation, calibration data, and the existing model structure, then derive the coupled thermodynamic equations and implement the missing logic. I\u2019ll also run the available tests or a small numerical check to catch sign and calibration errors.",
+      "The key reduction is now clear: let \\(S=T_1+T_2\\) and \\(D=T_1-T_2\\). The piston work cancels from the total-energy equation but changes the difference mode, giving a closed-form prediction:\n\\(S(t)=2T_B+(S_0-2T_B)e^{-g t/(nC_V)}\\) and\n\\(D(t)=D_0e^{-(g+2L)t/(nC_P)}[S(t)/S_0]^{R/C_P}\\).\nThe supplied calibration deliberately has \\(S_0=2T_B\\), so it only identifies the difference-mode decay; I\u2019m implementing both modes so predictions remain correct for arbitrary initial temperatures.",
+      "The implementation is in place with a weighted one-parameter fit and an exact sum/difference solution. I\u2019m checking it against the public calibration and then I\u2019ll inspect edge cases such as arbitrary non-293 K total temperature and prediction shape.",
+      "Implemented `ThermalModel` in [model.py](/app/model.py).\n\n- Added piston-work-aware thermodynamic solution.\n- Implemented weighted conductance fitting.\n- Supports arbitrary initial temperature sums.\n- Public tests pass: `3 passed`.\n- Fitted conductance: approximately `7.99e-4 W/K`."
+    ],
+    "reviewed_sources": [
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__CR92gBX/artifacts/app/model.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__CR92gBX/agent/codex.txt",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__CR92gBX/verifier/metrics.json",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__CR92gBX/verifier/test-stdout.txt",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__CR92gBX/artifacts/app/model.py": "1abf32521db98aadfb663e630ddf7e76c04f559216bb0ba21ae2463a91bc2d67",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__CR92gBX/agent/codex.txt": "20702695a4e3bdedf0da2a6e958e39560779879299ce255c9347dac15056b3ba",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__CR92gBX/verifier/metrics.json": "f333c26f91ffb226a3fa1d2019d1230089125ea5232db70fab3dedcaf7114104",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__CR92gBX/verifier/test-stdout.txt": "3e581f92c5a63354a9091ee51e37e73e779045ac4069a73a069db9dd6f0cfef2",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "b5510358e969f986404fe7e2e4f3c27dd7b03905523ce191a585992e95a8a376",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "27b1bf4f9fa17b498a54f77e60fae8fcf20c1490d8208c4d7c0660734c60bbd8",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "714f152e9d62f55002cc8a1b4a2fe046ded929506104a94d7ce9f8b1fd66d203",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "4b635636d37452b8d4913b229659b46af8db8be7c078dcd4a1b543a2dc924b25",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/instruction.md": "f25425079e75a5f36086272f84b624a6e6807f87cdfe97174d6a0145a5bc3214",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/hint.md": "5e6ee5e73b6d871d69977af5d0abc9e160bf524ad76320b8f0e64c413c957212",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af"
+    }
+  },
+  "thermal-bodies__GzAKb8P": {
+    "task": "thermal-bodies",
+    "revision": 9,
+    "condition": "hint",
+    "job": "thermal-bodies-original-hint-hint-20261002-053434",
+    "classification": "pass",
+    "reason": "Final implementation derives the coupled piston-work equations, using the constant-volume heat capacity for the temperature sum and constant-pressure capacity plus the sum-dependent factor for the temperature difference. The public trajectory explicitly enforces equal pressure, chamber-volume motion and first-law work. All calibration, parameter and hidden checks pass.",
+    "metrics": {
+      "conductance_W_per_K": 0.0007990647573349259,
+      "relative_conductance_error": 0.001169053331342651,
+      "calibration_reduced_chi2": 0.97738222062268,
+      "hidden_nrmse": [
+        0.0006497546723636537,
+        0.00034691118570695956,
+        0.0006243490979373239
+      ]
+    },
+    "reward": 1.0,
+    "source_sha256": "a318736988968d53d86c5b9be7b76d1e37795aeb5bbc3a126bf778236e8854ac",
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and the existing model scaffold, then derive the missing equations and run the available checks.",
+      "The key reduction is that the total temperature \\(S=T_1+T_2\\) is the common-pressure mode: \\(S' = G(2T_B-S)/(nC_V)\\). The temperature difference then obeys a scalar equation whose exact solution includes the factor \\((S/S_0)^{R/C_P}\\); this is the correction absent from the scaffold for non-constant temperature sums. I\u2019m implementing that closed-form prediction and a weighted one-parameter fit for the conductance.",
+      "The implementation is in place and the public suite passes. On the supplied records it estimates \\(G \\approx 7.99\\times10^{-4}\\,\\mathrm{W/K}\\) with reduced \\(\\chi^2 \\approx 0.98\\), and arbitrary initial temperature sums now evolve through the previously hidden common-pressure mode.",
+      "Completed [`model.py`](/app/model.py).\n\n- Implemented weighted conductance fitting.\n- Added exact coupled thermodynamic prediction, including piston work and common-pressure mode.\n- Estimated conductance: \\(7.99\\times10^{-4}\\,\\mathrm{W/K}\\).\n- All public tests pass: `3 passed`."
+    ],
+    "reviewed_sources": [
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__GzAKb8P/artifacts/app/model.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__GzAKb8P/agent/codex.txt",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__GzAKb8P/verifier/metrics.json",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__GzAKb8P/verifier/test-stdout.txt",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__GzAKb8P/artifacts/app/model.py": "a318736988968d53d86c5b9be7b76d1e37795aeb5bbc3a126bf778236e8854ac",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__GzAKb8P/agent/codex.txt": "f27fd4fd7397eecc453fdf794d760833d2ec6bd933ff53519ee43c118037bad2",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__GzAKb8P/verifier/metrics.json": "0d95a449d50a7a15b6a9924aeedc75657491776d6477378170a0128fccd4b389",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__GzAKb8P/verifier/test-stdout.txt": "1b31e3fc3c18a42910709d5a3afabfbc07474fc3e627801defb18fc76e853e8f",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "b5510358e969f986404fe7e2e4f3c27dd7b03905523ce191a585992e95a8a376",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "27b1bf4f9fa17b498a54f77e60fae8fcf20c1490d8208c4d7c0660734c60bbd8",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "714f152e9d62f55002cc8a1b4a2fe046ded929506104a94d7ce9f8b1fd66d203",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "4b635636d37452b8d4913b229659b46af8db8be7c078dcd4a1b543a2dc924b25",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/instruction.md": "f25425079e75a5f36086272f84b624a6e6807f87cdfe97174d6a0145a5bc3214",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/hint.md": "5e6ee5e73b6d871d69977af5d0abc9e160bf524ad76320b8f0e64c413c957212",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af"
+    }
+  },
+  "thermal-bodies__SUrUPXy": {
+    "task": "thermal-bodies",
+    "revision": 9,
+    "condition": "hint",
+    "job": "thermal-bodies-original-hint-hint-20261002-053434",
+    "classification": "pass",
+    "reason": "Final implementation derives the coupled piston-work equations, using the constant-volume heat capacity for the temperature sum and constant-pressure capacity plus the sum-dependent factor for the temperature difference. The public trajectory explicitly enforces equal pressure, chamber-volume motion and first-law work. All calibration, parameter and hidden checks pass.",
+    "metrics": {
+      "conductance_W_per_K": 0.0007990647354498417,
+      "relative_conductance_error": 0.0011690806876979432,
+      "calibration_reduced_chi2": 0.9773822206236361,
+      "hidden_nrmse": [
+        0.0006497698852434948,
+        0.0003469193075242457,
+        0.0006243637159597169
+      ]
+    },
+    "reward": 1.0,
+    "source_sha256": "c1dc480b3d3f9a2794b214218a237bf65e7426813ba6e784caa480319e2eb16b",
+    "public_messages": [
+      "I\u2019ll inspect the repository and read the apparatus/calibration notes, then derive the model equations and run the available tests or checks.",
+      "The existing `predict` assumes fixed, independent chamber heat capacities and misses piston work. With equal pressure, the chamber volumes are \\(V_i=V_{\\rm total}T_i/(T_1+T_2)\\), so I\u2019m replacing the linear model with the coupled first-law ODE and fitting the single conductance against all weighted measurements.",
+      "The model is now implemented with the exact sum/difference solution: the temperature sum relaxes with the monatomic \\(C_V\\) mode, while the temperature difference includes both bath and inter-gas conductances plus the piston-work correction \\((S/S_0)^{R/C_P}\\). I\u2019m checking the fit and public tests now.",
+      "All three tests pass. The fitted conductance is approximately \\(7.99\\times10^{-4}\\,\\mathrm{W/K}\\), and the weighted calibration statistic is within the test threshold. I\u2019m doing one final syntax/edge-shape check before handing it back.",
+      "Implemented `ThermalModel` in [model.py](/app/model.py):\n\n- Added piston-work-aware temperature dynamics.\n- Added exact common-mode/differential-mode prediction.\n- Added weighted least-squares conductance fitting.\n- `fit()` returns `self`.\n- All tests pass (`3 passed`)."
+    ],
+    "reviewed_sources": [
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__SUrUPXy/artifacts/app/model.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__SUrUPXy/agent/codex.txt",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__SUrUPXy/verifier/metrics.json",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__SUrUPXy/verifier/test-stdout.txt",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__SUrUPXy/artifacts/app/model.py": "c1dc480b3d3f9a2794b214218a237bf65e7426813ba6e784caa480319e2eb16b",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__SUrUPXy/agent/codex.txt": "52b4f0e7a15c999a6f51bd9924857e214681c85e6b3e7b61b471bd1e09042f7b",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__SUrUPXy/verifier/metrics.json": "846ebf2a17476eadccb610a8a7fb4ab78c26b2eeaf3b308f2f3b89ff4b8f7627",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/thermal-bodies__SUrUPXy/verifier/test-stdout.txt": "91eb7251eeee51f87d2b3889fa1aad927177276f19509aa4bda0655657c3cf0c",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "b5510358e969f986404fe7e2e4f3c27dd7b03905523ce191a585992e95a8a376",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "27b1bf4f9fa17b498a54f77e60fae8fcf20c1490d8208c4d7c0660734c60bbd8",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "714f152e9d62f55002cc8a1b4a2fe046ded929506104a94d7ce9f8b1fd66d203",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "4b635636d37452b8d4913b229659b46af8db8be7c078dcd4a1b543a2dc924b25",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/instruction.md": "f25425079e75a5f36086272f84b624a6e6807f87cdfe97174d6a0145a5bc3214",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/hint.md": "5e6ee5e73b6d871d69977af5d0abc9e160bf524ad76320b8f0e64c413c957212",
+      "jobs/thermal-bodies-original-hint-hint-20261002-053434/frozen-task/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af"
+    }
+  },
+  "reaction-diffusion__S86R9rA": {
+    "task": "reaction-diffusion",
+    "revision": 6,
+    "condition": "hint",
+    "job": "reaction-diffusion-original-hint-hint-20261002-053434",
+    "classification": "pass",
+    "reason": "Final implementation uses one common electric field derived from zero total ionic current and local electroneutrality, then evolves both cations with conservative coupled Nernst\u2013Planck fluxes and blocking boundaries. All calibration, parameter and hidden checks pass. A temporary integration-time-origin error was corrected before the final submission.",
+    "metrics": {
+      "diffusivity_m2_s": 1.0001136621346462e-09,
+      "relative_diffusivity_error": 0.00011366213464625297,
+      "calibration_reduced_chi2": 1.0110175725952106,
+      "hidden_nrmse": [
+        0.00025400849283097027,
+        0.00024014437417602957,
+        0.0011984663139994877
+      ],
+      "hidden_species_nrmse": [
+        [
+          0.0002163726614716978,
+          0.00025400849283097027
+        ],
+        [
+          0.00024014437417602957,
+          0.00019934323531342661
+        ],
+        [
+          0.0009488734361278191,
+          0.0011984663139994877
+        ]
+      ],
+      "minimum_hidden_concentration": [
+        0.30000000000000004,
+        0.30000000000000004,
+        0.30000000000000004
+      ],
+      "maximum_mean_concentration_error": [
+        1.1102230246251565e-15,
+        1.1102230246251565e-15,
+        7.771561172376096e-16
+      ]
+    },
+    "reward": 1.0,
+    "source_sha256": "f3af89669de405c5cc88de25a50bb0ead27b5cb034260b5cdfdf62f7008796c5",
+    "public_messages": [
+      "I\u2019ll inspect the model, README, and any tests, then derive the coupled transport equations and implement the missing pieces. I\u2019ll verify the calibration cases and run the available test suite.",
+      "The calibration runs are pure AC or pure BC, and the existing DCT solution confirms the effective salt diffusivities \\(4D/3\\) and \\(8D/3\\). I\u2019m implementing the mixed-salt equations with the shared electric field eliminated under zero current, using a conservative no-flux spatial discretization; pure cases will retain the exact DCT path for calibration fidelity.",
+      "The public calibration tests pass, with fitted \\(D \\approx 1.0001\\times10^{-9}\\,\\mathrm{m^2/s}\\). I also checked a mixed profile for finiteness and conserved weighted mass. I found one edge case in the time integrator\u2014when requested times start after zero\u2014so I\u2019m correcting it before the final verification.",
+      "The time-origin case is fixed, and the full test suite still passes. The mixed solver now returns the initial state exactly at \\(t=0\\), remains finite for zero-concentration regions, and preserves each salt\u2019s weighted mass under the no-flux boundaries.",
+      "Completed [`model.py`](/app/model.py).\n\nImplemented:\n\n- Weighted least-squares fitting of positive diffusivity \\(D\\)\n- Shared-field Nernst\u2013Planck derivation with zero-current constraint\n- Mixed-salt coupled transport solver\n- No-flux boundary conditions and mass conservation\n- Exact DCT treatment for pure salts\n- Input validation and time-origin handling\n\nVerification: `2 passed` with fitted \\(D \\approx 1.0001\\times10^{-9}\\,\\mathrm{m^2/s}\\)."
+    ],
+    "reviewed_sources": [
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__S86R9rA/artifacts/app/model.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__S86R9rA/agent/codex.txt",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__S86R9rA/verifier/metrics.json",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__S86R9rA/verifier/test-stdout.txt",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__S86R9rA/artifacts/app/model.py": "f3af89669de405c5cc88de25a50bb0ead27b5cb034260b5cdfdf62f7008796c5",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__S86R9rA/agent/codex.txt": "d6a3553930160088d91c897141b45236dea255424789c01f90c2ef46aa583d9a",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__S86R9rA/verifier/metrics.json": "29a6588be8f5f0f8b08cc7df723417f17e8850c24e069e3580dd8a2d9650872d",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__S86R9rA/verifier/test-stdout.txt": "6aa6bbe3c2a72553ab895d60d027b0b170747a8f0f8f472a110ae2d54698c152",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "9265df967c36c3a3991cb18b106f0104c767f6bd3ae5d11643ed9cace4944e05",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "110f315f9986e3c5f902e5fcbbc11d687f7fc1dbb006c66fa71cb97a0a32442f",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "fb4893bb5e010e3955e239c47fe03ad20ed486fb5d5972f8be003162697ac59d",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "b991f4c975a07f6d864fe0712473952f395f7a972dc62128dde8e497308ebed1",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/instruction.md": "b58ad92bb69f38ba40dd97894dceab926e46b0f770ac2500d0fa85785fb920cf",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/hint.md": "a6a774531c5fed981424f518728ec07ba2be95e4296a88bcd54daf58ff4f31ab",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/task.toml": "c1b53a90ca83bf7be0f7b9e090762a6bd5a84d9a292b5212b07858054a967f24"
+    }
+  },
+  "reaction-diffusion__k277DEp": {
+    "task": "reaction-diffusion",
+    "revision": 6,
+    "condition": "hint",
+    "job": "reaction-diffusion-original-hint-hint-20261002-053434",
+    "classification": "pass",
+    "reason": "Final implementation uses one common electric field derived from zero total ionic current and local electroneutrality, then evolves both cations with conservative coupled Nernst\u2013Planck fluxes and blocking boundaries. All calibration, parameter and hidden checks pass.",
+    "metrics": {
+      "diffusivity_m2_s": 1.00011375388314e-09,
+      "relative_diffusivity_error": 0.00011375388313994428,
+      "calibration_reduced_chi2": 1.0110175725737727,
+      "hidden_nrmse": [
+        0.00025392434088585247,
+        0.00024007194779962338,
+        0.00119836996218226
+      ],
+      "hidden_species_nrmse": [
+        [
+          0.00021632238293391515,
+          0.00025392434088585247
+        ],
+        [
+          0.00024007194779962338,
+          0.00019929594738759448
+        ],
+        [
+          0.0009488200067777872,
+          0.00119836996218226
+        ]
+      ],
+      "minimum_hidden_concentration": [
+        0.30000000000000004,
+        0.30000000000000004,
+        0.30000000000000004
+      ],
+      "maximum_mean_concentration_error": [
+        1.3322676295501878e-15,
+        1.1102230246251565e-15,
+        4.440892098500626e-16
+      ]
+    },
+    "reward": 1.0,
+    "source_sha256": "07582599cc5934b13085d22807d051dfd81698bf726a8666dbe948a9329daf34",
+    "public_messages": [
+      "I\u2019ll inspect the model, README, and any tests, then derive the mixed-salt transport equations from the stated calibration constraints and implement them.",
+      "The calibration runs contain only pure AC and pure BC preparations, so they identify the single scale \\(D\\) through the binary ambipolar coefficients \\(4D/3\\) and \\(8D/3\\). For mixed inputs I\u2019ll use the full zero-current Nernst\u2013Planck reduction, whose flux matrix depends on both cation concentrations.",
+      "The coupled implementation is now in place: it derives the two cation fluxes after enforcing electroneutrality and zero current, then integrates the resulting conservative two-species PDE with blocking boundaries. I\u2019m running the public calibration and a few mixed-salt sanity checks now.",
+      "The implementation passes all tests, recovers \\(D \\approx 1.0001\\times10^{-9}\\,\\mathrm{m^2/s}\\), preserves each species\u2019 total amount under mixed transport, and handles single-time predictions even when the requested time does not start at zero.",
+      "Implemented [`model.py`](/app/model.py):\n\n- Fits positive \\(D\\) from pure-salt calibration data.\n- Uses ambipolar coefficients \\(4D/3\\) and \\(8D/3\\).\n- Implements coupled mixed-salt Nernst\u2013Planck transport with zero current and electroneutrality.\n- Enforces blocking boundaries via conservative finite volumes.\n- Recovers \\(D \\approx 1.0001\\times10^{-9}\\,\\mathrm{m^2/s}\\).\n\n`python -m pytest -q` passes: 2 tests."
+    ],
+    "reviewed_sources": [
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__k277DEp/artifacts/app/model.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__k277DEp/agent/codex.txt",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__k277DEp/verifier/metrics.json",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__k277DEp/verifier/test-stdout.txt",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__k277DEp/artifacts/app/model.py": "07582599cc5934b13085d22807d051dfd81698bf726a8666dbe948a9329daf34",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__k277DEp/agent/codex.txt": "b6548c625e818115c197a50a6d1815afe023832b47389b53c22afef72df93372",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__k277DEp/verifier/metrics.json": "29d72dfc130e88c14283ccaf5412f1cc2e00e2cdb92f2ba8751c82cec1bc4d06",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__k277DEp/verifier/test-stdout.txt": "05d6875a8e59715e207f165d44e24d47b14895962f488b52f679b87f4fde89d9",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "9265df967c36c3a3991cb18b106f0104c767f6bd3ae5d11643ed9cace4944e05",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "110f315f9986e3c5f902e5fcbbc11d687f7fc1dbb006c66fa71cb97a0a32442f",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "fb4893bb5e010e3955e239c47fe03ad20ed486fb5d5972f8be003162697ac59d",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "b991f4c975a07f6d864fe0712473952f395f7a972dc62128dde8e497308ebed1",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/instruction.md": "b58ad92bb69f38ba40dd97894dceab926e46b0f770ac2500d0fa85785fb920cf",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/hint.md": "a6a774531c5fed981424f518728ec07ba2be95e4296a88bcd54daf58ff4f31ab",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/task.toml": "c1b53a90ca83bf7be0f7b9e090762a6bd5a84d9a292b5212b07858054a967f24"
+    }
+  },
+  "reaction-diffusion__w6a9DuU": {
+    "task": "reaction-diffusion",
+    "revision": 6,
+    "condition": "hint",
+    "job": "reaction-diffusion-original-hint-hint-20261002-053434",
+    "classification": "mathematical_derivation_failure",
+    "reason": "The final model selects the correct common-field, electroneutral Nernst\u2013Planck closure, but its B-gradient coefficient is 4*(a+4*b)/(3*(a+2*b)) instead of 4*(3*a+4*b)/(3*(a+2*b)). The other matrix entries and the documented common-field equation are correct. This algebra error survives calibration because pure-salt predictions use separate exact binary formulas. Correcting only this coefficient at the unchanged fitted diffusivity makes every hidden case pass. This is a mathematical derivation failure, not evidence of a wrong physical closure.",
+    "metrics": {
+      "diffusivity_m2_s": 1.0001140378454993e-09,
+      "relative_diffusivity_error": 0.00011403784549912643,
+      "calibration_reduced_chi2": 1.0110175725710973,
+      "hidden_nrmse": [
+        0.39728875587439194,
+        0.24567728830885596,
+        0.493989755813954
+      ],
+      "hidden_species_nrmse": [
+        [
+          0.007003961884333467,
+          0.39728875587439194
+        ],
+        [
+          0.24567728830885596,
+          0.165928064959242
+        ],
+        [
+          0.008896819234752993,
+          0.493989755813954
+        ]
+      ],
+      "minimum_hidden_concentration": [
+        0.30000000000000004,
+        0.30000000000000004,
+        0.30000000000000004
+      ],
+      "maximum_mean_concentration_error": [
+        9.992007221626409e-16,
+        8.881784197001252e-16,
+        6.661338147750939e-16
+      ]
+    },
+    "reward": 0.0,
+    "source_sha256": "2ff967e359872b952ebc4a977c682969eeae5db4b1fb32ea648a1cd464600188",
+    "public_messages": [
+      "I\u2019ll inspect the model skeleton and calibration setup, derive the coupled Nernst\u2013Planck equations, then implement and run the available checks.",
+      "The calibration runs are pure AC/BC cases, so they identify the common scale as \\(D\\approx10^{-9}\\,\\mathrm{m^2/s}\\). For mixed salt, the reduced equations have a concentration-dependent \\(2\\times2\\) diffusion matrix; I\u2019m implementing that coupled system with conservative zero-flux boundaries and using the exact cosine solution for pure-salt cases.",
+      "The implementation passes the public calibration tests. I\u2019m doing a physics sanity check now: conservation under blocking boundaries, pure-salt limits, and whether mixed transport differs from treating A and B as independent binary salts.",
+      "The mixed solver initially exposed a boundary-sign issue during the sanity check; that is fixed. It now conserves each ion\u2019s total amount to machine precision under blocking boundaries, and the public tests still pass.",
+      "Completed [`model.py`](/app/model.py).\n\n- Implemented weighted positive diffusivity fitting.\n- Added coupled Nernst\u2013Planck mixed-salt transport with zero-current and blocking-boundary conditions.\n- Preserved exact binary-salt spectral solutions.\n- Verified with `python -m pytest -q test_public.py`: **2 passed**.\n- Calibration fit: \\(D \\approx 1.0001\\times10^{-9}\\,\\mathrm{m^2/s}\\)."
+    ],
+    "reviewed_sources": [
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__w6a9DuU/artifacts/app/model.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__w6a9DuU/agent/codex.txt",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__w6a9DuU/verifier/metrics.json",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__w6a9DuU/verifier/test-stdout.txt",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__w6a9DuU/artifacts/app/model.py": "2ff967e359872b952ebc4a977c682969eeae5db4b1fb32ea648a1cd464600188",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__w6a9DuU/agent/codex.txt": "d1a8cbace064755bc7603969e238e86ca76a5ea4b2b84620671bd0d9b4ea9d1e",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__w6a9DuU/verifier/metrics.json": "577c05f20927f4eb6ea5a7fba8e4109cd794691147add780ab3dacad8c5bb3d5",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/reaction-diffusion__w6a9DuU/verifier/test-stdout.txt": "c6eac1a950e0863b5f36cb4e8a51d600f8503e715117132419a1603f39aab4ff",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "9265df967c36c3a3991cb18b106f0104c767f6bd3ae5d11643ed9cace4944e05",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "110f315f9986e3c5f902e5fcbbc11d687f7fc1dbb006c66fa71cb97a0a32442f",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "fb4893bb5e010e3955e239c47fe03ad20ed486fb5d5972f8be003162697ac59d",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "b991f4c975a07f6d864fe0712473952f395f7a972dc62128dde8e497308ebed1",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/instruction.md": "b58ad92bb69f38ba40dd97894dceab926e46b0f770ac2500d0fa85785fb920cf",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/hint.md": "a6a774531c5fed981424f518728ec07ba2be95e4296a88bcd54daf58ff4f31ab",
+      "jobs/reaction-diffusion-original-hint-hint-20261002-053434/frozen-task/task.toml": "c1b53a90ca83bf7be0f7b9e090762a6bd5a84d9a292b5212b07858054a967f24"
+    },
+    "isolated_repair_report": "results/reaction-original-hint-coefficient-repair.json"
+  },
+  "qubit-control__No7jxXV": {
+    "task": "qubit-control",
+    "revision": 6,
+    "condition": "hint",
+    "job": "qubit-control-original-hint-hint-20261002-053434",
+    "classification": "pass",
+    "reason": "Final implementation averages the product of the two conditional spin probabilities over their shared Gaussian phase. It includes both sine-quadrature products and the second harmonic exp(-4*gamma*t), with correct preparation and readout rotations. All calibration, parameter and hidden checks pass. An initially unsuitable broad fit search was corrected before the final submission; it did not cause a final failure.",
+    "metrics": {
+      "gamma_s_minus_1": 0.4264479317409763,
+      "relative_parameter_error": 0.008260623858194704,
+      "calibration_reduced_chi2": 0.9924230127342711,
+      "hidden_probability_rmse": [
+        0.0013785628186862215,
+        0.00017679997578081143
+      ]
+    },
+    "reward": 1.0,
+    "source_sha256": "1a123d9aca7f8bd238263c6c1225e2491265325120d13773d7ad15fc7d6a8f8f",
+    "public_messages": [
+      "I\u2019ll inspect the repository for the apparatus documentation, calibration data, and the incomplete `model.py`, then implement the correlated phase-average and run the available tests.",
+      "The key correction is clear from the apparatus: each shot has one shared Gaussian phase, so the two probe probabilities must be multiplied before averaging. I\u2019m deriving the sine/cosine phase terms from the rotations and will fit the single positive noise rate against the weighted calibration residuals.",
+      "The first implementation exposed an optimizer issue rather than a physics issue: searching a 40-decade log interval with a unimodal bounded search skipped the narrow calibration minimum. I\u2019m changing the fit to coarse-scan log-rate space first, then refine around the best candidate.",
+      "The implementation now passes the calibration suite. The fitted rate is `gamma \u2248 0.42644793 s\u207b\u00b9`, and the calibrated reduced \u03c7\u00b2 is about `0.992`; I\u2019m doing one final syntax/test check before handing it back.",
+      "Completed [`model.py`](/app/model.py:27).\n\n- Implements shared-phase joint probability averaging, including sine/cosine correlations.\n- Fits positive `gamma` via weighted least squares.\n- Handles empty predictions and validates inputs.\n- Calibration result: `gamma \u2248 0.42644793 s\u207b\u00b9`.\n- Tests pass: `3 passed`."
+    ],
+    "reviewed_sources": [
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__No7jxXV/artifacts/app/model.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__No7jxXV/agent/codex.txt",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__No7jxXV/verifier/metrics.json",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__No7jxXV/verifier/test-stdout.txt",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__No7jxXV/artifacts/app/model.py": "1a123d9aca7f8bd238263c6c1225e2491265325120d13773d7ad15fc7d6a8f8f",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__No7jxXV/agent/codex.txt": "05e07090156a4bf72b7574678f76fdc747add628bb9e7d7b67988d2e66eba1f7",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__No7jxXV/verifier/metrics.json": "4bba6a7ac1b156fbca8a4fa07b4cab91a0a596ec795e52b09ed78091f15cdb89",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__No7jxXV/verifier/test-stdout.txt": "42317fada6dcccf66125f116d742efc2b7f7fa15372a60582b23352bdc60c64e",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "ce5437733700ac7f40f7844b2b382646cf977213a7c6ed77b0b13ca51e5919ea",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "11d21bb3fc7f7e26626a5b2754517be25c2b70bc584586654a366c367e4fd4fc",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "c38f0113cbbadda0b7c0e8e119ca469fc55362d262a22412495e8b67a90ba1f0",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "e63f11320d1d379fbc144121185b676d5cc11e43f240c67b101aa61e175e7590",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/instruction.md": "29455ccaffd287a4d91f2566d3cf121c8ce8783299cfee490acdbba712e4ba3a",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/hint.md": "97bc6bbe3362d88fffcbf2c861da14033c903a7f2bf920f140319007a8275f68",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/task.toml": "c1b53a90ca83bf7be0f7b9e090762a6bd5a84d9a292b5212b07858054a967f24"
+    }
+  },
+  "qubit-control__sjfYWHU": {
+    "task": "qubit-control",
+    "revision": 6,
+    "condition": "hint",
+    "job": "qubit-control-original-hint-hint-20261002-053434",
+    "classification": "pass",
+    "reason": "Final implementation averages the product of the two conditional spin probabilities over their shared Gaussian phase. It includes both sine-quadrature products and the second harmonic exp(-4*gamma*t), with correct preparation and readout rotations. All calibration, parameter and hidden checks pass.",
+    "metrics": {
+      "gamma_s_minus_1": 0.4264480624143226,
+      "relative_parameter_error": 0.008260319966691632,
+      "calibration_reduced_chi2": 0.9924230127755043,
+      "hidden_probability_rmse": [
+        0.0013785118473497082,
+        0.00017679343111786855
+      ]
+    },
+    "reward": 1.0,
+    "source_sha256": "07a678ef3ccb3bbd4d3d92d2e9e7651c5a9c7246df4e4e8348d01442225d42ad",
+    "public_messages": [
+      "I\u2019ll inspect the repository for `model.py`, the apparatus documentation, and calibration data, then derive and implement the correlated joint-probability model and run the available tests.",
+      "The key structure is clear: each probe\u2019s conditional detection probability is sinusoidal in the same random phase. I\u2019m checking the rotation convention against the calibration values now, including the sine quadrature that the starter `coefficients` function does not yet retain.",
+      "I\u2019ve implemented the shared-phase Gaussian average, including the surviving `sin(\u03c6)sin(\u03c6)` correlation term, and weighted fitting of `gamma` from the calibration uncertainties. I\u2019m running the public tests and a small sanity check for an experiment where the common-phase correlation is nonzero.",
+      "Completed [model.py](/app/model.py).\n\nImplemented:\n\n- Shared-phase correlated two-probe probability model\n- Gaussian phase averaging, including the `e^{-4\u03b3t}` correlation term\n- Weighted calibration fit for `gamma`\n- Probability clipping and empty-input handling\n\nValidation: `3 passed`; fitted calibration gives `gamma \u2248 0.42645 s\u207b\u00b9`."
+    ],
+    "reviewed_sources": [
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__sjfYWHU/artifacts/app/model.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__sjfYWHU/agent/codex.txt",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__sjfYWHU/verifier/metrics.json",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__sjfYWHU/verifier/test-stdout.txt",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__sjfYWHU/artifacts/app/model.py": "07a678ef3ccb3bbd4d3d92d2e9e7651c5a9c7246df4e4e8348d01442225d42ad",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__sjfYWHU/agent/codex.txt": "abe7628c20408f03b844d2610678ae3b5db7d22a0f75299214e84f723333922a",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__sjfYWHU/verifier/metrics.json": "2be74b2b152595eb38b520dc94e934bc7ac603afb5b40d511c923ed7fb66871c",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__sjfYWHU/verifier/test-stdout.txt": "3b699c09a131f6fce9f8c5f77719de7f8be6f3d226bd0fbfbe7c408b1742ff02",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "ce5437733700ac7f40f7844b2b382646cf977213a7c6ed77b0b13ca51e5919ea",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "11d21bb3fc7f7e26626a5b2754517be25c2b70bc584586654a366c367e4fd4fc",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "c38f0113cbbadda0b7c0e8e119ca469fc55362d262a22412495e8b67a90ba1f0",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "e63f11320d1d379fbc144121185b676d5cc11e43f240c67b101aa61e175e7590",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/instruction.md": "29455ccaffd287a4d91f2566d3cf121c8ce8783299cfee490acdbba712e4ba3a",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/hint.md": "97bc6bbe3362d88fffcbf2c861da14033c903a7f2bf920f140319007a8275f68",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/task.toml": "c1b53a90ca83bf7be0f7b9e090762a6bd5a84d9a292b5212b07858054a967f24"
+    }
+  },
+  "qubit-control__v7ipGC9": {
+    "task": "qubit-control",
+    "revision": 6,
+    "condition": "hint",
+    "job": "qubit-control-original-hint-hint-20261002-053434",
+    "classification": "pass",
+    "reason": "Final implementation averages the product of the two conditional spin probabilities over their shared Gaussian phase. It includes both sine-quadrature products and the second harmonic exp(-4*gamma*t), with correct preparation and readout rotations. All calibration, parameter and hidden checks pass.",
+    "metrics": {
+      "gamma_s_minus_1": 0.426446863380418,
+      "relative_parameter_error": 0.008263108417632559,
+      "calibration_reduced_chi2": 0.9924230154883444,
+      "hidden_probability_rmse": [
+        0.001378979551402894,
+        0.00017685348381958526
+      ]
+    },
+    "reward": 1.0,
+    "source_sha256": "d84df75151388f9f1475751adffee3759d301e1019806ccd7a3c8992d15f260e",
+    "public_messages": [
+      "I\u2019ll inspect the repository and the apparatus/calibration documentation, then implement the missing model and run the available tests or calibration checks.",
+      "The current prediction multiplies independently averaged probe probabilities, which loses the shared-phase term described in the hint. I\u2019m deriving the conditional single-probe probabilities from the existing rotation geometry and will fit the noise strength against the joint-phase average.",
+      "The implementation now models each probe as \\(a+b\\cos\\phi+c\\sin\\phi\\), averages the product over the shared Gaussian phase, and fits `gamma` by weighted least squares. I\u2019m running the public calibration tests and a few edge checks now.",
+      "Implemented `model.py` with:\n\n- Shared Gaussian phase averaging for joint detection probability.\n- Correct sine/cosine phase coefficients.\n- Weighted least-squares calibration of `gamma`.\n- Empty-input handling and bounded probability outputs.\n\nValidation: `3 passed` via `python -m pytest -q test_public.py`."
+    ],
+    "reviewed_sources": [
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__v7ipGC9/artifacts/app/model.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__v7ipGC9/agent/codex.txt",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__v7ipGC9/verifier/metrics.json",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__v7ipGC9/verifier/test-stdout.txt",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/README.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/model.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/reference.py",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/instruction.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/hint.md",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/task.toml"
+    ],
+    "evidence_sha256": {
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__v7ipGC9/artifacts/app/model.py": "d84df75151388f9f1475751adffee3759d301e1019806ccd7a3c8992d15f260e",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__v7ipGC9/agent/codex.txt": "7fe0015cab207ea8c64a1e0727fb603e3d357407b1911c4c61d9d82110799e55",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__v7ipGC9/verifier/metrics.json": "71476d1c25b9b707e9f5e58474cce5070ba87df8098feb3bae49dbc0185ffe50",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/qubit-control__v7ipGC9/verifier/test-stdout.txt": "35bb5df4cf1094615cd76f8580c83c732935e2d776b4e2e5ca9aa3c56ec28d10",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/README.md": "ce5437733700ac7f40f7844b2b382646cf977213a7c6ed77b0b13ca51e5919ea",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/environment/model.py": "11d21bb3fc7f7e26626a5b2754517be25c2b70bc584586654a366c367e4fd4fc",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/test_hidden.py": "c38f0113cbbadda0b7c0e8e119ca469fc55362d262a22412495e8b67a90ba1f0",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/tests/reference.py": "e63f11320d1d379fbc144121185b676d5cc11e43f240c67b101aa61e175e7590",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/instruction.md": "29455ccaffd287a4d91f2566d3cf121c8ce8783299cfee490acdbba712e4ba3a",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/hint.md": "97bc6bbe3362d88fffcbf2c861da14033c903a7f2bf920f140319007a8275f68",
+      "jobs/qubit-control-original-hint-hint-20261002-053434/frozen-task/task.toml": "c1b53a90ca83bf7be0f7b9e090762a6bd5a84d9a292b5212b07858054a967f24"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+Adiabatic elimination of the internal states must preserve the periodicity of the full laboratory-basis wavefunction. The position-dependent internal eigenstate contributes both a scalar geometric kinetic term and a Berry connection; its phase around the guide can change the allowed effective angular sectors.

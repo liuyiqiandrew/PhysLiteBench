@@ -1,0 +1,50 @@
+{
+  "geometric-rotor__8H4GDTH": {
+    "task": "geometric-rotor",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "geometric-rotor-neutral-r2-initial-plain-20261003-045716",
+    "classification": "implementation_failure",
+    "failure_subtype": "implementation_induced_model_regression",
+    "reward": 0.0,
+    "reason": "The exploratory code correctly constructs the complete projected derivative Gram matrix, including the doublet connection and endpoint parity. After fixing an early extra FFT normalization, it still returns eigenvalues of H and scales by1/inertia, omitting the kinetic prefactor1/2. This produces a false calibration mismatch, after which the agent explicitly elects to preserve the calibrated supplied spectrum. At its fixed final inertia, changing only eigh(H) to eigh(H/2) in that exact diagnostic lowers chi-square from1686145.62 to1.07114 and restores every hidden group. Thus the final omission of physical transport follows a demonstrable implementation mistake in an otherwise complete physical diagnostic and is excluded from the intended physical-failure count.",
+    "metrics": {
+      "parameters": {
+        "inertia": 1.0699072779593213
+      },
+      "parameter_relative_error_max": 8.665611278391161e-05,
+      "calibration_chi2": 1.0717189013106307,
+      "hidden": {
+        "tilt_sweep": 0.6530342136385491,
+        "temperature_sweep": 0.6683444636208904,
+        "textures": 0.5918081531462648,
+        "central_holonomy_anchors": 7.815638744863553e-05
+      }
+    },
+    "source_sha256": "a6bb6899d2b1ea3062027c5031699909febe40d5f994fd7ffbc61375cdd03937",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/artifacts/app/model.py",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/agent/trajectory.json",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/agent/codex.txt",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/verifier/metrics.json",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/result.json",
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/agent/sessions/2026/10/03/rollout-2026-10-03T04-58-02-01a10020-59b6-7f11-a214-a1bb1ccf48d2.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/geometric-rotor-neutral-r2-initial-plain-20261003-045716/geometric-rotor__8H4GDTH/agent/sessions/2026/10/03/rollout-2026-10-03T04-58-02-01a10020-59b6-7f11-a214-a1bb1ccf48d2.jsonl": "0b4daa88a6a7112674b5473384c33813c66ef02bae7e3dddcbaf716e16b4eb9d"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then derive and validate the prediction model against the documented interface.",
+      "The calibration data matches the supplied spectral construction: a one-parameter weighted fit lands near inertia 1.07 with residuals at the stated instrument-noise level. I\u2019ll preserve that calibrated prediction path, add the fit, and make the thermal averaging numerically stable.",
+      "Implemented `/app/model.py`:\n\n- Added weighted least-squares fitting for `inertia`\n- Added stable thermal prediction calculations\n- Preserved the documented API and output shape\n- Verified calibration performance\n\nTests: `2 passed`; fitted inertia \u2248 `1.0699073`, reduced \u03c7\u00b2 \u2248 `1.072`."
+    ],
+    "public_tool_count": 20,
+    "aggregation_note": "Raw result0/1, with no infrastructure exception. The conditional runner correctly stopped after the initial failure; no followups were launched. This implementation-induced regression does not qualify as a target physical-model failure.",
+    "repair_evidence": "results/geometric-rotor-r2-initial-repair.json",
+    "exploratory_evidence": "results/geometric-rotor-r2-exploratory-probes.json",
+    "incidental_tool_errors": "One inefficient scratch computation produced no output within its tool interval and a nonexistent scratch path failed. The agent continued; neither prevented final submission or verification."
+  }
+}

@@ -1,0 +1,367 @@
+{
+  "qubit-control__dH4iEbp": {
+    "classification": "pass",
+    "reason": "Correct common-phase joint readout: conditional single-probe probabilities retain both sine and cosine factors, and their product is averaged using E[cos(phi)]=exp(-gamma*t) and E[cos(2phi)]=exp(-4*gamma*t). Public trajectory explicitly derives spatially shared noise before implementing the joint expectation. Exploratory sine-squared formula and a manual zero-wait comparison were mistaken, but final model uses the correct analytic expression; both hidden groups pass. Weighted fitting identifies gamma without changing the physical correlation model.",
+    "task": "qubit-control",
+    "condition": "plain",
+    "stage": "initial",
+    "evaluation": "neutral-v1",
+    "job": "qubit-control-neutral-v1-initial-plain-20261002-154417",
+    "reward": 1.0,
+    "metrics": {
+      "gamma_s_minus_1": 0.42644799624979385,
+      "relative_parameter_error": 0.008260473837688687,
+      "calibration_reduced_chi2": 0.9924230127443271,
+      "hidden_probability_rmse": [
+        0.0013785376559345935,
+        0.00017679674491140682
+      ]
+    },
+    "source_sha256": "1800dafa6b6de4e6781560f9d66e9e289cc8d7896b3d9f0bd30ce977dbdeff1e",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-v1-initial-plain-20261002-154417/qubit-control__dH4iEbp/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-v1-initial-plain-20261002-154417/qubit-control__dH4iEbp/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-v1-initial-plain-20261002-154417/qubit-control__dH4iEbp/verifier/metrics.json"
+    }
+  },
+  "qubit-control__h8Mac4S": {
+    "classification": "physical_model_failure",
+    "reason": "Final model multiplies independently averaged single-probe probabilities despite the spatially common noise. It fits gamma and calibration correctly but misses the shared-phase joint statistics in both hidden groups. Public step 6 explicitly claims independence. After repairing an unrelated optimizer plateau, step 16 explores a common-phase formula but omits its linear exp(-gamma*t) terms and never installs it; this exploratory algebra error is a contributing reason the correct physical alternative was not adopted. Fixed-gamma replacement of the independent average by the common-phase density-matrix channel reduces hidden RMSE from .0901/.1142 to .00138/.000177 with calibration predictions unchanged to 4.45e-16.",
+    "task": "qubit-control",
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-v1",
+    "job": "qubit-control-neutral-v1-followup-plain-20261002-155035",
+    "reward": 0.0,
+    "metrics": {
+      "gamma_s_minus_1": 0.4264479319598231,
+      "relative_parameter_error": 0.008260623349248597,
+      "calibration_reduced_chi2": 0.9924230127342727,
+      "hidden_probability_rmse": [
+        0.09005559552410669,
+        0.11416358253236361
+      ]
+    },
+    "source_sha256": "edff2534e734e9ecd9f14e20ee37c673dd445d66d2c344050da8114d7192697d",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__h8Mac4S/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__h8Mac4S/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__h8Mac4S/verifier/metrics.json"
+    },
+    "repair_diagnostic": "results/neutrality-qubit-h8Mac4S-fixed-parameter-repair.json",
+    "contributing_issue": "Exploratory common-phase alternative had a mathematical omission; final submitted failure is an independent-noise physical model."
+  },
+  "qubit-control__Ew49nY2": {
+    "classification": "pass",
+    "reason": "Correct common Gaussian phase average with all first- and second-harmonic terms, including the sine-sine correlation. The public trajectory identifies shared noise immediately, corrects an exploratory missing linear term, then fixes a log-optimizer plateau and validates the final expression against a common-phase Monte Carlo check. Calibration and both hidden groups pass; no final physical failure remains.",
+    "task": "qubit-control",
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-v1",
+    "job": "qubit-control-neutral-v1-followup-plain-20261002-155035",
+    "reward": 1.0,
+    "metrics": {
+      "gamma_s_minus_1": 0.4264479317409763,
+      "relative_parameter_error": 0.008260623858194704,
+      "calibration_reduced_chi2": 0.9924230127342711,
+      "hidden_probability_rmse": [
+        0.001378562818686219,
+        0.00017679997578081143
+      ]
+    },
+    "source_sha256": "be881c384eec93c46867274d327b198412a22398ded053c91e6c47fd530ccb73",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__Ew49nY2/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__Ew49nY2/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-v1-followup-plain-20261002-155035/qubit-control__Ew49nY2/verifier/metrics.json"
+    }
+  },
+  "qubit-control__afTUsEW": {
+    "task": "qubit-control",
+    "revision": 7,
+    "condition": "plain",
+    "stage": "initial",
+    "evaluation": "neutral-r2",
+    "job": "qubit-control-neutral-r2-initial-plain-20261002-180744",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "Derives the conditional displaced-oscillator coherence including thermal dephasing and the positive commutator phase gamma*(s^2-sprime^2)*sum a*(omega*t-sin(omega*t))/omega^2. Explicitly recognizes why single-probe calibration cannot detect the missing phase. Final source fits gamma by weighted one-parameter optimization and includes the phase for arbitrary coupled probes and signed weights. The public tool trajectory independently checks the phase sign against truncated oscillator unitary evolution. All hidden groups pass with correct physical forward model; exploratory file-edit or shell issues were repaired before submission.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.12002687624521255
+      },
+      "parameter_relative_error": 0.00022396871010466057,
+      "calibration_chi2": 0.9593504387783449,
+      "hidden": {
+        "paired_preparations": 0.00017160749734691612,
+        "signed_couplings": 0.0001704868541725398,
+        "rotated_readout": 1.833853070002714e-05
+      }
+    },
+    "source_sha256": "5f6f77ddfba3359595a561fcbbd2c0e3cbe9d180837809546c147d6b936588ee",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r2-initial-plain-20261002-180744/qubit-control__afTUsEW/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r2-initial-plain-20261002-180744/qubit-control__afTUsEW/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r2-initial-plain-20261002-180744/qubit-control__afTUsEW/verifier/metrics.json",
+      "independent_physics_check_steps": [
+        14
+      ]
+    }
+  },
+  "qubit-control__P5Kt6eE": {
+    "task": "qubit-control",
+    "revision": 7,
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-r2",
+    "job": "qubit-control-neutral-r2-followup-plain-20261002-181319",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "Derives the conditional displaced-oscillator coherence including thermal dephasing and the positive commutator phase gamma*(s^2-sprime^2)*sum a*(omega*t-sin(omega*t))/omega^2. Explicitly recognizes why single-probe calibration cannot detect the missing phase. Final source fits gamma by weighted one-parameter optimization and includes the phase for arbitrary coupled probes and signed weights. The public tool trajectory independently checks the phase sign against truncated oscillator unitary evolution. All hidden groups pass with correct physical forward model; exploratory file-edit or shell issues were repaired before submission.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.1200268762447336
+      },
+      "parameter_relative_error": 0.0002239687061134088,
+      "calibration_chi2": 0.9593504387783462,
+      "hidden": {
+        "paired_preparations": 0.00017160749428850861,
+        "signed_couplings": 0.000170486851134576,
+        "rotated_readout": 1.833853037330194e-05
+      }
+    },
+    "source_sha256": "a857d1ab751c43f3434da9b7b144dd83d49df4d0d26cfb763f9906c8703aba59",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r2-followup-plain-20261002-181319/qubit-control__P5Kt6eE/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r2-followup-plain-20261002-181319/qubit-control__P5Kt6eE/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r2-followup-plain-20261002-181319/qubit-control__P5Kt6eE/verifier/metrics.json",
+      "independent_physics_check_steps": [
+        18
+      ]
+    }
+  },
+  "qubit-control__htYm93Z": {
+    "task": "qubit-control",
+    "revision": 7,
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-r2",
+    "job": "qubit-control-neutral-r2-followup-plain-20261002-181319",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "Derives the conditional displaced-oscillator coherence including thermal dephasing and the positive commutator phase gamma*(s^2-sprime^2)*sum a*(omega*t-sin(omega*t))/omega^2. Explicitly recognizes why single-probe calibration cannot detect the missing phase. Final source fits gamma by weighted one-parameter optimization and includes the phase for arbitrary coupled probes and signed weights. The public tool trajectory independently checks the phase sign against truncated oscillator unitary evolution. All hidden groups pass with correct physical forward model; exploratory file-edit or shell issues were repaired before submission.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.12002687624521255
+      },
+      "parameter_relative_error": 0.00022396871010466057,
+      "calibration_chi2": 0.9593504387783449,
+      "hidden": {
+        "paired_preparations": 0.00017160749734691612,
+        "signed_couplings": 0.00017048685417253256,
+        "rotated_readout": 1.833853070002714e-05
+      }
+    },
+    "source_sha256": "a1c847857a27befb543644bcd1a743d9ac78ce105bfb21dd6a157f6bbac07f24",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r2-followup-plain-20261002-181319/qubit-control__htYm93Z/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r2-followup-plain-20261002-181319/qubit-control__htYm93Z/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r2-followup-plain-20261002-181319/qubit-control__htYm93Z/verifier/metrics.json",
+      "independent_physics_check_steps": [
+        10
+      ]
+    }
+  },
+  "qubit-control__ijntWqD": {
+    "task": "qubit-control",
+    "revision": 8,
+    "condition": "plain",
+    "stage": "initial",
+    "evaluation": "neutral-r3",
+    "job": "qubit-control-neutral-r3-initial-plain-20261002-183308",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "Correctly identifies both Weyl phases missing from the two-interval bath influence functional, retains continuous transported displacements across the pulse, and implements the complete forward/backward conditional path sum. Fits gamma correctly. Public trajectory checks finite-Fock propagators and resolves exploratory phase-scaling or finite-cutoff comparisons before final source. All private groups pass; this is a genuine physical success, including the initial trial.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.11993812560724257
+      },
+      "parameter_relative_error": 0.0005156199396452177,
+      "calibration_chi2": 0.9560119690656574,
+      "hidden": {
+        "echo_sequences": 8.299810675115394e-05,
+        "rotated_sequences": 0.00011079415303526432,
+        "mixed_sequences": 9.333896212040069e-05
+      }
+    },
+    "source_sha256": "2225240e53d2906612dc55854010573a92ed18f6984ce60a81c338b518098d57",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r3-initial-plain-20261002-183308/qubit-control__ijntWqD/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r3-initial-plain-20261002-183308/qubit-control__ijntWqD/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r3-initial-plain-20261002-183308/qubit-control__ijntWqD/verifier/metrics.json"
+    }
+  },
+  "qubit-control__M44xPG9": {
+    "task": "qubit-control",
+    "revision": 8,
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-r3",
+    "job": "qubit-control-neutral-r3-followup-plain-20261002-183908",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "Correctly identifies both Weyl phases missing from the two-interval bath influence functional, retains continuous transported displacements across the pulse, and implements the complete forward/backward conditional path sum. Fits gamma correctly. Public trajectory checks finite-Fock propagators and resolves exploratory phase-scaling or finite-cutoff comparisons before final source. All private groups pass; this is a genuine physical success, including the initial trial.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.11993812564054399
+      },
+      "parameter_relative_error": 0.0005156196621334264,
+      "calibration_chi2": 0.9560119690656546,
+      "hidden": {
+        "echo_sequences": 8.299806204994715e-05,
+        "rotated_sequences": 0.00011079409338783995,
+        "mixed_sequences": 9.33389118529556e-05
+      }
+    },
+    "source_sha256": "1a336a49d2702a6574567e8be45a3c405eaf277ef7a2c02861fb023f7e4ee61c",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r3-followup-plain-20261002-183908/qubit-control__M44xPG9/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r3-followup-plain-20261002-183908/qubit-control__M44xPG9/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r3-followup-plain-20261002-183908/qubit-control__M44xPG9/verifier/metrics.json"
+    }
+  },
+  "qubit-control__FBGAZZj": {
+    "task": "qubit-control",
+    "revision": 8,
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-r3",
+    "job": "qubit-control-neutral-r3-followup-plain-20261002-183908",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "Correctly identifies both Weyl phases missing from the two-interval bath influence functional, retains continuous transported displacements across the pulse, and implements the complete forward/backward conditional path sum. Fits gamma correctly. Public trajectory checks finite-Fock propagators and resolves exploratory phase-scaling or finite-cutoff comparisons before final source. All private groups pass; this is a genuine physical success, including the initial trial.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.11993812557634406
+      },
+      "parameter_relative_error": 0.0005156201971328045,
+      "calibration_chi2": 0.9560119690656549,
+      "hidden": {
+        "echo_sequences": 8.299814822688886e-05,
+        "rotated_sequences": 0.0001107942083787703,
+        "mixed_sequences": 9.333900876072502e-05
+      }
+    },
+    "source_sha256": "6c641a98db94fde349f440a6f14cce74b979f22a62ccb0007867ed4fdb1bcc81",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r3-followup-plain-20261002-183908/qubit-control__FBGAZZj/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r3-followup-plain-20261002-183908/qubit-control__FBGAZZj/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r3-followup-plain-20261002-183908/qubit-control__FBGAZZj/verifier/metrics.json"
+    }
+  },
+  "qubit-control__JZbj8vV": {
+    "task": "qubit-control",
+    "revision": 9,
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-r4",
+    "job": "qubit-control-neutral-r4-followup-plain-20261002-191048",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "Initially checks/fits the calibration-equivalent forward model, then identifies that the interacting Gibbs ensemble correlates each initial spin sector with its conditional displaced bath. Corrects the contraction to average each rotated spin coefficient with the matching conditional bath coherence before summing over sectors. Keeps correct thermal dephasing and quantum phases; fitted gamma and all hidden groups pass. Public arbitrary-rotation/edge-case checks trigger the physical correction. This is a genuine physical success, not a grader or numerical loophole.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.11978960472958558
+      },
+      "parameter_relative_error": 0.0017532939201201359,
+      "calibration_chi2": 1.0614853899275056,
+      "hidden": {
+        "joint_quadrature": 0.0003909080763328418,
+        "signed_weights": 0.00034260122074567694,
+        "conditional_rotation": 0.00014496856107565508
+      }
+    },
+    "source_sha256": "120dc0d796780931814b7a0e1351fc231d70ae716bdf2a878232d6867044b7a4",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r4-followup-plain-20261002-191048/qubit-control__JZbj8vV/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r4-followup-plain-20261002-191048/qubit-control__JZbj8vV/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r4-followup-plain-20261002-191048/qubit-control__JZbj8vV/verifier/metrics.json",
+      "check_steps": [
+        10,
+        12,
+        13,
+        14
+      ]
+    }
+  },
+  "qubit-control__7oDze3Y": {
+    "task": "qubit-control",
+    "revision": 9,
+    "condition": "plain",
+    "stage": "initial",
+    "evaluation": "neutral-r4",
+    "job": "qubit-control-neutral-r4-initial-plain-20261002-190456",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "Initially checks/fits the calibration-equivalent forward model, then identifies that the interacting Gibbs ensemble correlates each initial spin sector with its conditional displaced bath. Corrects the contraction to average each rotated spin coefficient with the matching conditional bath coherence before summing over sectors. Keeps correct thermal dephasing and quantum phases; fitted gamma and all hidden groups pass. Public arbitrary-rotation/edge-case checks trigger the physical correction. This is a genuine physical success, not a grader or numerical loophole.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.11978960469968475
+      },
+      "parameter_relative_error": 0.0017532941692937065,
+      "calibration_chi2": 1.0614853899275067,
+      "hidden": {
+        "joint_quadrature": 0.0003909081319288514,
+        "signed_weights": 0.00034260126947130497,
+        "conditional_rotation": 0.00014496858167613557
+      }
+    },
+    "source_sha256": "1aafcdd403af458aa2564d638f4149ae6eb829e330e6a46d402b8d96c4ac2968",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r4-initial-plain-20261002-190456/qubit-control__7oDze3Y/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r4-initial-plain-20261002-190456/qubit-control__7oDze3Y/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r4-initial-plain-20261002-190456/qubit-control__7oDze3Y/verifier/metrics.json",
+      "check_steps": [
+        9,
+        10,
+        11,
+        12,
+        14,
+        18
+      ]
+    }
+  },
+  "qubit-control__KU9x4Mi": {
+    "task": "qubit-control",
+    "revision": 9,
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-r4",
+    "job": "qubit-control-neutral-r4-followup-plain-20261002-191048",
+    "reward": 1,
+    "classification": "pass",
+    "reason": "After initially fitting the calibration-equivalent source, recognizes that the preparation amplitude and conditional resonator state share the same initial spin sector in the interacting Gibbs ensemble. Replaces separate marginal averages with the exact joint contraction. Direct finite-Fock full spin\u2013oscillator Gibbs preparation and unitary evolution checks the corrected result to5.6e-16 after fixing an exploratory Kronecker-dimension error. Final model retains all correct dephasing and quantum phases; all hidden groups pass. Genuine physical success.",
+    "metrics": {
+      "parameters": {
+        "gamma": 0.11978960472958558
+      },
+      "parameter_relative_error": 0.0017532939201201359,
+      "calibration_chi2": 1.0614853899275056,
+      "hidden": {
+        "joint_quadrature": 0.0003909080763328418,
+        "signed_weights": 0.00034260122074567694,
+        "conditional_rotation": 0.00014496856107565508
+      }
+    },
+    "source_sha256": "8f348fe79ee836a692fde793fbcc96c239261f08478b2808acdeed0f42e7b06f",
+    "evidence": {
+      "source": "jobs/qubit-control-neutral-r4-followup-plain-20261002-191048/qubit-control__KU9x4Mi/artifacts/app/model.py",
+      "public_trajectory": "jobs/qubit-control-neutral-r4-followup-plain-20261002-191048/qubit-control__KU9x4Mi/agent/trajectory.json",
+      "metrics": "jobs/qubit-control-neutral-r4-followup-plain-20261002-191048/qubit-control__KU9x4Mi/verifier/metrics.json",
+      "check_steps": [
+        13,
+        14
+      ]
+    }
+  }
+}

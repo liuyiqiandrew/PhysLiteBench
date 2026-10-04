@@ -1,0 +1,29 @@
+{
+  "task": "trapped-excitation-heat",
+  "revision": 2,
+  "reviewer": "brownian_candidates",
+  "status": "approved",
+  "source_sha256": {
+    "environment/README.md": "710df19443dbd8b1371235d9a91f748a725345b2941d589bab5819837c4fa60d",
+    "environment/model.py": "6c07b553604bcef8cb491383754e62227e2f4b30a827edabf0b1d80c5364b20f",
+    "solution/model.py": "99ff7bd99377f92455dfed0151f0cacd0f74e24e3c2bab3c1c039d085b5ff468",
+    "tests/reference.py": "3939f617f4ad817e78d4ab19365e3ba701cca10b6732981a61ed47778547a3b5",
+    "tests/test_hidden.py": "0710b56565e1b1c52ef7583a015fb6fc0eda17804097e4a810ccf3a59e97cd29",
+    "hint.md": "5503b75e87f9874c234b6da5394a6ea33733aca8a1e1eab9c6dfde4b92e81ead"
+  },
+  "findings": [
+    "The public fixed-lattice microscopic model gives level populations p_i=g_i*exp(-E_i/T)/Z and distinct mobile hopping fluxes J_i=-D_i*grad(c*p_i). Each hop preserves E_i and exchanges no lattice heat, so the transported particle energy is sum_i E_i*J_i.",
+    "The oracle flux JE=-D*grad[(p1+1.2*p2)*c] and Jc=-D*grad[(p1+.4*p2)*c] have the correct energy and mobility weights. Local energy C*T+c*(p1+3*p2) gives (C+c*du/dT)*Tdot=kappa*Txx-div(JE)-u*cdot; du/dT is the positive local energy variance divided by T^2.",
+    "The independent reference evolves conserved concentration and total energy using face fluxes for each level and inverts the monotone local caloric relation. Its flux signs, degeneracies, energy weights and Fourier-readout normalization are correct.",
+    "Uniform clamped temperature makes the supplied average-carried-energy closure exactly equivalent to the microscopic flux, so calibration identifies only D and cannot reveal the hidden temperature-dependent redistribution.",
+    "Final-source and full public-trajectory audits establish three genuine unhinted physical repairs and three hinted repairs. Revision 2 is a 3/3 plain, 3/3 hint result and should not be counted as a failure candidate."
+  ],
+  "independent_checks": {
+    "hidden_oracle_finite_volume_max_absolute_difference": 9.147573965067463e-06,
+    "finite_volume_mass_drift": 1.1102230246251565e-15,
+    "finite_volume_total_energy_drift": 1.1102230246251565e-15,
+    "minimum_temperature": 0.7106073777170504,
+    "minimum_concentration": 0.65
+  },
+  "evaluation_index": "jobs/matrix-hardening-r2-20261002-073629/index.json"
+}

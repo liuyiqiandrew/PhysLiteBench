@@ -1,0 +1,159 @@
+{
+  "reaction-diffusion__zSBA9yX": {
+    "classification": "pass",
+    "reason": "Identifies that pure-salt calibration only determines the two binary ambipolar decays. Implements the shared zero-current electric-field gradient (grad_A-2*grad_B)/(3*A+6*B), conservative fluxes for both cations and blocking endpoint control volumes for mixed preparations. Fits D on the exact pure-salt spectral response. The public trajectory explicitly derives mixed-salt handling and verifies species conservation; exploratory DCT axis/normalization mistakes are corrected before final code. All hidden groups pass with positive concentrations and conserved amounts. This is a genuine physical success under the neutral instruction.",
+    "task": "reaction-diffusion",
+    "condition": "plain",
+    "stage": "initial",
+    "evaluation": "neutral-v1",
+    "job": "reaction-diffusion-neutral-v1-initial-plain-20261002-152917",
+    "reward": 1,
+    "metrics": {
+      "diffusivity_m2_s": 1.0001140378454958e-09,
+      "relative_diffusivity_error": 0.00011403784549579576,
+      "calibration_reduced_chi2": 1.011017572571097,
+      "hidden_nrmse": [
+        0.0002537921094284368,
+        0.00023991488772705526,
+        0.0011981689588755195
+      ],
+      "hidden_species_nrmse": [
+        [
+          0.00021616411365000764,
+          0.0002537921094284368
+        ],
+        [
+          0.00023991488772705526,
+          0.000199135516829557
+        ],
+        [
+          0.0009486538757733332,
+          0.0011981689588755195
+        ]
+      ],
+      "minimum_hidden_concentration": [
+        0.30000000000000004,
+        0.30000000000000004,
+        0.30000000000000004
+      ],
+      "maximum_mean_concentration_error": [
+        1.2212453270876722e-15,
+        1.1102230246251565e-15,
+        5.551115123125783e-16
+      ]
+    },
+    "source_sha256": "46c10a0dd315a816d29c670f108935f71970bbbb820b7469c53e428fa278f301",
+    "evidence": {
+      "source": "jobs/reaction-diffusion-neutral-v1-initial-plain-20261002-152917/reaction-diffusion__zSBA9yX/artifacts/app/model.py",
+      "public_trajectory": "jobs/reaction-diffusion-neutral-v1-initial-plain-20261002-152917/reaction-diffusion__zSBA9yX/agent/trajectory.json",
+      "metrics": "jobs/reaction-diffusion-neutral-v1-initial-plain-20261002-152917/reaction-diffusion__zSBA9yX/verifier/metrics.json"
+    }
+  },
+  "reaction-diffusion__k8pFrb5": {
+    "classification": "pass",
+    "reason": "Derives the common zero-current field and the correct conservative coupled cation fluxes for mixed salts, retaining pure-salt DCT propagation for calibration. Fits the single diffusivity and verifies blocking boundaries and species conservation. All graded hidden predictions pass. The physical model is correct, but final code has an ungraded single-time API bug recorded separately; the observed passing reward is retained.",
+    "task": "reaction-diffusion",
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-v1",
+    "job": "reaction-diffusion-neutral-v1-followup-plain-20261002-153547",
+    "reward": 1,
+    "metrics": {
+      "diffusivity_m2_s": 1.0001139030581022e-09,
+      "relative_diffusivity_error": 0.00011390305810210499,
+      "calibration_reduced_chi2": 1.0110175725603665,
+      "hidden_nrmse": [
+        0.00025386970838118237,
+        0.00023999719059653526,
+        0.0011982756322757348
+      ],
+      "hidden_species_nrmse": [
+        [
+          0.00021623892056802654,
+          0.00025386970838118237
+        ],
+        [
+          0.00023999719059653526,
+          0.00019921002561713218
+        ],
+        [
+          0.0009487326426384236,
+          0.0011982756322757348
+        ]
+      ],
+      "minimum_hidden_concentration": [
+        0.30000000000000004,
+        0.30000000000000004,
+        0.30000000000000004
+      ],
+      "maximum_mean_concentration_error": [
+        1.2212453270876722e-15,
+        1.1102230246251565e-15,
+        6.661338147750939e-16
+      ]
+    },
+    "source_sha256": "5043b00529fa38543d4f7e5567fcb5964b4ccffa4047acf065d88812242a7813",
+    "limitations": [
+      {
+        "classification": "implementation_bug_not_exercised_by_grader",
+        "evidence": "The _mixed_solution branch if t.size == 1 or t[-1] == 0 returns the initial profile; one requested positive observation time must instead evolve from preparation. Multi-time hidden cases do not exercise this branch.",
+        "effect": "predict([t_positive],x,mixed_initial) can disagree with the corresponding slice of predict([0,t_positive],x,mixed_initial). This is not the missing shared-electric-field physics and does not change the observed passing reward."
+      }
+    ],
+    "evidence": {
+      "source": "jobs/reaction-diffusion-neutral-v1-followup-plain-20261002-153547/reaction-diffusion__k8pFrb5/artifacts/app/model.py",
+      "public_trajectory": "jobs/reaction-diffusion-neutral-v1-followup-plain-20261002-153547/reaction-diffusion__k8pFrb5/agent/trajectory.json",
+      "metrics": "jobs/reaction-diffusion-neutral-v1-followup-plain-20261002-153547/reaction-diffusion__k8pFrb5/verifier/metrics.json"
+    }
+  },
+  "reaction-diffusion__J9SgwmE": {
+    "classification": "pass",
+    "reason": "Builds the full nonlinear mixed-salt Nernst-Planck transport with the shared zero-current potential gradient and blocking endpoint volumes, alongside exact pure-salt cosine propagation for calibration. The trajectory initially explores incorrect factor-of-two binary rates and array broadcasting, then independently compares the coupled flux solver with the pure-salt limit and corrects them before final submission. Final ionic coefficients, electric-field elimination and fitted diffusivity are correct; all hidden concentration groups and species-conservation checks pass.",
+    "task": "reaction-diffusion",
+    "condition": "plain",
+    "stage": "followup",
+    "evaluation": "neutral-v1",
+    "job": "reaction-diffusion-neutral-v1-followup-plain-20261002-153547",
+    "reward": 1,
+    "metrics": {
+      "diffusivity_m2_s": 1.0001139011714035e-09,
+      "relative_diffusivity_error": 0.00011390117140352984,
+      "calibration_reduced_chi2": 1.0110175725603698,
+      "hidden_nrmse": [
+        0.00022887790865958383,
+        0.00022626572885043459,
+        0.0011913016304710752
+      ],
+      "hidden_species_nrmse": [
+        [
+          0.00021686181955997384,
+          0.00022887790865958383
+        ],
+        [
+          0.00022626572885043459,
+          0.0002025130462701984
+        ],
+        [
+          0.0009483956959541787,
+          0.0011913016304710752
+        ]
+      ],
+      "minimum_hidden_concentration": [
+        0.30000000000000004,
+        0.30000000000000004,
+        0.30000000000000004
+      ],
+      "maximum_mean_concentration_error": [
+        1.1102230246251565e-15,
+        1.1102230246251565e-15,
+        6.661338147750939e-16
+      ]
+    },
+    "source_sha256": "0c606391a78a4b2e3eb41cb6a08ec366c2ad88eda6a97e6430378b370f0f4a56",
+    "evidence": {
+      "source": "jobs/reaction-diffusion-neutral-v1-followup-plain-20261002-153547/reaction-diffusion__J9SgwmE/artifacts/app/model.py",
+      "public_trajectory": "jobs/reaction-diffusion-neutral-v1-followup-plain-20261002-153547/reaction-diffusion__J9SgwmE/agent/trajectory.json",
+      "metrics": "jobs/reaction-diffusion-neutral-v1-followup-plain-20261002-153547/reaction-diffusion__J9SgwmE/verifier/metrics.json"
+    }
+  }
+}

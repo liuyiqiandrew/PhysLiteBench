@@ -1,0 +1,119 @@
+{
+  "capillary-mixture__wT4vSuw": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "initial",
+    "job": "capillary-mixture-neutral-v1-initial-plain-20261002-153851",
+    "classification": "pass",
+    "reason": "The final source derives the reversible force -c*grad(mu), removes its pressure component by the incompressible Stokes projection, and includes the resulting composition advection. Public trajectory explicitly identifies the pure-gradient starter force or states the variational stress law. Mobility is correctly fitted and all hidden groups pass with the intended physical model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameters": {
+        "mobility": 0.03997691423215762
+      },
+      "parameter_relative_error_max": 0.0005771441960594759,
+      "calibration_chi2": 0.9361885087489814,
+      "hidden": {
+        "mode_redistribution": 4.064685089895806e-06,
+        "oblique_patterns": 1.7443626372732892e-05,
+        "generated_modes": 1.998356784701899e-06
+      }
+    },
+    "source_sha256": "88d597ea51859692e5ba092b7f41e28f48a05cceb605436214bc81a344b7bf30",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-v1-initial-plain-20261002-153851/capillary-mixture__wT4vSuw/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement and test the model against the documented interface.",
+      "The calibration records are 120 noisy single-stripe measurements across three wave numbers and two signed amplitudes. They identify mobility at about 0.04; the existing fit is unimplemented, and its hydrodynamic force projection cancels out. I\u2019m replacing that with the variational composition force, dealiased spectral evolution, and a weighted calibration fit.",
+      "The implementation is in place and the public calibration tests pass. I\u2019m doing a final numerical/API check now, including signed detector quadratures, unsorted query times, fresh-preparation grouping, and energy decay for a coupled two-mode state.",
+      "Implemented `/app/model.py` with:\n\n- Variational composition stress and incompressible Stokes coupling\n- Dealiased Fourier spectral solver with ETDRK4 integration\n- Weighted mobility calibration using `data/calibration.json`\n- Signed cosine/sine detector predictions\n- Fresh-preparation grouping and input-order preservation\n- Robust finite NumPy outputs\n\nValidation: `2 passed`; fitted mobility \u2248 `0.03998`."
+    ],
+    "public_tool_count": 13,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "capillary-mixture__7LjXsrh": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "followup",
+    "job": "capillary-mixture-neutral-v1-followup-plain-20261002-154501",
+    "classification": "pass",
+    "reason": "The final source derives the reversible force -c*grad(mu), removes its pressure component by the incompressible Stokes projection, and includes the resulting composition advection. Public trajectory explicitly identifies the pure-gradient starter force or states the variational stress law. Mobility is correctly fitted and all hidden groups pass with the intended physical model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameters": {
+        "mobility": 0.03997691423215762
+      },
+      "parameter_relative_error_max": 0.0005771441960594759,
+      "calibration_chi2": 0.9361885087489814,
+      "hidden": {
+        "mode_redistribution": 4.064685089869036e-06,
+        "oblique_patterns": 1.7443626372736226e-05,
+        "generated_modes": 1.998356784702834e-06
+      }
+    },
+    "source_sha256": "cb24cd4bd14c1a27e35951963ec1cf2b61ff9651978b23cf33ea2770f2dbd139",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__7LjXsrh/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement the model and run the available checks against the documented interface.",
+      "The calibration stripes isolate mobility cleanly: a single mode has no incompressible flow, so its decay rate is \\(M|k|^2(1+0.2|k|^2)\\). For multi-mode predictions I\u2019m implementing the coupled spectral evolution: Cahn\u2013Hilliard diffusion plus the quasistatic Stokes flow driven by the variational force \\(-c\\nabla\\mu\\), with dealiased Fourier products.",
+      "The implementation now fits the calibration set to mobility \u2248 0.03998 (consistent with the records\u2019 \u22480.04 signal), and the public tests pass. I also checked timestep and grid convergence on coupled multi-mode cases; the predictions remained stable and finite through the full time range.",
+      "Implemented `/app/model.py`.\n\n- Added weighted mobility fitting from calibration records.\n- Implemented coupled Cahn\u2013Hilliard/Stokes spectral dynamics with variational force `-c\u2207\u03bc`.\n- Added dealiased Fourier products and stable ETD integration.\n- Preserved documented prediction API and signed detector outputs.\n- Verified with `pytest`: 2 tests passed.\n- Fitted mobility: approximately `0.03998`."
+    ],
+    "public_tool_count": 13,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  },
+  "capillary-mixture__QrvzKWi": {
+    "task": "capillary-mixture",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "followup",
+    "job": "capillary-mixture-neutral-v1-followup-plain-20261002-154501",
+    "classification": "pass",
+    "reason": "The final source derives the reversible force -c*grad(mu), removes its pressure component by the incompressible Stokes projection, and includes the resulting composition advection. Public trajectory explicitly identifies the pure-gradient starter force or states the variational stress law. Mobility is correctly fitted and all hidden groups pass with the intended physical model.",
+    "reward": 1.0,
+    "metrics": {
+      "parameters": {
+        "mobility": 0.03997691423215762
+      },
+      "parameter_relative_error_max": 0.0005771441960594759,
+      "calibration_chi2": 0.9361885087489814,
+      "hidden": {
+        "mode_redistribution": 4.064685089892676e-06,
+        "oblique_patterns": 1.744362637273249e-05,
+        "generated_modes": 1.998356784702092e-06
+      }
+    },
+    "source_sha256": "987c95685569dd71a97da8efe0cf4a064c495216a3f420996fc5b072d9acf509",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/artifacts/app/model.py",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/agent/trajectory.json",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/agent/codex.txt",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/verifier/metrics.json",
+      "jobs/capillary-mixture-neutral-v1-followup-plain-20261002-154501/capillary-mixture__QrvzKWi/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API/tests, then implement and validate the model against the documented interface.",
+      "The calibration set is 120 noisy single-stripe measurements, so mobility can be fit directly with a weighted Gaussian least-squares objective. For general experiments, I\u2019m implementing the coupled incompressible Cahn\u2013Hilliard/Stokes evolution spectrally, including the variational composition force and the signed detector convention.",
+      "The public calibration and interface tests now pass, with a fitted mobility of about `0.03998` (consistent with the intended `0.04` scale). I\u2019m doing a final numerical sanity check on mode-sign handling, zero-time detector amplitudes, and timestep convergence before handing it over.",
+      "Implemented `/app/model.py` with:\n\n- Weighted mobility fitting from calibration records\n- Spectral Cahn\u2013Hilliard evolution\n- Quasistatic incompressible Stokes flow with reversible composition stress\n- Dealiased ETDRK4 integration\n- Correct signed cosine/sine detector predictions\n- Batched predictions for repeated preparations\n\nValidation: all public tests pass (`2 passed`), with fitted mobility \u2248 `0.03998`."
+    ],
+    "public_tool_count": 21,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups."
+  }
+}

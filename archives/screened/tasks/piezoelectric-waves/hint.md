@@ -1,0 +1,1 @@
+For a plane wave in an insulating bulk, apply Gauss' law and the electroquasistatic curl condition to the wave's electric field. Determine which component of electric displacement is constrained before eliminating the potential. A local constraint on all three components need not describe the bulk wave.

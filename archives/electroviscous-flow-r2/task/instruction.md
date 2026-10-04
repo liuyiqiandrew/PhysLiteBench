@@ -1,0 +1,1 @@
+Implement Model.fit and Model.predict in /app/model.py for the apparatus in /app/README.md. You may change the entire model implementation while preserving its public interface. Use the calibration data to infer the unknown material parameter and predict the requested experiments.

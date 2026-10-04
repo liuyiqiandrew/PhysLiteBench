@@ -2,7 +2,7 @@
 
 ## Structure
 
-The three tasks are `tasks/qubit-control/`, `tasks/thermal-bodies/`, and `tasks/reaction-diffusion/`. Each has public files in `environment/`, private verification in `tests/`, and a reference solution in `solution/`. Keep private answers, tests, and author documentation out of agent images.
+Active tasks are under `tasks/`; the catalog and screening status are listed in `README.md`. Superseded and weak candidates are preserved under `archives/`. Every task has public files in `environment/`, private verification in `tests/`, and a reference solution in `solution/`. Keep private answers, tests, physics hints, and author documentation out of the ordinary agent image. The runner adds a task's `hint.md` to the instruction only when `--hint` is requested.
 
 Read `TASKS.md` for physics, `docs/BENCHMARK.md` for grading and validation, and `DASHBOARD.md` for the latest results. `scripts/` contains the runner, validators, and completed shortcut controls. `results/` holds shareable summaries; new run artifacts go in ignored `jobs/`.
 
@@ -12,8 +12,8 @@ Install uv and start Docker. From this directory:
 
 ```bash
 docker info
-python3 scripts/run_science.py tasks/thermal-bodies --agent oracle --trials 1
-python3 scripts/run_science.py tasks/thermal-bodies --model gpt-5.6-luna \
+python3 scripts/run_science.py tasks/magnetic-tracer --agent oracle --trials 1
+python3 scripts/run_science.py tasks/magnetic-tracer --model gpt-5.6-luna \
   --trials 3 --concurrency 3 --reasoning-effort high
 ```
 
@@ -25,7 +25,7 @@ Tests use pytest with `test_*.py` files and `test_*` functions. Run tests per ta
 
 Keep design and implementation minimal. Use straightforward prose. Match nearby Python, use four-space indentation and `snake_case` names, and state physical units and assumptions. Preserve task interfaces. No formatter or linter is configured.
 
-Freeze inputs and grading during each evaluation batch. Regenerate calibration only intentionally. Preserve prior artifacts and inspect final code and trajectories before classifying a failure. Distinguish physical mistakes from mathematical, numerical, coding, and infrastructure errors. Keep dashboard comparisons limited to the newest batches and retain their provenance.
+Freeze inputs and grading during each evaluation batch. For a paired plain/hint comparison, verify that environment and private-test hashes match; change only the instruction. Preserve every exploratory batch and distinguish passing tasks from candidates that show the requested hint effect. Regenerate calibration only intentionally. Preserve prior artifacts and inspect final code and trajectories before classifying a failure. Distinguish physical mistakes from mathematical, numerical, coding, and infrastructure errors. Keep dashboard comparisons limited to the newest batches and retain their provenance.
 
 ## Review Guidance
 

@@ -1,0 +1,11 @@
+# Magnetic bilayer
+
+Two infinite ferromagnetic films occupy 0<z<1 and 1+gap<z<2+gap. The spacer and the surrounding space have magnetic permeability 1 in the units used here. Each film has fixed saturation magnetization 1, gyromagnetic rate `gyro_rate` in [0.7,1.3], and Gilbert damping 0.04. The gyromagnetic rate is positive with precession convention dM/dt = -gyro_rate * M cross H_eff +0.04 * M cross dM/dt. Both films initially point along +x. There are no electric currents, thermal fluctuations, exchange across the spacer, or electromagnetic retardation.
+
+The externally applied field is 0.4 along +x. The local easy-axis energy density is -K_i*M_x^2/2, with K_0=0.05 and K_1=0.30 in the lower and upper films. The in-plane exchange energy density is 0.08*|grad_parallel M|^2/2. Magnetostatic fields obey curl H_d=0 and div(H_d+M)=0 everywhere, with standard interface conditions and decay away from the films. Magnetization is zero outside the films.
+
+Use the linear, lowest-thickness-mode model: dynamic magnetization is uniform through each film, and its effective field uses the average over that film's thickness. This projection defines the model; higher thickness modes are excluded. Linearize about the parallel+x state, with magnetization length fixed to 1. All perturbations are small.
+
+Each preparation has a known nonzero in-plane wavevector `wavevector=[kx,ky]`. Write the perturbation as Re[a_i(t)*exp(i*(kx*x+ky*y))] for each transverse component in layer i. Initially a_y in each layer is `initial_real[i] + i*initial_imag[i]`, and a_z=0. The two initial arrays have length 2 and each complex amplitude has magnitude at most 0.02. An ideal spatial Fourier detector reports the real or imaginary part of a_z at the supplied `time`, selected by `quadrature="real"` or `"imag"` and `layer=0` or 1. Experiments are independently prepared. The allowed magnitude of the wavevector is [0.3,2], gap is [0.1,1], and time is [0,12]. Length, field, and time units are fixed as above.
+
+Calibration records in `data/calibration.json` contain an `input` dictionary, measured `value`, and known independent Gaussian standard deviation `sigma`. Infer the common `gyro_rate`. Implement `Model.fit(records)`, returning self and storing that scalar, and `Model.predict(experiments)`, returning a finite NumPy array of shape `(len(experiments),)` in input order.

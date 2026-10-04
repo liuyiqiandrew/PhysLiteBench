@@ -1,0 +1,1 @@
+Dynamical eigenvectors fix resonance frequencies without fixing their quantum amplitudes. To reconstruct local quantum variances, the transformed ladder operators must retain the bosonic commutators. Derive the canonical normalization from those commutators, or compute the equilibrium covariance directly in the fixed physical quadratures.
