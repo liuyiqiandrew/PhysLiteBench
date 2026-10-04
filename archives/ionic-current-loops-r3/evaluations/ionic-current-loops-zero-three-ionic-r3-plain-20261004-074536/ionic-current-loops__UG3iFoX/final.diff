@@ -1,0 +1,44 @@
+--- before/model.py
++++ after/model.py
+@@ -78,7 +78,40 @@
+         self.diffusivity = 1.
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Calibrate the common diffusion coefficient from the records.
++
++        The electric solve and the transport equations are linear in the
++        common coefficient ``D``.  Consequently each record can be evaluated
++        once with ``D=1`` and the Gaussian maximum-likelihood estimate is the
++        weighted least-squares fit through the origin.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if (not np.isfinite(observed).all() or
++                not np.isfinite(sigma).all() or np.any(sigma <= 0)):
++            raise ValueError('Calibration values and uncertainties must be finite, with sigma > 0.')
++
++        unit_rates = predict_at(experiments, 1.)
++        weights = 1. / (sigma * sigma)
++        denominator = np.sum(weights * unit_rates * unit_rates)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records contain no usable signal.')
++
++        estimate = np.sum(weights * unit_rates * observed) / denominator
++        if not np.isfinite(estimate):
++            raise ValueError('Calibration produced a non-finite diffusivity.')
++
++        # The apparatus specification restricts the unknown coefficient to
++        # this interval.  Clipping also keeps a noisy calibration from
++        # producing a model outside its stated domain.
++        self.diffusivity = float(np.clip(estimate, 0.5, 2.0))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

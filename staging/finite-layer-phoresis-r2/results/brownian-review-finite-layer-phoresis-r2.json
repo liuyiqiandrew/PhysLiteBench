@@ -1,0 +1,143 @@
+{
+  "task": "finite-layer-phoresis",
+  "revision": 2,
+  "reviewer": "brownian_candidates",
+  "review_date": "2026-10-04",
+  "status": "approved_science_public_inputs_and_grading",
+  "model_evaluations_performed_by_reviewer": 0,
+  "scope": "Independent read of full apparatus, starter and completed shortcut, oracle, conservative solute FEM and Stokes reference, public/private tests and data, Docker packaging, validator, AUTHOR, family history and final numerical/local-control reports. Independent boundary-condition and kernel algebra checked; broad numerical validation inspected rather than repeated.",
+  "physics_findings": [
+    "The no-flux ideal-solute problem reduces to (r^2 exp(-U) h_prime)_prime - 2 exp(-U) h = 0 with h_prime(a)=0 and R h_prime(R)+2h(R)=3R. The source solves that curved concentration problem, including the finite interaction width; no planar or thin-layer approximation is hidden in calibration.",
+    "The stated normal points from sphere into liquid. For particle-frame u_theta=-psi_prime sin(theta)/r and impermeability psi(a)=0, Newtonian tangential traction gives (1+2b/a)psi_prime(a)-b psi_double_prime(a)=0. The reference implements this curvature term and sign correctly.",
+    "The auxiliary Navier translation drag is 6*pi*eta*a*d, d=(1+2beta)/(1+3beta). The reciprocal force kernel r^2-(3d/2)*a*r+a^3/[2r(1+3beta)] is algebraically identical to the oracle factored kernel. Its wall value is zero and its derivative is 3a*beta/(1+3beta).",
+    "The shortcut retains the exact curved no-slip distributed thrust but changes the translating drag to its exact Navier value. This is a coherent fixed-thrust drag approximation, not a missing parameter or erroneous drag calculation. At b=0 it equals the oracle for every viscosity and calibration preparation.",
+    "The independent reference uses conservative radial finite elements for solute and a fourth-order Stokes streamfunction boundary problem. Excluding the exterior Stokeslet enforces zero total force including the radial-potential reaction. Its exterior r^2/r^-1 matching and extraction -2[psi_prime(R)+psi(R)/R]/(3R) have the correct translation sign.",
+    "The README specifies total solution pressure and the direct potential reaction. The two are consistent: no extra hard-wall osmotic force should be added to the already osmotic-inclusive stress. Nonnegative Navier dissipation, direct force balance and the opposite planar-wall/sphere velocity convention provide independent sign checks."
+  ],
+  "public_input_review": {
+    "neutral_instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "full_implementation_replacement_explicitly_allowed": true,
+    "apparatus_complete": true,
+    "corrective_kernel_public": false,
+    "solver_mandate": false,
+    "necessary_assumptions": "Dilute ideal neutral solute, radial carried potential, no normal solute flux, no surface transport or extra tangential solute friction, Navier traction convention, zero external mechanical force, creeping flow, negligible solute advection and weak-gradient limit are explicit.",
+    "calibration": "24 unique no-slip settings with 6 independent repeats =144 records. Both copies are byte-identical; fixed sigma=.00003 contains no unknown viscosity or response encoding.",
+    "source_default": "None; inference is required.",
+    "packaging": "Public image contains README, unfinished model, public tests and calibration only; no private reference, oracle, metadata or hint."
+  },
+  "calibration_and_validation": {
+    "identifiability": "Prediction is a known nonzero design vector times inverse viscosity. Positive weighted design norm proves a unique bounded weighted least-squares fit on [.8,1.6]; endpoint and interior noiseless recovery checked.",
+    "data_integrity": {
+      "records": 144,
+      "distinct_calibration_settings": 24,
+      "fixed_instrument_sigma": 3e-05,
+      "public_private_identical": true,
+      "noiseless_sigma_side_channel": false,
+      "seeds": {
+        "calibration": 240731,
+        "noise": 240733
+      }
+    },
+    "noise": {
+      "oracle_passes": 256,
+      "shortcut_rejections": 256,
+      "all_calibration_pass": true,
+      "max_calibration_chi2": 1.341052837175682,
+      "max_parameter_relative_error": 3.340494575487796e-05,
+      "max_oracle_hidden_error": 3.340383070852129e-05,
+      "min_shortcut_slip_error": 0.3446753104852026
+    },
+    "physical_checks": {
+      "independent_reference_cases": 98,
+      "oracle_reference_error_max": 5.131468583385868e-10,
+      "reference_refinement_change_max": 4.0595171668655894e-10,
+      "force_balance_cases": [
+        {
+          "force_balance": 1.4105286024856696e-14,
+          "boundary_residual": 3.0357660829594124e-18,
+          "slip_dissipation": 0.0001753056700878414
+        },
+        {
+          "force_balance": 6.359063359482443e-13,
+          "boundary_residual": 8.881784197001252e-16,
+          "slip_dissipation": 124.34261391234551
+        },
+        {
+          "force_balance": 2.8872818398466775e-14,
+          "boundary_residual": 2.7755575615628914e-17,
+          "slip_dissipation": 0.08334195762572194
+        },
+        {
+          "force_balance": 1.0266789196320548e-13,
+          "boundary_residual": 1.1102230246251565e-16,
+          "slip_dissipation": 0.0
+        }
+      ],
+      "geometric_scaling_error_max": 5.773159728050814e-15,
+      "thin_sphere_to_opposite_planar_slip_ratio": 0.999603580431162,
+      "zero_interaction_exact": true,
+      "noiseless_parameter_recovery_error_max": 2.220446049250313e-16,
+      "calibration_equivalence_max": 2.220446049250313e-16,
+      "inverse_viscosity_objective_curvature": 26798833773.740086,
+      "minimum_hidden_slip_signal": 0.013945876543005144,
+      "maximum_hidden_slip_signal": 1.7182133838545992,
+      "positive_drag_factor_domain": [
+        0.6666666666666666,
+        1.0
+      ],
+      "kernel_wall_value": 0.0,
+      "kernel_wall_derivative": "3*a*(b/a)/(1+3*b/a)"
+    },
+    "local_controls": "Oracle 7/7; shortcut 4 passed and 3 intended finite-slip hidden groups failed. Both finish in under one second. No-slip anchors pass.",
+    "unchanged_hidden_relative_rms_gate": 0.04,
+    "no_empirical_model_difficulty_claim": true
+  },
+  "resolved_review_findings": [
+    "Corrected private calibration count from 48 unique settings to24, and from the informal288-record handoff to144. Validator now derives the distinct count from inputs. No data, apparatus, model, oracle, reference or grading changed.",
+    "The author preserved the early validator assertion history: b=0 algebraically equal expressions differed by2.22e-16 due to operation order. The private exact-equality assertion was replaced by1e-13; scientific source and test gates were unchanged."
+  ],
+  "grading_review": "Numeric shape, finite output, fit, parameter recovery and .04 normalized RMS checks permit any implementation preserving the public API. Signals stay nonzero; the shortcut margin is physical and much larger than reference or calibration uncertainty.",
+  "family_history": "Explicit genuine revision of archived finite-layer-phoresis r1, whose1/3 outcome and two reviewed physical failures remain preserved. The new Navier boundary changes force transmission and uses spherical no-slip calibration; it is not claimed as a new independent family.",
+  "unresolved_findings": [],
+  "source_provenance": {
+    "path": "staging/finite-layer-phoresis-r2/results/finite-layer-phoresis-r2-source-provenance.json",
+    "sha256": "0345d0aabdceddf47c4e0e4dd0aff78551352af72129709b2f50ba60188a87ab",
+    "verified_source_count": 18,
+    "source_sha256": {
+      "tasks/finite-layer-phoresis/AUTHOR.md": "26d303705fc96941253f7c48877bbbae76c6dc6a9aadf98bd7fcf5ecf7feeb8e",
+      "tasks/finite-layer-phoresis/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "tasks/finite-layer-phoresis/environment/README.md": "ebf0c247825250207585d8f667d1bcf667ddbf36f3d2cc14910f14e89319f00f",
+      "tasks/finite-layer-phoresis/environment/data/calibration.json": "d2781f7abcd1acd9fdfb0a08049eb9356c6213ea53c2e686315f8a09f04879dc",
+      "tasks/finite-layer-phoresis/environment/model.py": "eda59f20e4650467bf4c12c380c53bc9ea1f4418727cadc92dd5682ceea9b629",
+      "tasks/finite-layer-phoresis/environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+      "tasks/finite-layer-phoresis/hint.md": "4dbc2f19aba4b96d48b91b11d825a8520aee43ee1ae1c0127161cb86f79a0093",
+      "tasks/finite-layer-phoresis/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/finite-layer-phoresis/solution/model.py": "6f55de352278137e3006cbb078bb272fc3b5529440654dda457c54673fc23657",
+      "tasks/finite-layer-phoresis/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+      "tasks/finite-layer-phoresis/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "tasks/finite-layer-phoresis/tests/data/calibration.json": "d2781f7abcd1acd9fdfb0a08049eb9356c6213ea53c2e686315f8a09f04879dc",
+      "tasks/finite-layer-phoresis/tests/metadata.json": "3710f4cb0d0622ce9cce64ffbccfc8fe43f85ccc5372c385ce339888adb6ad27",
+      "tasks/finite-layer-phoresis/tests/reference.py": "ec289493e30df808099c55633471cadbd58de56baaeb7af4b879ae112a60aa73",
+      "tasks/finite-layer-phoresis/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+      "tasks/finite-layer-phoresis/tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a",
+      "scripts/finite_layer_phoresis_baseline.py": "a654e82cde6efd137ab6663a2cc6568707b6f016e4ae19baa0924785bae7d020",
+      "scripts/validate_finite_layer_phoresis.py": "e9163e77d75f02f9bfde3ee03f0feafd7a9cc98916f85a56e9ae17f6b5ac59a3"
+    },
+    "reports": {
+      "results/finite-layer-phoresis-r2-validation.json": "04a5e1181fab3765c1c1c267f7f2612781a528817eb7d3e438f58b13459f7a1d",
+      "results/finite-layer-phoresis-r2-local-controls.json": "4b56c4d90c29ac2f43d674a6d22e8bae6141385a7b4eefae90c3e7ae9b6cf5c4",
+      "results/family-history.json": "6ec03c4492e195da8837fffe27acb9b2c37c1b09787b2aca409264043ef62974",
+      "results/validation-history.json": "dfd90febe99db4795058a5e431c8c06dce09e55b48fdd207f3804e0bc25482c0"
+    },
+    "prototypes": {
+      "prototypes/README.md": "aca44e0129680ad7e3f52b1f7f790b87bd77cd6e177d4c542eb13863a2b274d0",
+      "prototypes/prototype.py": "8a2edd14b4d0f868ea3dd154f6403b0a46fb275d9d57604201630740e17c0948",
+      "prototypes/report.json": "a4754076f4dca9da5dd7649642ad62d403576649a9e694b9109d66da9a2c2929"
+    }
+  },
+  "primary_background_reviewed": [
+    "https://arxiv.org/abs/1910.13901",
+    "https://doi.org/10.1017/jfm.2020.137"
+  ],
+  "primary_source_scope": "The finite-layer force-balance literature supports the apparatus. The specific Navier reciprocal kernel and streamfunction wall condition were independently checked here rather than attributed to an unverified copied formula."
+}

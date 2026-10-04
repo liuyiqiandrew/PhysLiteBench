@@ -1,0 +1,35 @@
+--- before/model.py
++++ after/model.py
+@@ -42,17 +42,6 @@
+         return result.reshape(points, points)
+     laplacian = np.fft.ifft2(-k2*np.fft.fft2(diffusion_charge)).real
+     electric = -gradient(solve(laplacian))
+-    charge_current = -gradient(diffusion_charge)+conductivity*electric
+-    responses = []
+-    for axis in range(2):
+-        basis = np.zeros((2, points, points))
+-        basis[axis] = 1.
+-        basis -= gradient(solve(-gradient(conductivity)[axis]))
+-        responses.append(basis)
+-    response_matrix = np.stack([(conductivity*basis).mean(axis=(1,2))
+-                                for basis in responses], axis=1)
+-    offset = np.linalg.solve(response_matrix, -charge_current.mean(axis=(1,2)))
+-    electric += np.einsum('i,ijab->jab', offset, np.array(responses))
+     gradients = np.array([gradient(value) for value in concentrations])
+     flux = -ratios[:,None,None,None]*gradients
+     flux += (ratios*charges)[:,None,None,None]*concentrations[:,None]*electric
+@@ -78,7 +67,13 @@
+         self.diffusivity = 1.
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        records = list(records)
++        basis = predict_at([r['input'] for r in records], 1.)
++        values = np.array([r['value'] for r in records])
++        sigma = np.array([r['sigma'] for r in records])
++        self.diffusivity = float(np.clip(np.sum(basis*values/sigma**2)/
++                                       np.sum(basis*basis/sigma**2), .5, 2.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

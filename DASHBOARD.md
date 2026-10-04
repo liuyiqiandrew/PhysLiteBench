@@ -39,9 +39,13 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | entropy-anomaly r4 | 2/3 | [Archived: two physical passes; one physical failure](results/zero-three-entropy-r4-results.json) |
 | finite-layer-phoresis r1 | 1/3 | [Archived: two physical failures; one physical pass](results/zero-three-phoresis-r1-results.json) |
 | finite-band-reservoir r1 | 2/3 | [Archived: two physical passes; one physical model-selection failure](results/zero-three-finiteband-r1-results.json) |
-| ionic-current-loops r3 | untested | Scientific validation and independent peer review complete; frozen for evaluation |
-| finite-layer-phoresis r2 | prototype | Navier-slip reference checks complete; no task package or model trials |
-| hardcore-coherence | prototype | Independent Fock-space checks complete; no task package or model trials |
+| ionic-current-loops r3 | 1/3 | [Archived: two physical failures; one physical pass](results/zero-three-ionic-r3-results.json) |
+| finite-layer-phoresis r2 | 0/3 completed | [Three physical failures; one started interruption and two setup attempts preserved; canonical promotion pending](results/zero-three-phoresis-r2-results.json) |
+| hardcore-coherence r1 | 3/3 completed | [Three physical passes; two started infrastructure interruptions preserved; archive pending](results/zero-three-hardcore-r1-results.json) |
+| hardcore-ring r1 | 3/3 | Three scored passes; final causal review pending |
+| acoustic-cavity-pressure r1 | untested | Scientific validation and local controls complete; independent peer review pending |
+
+The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
 ## Prior conditional screen
 
