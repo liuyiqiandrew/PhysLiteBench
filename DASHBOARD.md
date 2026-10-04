@@ -49,6 +49,10 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | dielectric-flow r2 | 3/3 | [Archived: three physical passes](results/zero-three-dielectric-r2-results.json) |
 | active-wall-pressure r1 | 3/3 | [Archived: three physical passes](results/zero-three-activewall-r1-results.json) |
 | fene-stress r1 | 1/3 | [Archived: one physical pass, two physical failures](results/zero-three-fene-r1-results.json) |
+| relativistic-snapshot r1 | 2/3 | [Archived: two physical passes, one physical failure](results/zero-three-relativistic-r1-results.json) |
+| fene-stress r2 | 1/3 | [Archived: one pass, one clean physical failure, one mixed failure](results/zero-three-fene-r2-results.json) |
+| resonance-fluorescence r1 | 3/3 | [Archived: three physical passes](results/zero-three-fluorescence-r1-results.json) |
+| gated-capture r1 | not run | [Frozen candidate](staging/gated-capture-r1); independent physics review and local controls passed |
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
