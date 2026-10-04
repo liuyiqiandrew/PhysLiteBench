@@ -1,0 +1,1 @@
+The stationary angular-moment balance contains the torque exerted by the coating. Relate the force recorded by the right-wall support to that balance, including the spatial force from its orientation-dependent energy.

@@ -1,0 +1,98 @@
+{
+  "completed_utc": "2026-10-04T10:31:59.170929+00:00",
+  "task": "fene-stress",
+  "revision": 1,
+  "passes": 1,
+  "trials": 3,
+  "physical_failures": 2,
+  "total_model_attempts": 3,
+  "exceptions": 0,
+  "qualifies": false,
+  "disposition": "archived_above_zero_pass_threshold",
+  "archive": "archives/fene-stress-r1",
+  "plan": "results/zero-three-fene-r1-plan.json",
+  "matrix_index": "jobs/matrix-zero-three-fene-r1-20261004-102140/index.json",
+  "controls": {
+    "oracle": {
+      "passes": 1,
+      "trials": 1,
+      "errors": 0
+    },
+    "shortcut": {
+      "passes": 0,
+      "trials": 1,
+      "errors": 0
+    }
+  },
+  "native_setup_and_all_user_inputs_verified": true,
+  "all_current_and_frozen_source_hashes_match_plan": true,
+  "source_and_grading_unchanged_through_three_trials": true,
+  "reviews": "results/zero-three-fene-r1-trial-reviews.json",
+  "review_sha256": "694a2b0ae8844191b5fcd3e0a91e9f09f6f1dafbceba3db159a3d080ab693640",
+  "trials_detail": [
+    {
+      "trial": "fene-stress__7TK36bA",
+      "reward": 1.0,
+      "classification": "pass",
+      "reason": "Step10 independently evaluates the exact stationary finite-connector distribution and compares it to Peterlin, finding a substantial discrepancy. Step11 explicitly identifies the existing mean-field closure; after a rejected patch syntax at step11, step12 successfully replaces it with the stationary-density radial quadrature and the exact Ito force-moment identity. Final code retains correct per-bead factor2, stationary exponent and stress normalization. All hidden groups pass at the calibrated drag, so this is a genuine physical correction, not a lucky approximation pass.",
+      "metrics": {
+        "parameters": {
+          "drag": 4.099738045904728
+        },
+        "parameter_relative_error_max": 6.38912427490812e-05,
+        "calibration_chi2": 1.0241324386154693,
+        "hidden": {
+          "hookean_anchors": 8.467000072523178e-05,
+          "moderate_extension": 0.00011044876620964262,
+          "strong_extension": 0.00013864518552148612,
+          "reversed_extension": 0.0001084050119272645
+        }
+      },
+      "result_sha256": "9bd293f1f26fb0932e627969f3d611f38f2bb8809db1c399f0a8d4781002515d"
+    },
+    {
+      "trial": "fene-stress__QBjcFjK",
+      "reward": 0.0,
+      "classification": "physics_model_failure",
+      "reason": "The final conformation and predict_at functions are AST-identical to the Peterlin starter. Step6 announces a stationary-distribution/stress derivation, but every subsequent numerical probe uses only the supplied closure; step7 optimizes the Hookean calibration and step8 edits fit alone. It never codes or tests an exact finite-spring distribution and never retreats after such a test. Finite-length edge checks confirm only finite outputs. This is retention of the physical force-preaveraging approximation, with an accurate drag fit, rather than an observed derivation or coding failure. A fixed-drag repair has not been run by this reviewer.",
+      "metrics": {
+        "parameters": {
+          "drag": 4.09973804590472
+        },
+        "parameter_relative_error_max": 6.38912427510796e-05,
+        "calibration_chi2": 1.0241324386154156,
+        "hidden": {
+          "hookean_anchors": 8.46700007275271e-05,
+          "moderate_extension": 0.5827060867812188,
+          "strong_extension": 0.5804968194230448,
+          "reversed_extension": 0.6427950852114502
+        }
+      },
+      "result_sha256": "e10b555ceee95259caaee6d2c939afb1cb3f845b9c0896732badf096b21e9a47"
+    },
+    {
+      "trial": "fene-stress__mtvxMKM",
+      "reward": 0.0,
+      "classification": "physics_model_failure",
+      "reason": "The final conformation and predict_at functions are AST-identical to the Peterlin starter. Step8 explicitly treats the supplied finite-length closure as complete and identifies fitting as the missing work. The trajectory fits drag and checks finite outputs, zero flow and calibration, but never implements an exact stationary-distribution or force-average alternative. Excellent calibration and unchanged source-level finite-spring errors identify the intended constitutive approximation; no failed correct-physics probe or implementation regression is visible. A fixed-drag causal repair is reserved to the root reviewer and is not claimed here.",
+      "metrics": {
+        "parameters": {
+          "drag": 4.099738046017975
+        },
+        "parameter_relative_error_max": 6.389121512806462e-05,
+        "calibration_chi2": 1.0241324386154613,
+        "hidden": {
+          "hookean_anchors": 8.466996412167007e-05,
+          "moderate_extension": 0.5827060868690762,
+          "strong_extension": 0.5804968195006397,
+          "reversed_extension": 0.6427950852892319
+        }
+      },
+      "result_sha256": "24822e56a42670098449a18d6bc8f55eaaba24cb759b033ab279dfd63af72ed6"
+    }
+  ],
+  "limitations": [
+    "Three fresh trials describe this frozen revision, not a population success probability.",
+    "Full raw jobs remain at their unchanged ignored jobs/ locations, indexed by archival hashes."
+  ]
+}
