@@ -1,0 +1,1 @@
+The calorimeter warms a sample whose particle number remains fixed. Equilibrium populations at each temperature must obey that same constraint throughout the temperature change. Distinguish the response along that constrained equilibrium path from the response of a particle reservoir held at a fixed chemical potential.

@@ -1,0 +1,101 @@
+{
+  "completed_utc": "2026-10-04T15:32:57.254842+00:00",
+  "task": "waving-sheet",
+  "revision": 2,
+  "passes": 1,
+  "trials": 3,
+  "physical_failures": 1,
+  "mixed_physics_numerical_failures": 1,
+  "total_model_attempts": 3,
+  "exceptions": 0,
+  "qualifies": false,
+  "disposition": "archived_above_zero_pass_threshold",
+  "archive": "archives/waving-sheet-r2",
+  "plan": "results/zero-three-waving-r2-plan.json",
+  "matrix_index": "jobs/matrix-zero-three-waving-r2-20261004-150103/index.json",
+  "controls": {
+    "oracle": {
+      "passes": 1,
+      "trials": 1,
+      "errors": 0
+    },
+    "shortcut": {
+      "passes": 0,
+      "trials": 1,
+      "errors": 0
+    }
+  },
+  "native_setup_and_all_user_inputs_verified": true,
+  "all_current_and_frozen_source_hashes_match_plan": true,
+  "source_and_grading_unchanged_through_three_trials": true,
+  "reviews": "results/zero-three-waving-r2-trial-reviews.json",
+  "review_sha256": "b2249d4526c107fad9b32813e5c458531147f6f01b688dd3f67ed5f83393cfc3",
+  "trials_detail": [
+    {
+      "trial": "waving-sheet__LYtkN2Z",
+      "reward": 0.0,
+      "classification": "physical_model_failure",
+      "reason": "Accurately fits viscosity and retains the supplied pumping closure: wall Taylor correction plus the complete first-harmonic fluid momentum flux, divided by zero-frequency viscosity. The final source has no quadratic polymer-stress contribution. Public item_8 generalizes the harmonic calibration agreement to the retained Oldroyd-B response; no attempted nonlinear constitutive repair appears in emitted commands. Calibration, parameter and harmonic anchors pass, while all three pumping groups fail by 4.07\u20135.40 at the .04 gate. This is a clean constitutive-physics failure, not omitted fluid convection or a fit failure. Temporary apply_patch formatting errors were resolved before the saved submission.",
+      "metrics": {
+        "parameters": {
+          "viscosity": 1.050272919853617
+        },
+        "parameter_relative_error_max": 0.000259923670111295,
+        "calibration_chi2": 0.9434352453855649,
+        "hidden": {
+          "frequency_scan": 5.397499102675381,
+          "wavelength_scan": 4.06905400696922,
+          "combined_controls": 5.190287159028047,
+          "linear_anchors": 0.00013184667278417722
+        }
+      },
+      "result_sha256": "0f1bbacaea9b8ccca657ee18ab4568046bec6fd6d21c745ef100eb88db81833b"
+    },
+    {
+      "trial": "waving-sheet__CDf5Poe",
+      "reward": 0.0,
+      "classification": "mixed_physics_numerical_failure",
+      "reason": "The final model retains the same missing-polymer-stress pumping closure and fits viscosity correctly, but public item_8 attempts a quadratic polymer-stress calculation with inconsistent gradient indices. In particular, its commented tau_xx*u_y term uses -p*B, which is v_y for B=v, and the tau_yy term uses v_x rather than u_y. The nonzero scratch correction is then abandoned; public item_11 incorrectly treats harmonic-only calibration as evidence for both harmonic and pumping equations. The final physical omission is established, but the public evidence cannot isolate it from the faulty tensor calculation that preceded retention. Conservatively classified mixed physics/numerical (tensor algebra), excluded from clean physical-failure counts. Resolved patch errors did not prevent fitting or verification.",
+      "metrics": {
+        "parameters": {
+          "viscosity": 1.0502729198254714
+        },
+        "parameter_relative_error_max": 0.0002599236433060703,
+        "calibration_chi2": 0.9434352453855351,
+        "hidden": {
+          "frequency_scan": 5.397499102747151,
+          "wavelength_scan": 4.06905400702328,
+          "combined_controls": 5.190287159096978,
+          "linear_anchors": 0.00013184665918693187
+        }
+      },
+      "result_sha256": "b6d7ebf32224acd2d6775b1f7d3e455effa4379f6f36853ae0dbf3c790b33ddd"
+    },
+    {
+      "trial": "waving-sheet__itBbVwh",
+      "reward": 1.0,
+      "classification": "physical_pass",
+      "reason": "Identifies the uncalibrated second-order pumping response, calculates the upper-convected polymer-stress source, corrects initially swapped u_y/v_x contractions in public item_17, and retains the corrected nonlinear stress in the final model. The closed modal integration includes fluid momentum convection, the wall Taylor term and polymer advection/stretching. Public item_22 checks the creeping-flow Oldroyd-B pumping limit; all seven verifier checks pass, with pumping errors at most 2.032e-5. The earlier import-path and patch issues and scratch gradient error are resolved; none is a final failure. An unrelated git-diff command returns 129 outside a repository after successful public tests.",
+      "metrics": {
+        "parameters": {
+          "viscosity": 1.0502729197868366
+        },
+        "parameter_relative_error_max": 0.00025992360651105884,
+        "calibration_chi2": 0.9434352453855177,
+        "hidden": {
+          "frequency_scan": 1.9345139143388216e-05,
+          "wavelength_scan": 2.031943525463777e-05,
+          "combined_controls": 2.0146030387478246e-05,
+          "linear_anchors": 0.00013184664052259918
+        }
+      },
+      "result_sha256": "01d739990f60dc6c5138b732c0644f752ed25f2a2bc7aaabf0d74582fb915468"
+    }
+  ],
+  "limitations": [
+    "Three fresh trials describe this frozen revision, not a population success probability.",
+    "Full raw jobs remain at their unchanged ignored jobs/ locations, indexed by archival hashes."
+  ],
+  "fixed_parameter_diagnostic": "results/zero-three-waving-r2-fixed-parameter-diagnostic.json",
+  "fixed_parameter_diagnostic_sha256": "e5b80a2e8bd95e714e605e5737a2512e20de5f052f91c0db8b8b32385705fae0"
+}

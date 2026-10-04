@@ -58,8 +58,9 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | survivor-transport r1 | 2/3 | [Archived: 2 pass, 1 clean physical failure, 0 mixed failure](results/zero-three-survivor-r1-results.json) |
 | collisionless-screening r1 | 1/3 | [Archived: 1 pass, 0 clean physical failure, 1 mixed failure, 1 normalization failure; 2 interruptions preserved](results/zero-three-collisionless-r1-results.json) |
 | waving-sheet r1 | 2/3 | [Archived: 2 pass, 1 clean physical failure, 0 mixed failure, 0 normalization failure; 3 interruptions preserved](results/zero-three-waving-r1-results.json) |
-
-[Chemical-route power r1](staging/chemical-route-power-r1/ASSESSMENT.md) is frozen and independently reviewed. Its local oracle passes all seven checks; the completed shortcut passes calibration and fails all three diagnostic groups. Model evaluation has not started, so it does not count toward the five qualifying tasks.
+| chemical-route-power r1 | 3/3 | [Archived: three physical passes](results/zero-three-chemical-route-r1-results.json) |
+| fixed-number-band r1 | 3/3 | [Archived: 3 pass, 0 clean physical failure, 0 mixed failure](results/zero-three-band-r1-results.json) |
+| waving-sheet r2 | 1/3 | [Archived: 1 pass, 1 clean physical failure, 1 mixed failure](results/zero-three-waving-r2-results.json) |
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
