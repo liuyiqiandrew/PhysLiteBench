@@ -59,6 +59,8 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | collisionless-screening r1 | 1/3 | [Archived: 1 pass, 0 clean physical failure, 1 mixed failure, 1 normalization failure; 2 interruptions preserved](results/zero-three-collisionless-r1-results.json) |
 | waving-sheet r1 | 2/3 | [Archived: 2 pass, 1 clean physical failure, 0 mixed failure, 0 normalization failure; 3 interruptions preserved](results/zero-three-waving-r1-results.json) |
 
+[Chemical-route power r1](staging/chemical-route-power-r1/ASSESSMENT.md) is frozen and independently reviewed. Its local oracle passes all seven checks; the completed shortcut passes calibration and fails all three diagnostic groups. Model evaluation has not started, so it does not count toward the five qualifying tasks.
+
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
 The [later Docker shutdown review](results/docker-outage-20261004-140542.json) preserves two plasma and three waving-sheet interruptions with null rewards. Exactly five replacements completed the frozen batches; the original completed plasma failure was retained. Neither candidate meets the zero-pass target, and the plasma failures also miss the required physical failure mode.

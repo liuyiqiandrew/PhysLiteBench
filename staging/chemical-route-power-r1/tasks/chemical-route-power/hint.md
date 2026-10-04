@@ -1,0 +1,1 @@
+The measured work restores specific chemical reservoirs. A conformation transition can occur through different elementary reactions; retaining its state-transition rate need not retain its chemical work. At stationarity, account for the fuel conversion associated with each elementary reaction.
