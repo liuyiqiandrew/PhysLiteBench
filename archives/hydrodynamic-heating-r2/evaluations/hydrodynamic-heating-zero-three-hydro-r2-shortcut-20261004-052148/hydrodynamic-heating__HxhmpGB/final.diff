@@ -1,0 +1,33 @@
+--- before/model.py
++++ after/model.py
+@@ -1,5 +1,6 @@
+ import numpy as np
+ from numpy.polynomial.legendre import leggauss
++from scipy.optimize import minimize_scalar
+ 
+ GAMMA = .06
+ VISCOSITY = .04
+@@ -53,7 +54,22 @@
+         self.plasma_frequency = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Implement calibration fitting.")
++        grouped = {}
++        for record in records:
++            e = record['input']
++            key = (e['frequency'], e['thickness'], e['angle'], *e['window'])
++            if key not in grouped:
++                grouped[key] = [e, 0., 0.]
++            weight = 1/record['sigma']**2
++            grouped[key][1] += weight
++            grouped[key][2] += weight*record['value']
++        entries = list(grouped.values())
++        def objective(p):
++            return sum(weight*(response(e, p)-total/weight)**2 for e, weight, total in entries)
++        result = minimize_scalar(objective, method='bounded', bounds=(.85, 1.15),
++                                 options={'xatol': 1e-12})
++        self.plasma_frequency = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
+         return np.asarray([response(e, self.plasma_frequency) for e in experiments], dtype=float)

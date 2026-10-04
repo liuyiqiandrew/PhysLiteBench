@@ -1,0 +1,1 @@
+A small wave perturbs the actual deformation gradient about a stressed state. Derive its restoring force from the stored energy under a displacement-gradient perturbation, including the current geometry and mass density.

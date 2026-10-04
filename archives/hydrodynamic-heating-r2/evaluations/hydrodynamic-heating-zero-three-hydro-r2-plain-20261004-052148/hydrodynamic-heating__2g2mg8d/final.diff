@@ -1,0 +1,78 @@
+--- before/model.py
++++ after/model.py
+@@ -42,9 +42,17 @@
+     electric, electric_z, current, current_z = (
+         mode_matrix(z, w, d, angle, plasma_frequency) @ coefficients).T
+     k = w*np.sin(angle)
+-    current_zz = ((GAMMA-1j*w+VISCOSITY*k*k)*current-plasma_frequency**2*electric)/VISCOSITY
+-    heat = GAMMA*abs(current)**2-VISCOSITY*np.real(
+-        np.conj(current)*(current_zz-k*k*current))
++    # The time-averaged mechanical heating, after cancelling the common
++    # factor of one half between the heat and incident-wave power, is
++    #
++    #   gamma |J|^2 + nu (|d_z J|^2 + k^2 |J|^2)
++    #
++    # divided by p^2.  It is important to use this local form rather than
++    # replacing the viscous term with -Re(conj(J) Laplacian(J)): those two
++    # expressions differ by a boundary flux when the calorimeter covers
++    # only part of the slab.
++    heat = GAMMA*abs(current)**2 + VISCOSITY*(
++        abs(current_z)**2 + k*k*abs(current)**2)
+     return float((upper-lower)/2*np.dot(WEIGHTS, heat)/(plasma_frequency**2*np.cos(angle)))
+ 
+ 
+@@ -53,7 +61,53 @@
+         self.plasma_frequency = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Implement calibration fitting.")
++        """Fit the single plasma-frequency parameter by weighted least squares."""
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all()
++                or np.any(sigmas <= 0)):
++            raise ValueError("calibration values and sigmas must be finite, with positive sigmas")
++
++        lower, upper = .85, 1.15
++
++        def objective(p):
++            prediction = np.asarray(
++                [response(experiment, p) for experiment in experiments],
++                dtype=float)
++            residual = (prediction-values)/sigmas
++            return float(residual @ residual)
++
++        # A coarse scan makes the fit robust to the mild resonant structure
++        # of the slab response.  Refine the best grid cell with a bounded
++        # golden-section search, avoiding a dependency on scipy.
++        grid = np.linspace(lower, upper, 101)
++        losses = np.asarray([objective(p) for p in grid])
++        best = int(np.argmin(losses))
++        if best == 0 or best == len(grid)-1:
++            fitted = float(grid[best])
++        else:
++            a, b = float(grid[best-1]), float(grid[best+1])
++            golden = (np.sqrt(5.0)-1.0)/2.0
++            x1, x2 = b-golden*(b-a), a+golden*(b-a)
++            f1, f2 = objective(x1), objective(x2)
++            for _ in range(60):
++                if f1 <= f2:
++                    b, x2, f2 = x2, x1, f1
++                    x1 = b-golden*(b-a)
++                    f1 = objective(x1)
++                else:
++                    a, x1, f1 = x1, x2, f2
++                    x2 = a+golden*(b-a)
++                    f2 = objective(x2)
++            fitted = (a+b)/2.0
++
++        self.plasma_frequency = float(np.clip(fitted, lower, upper))
++        return self
+ 
+     def predict(self, experiments):
+         return np.asarray([response(e, self.plasma_frequency) for e in experiments], dtype=float)

@@ -1,0 +1,515 @@
+{
+  "hydrodynamic-heating__2g2mg8d": {
+    "task": "hydrodynamic-heating",
+    "revision_label": "zero-three-hydro-r2",
+    "condition": "plain",
+    "stage": "fresh_three_trial_batch",
+    "job": "hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148",
+    "classification": "pass",
+    "reason": "The final source retains the correct coupled Maxwell-viscous mode solver and replaces dissipative-force power with local Newtonian dissipation gamma|J|2+nu(|J_z|2+kx2|J|2), normalized by p2*cos(angle). The public trajectory explicitly identifies that integration by parts agrees only over the full no-slip slab and checks that the corrected readout preserves calibration. Fitted plasma_frequency1.0300053896 and chi-square1.11013 pass; all window errors are below8.07e-6. This is the intended physical correction, fully implemented.",
+    "reward": 1.0,
+    "exception_type": null,
+    "metrics": {
+      "parameters": {
+        "plasma_frequency": 1.0300053896121932
+      },
+      "parameter_relative_error_max": 5.232633197183034e-06,
+      "calibration_chi2": 1.1101332998853672,
+      "hidden": {
+        "front_window": 8.065131815453592e-06,
+        "interior_window": 7.320734407975248e-06,
+        "rear_window": 6.267232756168367e-06,
+        "whole_slab": 7.116163218142273e-06
+      }
+    },
+    "source_sha256": "a88b687639b62bcfac23c0aae03d1006bf4535f98500b34ab6ef9c4bb44a6623",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current API, then implement the model and run the available checks against the documented outputs.",
+      "The field solver is already close to the documented continuum solution, but its calibration hook is missing. I also found that the existing heat expression is only equivalent to local viscous dissipation after integrating over the entire slab; I\u2019m correcting it to use the local gradient form so arbitrary detector windows are modeled correctly.",
+      "The implementation now fits the calibration with weighted least squares, constrains the fitted plasma frequency to the documented interval, and returns the required `self`/NumPy-array interfaces. The public tests pass; I\u2019m doing a final sanity check on numerical finiteness and the modified file.",
+      "Implemented `/app/model.py`.\n\nChanges:\n- Added weighted calibration fitting for `plasma_frequency`.\n- Corrected local viscous heating for arbitrary detector windows.\n- Preserved the documented `fit` and `predict` APIs.\n- Added validation and bounded fitting over `[0.85, 1.15]`.\n\nVerification: `2 passed` with `python -m pytest -q test_public.py`."
+    ],
+    "public_tool_count": 8,
+    "public_tool_calls": [
+      {
+        "line": 13,
+        "name": "exec",
+        "call_id": "call_J6F8PDzKrHuxv1LbqZ5XPQVS",
+        "input_sha256": "528f3a93e1ff5223f6bab4419ee447db83b9446de89ec6e63240407ff02477a8"
+      },
+      {
+        "line": 22,
+        "name": "exec",
+        "call_id": "call_SAlAE99sQZ4z5jigDy0jYOrh",
+        "input_sha256": "754327d8fd2d30a79e9eff7bad836548358d4807d69fd57d2418b05736ee118a"
+      },
+      {
+        "line": 29,
+        "name": "exec",
+        "call_id": "call_0xHOR5Fr064Wkm9koXaOpigl",
+        "input_sha256": "f1deea1bb8650db232f19695685f264c90259107e2ee82601cdbac57491febfe"
+      },
+      {
+        "line": 36,
+        "name": "exec",
+        "call_id": "call_sYVtpg8fJW4D9ZqBdIuuyGpB",
+        "input_sha256": "a13e13d8c682b92b0c58eb67c29c4b9c94a26c80a48c36f716ee762ca615d963"
+      },
+      {
+        "line": 53,
+        "name": "exec",
+        "call_id": "call_wweWuqxjowTYc8h757YvV4Wq",
+        "input_sha256": "b511a34cef2268c0844a0a151a0cbed018c0af1a1e2f87fe0f4d568565effb78"
+      },
+      {
+        "line": 62,
+        "name": "exec",
+        "call_id": "call_6LONDIx5KyQiOB5ZMb6fB0AA",
+        "input_sha256": "20f15d152f34ef4836743f9b431c4ee4846f6f25c3b153125f7c308bcf312000"
+      },
+      {
+        "line": 69,
+        "name": "exec",
+        "call_id": "call_T2zG1edDecZ1N5ycrR4McXZi",
+        "input_sha256": "ee86f55e8d95166bfdac15629e101e0bcaf35ee91092a90abe9ca13cca45a2de"
+      },
+      {
+        "line": 78,
+        "name": "exec",
+        "call_id": "call_T6Y4601Ps9pHhOa7jXLGNFzd",
+        "input_sha256": "497751a0bee7aaedbcf50aeb74e20f3d62432b88f1e14210aecf0c3bff3bfb10"
+      }
+    ],
+    "native_model_effort": [
+      {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      }
+    ],
+    "native_cli_versions": [
+      "0.154.0"
+    ],
+    "native_user_input_blocks": [
+      {
+        "line": 4,
+        "sha256": "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "characters": 920,
+        "classification": "reviewed plugin inventory"
+      },
+      {
+        "line": 4,
+        "sha256": "384aba72a1b1e5f7fb81f944fa54791fc3a15e013328522100a69dbc1d93e0eb",
+        "characters": 329,
+        "classification": "reviewed environment context 2026-10-04"
+      },
+      {
+        "line": 7,
+        "sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+        "characters": 318,
+        "classification": "exact neutral task"
+      }
+    ],
+    "native_session_sha256": {
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/agent/sessions/2026/10/04/rollout-2026-10-04T05-23-57-01a1055e-6e03-7800-a153-6fcca157d0ea.jsonl": "014d570144dd003b5e0e00d378aa1e432c91576b709443592c1745288a9f53f3"
+    },
+    "timeouts_seconds": {
+      "agent": 600,
+      "verifier": 60
+    },
+    "current_frozen_measured_source_sha256": {
+      "environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "environment/README.md": "61dce7fd79a3f5dee0e2d0d348c90c6ec858e813520e179dc6f7fb7e10752da9",
+      "environment/data/calibration.json": "7d66368eba24882637e88dd81730c997ba49cd87f561edd008fa44ca67240bac",
+      "environment/model.py": "caced93787f9507e20b1b0a43162ec3cfb80f38386483d7087e6f79098b92514",
+      "environment/test_public.py": "06f4872e594223fe3e8d03af99668e5d46ffeefabc8b693c58ab22dca5663836",
+      "instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "tests/data/calibration.json": "7d66368eba24882637e88dd81730c997ba49cd87f561edd008fa44ca67240bac",
+      "tests/metadata.json": "4de0fbe15cd173a9ee6516f3fcab125c21134bd53896caa95db1dd2a624b49d4",
+      "tests/reference.py": "58840c662e813d2cdf34b829810bef366203e5001b301cd0505421434009554b",
+      "tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+      "tests/test_hidden.py": "080f79d6f34495b25f78fe04f6c8247bb1657155c02f2ddf8ce0ea9f0ada1f0c"
+    },
+    "reviewed_sources": [
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/agent/sessions/2026/10/04/rollout-2026-10-04T05-23-57-01a1055e-6e03-7800-a153-6fcca157d0ea.jsonl",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/artifacts/app/model.py",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/agent/trajectory.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/agent/codex.txt",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/verifier/metrics.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/verifier/test-stdout.txt",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/result.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/config.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/run-timing.json"
+    ],
+    "evidence_sha256": {
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/agent/sessions/2026/10/04/rollout-2026-10-04T05-23-57-01a1055e-6e03-7800-a153-6fcca157d0ea.jsonl": "014d570144dd003b5e0e00d378aa1e432c91576b709443592c1745288a9f53f3",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/artifacts/app/model.py": "a88b687639b62bcfac23c0aae03d1006bf4535f98500b34ab6ef9c4bb44a6623",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/agent/trajectory.json": "85fdfbef3f4d80ed1cd042e1f98f4ae301469fab8a29fd4f4ee19d11d6020534",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/agent/codex.txt": "6ae02ec356df36a325aed9c6dd9791eb6a21cf78d80eac089e45351aa9b79130",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/verifier/metrics.json": "68f33a83bb02ea95a67f49391fdd480e0013336dd713431b0b0e2292f8725172",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/verifier/test-stdout.txt": "53061c0345da491b1448cec394095586de9dd985607f3d91acda36594774df6d",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__2g2mg8d/result.json": "862598a685399f007da06cbd791c92fe1c53f932e3147f5c5d8c106b8519bda8",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/config.json": "d9008e285e64af7bed7b85f470a6f5c4e859b7537dd8331b6380c29c0c876759",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/run-timing.json": "05cac5646414830a06f594807120cd967c6ed2532974b6d2bd48de0c298056ad"
+    },
+    "aggregation_note": "One of exactly three fresh unhinted trials of scientific revision2. The frozen batch finished2/3 passes and one physical failure, so it misses the zero-of-three target. Preserve earlier revision1 evidence separately. No task, trial artifact, or score was changed.",
+    "review_limits": "Final source and complete public/native commands and outputs were reviewed. Encrypted reasoning was not read. No new agent evaluation or broad scientific validation was run.",
+    "incidental_notes": "Pure-NumPy coarse/golden fitting is slower than the baseline but completes within the verifier budget. Initial missing-fit public errors preceded implementation and are not terminal failures."
+  },
+  "hydrodynamic-heating__oy3anKj": {
+    "task": "hydrodynamic-heating",
+    "revision_label": "zero-three-hydro-r2",
+    "condition": "plain",
+    "stage": "fresh_three_trial_batch",
+    "job": "hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148",
+    "classification": "pass",
+    "reason": "The final source uses the correct pointwise positive friction-plus-symmetric-strain heat, including the transverse kx contribution, for arbitrary depth windows. Its native messages distinguish local dissipation from integrated force work. It keeps the exact electromagnetic/velocity solution and fits p1.0300053898; hidden errors below8.07e-6 and chi-square1.11013 pass. An exploratory extra frequency normalization was explicitly rejected before implementation; the final normalization is correct.",
+    "reward": 1.0,
+    "exception_type": null,
+    "metrics": {
+      "parameters": {
+        "plasma_frequency": 1.0300053897937906
+      },
+      "parameter_relative_error_max": 5.232809505484326e-06,
+      "calibration_chi2": 1.110133299885172,
+      "hidden": {
+        "front_window": 8.065403561850368e-06,
+        "interior_window": 7.3209810723095565e-06,
+        "rear_window": 6.267443923527078e-06,
+        "whole_slab": 7.11640298968246e-06
+      }
+    },
+    "source_sha256": "0d0924a27ceb92584ac42c9dfdc77029516aee1a61724c01fc7ac6bc7ccf547f",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and the existing model interface, then implement and validate the prediction behavior against the documented examples and any available tests.",
+      "The field-mode construction already captures the coupled Maxwell\u2013viscous boundary-value problem, but the heat readout needs careful correction: the calorimeter integrates local viscous dissipation in the selected window, and normalization uses incident power (including its frequency factor). I\u2019m checking those factors against the calibration records before editing.",
+      "The calibration is consistent with the stated continuum model at a plasma frequency near 1.03. I\u2019ll preserve the existing public helpers, replace the window heat integrand with the pointwise positive viscous-plus-relaxation dissipation, and add bounded weighted least-squares fitting using each record\u2019s `sigma`.",
+      "Implementation is complete and the public calibration test passes: the fitted plasma frequency is `1.0300053898`, with reduced chi-square `1.11`. I\u2019m doing a final review for API compatibility and numerical edge cases before handing it back.",
+      "Implemented `/app/model.py` with:\n\n- Maxwell\u2013fluid mode solution and boundary matching.\n- Correct local relaxation and viscous heating for arbitrary depth windows.\n- Weighted Gaussian calibration fit for `plasma_frequency`.\n- Finite NumPy predictions preserving the documented API.\n\nValidation:\n\n- `python -m pytest -q test_public.py`\n- Result: `2 passed`\n- Fitted plasma frequency: `1.0300053898`"
+    ],
+    "public_tool_count": 11,
+    "public_tool_calls": [
+      {
+        "line": 13,
+        "name": "exec",
+        "call_id": "call_KNBczYit4rYEeDVK95ajM5uT",
+        "input_sha256": "ffe1543a7f2090042db6edb2ad1a840918e6d3f9bb142ad2565eb49de851bf1f"
+      },
+      {
+        "line": 22,
+        "name": "exec",
+        "call_id": "call_oEYznVxq36o014ghH7DW3mMM",
+        "input_sha256": "41b1c63df89d7a10acdae713b20d3dd3877e916b5f9056d625ab99a0ec5caed9"
+      },
+      {
+        "line": 29,
+        "name": "exec",
+        "call_id": "call_o0fet5Z59XuQ5EKsXeZixWeL",
+        "input_sha256": "0b96296b124d55717d096bc0536da97121d883d09869ded6167c29ca9ebc3dca"
+      },
+      {
+        "line": 44,
+        "name": "exec",
+        "call_id": "call_icQUXmVDMqhjBtbkuY7UOMCQ",
+        "input_sha256": "13ee08c7f5bb8010bb95d9f9622ff3bc23fab705f1855fb4c5a0559dc4cb132a"
+      },
+      {
+        "line": 51,
+        "name": "exec",
+        "call_id": "call_oQdlhZaGStkdgJaXfO3I3FmI",
+        "input_sha256": "011a67bdeea4240e94eaeb0bcbc1adbae148aa6eab7dcabb1d9f0eaa27713d81"
+      },
+      {
+        "line": 58,
+        "name": "exec",
+        "call_id": "call_MJcGkavDB9mi4SmO4W2vAC8A",
+        "input_sha256": "77db18423d982ff1b0a5f3f770c1f42fd5f934f8d90498025b28932ffff36828"
+      },
+      {
+        "line": 71,
+        "name": "exec",
+        "call_id": "call_1b1JsUvBaiIMqgLe5Oa3MqgN",
+        "input_sha256": "452f07f3498376cbb68784c7479cb4c9d553d81a3b645c0ce17df035b3481877"
+      },
+      {
+        "line": 78,
+        "name": "exec",
+        "call_id": "call_9HHw10fmqo4uKLyk5eh6vMZh",
+        "input_sha256": "81a791dc89fe81217bf88dcb8f7af80e83053cd8c9b8dcd5bbf7614f61c8656f"
+      },
+      {
+        "line": 87,
+        "name": "exec",
+        "call_id": "call_mVrXWXxARcargzOfNRdM8eLm",
+        "input_sha256": "0fa0a3798b4ce7f3fded6519eeffd037e6cd147cfc3c3d78640bbce94e314242"
+      },
+      {
+        "line": 94,
+        "name": "exec",
+        "call_id": "call_Vv1rmpmtdQgYw7lTnQpv9Fh3",
+        "input_sha256": "9bae6c58eed9f1e3b19e2dfebd53be6d05b27b3ec83ba49079207661f69906e7"
+      },
+      {
+        "line": 101,
+        "name": "exec",
+        "call_id": "call_B3jauEwl2fit7TwfpH4RRymX",
+        "input_sha256": "382a09d9a0e444b01a817eb13db92fad26b3021b812d44ad72a13d787ddaed91"
+      }
+    ],
+    "native_model_effort": [
+      {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      }
+    ],
+    "native_cli_versions": [
+      "0.154.0"
+    ],
+    "native_user_input_blocks": [
+      {
+        "line": 4,
+        "sha256": "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "characters": 920,
+        "classification": "reviewed plugin inventory"
+      },
+      {
+        "line": 4,
+        "sha256": "384aba72a1b1e5f7fb81f944fa54791fc3a15e013328522100a69dbc1d93e0eb",
+        "characters": 329,
+        "classification": "reviewed environment context 2026-10-04"
+      },
+      {
+        "line": 7,
+        "sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+        "characters": 318,
+        "classification": "exact neutral task"
+      }
+    ],
+    "native_session_sha256": {
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/agent/sessions/2026/10/04/rollout-2026-10-04T05-24-11-01a1055e-a6b5-7573-834d-2964cf4e4b34.jsonl": "883e4e0013e28c64afcefc537c6ec07d39a2166277c6eb79e9b85b7999b1e571"
+    },
+    "timeouts_seconds": {
+      "agent": 600,
+      "verifier": 60
+    },
+    "current_frozen_measured_source_sha256": {
+      "environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "environment/README.md": "61dce7fd79a3f5dee0e2d0d348c90c6ec858e813520e179dc6f7fb7e10752da9",
+      "environment/data/calibration.json": "7d66368eba24882637e88dd81730c997ba49cd87f561edd008fa44ca67240bac",
+      "environment/model.py": "caced93787f9507e20b1b0a43162ec3cfb80f38386483d7087e6f79098b92514",
+      "environment/test_public.py": "06f4872e594223fe3e8d03af99668e5d46ffeefabc8b693c58ab22dca5663836",
+      "instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "tests/data/calibration.json": "7d66368eba24882637e88dd81730c997ba49cd87f561edd008fa44ca67240bac",
+      "tests/metadata.json": "4de0fbe15cd173a9ee6516f3fcab125c21134bd53896caa95db1dd2a624b49d4",
+      "tests/reference.py": "58840c662e813d2cdf34b829810bef366203e5001b301cd0505421434009554b",
+      "tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+      "tests/test_hidden.py": "080f79d6f34495b25f78fe04f6c8247bb1657155c02f2ddf8ce0ea9f0ada1f0c"
+    },
+    "reviewed_sources": [
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/agent/sessions/2026/10/04/rollout-2026-10-04T05-24-11-01a1055e-a6b5-7573-834d-2964cf4e4b34.jsonl",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/artifacts/app/model.py",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/agent/trajectory.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/agent/codex.txt",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/verifier/metrics.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/verifier/test-stdout.txt",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/result.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/config.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/run-timing.json"
+    ],
+    "evidence_sha256": {
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/agent/sessions/2026/10/04/rollout-2026-10-04T05-24-11-01a1055e-a6b5-7573-834d-2964cf4e4b34.jsonl": "883e4e0013e28c64afcefc537c6ec07d39a2166277c6eb79e9b85b7999b1e571",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/artifacts/app/model.py": "0d0924a27ceb92584ac42c9dfdc77029516aee1a61724c01fc7ac6bc7ccf547f",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/agent/trajectory.json": "ab9baee6fdd7e2eb353824f738993b74ce5ea831193408e0471cd3f8b5562dd8",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/agent/codex.txt": "0c312029631c9cbeab7749a28beae120a3756bd70726c583bc5f0277fddf310c",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/verifier/metrics.json": "eb7319a9dd0b0cabd6904b244cc4edbe82db7782529c0354e56d36b7818eecbd",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/verifier/test-stdout.txt": "1f59aa562cc68719b86ac8386e0c186933fabb3c9e51d300acdfbcca094cd57c",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__oy3anKj/result.json": "e1cc6545859a8369a8ec75629cc4d76164a4c1f3682228b518cdf74f6bb79046",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/config.json": "d9008e285e64af7bed7b85f470a6f5c4e859b7537dd8331b6380c29c0c876759",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/run-timing.json": "05cac5646414830a06f594807120cd967c6ed2532974b6d2bd48de0c298056ad"
+    },
+    "aggregation_note": "One of exactly three fresh unhinted trials of scientific revision2. The frozen batch finished2/3 passes and one physical failure, so it misses the zero-of-three target. Preserve earlier revision1 evidence separately. No task, trial artifact, or score was changed.",
+    "review_limits": "Final source and complete public/native commands and outputs were reviewed. Encrypted reasoning was not read. No new agent evaluation or broad scientific validation was run.",
+    "incidental_notes": "An early calculation divided by an extra omega but was corrected after comparison and physical normalization review. Git-not-repository output interrupted one compound check; the checks were run again separately and passed."
+  },
+  "hydrodynamic-heating__AdYmyHo": {
+    "task": "hydrodynamic-heating",
+    "revision_label": "zero-three-hydro-r2",
+    "condition": "plain",
+    "stage": "fresh_three_trial_batch",
+    "job": "hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148",
+    "classification": "physical_model_failure",
+    "reason": "The final source leaves the full exact viscous Maxwell fields and the starter heat gamma|J|2-nu Re[J* (J_zz-kx2J)] unchanged, modifying only calibration and input checks. Public message41 says the existing response is numerically consistent with calibration; every subsequent tool call concerns fitting, runtime, interface or finite boundary values. No local strain-heat correction is attempted. The fitted p1.0300053897, reduced chi-square1.11013 and full-slab error7.12e-6 pass, while front/interior/rear windows fail at.52802/2.76578/.52246. Local internal heat differs from local dissipative-force work by the viscous energy-flux divergence; the full-slab calibration cancels that term. This is a clean physical observable-attribution failure, not an optimizer, derivative-code, normalization or infrastructure error.",
+    "reward": 0.0,
+    "exception_type": null,
+    "metrics": {
+      "parameters": {
+        "plasma_frequency": 1.0300053897218753
+      },
+      "parameter_relative_error_max": 5.23273968466853e-06,
+      "calibration_chi2": 1.1101332998850655,
+      "hidden": {
+        "front_window": 0.5280202493686192,
+        "interior_window": 2.7657841766334914,
+        "rear_window": 0.5224620081491185,
+        "whole_slab": 7.11630803593427e-06
+      }
+    },
+    "source_sha256": "b9f84ebad6174145fe73ee1663acc1ffb0a752cde8df63a5f1f8fa4facc3299e",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then derive and validate the prediction model against the documented interface.",
+      "The existing field/viscous response is already numerically consistent with the calibration data: a bounded one-parameter fit lands near \\(p\\approx1.03\\), with reduced \\(\\chi^2\\) around 1.1. I\u2019m checking the mode equations and edge behavior now, then I\u2019ll add a robust weighted fit and validation.",
+      "The calibration fit is now implemented as a weighted bounded one-dimensional optimization over the documented \\([0.85,1.15]\\) range, with finite-input checks and the required `return self` behavior. I\u2019m running the public tests and a few boundary/interface checks.",
+      "Validation passes: both public tests succeed, the fitted value is `1.0300053897`, and the calibration reduced \\(\\chi^2\\) is about `1.11`. Boundary-domain predictions are finite, and empty prediction input returns the required `(0,)` NumPy array.",
+      "Implemented `/app/model.py`.\n\n- Added weighted calibration fitting for `plasma_frequency`\n- Enforced documented bounds `[0.85, 1.15]`\n- Preserved `fit()` and `predict()` APIs\n- Added calibration input validation\n- Verified boundary predictions are finite\n\n`python -m pytest -q test_public.py` passes: `2 passed`."
+    ],
+    "public_tool_count": 11,
+    "public_tool_calls": [
+      {
+        "line": 13,
+        "name": "exec",
+        "call_id": "call_96956871052e4bf797c3df89fccc1666",
+        "input_sha256": "f86f0b99122595bf97d4b71eba15bf78ca3451992a0b625c3ae9b5852dd3b2f7"
+      },
+      {
+        "line": 22,
+        "name": "exec",
+        "call_id": "call_54636bdad5f64f03b0e0ca1e1bd555b8",
+        "input_sha256": "8b6638259756090683052e5015f4b1822bb385a84867ee18d20ccaabc7eec857"
+      },
+      {
+        "line": 33,
+        "name": "exec",
+        "call_id": "call_9d68f48e4e064e3c8d58fb4c02c5d371",
+        "input_sha256": "e070c9ac31057e433b8d599c0dabda730ef2ee3c0898b1796032feda7884747a"
+      },
+      {
+        "line": 42,
+        "name": "exec",
+        "call_id": "call_611b87baec9c4ad5b379c60afadd17ec",
+        "input_sha256": "a557070a079d1b84fbb31dd5ab605ab4b2aa5cac35ff6e2e1c284f7bf6e30b55"
+      },
+      {
+        "line": 49,
+        "name": "exec",
+        "call_id": "call_5f04de6d8cb9438180b2b9d629a13bc3",
+        "input_sha256": "9a921b823d59f9895bbc23a5c0dbfd9543c59188d9479fba77a826e905e220dd"
+      },
+      {
+        "line": 56,
+        "name": "exec",
+        "call_id": "call_4215d6eae24a4c3cb180f09d5017119c",
+        "input_sha256": "be90980a917635b2ffd005051656b4db93fa428d7833a136b11ea6ee98cbec41"
+      },
+      {
+        "line": 65,
+        "name": "exec",
+        "call_id": "call_2eec500b3a0c48aca74b39803c5b9486",
+        "input_sha256": "3f57cdc29a4fe34d1639c7bbd323f4cacda03dbf37afbed34fcdffae3aa32448"
+      },
+      {
+        "line": 72,
+        "name": "exec",
+        "call_id": "call_d20c8319efd64d1785a9d0d85ba4e37e",
+        "input_sha256": "047b9573600bd14f9fd4977a3be38d5a52ec3107f765c358670a4dbc5a446192"
+      },
+      {
+        "line": 79,
+        "name": "exec",
+        "call_id": "call_d47c42c31af945b7bff5527d2dcb7a94",
+        "input_sha256": "1a53c5f9780c154d62b8b5c2963f66639347108ed8ed8c876c0c49f9c48deb0a"
+      },
+      {
+        "line": 86,
+        "name": "exec",
+        "call_id": "call_a1621fa530d742d8a5449d44f11c948b",
+        "input_sha256": "d93a46ab7141126a89a2f549d1e90f2899bcaeee2f81af52c8122a0e2908b832"
+      },
+      {
+        "line": 93,
+        "name": "exec",
+        "call_id": "call_e5c881ddbaba46bbb75fa912bcdc0564",
+        "input_sha256": "e424a4792c37fd07da3fb03ddc2800df3d9a8ba5e7a8f773e58a51f131a615aa"
+      }
+    ],
+    "native_model_effort": [
+      {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      }
+    ],
+    "native_cli_versions": [
+      "0.154.0"
+    ],
+    "native_user_input_blocks": [
+      {
+        "line": 4,
+        "sha256": "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "characters": 920,
+        "classification": "reviewed plugin inventory"
+      },
+      {
+        "line": 4,
+        "sha256": "384aba72a1b1e5f7fb81f944fa54791fc3a15e013328522100a69dbc1d93e0eb",
+        "characters": 329,
+        "classification": "reviewed environment context 2026-10-04"
+      },
+      {
+        "line": 7,
+        "sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+        "characters": 318,
+        "classification": "exact neutral task"
+      }
+    ],
+    "native_session_sha256": {
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/agent/sessions/2026/10/04/rollout-2026-10-04T05-23-45-01a1055e-40f4-7500-81ef-f0b79e73f3c4.jsonl": "66deed52ee009f4ddbd30a63531e12dc8195ad8717e85f9460c6ab8a9d7316ba"
+    },
+    "timeouts_seconds": {
+      "agent": 600,
+      "verifier": 60
+    },
+    "current_frozen_measured_source_sha256": {
+      "environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "environment/README.md": "61dce7fd79a3f5dee0e2d0d348c90c6ec858e813520e179dc6f7fb7e10752da9",
+      "environment/data/calibration.json": "7d66368eba24882637e88dd81730c997ba49cd87f561edd008fa44ca67240bac",
+      "environment/model.py": "caced93787f9507e20b1b0a43162ec3cfb80f38386483d7087e6f79098b92514",
+      "environment/test_public.py": "06f4872e594223fe3e8d03af99668e5d46ffeefabc8b693c58ab22dca5663836",
+      "instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "tests/data/calibration.json": "7d66368eba24882637e88dd81730c997ba49cd87f561edd008fa44ca67240bac",
+      "tests/metadata.json": "4de0fbe15cd173a9ee6516f3fcab125c21134bd53896caa95db1dd2a624b49d4",
+      "tests/reference.py": "58840c662e813d2cdf34b829810bef366203e5001b301cd0505421434009554b",
+      "tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+      "tests/test_hidden.py": "080f79d6f34495b25f78fe04f6c8247bb1657155c02f2ddf8ce0ea9f0ada1f0c"
+    },
+    "reviewed_sources": [
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/agent/sessions/2026/10/04/rollout-2026-10-04T05-23-45-01a1055e-40f4-7500-81ef-f0b79e73f3c4.jsonl",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/artifacts/app/model.py",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/agent/trajectory.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/agent/codex.txt",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/verifier/metrics.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/verifier/test-stdout.txt",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/result.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/config.json",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/run-timing.json"
+    ],
+    "evidence_sha256": {
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/agent/sessions/2026/10/04/rollout-2026-10-04T05-23-45-01a1055e-40f4-7500-81ef-f0b79e73f3c4.jsonl": "66deed52ee009f4ddbd30a63531e12dc8195ad8717e85f9460c6ab8a9d7316ba",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/artifacts/app/model.py": "b9f84ebad6174145fe73ee1663acc1ffb0a752cde8df63a5f1f8fa4facc3299e",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/agent/trajectory.json": "356f86c4915b0cc88f743b5cbb1ad3ae0d2d5aeb0eedf110ff6f4b8fbe00f427",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/agent/codex.txt": "488abadad10fb88035d74699cf9a7106f298d0c8b1fb2a0601755f85d5438fda",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/verifier/metrics.json": "97cc7033ec098545a7559b15565d5d2eddd285ea2844c7627ddb424bb1d0db5a",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/verifier/test-stdout.txt": "f4f27e1552930c07b3b42e8f703e7e8ebe7e4b27b08736b77414f61111a975b4",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/hydrodynamic-heating__AdYmyHo/result.json": "ecc6e1c4c018dd8713aad598456818aef58837e232a2db8bf5a36123677e606e",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/config.json": "d9008e285e64af7bed7b85f470a6f5c4e859b7537dd8331b6380c29c0c876759",
+      "jobs/hydrodynamic-heating-zero-three-hydro-r2-plain-20261004-052148/run-timing.json": "05cac5646414830a06f594807120cd967c6ed2532974b6d2bd48de0c298056ad"
+    },
+    "aggregation_note": "One of exactly three fresh unhinted trials of scientific revision2. The frozen batch finished2/3 passes and one physical failure, so it misses the zero-of-three target. Preserve earlier revision1 evidence separately. No task, trial artifact, or score was changed.",
+    "review_limits": "Final source and complete public/native commands and outputs were reviewed. Encrypted reasoning was not read. No new agent evaluation or broad scientific validation was run.",
+    "incidental_notes": "The fit grid is reduced257to33 points after timing checks; the optimum and calibration remain accurate. No runtime exception or agent/verifier timeout.",
+    "qualifies_as_clean_physical_failure": true
+  }
+}

@@ -1,5 +1,7 @@
 # Benchmark interface and validation
 
+The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **3 of 10 currently qualify**: insulating-mhd-duct, magnetic-tracer and reaction-diffusion. The other seven require revision or replacement. [Current goal status](../results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
+
 PhysLiteBench tests whether a coding agent revises a physical approximation that fits calibration but fails elsewhere in the stated apparatus. Ten tasks were selected through a conditional screen with one reviewed physical failure each (0/1). A separate fresh three-trial confirmation found 6 of ten at or below one pass; [the dashboard](../DASHBOARD.md) separates both batches from archived scores.
 
 ## Agent task
@@ -23,15 +25,15 @@ Review final code, public messages, commands and verifier metrics before classif
 Use Docker and uv. From the repository root:
 
 ```bash
-python3 scripts/run_science.py tasks/magnetic-tracer --agent oracle --trials 1
-python3 scripts/run_science.py tasks/magnetic-tracer --agent oracle --trials 1 \
-  --solution-model scripts/magnetic_tracer_baseline.py
-python3 scripts/run_neutrality_screen.py magnetic-tracer --workers 1 --label neutral-new --controls
+python3 scripts/run_candidate_matrix.py magnetic-tracer \
+  --conditions oracle shortcut plain --workers 1 --label fresh-three
 ```
 
-The conditional runner checks the oracle and completed shortcut, then runs one plain Luna high trial. An initial pass triggers exactly two more trials; an initial failure stops at 0/1. Infrastructure errors stop that task for review. The initial outcome is never discarded. `run_candidate_matrix.py --conditions plain` runs fixed three-trial unhinted batches. The fresh confirmation used this option for all ten retained tasks; it did not use conditional stopping or hints. The oracle reward should be 1 and the completed shortcut reward 0. New job names must be unique; never overwrite an existing result.
+The matrix runner checks the oracle and completed shortcut, then runs exactly three unhinted Luna high trials. The oracle reward should be 1 and the completed shortcut reward 0. Infrastructure errors stop that task for review. New job names must be unique; never overwrite an existing result. Staged candidates can use `--task-root staging/REVISION/tasks --control-root staging/REVISION/scripts`.
 
-An entirely unstarted initial or follow-up batch may be replaced with `--retry-unstarted-job JOB` after review confirms a network setup failure, no agent execution, no verifier result and no native session. The runner verifies that source, grading, instruction and configuration still match the frozen task and preserves the failed attempts. A replacement initial trial follows the same conditional rule; replacement follow-ups run only the missing trials. Reports distinguish total attempts from actual model trials. A failure after the agent starts is never excluded by this rule.
+The historical conditional screen used `run_neutrality_screen.py`: an initial pass triggered two more trials, while an initial failure stopped at 0/1. The initial outcome was never discarded. The fresh confirmation used `run_candidate_matrix.py --conditions plain` for all ten retained tasks; it did not use conditional stopping or hints.
+
+An entirely unstarted initial or follow-up batch in the conditional runner may be replaced with `--retry-unstarted-job JOB` after review confirms a network setup failure, no agent execution, no verifier result and no native session. The runner verifies that source, grading, instruction and configuration still match the frozen task and preserves the failed attempts. A replacement initial trial follows the same conditional rule; replacement follow-ups run only the missing trials. Reports distinguish total attempts from actual model trials. A failure after the agent starts is never excluded by this rule.
 
 Pinned setup: Python 3.13, Harbor 0.21.0, Codex CLI 0.154.0, NumPy 2.3.3, SciPy 1.16.3 and pytest 8.4.2 in new task images. The agent/verifier timeouts are 600/60 seconds. Authentication remains outside the repository.
 

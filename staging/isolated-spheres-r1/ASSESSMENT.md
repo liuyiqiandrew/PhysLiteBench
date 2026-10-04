@@ -1,0 +1,1 @@
+Staged isolated-spheres revision 1. Scientific and local controls are complete: 256 oracle passes and shortcut rejections; local oracle 7/7, shortcut 4 passes and 3 intended hidden failures. Final independent source review is pending. No model evaluation has run. Canonical tasks and historical artifacts are unchanged.

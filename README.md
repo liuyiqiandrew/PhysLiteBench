@@ -1,5 +1,7 @@
 # PhysLiteBench
 
+The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **3 of 10 currently qualify**: insulating-mhd-duct, magnetic-tracer and reaction-diffusion. The other seven require revision or replacement. [Current goal status](results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
+
 A lightweight benchmark for physical reasoning in scientific code. Each task supplies an apparatus, calibration data, and a predictor with an unfinished fit. The supplied physical approximation fits calibration but fails on another allowed preparation. A successful agent must check the physical model as well as fit the numbers.
 
 All active tasks use a neutral instruction that explicitly permits replacing any prediction function or helper while preserving the documented API. The previous ten-task 0/3 result belongs to the archived instructions; it is not a result for the current sources.

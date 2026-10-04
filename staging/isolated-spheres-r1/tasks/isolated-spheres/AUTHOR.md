@@ -1,0 +1,29 @@
+# Isolated spheres, revision 1
+
+The supplied model is a complete electrostatic fluctuation calculation with the wrong charge ensemble. It includes independent monopole fluctuations on each sphere with zero mean charge. The public apparatus fixes each total charge to zero on every equilibrium configuration. That constraint removes one fluctuating mode per conductor. It leaves all higher surface multipoles and the single-sphere mean dipole response intact.
+
+Calibration measures static induced dipole in a known uniform field. With the stated units, `p=a^3 E`, for either charge ensemble. The positive common radius is therefore uniquely identified by the least-squares slope. The calibration has 240 independent readings and fixed instrumental uncertainty 0.0003, independent of radius or response. This static response avoids identifying an instantaneous dipole variance with only the zero-frequency thermal sector. No external field is applied during force readout.
+
+The force is the leading classical thermal term for normal, nonmagnetic metals with finite dc conductivity. Such conductors have no static magnetic screening contribution. This specification avoids the different magnetic zero mode of an ideal perfect reflector or superconductor. The public high-temperature limit, rather than a finite-temperature approximation at unspecified material frequencies, defines the requested output. Each sphere is neutral and electrically isolated throughout thermal equilibration. Mechanical supports fix radii and separation, so the separation derivative holds these quantities and temperature fixed.
+
+In a normalized spherical multipole basis the coupling between equal spheres for azimuthal number `m` is
+
+```
+T[l,j] = (l+j)! / sqrt((l+m)!(l-m)!(j+m)!(j-m)!) * (a/d)^(l+j+1).
+```
+
+Basis phase choices can be absorbed into orthogonal diagonal transformations and do not affect the determinant. The source retains `l,j >= m`, including the monopole at `m=0`. The physical oracle uses `l,j >= max(m,1)`. The dimensionless interaction free energy is one half of `sum_m multiplicity(m)*log det(I-T*T)`, with multiplicity one for zero m and two otherwise. The exact separation derivative gives the attractive force `sum_m multiplicity(m)*Tr[(I-T*T)^-1 T T']`. The source and oracle both solve this full positive Gaussian problem; neither uses a pairwise dipole approximation. The 36-mode cutoff is converged throughout the public domain.
+
+The private reference uses bispherical coordinates instead. For `psi=acosh(d/(2a))`, the grounded free energy is `0.5 sum_n (2n-1) log(1-exp(-2(2n-1)psi))`. Integrating the two conductor potentials for individually fixed neutral charge adds `0.5 log(det(C)/a^2)`, where `C` is the exact two-sphere capacitance matrix. Its diagonal and mutual entries are given by odd and even image sums of inverse hyperbolic sine. The reference differentiates those sums analytically. It contains no spherical multipole matrix or truncation rule from the oracle. A separate finite-displacement free-energy check also validates the force sign and held-fixed variables.
+
+The prototype and final validation check both grounded and isolated formulas. Forty-eight corner and random cases agree with the independent force to 4.3e-15; increasing the multipole cutoff from 36 to 48 changes forces by less than 4.2e-15. Free-energy finite displacement agrees within 2.4e-12. The full Gaussian block has minimum eigenvalue greater than 0.53. Geometric scaling and the far-separation forces `-a^2/d^3` for grounded spheres and `-18 a^6/d^7` for isolated spheres are checked. The allowed minimum surface gap is 0.7, so every fitted radius remains nonoverlapping for every allowed separation.
+
+All 256 noisy fits pass calibration and radius recovery. The physical oracle's maximum hidden normalized error is below 0.00025; nominal hidden errors are 0.00021–0.00027. The source's smallest group error over those trials is 3.10, against the 0.04 gate. Scored forces have magnitudes 0.00085–0.0285 in the documented units, and all are nonzero. Both controls pass off-calibration dipole anchors. Local verification gives 7/7 for the oracle and 4 passes plus the three intended force failures for the source. Fixed instrumental uncertainty does not encode any noiseless response.
+
+This mechanism is distinct from the archived metal-plate-force task, which changed static magnetic screening. Here all higher electric multipoles are correct and the issue is individual conserved total charge. No model-evaluation difficulty is claimed before a frozen evaluation. Retaining the fluctuating-charge ensemble is a physical failure. A solver that identifies the charge constraint and then makes a multipole normalization, derivative, or coding error must be classified separately.
+
+The exact neutral instruction is retained, including permission to replace the implementation. The public README gives apparatus and measurement definitions without prescribing a projector, determinant correction, or numerical method. The ordinary image includes only the public README, model, calibration and public interface test. The optional hint, reference, true radius and author notes are private.
+
+Primary sources: [Fosco, Lombardo and Mazzitelli, grounded versus isolated conductors](https://arxiv.org/abs/1605.00720), and [Schoger and Ingold, classical force between Drude spheres](https://arxiv.org/abs/2009.14090). The exact equal-sphere capacitance sums and the fixed-charge correction follow the former; the prototype independently checks their agreement with spherical multipoles.
+
+From the stage root, run `python scripts/validate_isolated_spheres.py` with the pinned task dependencies. Add `--generate` only to intentionally regenerate both calibration copies. Reports are `results/isolated-spheres-r1-validation.json` and `results/isolated-spheres-r1-local-controls.json`. Root owns all Docker controls and model evaluations.

@@ -1,0 +1,105 @@
+--- before/model.py
++++ after/model.py
+@@ -1,44 +1,25 @@
+ import numpy as np
+-from scipy.linalg import expm
++from scipy.optimize import minimize_scalar
+ 
+ 
+-def flux_jacobian(energy, flux):
+-    flux = np.asarray(flux, dtype=float)
+-    magnitude = np.linalg.norm(flux)
+-    matrix = np.zeros((4, 4))
+-    matrix[0, 1] = 1.0
+-    if magnitude == 0.0:
+-        matrix[1, 0] = 1.0 / 3.0
+-        return matrix
+-    f = magnitude / energy
+-    direction = flux / magnitude
+-    s = np.sqrt(4.0 - 3.0 * f**2)
+-    denominator = 5.0 + 2.0 * s
+-    b = f**2 * (6.0 + 3.0 / (2.0 + s)) / denominator
+-    a = (1.0 - b) / 3.0
+-    derivative = (8.0*f*denominator + 6.0*f*(3.0+4.0*f**2)/s) / denominator**2
+-    tensor = np.outer(direction, direction)
+-    identity = np.eye(3)
+-    matrix[1:, 0] = ((a + f*derivative/2)*identity +
+-                     (b - 3*f*derivative/2)*tensor)[0, :]
+-    for j in range(3):
+-        axis = identity[:, j]
+-        column = derivative*direction[j]*(3*tensor-identity)/2
+-        column += f*(6+3/(2+s))/denominator * (
+-            np.outer(axis, direction) + np.outer(direction, axis) - 2*direction[j]*tensor)
+-        matrix[1:, 1+j] = column[0, :]
+-    return matrix
++def transport(experiment, absorption=0.0):
++    """Return the weak-response signal for one experiment.
+ 
+-
+-def transport(experiment):
++    A beam travelling in direction ``n`` samples the preparation at
++    ``x - n_x * time``.  Differentiating the preparation with respect to the
++    modulation parameter therefore gives the cosine phase below.  Absorption
++    contributes the same survival factor to every beam.
++    """
+     directions = np.asarray(experiment["directions"], dtype=float)
+     weights = np.asarray(experiment["weights"], dtype=float)
+-    amplitudes = weights * np.asarray(experiment["modulations"], dtype=float)
+-    matrix = flux_jacobian(float(np.sum(weights)), weights @ directions)
+-    initial = np.r_[np.sum(amplitudes), amplitudes @ directions]
+-    evolved = expm(-1j * experiment["wavenumber"] * experiment["time"] * matrix) @ initial
+-    phase = np.exp(1j * experiment["wavenumber"] * experiment["position"])
+-    return float(np.real(phase * evolved[0]))
++    modulations = np.asarray(experiment["modulations"], dtype=float)
++    wavenumber = float(experiment["wavenumber"])
++    time = float(experiment["time"])
++    position = float(experiment["position"])
++
++    phases = wavenumber * (position - directions[:, 0] * time)
++    response = np.sum(weights * modulations * np.cos(phases))
++    return float(np.exp(-float(absorption) * time) * response)
+ 
+ 
+ class Model:
+@@ -46,8 +27,38 @@
+         self.absorption = .25
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Implement calibration fitting.")
++        """Fit the common absorption rate using the calibration records."""
++        records = list(records)
++        if not records:
++            return self
++
++        # The calibration uncertainty is independent of the rate, so the
++        # Gaussian maximum-likelihood estimate is weighted least squares.
++        signals = np.asarray(
++            [transport(record["input"]) for record in records], dtype=float
++        )
++        observed = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        times = np.asarray(
++            [float(record["input"]["time"]) for record in records], dtype=float
++        )
++
++        def objective(absorption):
++            residual = (signals * np.exp(-absorption * times) - observed) / sigma
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(
++            objective,
++            bounds=(0.12, 0.45),
++            method="bounded",
++            options={"xatol": 1e-14},
++        )
++        self.absorption = float(np.clip(result.x, 0.12, 0.45))
++        return self
+ 
+     def predict(self, experiments):
+-        return np.asarray([transport(e) * np.exp(-self.absorption*e["time"])
+-                           for e in experiments], dtype=float)
++        """Return predictions in the same order as ``experiments``."""
++        return np.asarray(
++            [transport(experiment, self.absorption) for experiment in experiments],
++            dtype=float,
++        )

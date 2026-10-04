@@ -28,12 +28,17 @@ def main():
                         default=['oracle', 'shortcut', 'plain', 'hint'])
     parser.add_argument('--workers', type=int, default=2)
     parser.add_argument('--label', default='r1')
+    parser.add_argument('--task-root', type=Path, default=Path('tasks'),
+                        help='Parent of task directories, including staged candidates')
+    parser.add_argument('--control-root', type=Path, default=Path('scripts'),
+                        help='Directory containing completed shortcut models')
     args = parser.parse_args()
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
     directory = ROOT/'jobs'/f'matrix-{args.label}-{stamp}'
     directory.mkdir()
     lock = threading.Lock()
-    index = {'label':args.label, 'started':stamp, 'model':'gpt-5.6-luna', 'effort':'high', 'runs':[]}
+    index = {'label':args.label, 'started':stamp, 'model':'gpt-5.6-luna', 'effort':'high',
+             'task_root':str(args.task_root), 'control_root':str(args.control_root), 'runs':[]}
 
     def record(row):
         with lock:
@@ -43,11 +48,11 @@ def main():
     def task_runs(task):
         for condition in args.conditions:
             name = f'{task}-{args.label}-{condition}-{stamp}'
-            command = [sys.executable, 'scripts/run_science.py', f'tasks/{task}', '--job-name', name]
+            command = [sys.executable, 'scripts/run_science.py', str(args.task_root/task), '--job-name', name]
             if condition in ['oracle', 'shortcut']:
                 command += ['--agent', 'oracle', '--trials', '1', '--concurrency', '1']
                 if condition == 'shortcut':
-                    command += ['--solution-model', f'scripts/{task.replace("-", "_")}_baseline.py']
+                    command += ['--solution-model', str(args.control_root/f'{task.replace("-", "_")}_baseline.py')]
             else:
                 command += ['--model', 'gpt-5.6-luna', '--reasoning-effort', 'high', '--trials', '3', '--concurrency', '3']
                 if condition == 'hint':

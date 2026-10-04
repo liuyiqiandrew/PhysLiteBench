@@ -1,5 +1,7 @@
 # PhysLiteBench evaluation dashboard
 
+The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **3 of 10 currently qualify**: insulating-mhd-duct, magnetic-tracer and reaction-diffusion. The other seven require revision or replacement. [Current goal status](results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
+
 The fresh confirmation batch is complete: **6 of 10 tasks meet the at-most-1/3 pass cutoff**. There were **13 passes in 30 new unhinted Luna-high trials**. 3 tasks scored 0/3. Above cutoff: `electric-dipole-force` (3/3), `entropy-anomaly` (2/3), `spin-strain-response` (3/3), `superconducting-heat` (2/3).
 
 | Task | Fresh passes/trials | At most 1/3? |
@@ -18,6 +20,20 @@ The fresh confirmation batch is complete: **6 of 10 tasks meet the at-most-1/3 p
 These are three fresh trials per task on the retained revisions. The earlier 0/1 screening result for each task is kept separate. All 30 outcomes and prior revisions are retained; there was no outcome-dependent stopping, source revision or resampling during this batch. These observed counts do not establish population success probabilities.
 
 The current and frozen task files match the [batch plan](results/retained-three-r1-plan.json). All native sessions use `gpt-5.6-luna`, `high`, and Codex CLI 0.154.0, with the exact neutral task instruction and reviewed infrastructure inputs. Full counts, metrics, classifications and evidence are in [the fresh-batch report](results/retained-three-r1-results.json).
+
+## Current 0/3 hardening candidates
+
+These are new scientific revisions under the stricter target. Each gets Docker controls and exactly three fresh unhinted trials. A candidate is retained only after source/input checks and causal review; passing results remain recorded.
+
+| Candidate | Fresh passes/trials | Status |
+|---|---:|---|
+| radiative-angular-closure r1 | 3/3 | [Archived: three physical passes](results/zero-three-radiative-r1-results.json) |
+| prestrained-solid r1 | 2/3 | [Archived: two physical passes, one mixed failure](results/zero-three-prestrained-r1-results.json) |
+| hydrodynamic-heating r2 | 2/3 | [Archived: two physical passes, one physical failure](results/zero-three-hydro-r2-results.json) |
+| terminal-current-noise r1 | 3/3 | [Archived: three physical passes](results/zero-three-terminal-r1-results.json) |
+| ionic-current-loops r2 | 0/2; incomplete | [Two physical failures; one unstarted Docker setup failure](results/zero-three-ionic-r2-partial-review.json) |
+| poroelastic-relaxation r1 | untested | Scientific validation and independent peer review complete; ready for evaluation |
+| isolated-spheres r1 | untested | Scientific and local controls complete; final peer report pending |
 
 ## Prior conditional screen
 
