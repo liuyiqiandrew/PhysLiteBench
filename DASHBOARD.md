@@ -55,6 +55,9 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | gated-capture r1 | 3/3 | [Archived: three physical passes](results/zero-three-gated-r1-results.json) |
 | thermal-unsteady-sphere r1 | 3/3 | [Archived: three physical passes](results/zero-three-thermal-sphere-r1-results.json) |
 | fixed-trap-memory r1 | 3/3 | [Archived: three physical passes](results/zero-three-fixed-trap-r1-results.json) |
+| survivor-transport r1 | 2/3 | [Archived: 2 pass, 1 clean physical failure, 0 mixed failure](results/zero-three-survivor-r1-results.json) |
+| collisionless-screening r1 | Pending | [Frozen; controls and three trials running](results/zero-three-collisionless-r1-plan.json) |
+| waving-sheet r1 | Pending | [Frozen; controls and three trials running](results/zero-three-waving-r1-plan.json) |
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 

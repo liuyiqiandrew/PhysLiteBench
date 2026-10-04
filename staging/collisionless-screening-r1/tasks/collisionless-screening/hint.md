@@ -1,0 +1,1 @@
+The field is selected by the specified preparation in time. Derive the velocity response with a positive switch-on rate before taking that rate to zero, including the self-consistent field. Check what changes when particles can move with the drive's phase velocity.
