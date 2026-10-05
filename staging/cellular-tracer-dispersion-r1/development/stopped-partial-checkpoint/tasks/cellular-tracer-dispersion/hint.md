@@ -1,0 +1,1 @@
+The long-time Gaussian displacement law does not determine how a tracer samples the velocity over one spatial cell. Derive that sampling from the specified trajectory dynamics before computing the spreading coefficient.

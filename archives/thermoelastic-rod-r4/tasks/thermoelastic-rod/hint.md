@@ -1,0 +1,1 @@
+Use the Helmholtz free energy to obtain the entropy of the actual internal-strain state. Preserve uniform total axial stress, the fixed-separation constraint, and the stated internal relaxation when forming the reversible heat balance.

@@ -11,11 +11,13 @@ The five qualifying sources are frozen. The [current hardening plan](results/exi
 | magnetic-tracer r2 | 0/3 | 3 physical | Keep frozen |
 | reaction-diffusion r7 | 0/3 | 3 physical | Keep frozen |
 | single-file-memory r1 | 0/3 | 3 physical | Keep frozen |
-| rotating-reservoir r1 | 1/3 | 2 physical | Review the successful bath-relative power correction; test whether bath compliance adds a distinct energy-transfer mechanism |
-| thermoelastic-rod r3 | 1/3 | 2 physical | Review the successful uniform-stress reduction; assess material relaxation with an internal variable |
-| hydrodynamic-heating r1 | 1/3 | 2 physical | Compare all r1 and r2 successes/failures before choosing another revision |
-| entropy-anomaly r3 | 2/3 | 1 mixed physical/mathematical | After the first three families, review the magnetic-moment and r4 fluctuation solutions |
-| superconducting-heat r1 | 2/3 | 1 physical | After the first three families, identify a revision beyond the solved energy-dependent coherence factor |
+| rotating-reservoir r1 | 1/3 | 2 physical | r2 finished at 2/3 passes with one mixed failure; cellular-tracer replacement is frozen and queued under the documented family decision |
+| thermoelastic-rod r3 | 1/3 | 2 physical | r4 archived at 3/3 physical passes; complete the bounded family decision |
+| hydrodynamic-heating r1 | 1/3 | 2 physical | Frozen r3 controls passed as intended; its three unhinted trials are running |
+| entropy-anomaly r3 | 2/3 | 1 mixed physical/mathematical | After the first three family batches, evaluate the prepared pulse-displacement replacement under the documented exception |
+| superconducting-heat r1 | 2/3 | 1 physical | After the first three family batches, evaluate the prepared changing-path capture replacement under the documented exception |
+
+The [bounded family decisions](results/existing-family-replacement-decisions.json) preserve the successful entropy and superconducting solutions and explain why the reviewed incremental revisions are unlikely to help. They permit two already prepared replacement attempts after the three priority family batches; they do not establish that either family is impossible to harden or qualify either replacement.
 
 The earlier confirmation batch on the previous roster is complete: **6 of 10 tasks meet the at-most-1/3 pass cutoff**. There were **13 passes in 30 new unhinted Luna-high trials**. 3 tasks scored 0/3. Above cutoff: `electric-dipole-force` (3/3), `entropy-anomaly` (2/3), `spin-strain-response` (3/3), `superconducting-heat` (2/3).
 
@@ -80,10 +82,14 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | coherent-array r1 | 3/3 | [Archived: three physical passes; no exceptions or replacement attempts](results/zero-three-coherent-r1-results.json) |
 | finite-chain-clamp r1 | 3/3 | [Archived: three physical passes; three unstarted setup failures preserved](results/zero-three-chain-r1-results.json) |
 | deforming-crystal-current r1 | 1/3 | [Archived: one physical pass, two physical failures; no exceptions or replacement attempts](results/zero-three-deforming-crystal-r1-results.json) |
-| pulse-block-displacement r1 | Not run | [Scientifically reviewed and frozen; deferred under existing-family priority](results/zero-three-pulse-block-r1-plan.json) |
-| adiabatic-capture r2 | Not run | [Scientifically reviewed and frozen; deferred under existing-family priority](results/zero-three-adiabatic-r2-plan.json) |
+| rotating-reservoir r2 | 2/3 | [Archived: two physical passes, one mixed failure; no clean physical failures](results/zero-three-rotating-r2-results.json) |
+| thermoelastic-rod r4 | 3/3 | [Archived: three physical passes; one unstarted DNS failure and its exact replacement preserved](results/zero-three-rod-r4-results.json) |
+| hydrodynamic-heating r3 | In progress | [Oracle 7/7; shortcut 4 passes and 3 intended failures; first plain trial passed, two remain, trajectory review pending](results/zero-three-hydro-r3-launch-review.json) |
+| pulse-block-displacement r1 | Not run | [Frozen; entropy replacement candidate after the three priority family batches](results/zero-three-pulse-block-r1-plan.json) |
+| adiabatic-capture r2 | Not run | [Frozen; superconducting replacement candidate after the three priority family batches](results/zero-three-adiabatic-r2-plan.json) |
+| cellular-tracer-dispersion r1 | Not run | [Science and independent input review complete; frozen behind rod, hydro, pulse and adiabatic](results/zero-three-cellular-r1-plan.json) |
 
-The cellular-tracer bounded prototype and its incomplete package are preserved in staging. Construction stopped when the priority changed; neither has a model difficulty result. Further replacement work requires the family review described above.
+The [rotating-family decision](results/rotating-family-replacement-decision.json) supports the existing cellular-tracer package after review of both successful thermostat models and the mixed failure. Its earlier checkpoint is preserved. Scientific validation, independent peer review and the [frozen evaluation plan](results/zero-three-cellular-r1-plan.json) are complete; it has no model difficulty result. This decision does not authorize an unrelated candidate search.
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
