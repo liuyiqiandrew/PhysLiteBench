@@ -2,6 +2,8 @@
 
 The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **5 of 10 currently qualify**: finite-layer-phoresis, insulating-mhd-duct, magnetic-tracer, reaction-diffusion and single-file-memory. The other five require revision or replacement. [Current goal status](../results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
 
+The [existing-family hardening plan](../results/existing-family-hardening-plan.json) freezes the five qualifying sources and prioritizes rotating reservoir, thermoelastic rod and hydrodynamic heating, followed by entropy anomaly and superconducting heat. Review successful as well as failed trajectories before revising the physics. A replacement requires a documented explanation of why further hardening of the existing family is unlikely to help. Every revision still needs scientific validation, frozen inputs/grading and exactly three fresh unhinted trials; unfinished candidates and single-run failures do not count toward the ten.
+
 PhysLiteBench tests whether a coding agent revises a physical approximation that fits calibration but fails elsewhere in the stated apparatus. The previous roster was selected through a conditional screen with one reviewed physical failure per task (0/1). The current roster substitutes the source-matched phoresis revision 2 and single-file revision 1, each evaluated at 0/3 completed trials with separate infrastructure accounting. A separate fresh three-trial confirmation found 6 of ten at or below one pass; [the dashboard](../DASHBOARD.md) separates both batches from archived scores.
 
 ## Agent task
@@ -42,6 +44,8 @@ Single-file revision 1 has zero passes in three completed trials across four att
 Pinned setup: Python 3.13, Harbor 0.21.0, Codex CLI 0.154.0, NumPy 2.3.3, SciPy 1.16.3 and pytest 8.4.2 in new task images. The agent/verifier timeouts are 600/60 seconds. Authentication remains outside the repository.
 
 The optional `--agent-setup-timeout-multiplier` extends tool installation time only. It leaves the default behavior, task files, model settings and 600/60-second solving/grading limits unchanged; matrix controls do not receive it. After six unstarted adiabatic setup failures, the [setup-budget plan](../results/zero-three-adiabatic-coherent-setup-budget-plan.json) predeclares three replacements and the first coherent-array batch with multiplier 3 (1080 seconds for setup). All prior null outcomes remain recorded, and no completed score is replaced.
+
+Those batches are complete: [adiabatic r1](../results/zero-three-adiabatic-r1-results.json) passed 3/3, including one saved passing model with a scored 600-second execution timeout; [coherent-array r1](../results/zero-three-coherent-r1-results.json) passed 3/3 without exceptions. Both are archived. The adiabatic timeout remains a scored outcome and was not replaced.
 
 Scientific validators run independently of agent trials:
 

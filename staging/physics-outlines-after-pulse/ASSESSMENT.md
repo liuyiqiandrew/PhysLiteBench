@@ -1,0 +1,31 @@
+# Two backup outlines after the pulse package
+
+These are private, bounded outlines. No task harness, model evaluation or scientific program was created here. Root approved only a separate cellular-tracer feasibility prototype after reading the proposals. The actual nearby sources and outcomes are hashed in assessment.json.
+
+## Cellular tracer dispersion — prototype next
+
+Dilute point tracers move in an externally maintained incompressible periodic liquid, with velocity u=(A sin(y), B sin(x)) in length/time units where the period is 2 pi. Molecular diffusivity D is the only unknown. The laboratory trajectories are unwrapped, the initial phase is uniform in a period cell, and the readout is the long-time displacement variance divided by twice elapsed time. There is no loss, wall capture, selection or tracer feedback.
+
+The completed approximation samples the entire velocity field along a molecular Brownian trajectory and integrates that sampled velocity into the recorded displacement. It is an exact, positive alternative stochastic process, with full finite-time velocity covariance and nonzero Taylor enhancement. Its asymptotic tensor is diag(D+A^2/(2D), D+B^2/(2D)). In a shear, the actual coordinate that samples the velocity is itself Brownian, so the approximation is exact even for nonzero flow. Several nonzero shear amplitudes identify D globally: the difference of their longitudinal diffusivities is a known nonzero constant divided by D. Orthogonal shear preparations can exercise both components.
+
+With both amplitudes active, transport changes the coordinates at which subsequent velocity is sampled. Closed cellular streamlines and inter-cell transport are absent from the completed approximation. A Fourier stationary corrector can supply an oracle; an independent positive real-space jump discretization with winding-count moments and grid/time refinement can supply a practical reference. Finite-time moment propagation should establish convergence without treating noisy particle simulations as exact. A bounded prototype must retain weak fields and non-cellular unequal-amplitude cases as well as strong examples, and quantify ordinary positive signals before proposing a task.
+
+The earlier tube-dispersion source simply discarded all shear-history variance and was solved3/3. This source retains that physics and calibrates it exactly. Driven-diffusion was also solved3/3 and instead used an equilibrium mobility relation under finite drive. Survivor transport scored2/3 and concerns survival conditioning; this apparatus keeps every tracer. These are genuine new dynamics, but shared tracer-transport background is substantial. The omitted feedback may still be easy to recognize from the stated SDE. No difficulty claim follows from a possible large diffusivity gap.
+
+Primary context: [Majda and Kramer](https://mhd.ens.fr/IHP09/Young/Biblio/MajdaKramer.pdf), sections2.1–2.2, relate periodic-flow transport to cell problems and distinguish shear from cellular geometry. The specific Brownian-sampling approximation and proposed calibration are independently defined here.
+
+## Collective cyclic work extraction — reserve
+
+Two isolated qutrits have initial/final Hamiltonian H=g diag(0,1,3) on each copy. The unknown positive scale g lies in [.8,1.2] energy units. A classical preparation makes a specified product density matrix, followed by known local rotations. During extraction an ideal coherent work controller can implement arbitrary joint interactions; its added Hamiltonian vanishes at both endpoints. No bath, measurement, feedback, ancillary system or residual coupling is available. Measure the maximum mean energy delivered to the work controller, not its fluctuations or the energy cost of preparation.
+
+The source computes the exact initial density matrices, energy and separately optimal cyclic extraction from each qutrit, then sums them. That is a complete local-control approximation. Calibration uses identical Gibbs eigenvalue lists proportional to exp[-a(0,1,3)], with varied a and nonzero local rotations. Undoing the rotations leaves a product Gibbs state, so local and joint extraction agree exactly. Every positive calibration reading is g times a known coefficient, giving global identifiability.
+
+For a concrete hidden preparation, each qutrit has eigenvalues(.55,.25,.20), followed by a0–1 rotation of .4radians. Separate extraction gives .090988g. After local unrotation, joint populations .11 and .0625 occupy energies3g and2g; exchanging them supplies another .0475g. The joint answer is .138488g, an ordinary positive signal with a34.3% local-approximation gap. A nine-state permutation enumeration or explicit admissible pulse construction can independently certify the optimum against the spectral-rearrangement oracle. These are hand-derived values, not a bounded-domain validation.
+
+This is a substantive extension of the previously unevaluated single-copy work reserve: that older outline compared an entropy-only Gibbs bound with exact unitary reachability. Here both calculations respect the unitary spectrum but optimize different physical control classes. The archived quantum-work r2, solved3/3, concerns two energy records versus an energy-change operator; it does not optimize extraction. Nevertheless, explicit joint controllability may immediately reveal the required global optimization. The public task would need that fact for fairness and must not hide it to increase difficulty. Physics review found no conceptual blocker, but no final source or numerical peer exists.
+
+Primary context: [Allahverdyan, Balian and Nieuwenhuizen](https://arxiv.org/pdf/cond-mat/0401574) define cyclic isolated work and its finite-system constraint; [Alicki and Fannes](https://arxiv.org/pdf/1211.1209) distinguish joint and separate extraction. The chosen positive example and calibration are our construction. No requirement of transient entanglement is claimed.
+
+## Probes not pursued
+
+Shuttleworth surface stress is already a rejected near-overlap in the deforming-crystal assessment. Effusive/Knudsen flux weighting repeats an older evaluated task. Magnetic double-adiabatic pressure repeats plasma-compression. The earlier odd-pressure proposal retains its zero/unused-control weakness. None is being renamed into a new family.

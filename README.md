@@ -2,6 +2,8 @@
 
 The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **5 of 10 currently qualify**: finite-layer-phoresis, insulating-mhd-duct, magnetic-tracer, reaction-diffusion and single-file-memory. The other five require revision or replacement. Phoresis and single-file each scored 0/3 completed trials. Their infrastructure attempts are preserved separately: three for phoresis and one unstarted setup failure for single-file. [Current goal status](results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
 
+The five qualifying tasks stay frozen. Work now prioritizes hardening rotating reservoir, thermoelastic rod and hydrodynamic heating, then entropy anomaly and superconducting heat. Passing and failing trajectories guide each scientific revision. Replacements require a documented review explaining why further hardening is unlikely to help. See the [hardening plan](results/existing-family-hardening-plan.json) and [current per-task status](DASHBOARD.md).
+
 A lightweight benchmark for physical reasoning in scientific code. Each task supplies an apparatus, calibration data, and a predictor with an unfinished fit. The supplied physical approximation fits calibration but fails on another allowed preparation. A successful agent must check the physical model as well as fit the numbers.
 
 All active tasks use a neutral instruction that explicitly permits replacing any prediction function or helper while preserving the documented API. The previous ten-task 0/3 result belongs to the archived instructions; it is not a result for the current sources.

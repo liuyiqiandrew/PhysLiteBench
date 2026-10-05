@@ -2,6 +2,21 @@
 
 The active target is now **ten tasks at 0/3 each** in unhinted Luna-high trials, with predominantly physical-model failures. **5 of 10 currently qualify**: finite-layer-phoresis, insulating-mhd-duct, magnetic-tracer, reaction-diffusion and single-file-memory. The other five require revision or replacement. [Current goal status](results/zero-three-goal-status.json) records source checks and the stricter protocol; the completed batches below remain historical evidence.
 
+The five qualifying sources are frozen. The [current hardening plan](results/existing-family-hardening-plan.json) prioritizes the existing families below. A replacement requires a documented review explaining why further hardening of that family is unlikely to help. Single-run failures and unfinished candidates do not increase the qualifying count.
+
+| Current task | Fresh passes | Reviewed failures | Next step |
+|---|---:|---|---|
+| finite-layer-phoresis r2 | 0/3 | 3 physical | Keep frozen |
+| insulating-mhd-duct r2 | 0/3 | 3 physical | Keep frozen |
+| magnetic-tracer r2 | 0/3 | 3 physical | Keep frozen |
+| reaction-diffusion r7 | 0/3 | 3 physical | Keep frozen |
+| single-file-memory r1 | 0/3 | 3 physical | Keep frozen |
+| rotating-reservoir r1 | 1/3 | 2 physical | Review the successful bath-relative power correction; test whether bath compliance adds a distinct energy-transfer mechanism |
+| thermoelastic-rod r3 | 1/3 | 2 physical | Review the successful uniform-stress reduction; assess material relaxation with an internal variable |
+| hydrodynamic-heating r1 | 1/3 | 2 physical | Compare all r1 and r2 successes/failures before choosing another revision |
+| entropy-anomaly r3 | 2/3 | 1 mixed physical/mathematical | After the first three families, review the magnetic-moment and r4 fluctuation solutions |
+| superconducting-heat r1 | 2/3 | 1 physical | After the first three families, identify a revision beyond the solved energy-dependent coherence factor |
+
 The earlier confirmation batch on the previous roster is complete: **6 of 10 tasks meet the at-most-1/3 pass cutoff**. There were **13 passes in 30 new unhinted Luna-high trials**. 3 tasks scored 0/3. Above cutoff: `electric-dipole-force` (3/3), `entropy-anomaly` (2/3), `spin-strain-response` (3/3), `superconducting-heat` (2/3).
 
 | Task | Fresh passes/trials | At most 1/3? |
@@ -61,11 +76,14 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | chemical-route-power r1 | 3/3 | [Archived: three physical passes](results/zero-three-chemical-route-r1-results.json) |
 | fixed-number-band r1 | 3/3 | [Archived: 3 pass, 0 clean physical failure, 0 mixed failure](results/zero-three-band-r1-results.json) |
 | waving-sheet r2 | 1/3 | [Archived: 1 pass, 1 clean physical failure, 1 mixed failure](results/zero-three-waving-r2-results.json) |
-| adiabatic-capture r1 | Pending | [Six unstarted setup failures preserved; three replacements running with reviewed setup allowance](results/zero-three-adiabatic-coherent-setup-budget-plan.json) |
-| coherent-array r1 | Pending | [Science and input review complete; frozen serial evaluation plan](results/zero-three-coherent-r1-plan.json) |
+| adiabatic-capture r1 | 3/3 | [Archived: three physical passes, one with a scored execution timeout; six unstarted setup failures preserved](results/zero-three-adiabatic-r1-results.json) |
+| coherent-array r1 | 3/3 | [Archived: three physical passes; no exceptions or replacement attempts](results/zero-three-coherent-r1-results.json) |
 | finite-chain-clamp r1 | 3/3 | [Archived: three physical passes; three unstarted setup failures preserved](results/zero-three-chain-r1-results.json) |
+| deforming-crystal-current r1 | Pending | [Preexisting frozen three-trial batch running; finish and classify every outcome](results/zero-three-deforming-crystal-r1-plan.json) |
+| pulse-block-displacement r1 | Not run | [Scientifically reviewed and frozen; deferred under existing-family priority](results/zero-three-pulse-block-r1-plan.json) |
+| adiabatic-capture r2 | Not run | [Scientifically reviewed and frozen; deferred under existing-family priority](results/zero-three-adiabatic-r2-plan.json) |
 
-The [deforming-crystal current prototype](results/zero-three-deforming-crystal-feasibility-source-review.json) passed bounded scientific and input review. Its full task is under construction; no model difficulty result is available.
+The cellular-tracer bounded prototype and its incomplete package are preserved in staging. Construction stopped when the priority changed; neither has a model difficulty result. Further replacement work requires the family review described above.
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
