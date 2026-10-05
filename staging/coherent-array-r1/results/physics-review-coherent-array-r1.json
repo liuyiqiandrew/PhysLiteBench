@@ -1,0 +1,120 @@
+{
+  "status": "approved_final_source_input_science_and_hash_review",
+  "reviewer": "physics_review",
+  "reviewed_at_utc": "2026-10-05T01:52:20.828477+00:00",
+  "scope": "Independent read of actual public starter/specification, completed control, physical oracle, independent reference, grading, validator, AUTHOR and existing reports. Hash/data/AST checks only; no new scientific sweep, Docker run or model evaluation.",
+  "blockers": [],
+  "provenance": {
+    "path": "staging/coherent-array-r1/results/coherent-array-r1-source-provenance.json",
+    "sha256": "3a2df295fa6567da2b0a8c2760c0cb60c65fd965c2033cac93f4419bd004e24f",
+    "verified_payload_count": 31,
+    "source_count": 18,
+    "report_count": 4,
+    "prototype_count": 9,
+    "nested_manifests": {
+      "prototype/author-manifest.json": {
+        "sha256": "43c73395af09d6ea9b3fcbb7792152face974fd9debef4404aa7d3fcf88c62d8",
+        "payloads_verified": 5
+      },
+      "prototype/manifest.json": {
+        "sha256": "f4479d140fa3ba7805212c69bf0bbbfe013e5fbc0b07d7ca1cef92c09f199b29",
+        "payloads_verified": 8
+      }
+    }
+  },
+  "physics_findings": [
+    "The positive pinned Hessian, independent force-noise covariance .8*T and damping .4 give the declared stationary Gibbs OU process. The baths stay active during observation, so the mixing/plateau interpretation is physically valid.",
+    "The phase-stable two-quadrature heterodyne readout fixes the real field correlation, the sign of pair phases and the 1/5 normalization. Its mean field is explicitly included; no intensity reconstruction assumption is required.",
+    "The exact Gaussian pair characteristic is exp[-q^2*(Cii+Cjj-2*Cij(t))/2]. The oracle retains the full cross-particle covariance with the correct damped modal factor.",
+    "The completed source preserves exact static, tagged-particle and mean-field contributions, but assigns normalized connected self relaxation to the collective covariance. This is a coherent physical closure rather than a malformed modal calculation. A positive multiple of the connected self kernel plus the exact nonnegative plateau remains a stationary covariance kernel.",
+    "The independent reference constructs the full 10D drift/noise, solves its Lyapunov equation and matrix exponential, then integrates each observed field pair by 2D Gauss-Hermite quadrature. The physical Hessian and Gaussian model are necessarily shared; the scalar modal response and exponential-of-pair-variance readout formula are not reused.",
+    "At coupled equal-time reciprocal-wavevector settings every pair phase is positive and the static response is strictly increasing in K. This proves global calibration injectivity; .817827 is correctly described only as a sampled derivative minimum. Uncoupled finite-delay calibration also agrees exactly."
+  ],
+  "input_and_grading": {
+    "neutral_instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "neutral_instruction_bytes": 318,
+    "replacement_permission": "Every implementation/helper may be replaced; only API and required outputs are fixed.",
+    "public_boundary": "Docker copies public README, starter, public test and calibration only. Hint, AUTHOR, oracle, private truth, verifier and reports are outside the public image.",
+    "constructor": "stiffness=None in starter and completed controls; private truth is not initialized publicly.",
+    "calibration": {
+      "records": 288,
+      "unique_settings": 9,
+      "repetitions_each": 32,
+      "fixed_sigma": 0.003,
+      "public_private_byte_identical": true
+    },
+    "source_completed_control_forward_ast_identical": true,
+    "prediction_limit": 0.04,
+    "parameter_limit": 0.03,
+    "calibration_chi2_limit": 1.5,
+    "runtime_limits_seconds": {
+      "agent": 600,
+      "verifier": 60
+    },
+    "apparatus_sufficiency": "Classical potential, active bath, stationary preparation, full field measurement, normalization, units and full domains are explicit. No diagnostic correction formula or required solver is in the public README.",
+    "pre_freeze_change": "Only K units wording was clarified to E0/L0^2 after numerical validation. Existing report/history retain old/new README hashes; no science/data/grading change or rerun is claimed."
+  },
+  "existing_evidence_review": {
+    "noise_trials": 256,
+    "all_expected_outcomes": true,
+    "max_noisy_oracle_relative_error": 0.000800433628088125,
+    "min_noisy_shortcut_relative_error": 0.14871715836815116,
+    "actual_shortcut_diagnostic_errors": {
+      "temperature_0.04": 0.14904009157744594,
+      "temperature_0.08": 0.29000447729161055,
+      "temperature_0.12": 0.40714030678683727
+    },
+    "domain_cases": 784,
+    "max_reference_absolute_error": 8.831775453110521e-12,
+    "max_reference_refinement": 8.831227876803308e-12,
+    "minimum_scored_absolute_signal": 0.32300819280584414,
+    "noiseless_parameter_samples": 41,
+    "max_parameter_recovery_absolute_error": 6.794431017809188e-09,
+    "limits": "Equal-time/uncoupled equivalence, wavevector reflection, positive connected variance, stationary Lyapunov balance, equipartition, bath power balance and mixing plateau are consistent with actual code and reported results.",
+    "local_controls": {
+      "oracle": "7 passed, .431824 s",
+      "shortcut": "4 passed and 3 intended diagnostic failures, .435549 s"
+    },
+    "qualification": "Structured/random domain and parameter-grid checks are bounded numerical evidence, not exhaustive interval proofs; no agent difficulty is inferred before model trials."
+  },
+  "history_and_classification": {
+    "preserved": "Original undamped plateau idea, uncorrected Vineyard values, broad prototype screen and prior overlap audit remain in copied prototype payloads.",
+    "overlap": "Shares normal-mode/correlation themes with earlier tasks, but this stationary coherent-versus-self relaxation closure is different. The plateau extension is authored here and is not attributed to Vineyard.",
+    "future_trials": "Retaining the self-relaxation closure can be a physical-model failure. A correct collective covariance attempt with Gaussian, modal, indexing or normalization mistakes must instead be classified as mathematical/implementation or mixed from its full emitted trajectory."
+  },
+  "verified_payload_sha256": {
+    "scripts/coherent_array_baseline.py": "edec16ac7e3152eedc6618c0c35110916d932f115c389f9f57a6c8f53faa12d6",
+    "scripts/validate_coherent_array.py": "948ce7fdd9f2138ba3a19cf73bae4312761274f914a3cb0167f560cfaf6a7e34",
+    "tasks/coherent-array/AUTHOR.md": "b65c7c6d41be910a89994e1f16a6c3e55b1988d12ed8e6f7a658fc562251b961",
+    "tasks/coherent-array/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/coherent-array/environment/README.md": "169bee0aa388665ac945470f2d3eea77e4ae12595d0cb6ef5c5dd7779247a775",
+    "tasks/coherent-array/environment/data/calibration.json": "17ca6371451109915e45e182aa11692ac60f8776c9888290e2f7e4fb23e24c58",
+    "tasks/coherent-array/environment/model.py": "daa8ba26913f267568ddabf7bd17dc8f11f024db0d9db0bfa7172e7e8c14217a",
+    "tasks/coherent-array/environment/test_public.py": "774303f187401323535b01cbab5a148a4a88f4320650adeecd6925665710a999",
+    "tasks/coherent-array/hint.md": "963718368afb07399f0265af3ae6177f33ce55a7985ea7d07df01fda7adcc2d1",
+    "tasks/coherent-array/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/coherent-array/solution/model.py": "15f1d910aec6a57bb75652245ad87967bb759a74925fb09cf218b5b92d414950",
+    "tasks/coherent-array/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+    "tasks/coherent-array/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/coherent-array/tests/data/calibration.json": "17ca6371451109915e45e182aa11692ac60f8776c9888290e2f7e4fb23e24c58",
+    "tasks/coherent-array/tests/metadata.json": "70d2381a654c024e4e9276917f3d3e5b5f87274abbeefc5dc2726b2cac83c6be",
+    "tasks/coherent-array/tests/reference.py": "bca42b10090bf7a5229a3656ecfc2b4244d83010693a4bfe5e2688adac898e4f",
+    "tasks/coherent-array/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+    "tasks/coherent-array/tests/test_hidden.py": "6b481df5a5deeed9711eba44c2081b33e1e8cadc836f8ec1ecf80e0ec99be0fe",
+    "results/coherent-array-r1-history.json": "7bffc24d4bc9af37c6b4f4137d59e67df05d2376407c5f688d804b5bc97fe7c3",
+    "results/coherent-array-r1-input-audit.json": "dcb3e4b91307e3a80c18f74cc9951007949ab6a46a4f98c6753752bde3a1d07e",
+    "results/coherent-array-r1-local-controls.json": "d0d6bf31b41d2d4ef3e6f291e1f4d0005788a95e3db4ee06113b644d54147be3",
+    "results/coherent-array-r1-validation.json": "4123aafa38274a15c8b567b6695e6babc4466f78a561d5d9a6e4f5ec49b3b1bf",
+    "prototype/archive-audit.json": "a42daf5b001fbb4707d5ce4dadf9062e092bb3c180e9b38fef36d5bd981ea399",
+    "prototype/assessment.json": "91b1b459f162c9a8cb6ccb016ca6d4b59fbecf97afa61fcb5ce830f3f128d0ad",
+    "prototype/author-manifest.json": "43c73395af09d6ea9b3fcbb7792152face974fd9debef4404aa7d3fcf88c62d8",
+    "prototype/check.py": "cdc12e41c298605347b7ef494a67a739f01b6a9d79613c5968064a75cd952eb2",
+    "prototype/input-outline.json": "90d27bfa4a2d6e5329d5475f0bfc608d4d2661803abe44276c18b24138ceffa5",
+    "prototype/manifest.json": "f4479d140fa3ba7805212c69bf0bbbfe013e5fbc0b07d7ca1cef92c09f199b29",
+    "prototype/physics-review.json": "dd72b756af08e7b16b772ff73bc802b47dd8f2a04112eff9dcd1d56ab429dfbe",
+    "prototype/report.json": "09ba5f3d19873d7819ed05def02b8e7014f23e62326c82f91a39b3618d2d834f",
+    "prototype/review-followup.json": "289907c441802c5efdcaa802fdf92ecc99e31267e4502600338987fa060f13cb"
+  },
+  "review_modified_task_or_scientific_sources": false,
+  "new_scientific_or_model_runs": 0
+}

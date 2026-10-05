@@ -27,12 +27,16 @@ def main():
     parser.add_argument('--conditions', nargs='+', choices=['oracle', 'shortcut', 'plain', 'hint'],
                         default=['oracle', 'shortcut', 'plain', 'hint'])
     parser.add_argument('--workers', type=int, default=2)
+    parser.add_argument('--trial-concurrency', type=int, default=3,
+                        help='Concurrent model trials per task; trial count remains three')
     parser.add_argument('--label', default='r1')
     parser.add_argument('--task-root', type=Path, default=Path('tasks'),
                         help='Parent of task directories, including staged candidates')
     parser.add_argument('--control-root', type=Path, default=Path('scripts'),
                         help='Directory containing completed shortcut models')
     args = parser.parse_args()
+    if args.trial_concurrency < 1:
+        parser.error('--trial-concurrency must be positive')
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
     directory = ROOT/'jobs'/f'matrix-{args.label}-{stamp}'
     directory.mkdir()
@@ -54,7 +58,8 @@ def main():
                 if condition == 'shortcut':
                     command += ['--solution-model', str(args.control_root/f'{task.replace("-", "_")}_baseline.py')]
             else:
-                command += ['--model', 'gpt-5.6-luna', '--reasoning-effort', 'high', '--trials', '3', '--concurrency', '3']
+                command += ['--model', 'gpt-5.6-luna', '--reasoning-effort', 'high', '--trials', '3',
+                            '--concurrency', str(min(args.trial_concurrency, 3))]
                 if condition == 'hint':
                     command.append('--hint')
             print(f'START {task} {condition}: {name}', flush=True)
