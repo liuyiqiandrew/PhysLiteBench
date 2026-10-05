@@ -84,7 +84,7 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | deforming-crystal-current r1 | 1/3 | [Archived: one physical pass, two physical failures; no exceptions or replacement attempts](results/zero-three-deforming-crystal-r1-results.json) |
 | rotating-reservoir r2 | 2/3 | [Archived: two physical passes, one mixed failure; no clean physical failures](results/zero-three-rotating-r2-results.json) |
 | thermoelastic-rod r4 | 3/3 | [Archived: three physical passes; one unstarted DNS failure and its exact replacement preserved](results/zero-three-rod-r4-results.json) |
-| hydrodynamic-heating r3 | In progress | [Oracle 7/7; shortcut 4 passes and 3 intended failures; first plain trial passed, two remain, trajectory review pending](results/zero-three-hydro-r3-launch-review.json) |
+| hydrodynamic-heating r3 | In progress | [Oracle 7/7; shortcut 4 passes and 3 intended failures; first plain trial is a reviewed physical pass, two remain](results/zero-three-hydro-r3-launch-review.json) |
 | pulse-block-displacement r1 | Not run | [Frozen; entropy replacement candidate after the three priority family batches](results/zero-three-pulse-block-r1-plan.json) |
 | adiabatic-capture r2 | Not run | [Frozen; superconducting replacement candidate after the three priority family batches](results/zero-three-adiabatic-r2-plan.json) |
 | cellular-tracer-dispersion r1 | Not run | [Science and independent input review complete; frozen behind rod, hydro, pulse and adiabatic](results/zero-three-cellular-r1-plan.json) |
