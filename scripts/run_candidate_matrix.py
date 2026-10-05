@@ -3,6 +3,7 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import json
+import math
 from pathlib import Path
 import subprocess
 import sys
@@ -29,6 +30,8 @@ def main():
     parser.add_argument('--workers', type=int, default=2)
     parser.add_argument('--trial-concurrency', type=int, default=3,
                         help='Concurrent model trials per task; trial count remains three')
+    parser.add_argument('--agent-setup-timeout-multiplier', type=float, default=None,
+                        help='Multiply Codex setup timeout for model trials only; controls remain unchanged')
     parser.add_argument('--label', default='r1')
     parser.add_argument('--task-root', type=Path, default=Path('tasks'),
                         help='Parent of task directories, including staged candidates')
@@ -37,6 +40,10 @@ def main():
     args = parser.parse_args()
     if args.trial_concurrency < 1:
         parser.error('--trial-concurrency must be positive')
+    if args.agent_setup_timeout_multiplier is not None and (
+        not math.isfinite(args.agent_setup_timeout_multiplier) or args.agent_setup_timeout_multiplier <= 0
+    ):
+        parser.error('--agent-setup-timeout-multiplier must be positive and finite')
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
     directory = ROOT/'jobs'/f'matrix-{args.label}-{stamp}'
     directory.mkdir()
@@ -62,6 +69,8 @@ def main():
                             '--concurrency', str(min(args.trial_concurrency, 3))]
                 if condition == 'hint':
                     command.append('--hint')
+                if args.agent_setup_timeout_multiplier is not None:
+                    command += ['--agent-setup-timeout-multiplier', str(args.agent_setup_timeout_multiplier)]
             print(f'START {task} {condition}: {name}', flush=True)
             with (directory/f'{task}-{condition}.log').open('w') as log:
                 process = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)

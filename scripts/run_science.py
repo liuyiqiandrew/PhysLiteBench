@@ -3,6 +3,7 @@ import argparse
 from datetime import datetime, timezone
 import difflib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -43,12 +44,18 @@ def main():
     parser.add_argument("--concurrency", type=int, default=3)
     parser.add_argument("--model", default="gpt-5.6-luna", help="Codex model ID")
     parser.add_argument("--reasoning-effort", choices=("low", "medium", "high"), default="high")
+    parser.add_argument("--agent-setup-timeout-multiplier", type=float, default=None,
+                        help="Multiply Codex setup timeout only; leave execution and verifier limits unchanged")
     parser.add_argument("--job-name")
     parser.add_argument("--hint", action="store_true", help="Append the task's author-owned physics hint to the instruction")
     args = parser.parse_args()
     source = args.task.resolve()
     if args.trials < 1 or args.concurrency < 1:
         parser.error("trials and concurrency must be positive")
+    if args.agent_setup_timeout_multiplier is not None and (
+        not math.isfinite(args.agent_setup_timeout_multiplier) or args.agent_setup_timeout_multiplier <= 0
+    ):
+        parser.error("--agent-setup-timeout-multiplier must be positive and finite")
     if args.solution_model and args.agent != "oracle":
         parser.error("--solution-model requires --agent oracle")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -77,6 +84,8 @@ def main():
             command += ["-m", args.model, "--ak", "version=0.154.0",
                         "--ak", f"reasoning_effort={args.reasoning_effort}",
                         "--ae", f"CODEX_AUTH_JSON_PATH={auth}"]
+            if args.agent_setup_timeout_multiplier is not None:
+                command += ["--agent-setup-timeout-multiplier", str(args.agent_setup_timeout_multiplier)]
         if sys.platform == "darwin" and shutil.which("caffeinate"):
             command = ["caffeinate", "-i", *command]
         started = datetime.now(timezone.utc)

@@ -41,6 +41,8 @@ Single-file revision 1 has zero passes in three completed trials across four att
 
 Pinned setup: Python 3.13, Harbor 0.21.0, Codex CLI 0.154.0, NumPy 2.3.3, SciPy 1.16.3 and pytest 8.4.2 in new task images. The agent/verifier timeouts are 600/60 seconds. Authentication remains outside the repository.
 
+The optional `--agent-setup-timeout-multiplier` extends tool installation time only. It leaves the default behavior, task files, model settings and 600/60-second solving/grading limits unchanged; matrix controls do not receive it. After six unstarted adiabatic setup failures, the [setup-budget plan](../results/zero-three-adiabatic-coherent-setup-budget-plan.json) predeclares three replacements and the first coherent-array batch with multiplier 3 (1080 seconds for setup). All prior null outcomes remain recorded, and no completed score is replaced.
+
 Scientific validators run independently of agent trials:
 
 ```bash
