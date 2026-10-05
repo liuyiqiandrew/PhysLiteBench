@@ -1,0 +1,132 @@
+{
+  "status": "bounded_feasibility_ready_for_root_review_no_task_package",
+  "topic": "finite-chain-clamp",
+  "model_evaluations": 0,
+  "canonical_changes": false,
+  "apparatus": [
+    "A dilute single chain in three dimensions has N+1 classical point beads; bead 0 is pinned at the origin. There is no bending energy, excluded volume, other interparticle interaction or background flow.",
+    "Adjacent beads have identical isotropic central spring potentials k_s*(|r_j-r_(j-1)|-b)^2/2. The same unknown rest length b applies to all preparations.",
+    "At each finite spring stiffness the full Cartesian canonical equilibrium is established with an ordinary heat reservoir at T. Readouts then take k_s to infinity at fixed finite N,b,T and other controls. This fixes the configurational angular measure without invoking an exactly constrained kinetic Hamiltonian.",
+    "In force mode a known constant force F in +x acts on the last bead through potential -F*x_N; measure its equilibrium mean x-coordinate.",
+    "In clamp mode the last bead has potential K*(x_N-X)^2/2, with y_N and z_N free. Measure the signed mean +x force K*(X-x_N) exerted by the clamp on the chain. Equilibrate for finite k_s,K, first take k_s to infinity at fixed K, then take K to infinity at fixed X. No separate endpoint position or radial constraint is present."
+  ],
+  "units": {
+    "length": "fixed L0 (for example one nanometer)",
+    "energy": "fixed E0",
+    "temperature": "T=k_B*T_physical/E0",
+    "force": "E0/L0",
+    "spring_stiffness": "E0/L0^2",
+    "length_parameter": "b/L0"
+  },
+  "proposed_domain": {
+    "links": "integer4 through12",
+    "length_parameter": [
+      0.8,
+      1.2
+    ],
+    "temperature": [
+      0.6,
+      1.4
+    ],
+    "force_mode_force": [
+      0.3,
+      3.0
+    ],
+    "clamp_extension_per_link": [
+      0.15,
+      0.6
+    ]
+  },
+  "common_calibration": "27 force-mode settings vary N, T and F. The exact N*b*L(F*b/T) mean is common to both models for every allowed b. No approximate Gaussian or large-N calibration identity is used.",
+  "identifiability_proof": "d<Nx>/db=N*(coth(z)-z*csch(z)^2)>0 for z=F*b/T>0, because sinh(z)*cosh(z)>z. Every nonzero-force calibration curve is globally injective. Across 25 b values and 27 settings, minimum derivative is .455359; bounded noiseless fits recover b within6.64e-9.",
+  "complete_shortcut": "Compute the exact finite-chain force-mode equilibrium mean using the Langevin function. In clamp mode numerically invert this same monotone force-extension curve to find the force whose force-controlled mean equals X. This is a complete, positive, physically interpretable isotensional mean-response approximation; it is not an inverse-function coding error.",
+  "physical_discriminator": "Finite-N thermal fluctuations make the mechanical mean clamp force differ from the force whose unconstrained mean extension equals the clamp position. Publicly state only the apparatus and limits; do not name ensemble inequivalence or provide a density or correction formula.",
+  "private_derivation": [
+    "The Cartesian spring limit gives independent uniform bond directions. Each projected bond step is uniform on[-b,b], so the free endpoint x density is an N-fold scalar convolution, with no radial Jacobian.",
+    "For X>0 set s=(N-X/b)/2. The projected density is the Irwin-Hall polynomial sum divided by2b. The physical mean clamp force is -T times its X log derivative.",
+    "The source solves the exact force-controlled Gibbs ensemble. Its inverse is only asymptotically equivalent to the clamped force, which the code checks by increasing N at fixed X/N.",
+    "For X in the last support interval ((N-2)*b,N*b), the exact holding force is (N-1)*T/(N*b-X). This gives an independent analytic endpoint check and shows the finite-N correction has a physical origin."
+  ],
+  "independent_reference": "Direct Fourier inversion of the product characteristic function sinc(q)^N and its derivative, using composite Gauss-Legendre integration; no Irwin-Hall finite sum or inverse Langevin appears. Finite clamp stiffness is also evaluated by the Gaussian trap transform and extrapolated, preserving its mechanical force interpretation.",
+  "numeric_evidence": {
+    "minimum_physical_force": 0.16595744680851063,
+    "minimum_corner_relative_gap": 0.05242086995639659,
+    "maximum_reference_error": 9.975715942189822e-08,
+    "maximum_reference_refinement": 2.0559540736542203e-08,
+    "maximum_fit_error": 6.633666060906762e-09,
+    "runtime_seconds": 0.5962350000045262
+  },
+  "bounded_check_counts": {
+    "domain_corners": 40,
+    "random_domain": 24,
+    "calibration_settings": 27,
+    "global_parameter_recoveries": 25,
+    "finite_clamp_cases": 4
+  },
+  "gap_detail": {
+    "4": {
+      "min": 0.14055825104941227,
+      "max": 0.32968462282951233
+    },
+    "6": {
+      "min": 0.10879954872379247,
+      "max": 0.19671616054655985
+    },
+    "8": {
+      "min": 0.08005587889202793,
+      "max": 0.13972967671101047
+    },
+    "10": {
+      "min": 0.06333976543409996,
+      "max": 0.10809321288978534
+    },
+    "12": {
+      "min": 0.05242086995639659,
+      "max": 0.08807120495269755
+    }
+  },
+  "ordinary_signal": "All corner forces are positive; minimum .16596. Short-chain N4/6/8 probes give8.0\u201333.0% gaps while N12 weak extension can be only5.24%. Preserve this near-gate case in the report; a future package should use ordinary short-chain diagnostic groups while retaining the full disclosed domain.",
+  "reference_limits": "Infinite-stiffness Fourier error is below1e-7 in64 bounded checks; mesh/cutoff refinement below2.06e-8. The strongest finite-K soft-clamp extrapolation error is1.11e-4 forK100/200/400 and1.46e-5 forK200/400/800, not asserted to be the final verifier. Positive density normalization and variance agree to9e-16; support-law error3.56e-15. At fixed X/N=.2, relative ensemble difference falls from18.3% atN4 to.485% atN128.",
+  "preparation_peer": "physics_review independently confirmed the Cartesian stiff-spring measure, scalar projection clamp, force sign and need to avoid rigid-Hamiltonian/Fixman ambiguity. Actual-file peer pending.",
+  "rejected_directions": [
+    {
+      "topic": "electric-magnetic dipole recoil",
+      "reason": "Exact archived duplicate in screened/tasks/dipole-recoil; no new code or data produced."
+    },
+    {
+      "topic": "generic quantum detector backaction",
+      "reason": "Too close to already read resonance-fluorescence/dressed-photodetection/quantum-residence without a new concrete instrument; no numeric probe or package."
+    },
+    {
+      "topic": "odd-viscosity boundary stress",
+      "reason": "No clean completed alternate stress closure/calibration established in this bounded exploration; not prototyped."
+    },
+    {
+      "topic": "fixed full endpoint vector or radial distance",
+      "reason": "Not used: changes the physical constraint and introduces an avoidable radial/vector force distinction. Chosen scalar plane clamp is explicit."
+    }
+  ],
+  "limitations": [
+    "No model difficulty measured. The finite-ensemble correction may be easy for a model that attends to the clamp.",
+    "No noisy calibration data, task API, hidden grader, agent image or model evaluation has been created.",
+    "Full256-noise and all-integer full-domain validation are deferred until root approves a package.",
+    "Any later trajectory deriving the correct constrained distribution but miscomputing its polynomial/derivative is a math or implementation failure, not the intended physical failure."
+  ],
+  "primary_sources": [
+    {
+      "url": "https://pubmed.ncbi.nlm.nih.gov/12547757/",
+      "title": "Keller, Swigon and Bustamante, Relating single-molecule measurements to thermodynamics (2003)",
+      "access": "Primary abstract read; supports operational fixed-force/fixed-extension differences for short molecules. PMC full-text open hit a challenge; no claim of reading its full PDF."
+    },
+    {
+      "url": "https://arxiv.org/html/0810.3407v3",
+      "title": "Suzen, Sega and Holm, Ensemble Inequivalence in Single Molecule Experiments (2009)",
+      "access": "Abstract and theoretical sections I\u2013III read. The paper uses full vector/distance observables, so its exact formulas and low-force limiting claims are not imported into this scalar-clamp task."
+    },
+    {
+      "url": "https://arxiv.org/abs/1805.01499",
+      "title": "Fiasconaro and Falo, Analytical results of the extensible freely jointed chain model",
+      "access": "Primary abstract read; supports Cartesian central-spring chain realization. This prototype derives its own stiff-limit projected statistics."
+    }
+  ]
+}

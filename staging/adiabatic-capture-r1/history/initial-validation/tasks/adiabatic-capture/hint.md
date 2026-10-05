@@ -1,0 +1,1 @@
+The ramp can change the connectivity of a constant-energy orbit. Track what the isolated preparation becomes when it reaches that change; averaging one common final energy over the entire enclosed phase volume need not describe the ensemble.

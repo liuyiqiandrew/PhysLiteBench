@@ -61,6 +61,8 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | chemical-route-power r1 | 3/3 | [Archived: three physical passes](results/zero-three-chemical-route-r1-results.json) |
 | fixed-number-band r1 | 3/3 | [Archived: 3 pass, 0 clean physical failure, 0 mixed failure](results/zero-three-band-r1-results.json) |
 | waving-sheet r2 | 1/3 | [Archived: 1 pass, 1 clean physical failure, 1 mixed failure](results/zero-three-waving-r2-results.json) |
+| adiabatic-capture r1 | Pending | [Science and input review passed; frozen plan, not launched](results/zero-three-adiabatic-r1-plan.json) |
+| finite-chain-clamp r1 | Pending | [Science and input review passed; frozen plan, not launched](results/zero-three-chain-r1-plan.json) |
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
