@@ -61,9 +61,11 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | chemical-route-power r1 | 3/3 | [Archived: three physical passes](results/zero-three-chemical-route-r1-results.json) |
 | fixed-number-band r1 | 3/3 | [Archived: 3 pass, 0 clean physical failure, 0 mixed failure](results/zero-three-band-r1-results.json) |
 | waving-sheet r2 | 1/3 | [Archived: 1 pass, 1 clean physical failure, 1 mixed failure](results/zero-three-waving-r2-results.json) |
-| adiabatic-capture r1 | Pending | [Controls verified; six unstarted setup failures preserved; no model score](results/zero-three-adiabatic-r1-second-setup-failure-review.json) |
+| adiabatic-capture r1 | Pending | [Six unstarted setup failures preserved; three replacements running with reviewed setup allowance](results/zero-three-adiabatic-coherent-setup-budget-plan.json) |
 | coherent-array r1 | Pending | [Science and input review complete; frozen serial evaluation plan](results/zero-three-coherent-r1-plan.json) |
 | finite-chain-clamp r1 | 3/3 | [Archived: three physical passes; three unstarted setup failures preserved](results/zero-three-chain-r1-results.json) |
+
+The [deforming-crystal current prototype](results/zero-three-deforming-crystal-feasibility-source-review.json) passed bounded scientific and input review. Its full task is under construction; no model difficulty result is available.
 
 The [Docker outage review](results/docker-outage-20261004-080748.json) predeclares exact replacements for five unscored attempts lost in a host-wide shutdown. Every interruption remains recorded; no completed score is replaced and no infrastructure error counts as a physics failure.
 
