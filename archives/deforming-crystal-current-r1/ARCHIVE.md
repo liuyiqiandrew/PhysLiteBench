@@ -1,0 +1,7 @@
+# Deforming crystal current, revision 1
+
+Archived after exactly three frozen unhinted Luna-high trials: one genuine physical pass, two physical-model failures, no exceptions. The pass implements the material-electrode charge derivative. Both failures retain the laboratory-polarization-only current despite considering the alternative in public scratch checks. The third corrects its temporary indexing mistake, so that mistake does not explain its final physical choice. All outcomes and qualifications are retained.
+
+Oracle control passes1/1; completed shortcut scores0/1 with valid calibration/parameter and three intended prediction failures. The natural serial matrix completed without retries, setup failures or replacements. The predeclared setup budget was1080seconds; model600/verifier60, all16 task hashes and unrestricted neutral instruction remained unchanged. Only the shortcut control's temporary solution file differs, exactly matching its declared baseline.
+
+The complete frozen stage and original manifest are preserved. Plans, source and causal reviews, natural matrix index, control evidence and exhaustive raw-job hashes are attached. Original raw jobs and native sessions remain untouched. No raw native payloads, generated caches, numerical/model reruns, source edits, canonical/shared status changes or git operations were part of this archive. The stage was removed only after exact copy and raw-evidence hash verification. Historical stage references resolve to the identical bytes here.

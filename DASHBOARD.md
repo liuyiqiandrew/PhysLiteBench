@@ -79,7 +79,7 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | adiabatic-capture r1 | 3/3 | [Archived: three physical passes, one with a scored execution timeout; six unstarted setup failures preserved](results/zero-three-adiabatic-r1-results.json) |
 | coherent-array r1 | 3/3 | [Archived: three physical passes; no exceptions or replacement attempts](results/zero-three-coherent-r1-results.json) |
 | finite-chain-clamp r1 | 3/3 | [Archived: three physical passes; three unstarted setup failures preserved](results/zero-three-chain-r1-results.json) |
-| deforming-crystal-current r1 | Pending | [Preexisting frozen three-trial batch running; finish and classify every outcome](results/zero-three-deforming-crystal-r1-plan.json) |
+| deforming-crystal-current r1 | 1/3 | [Archived: one physical pass, two physical failures; no exceptions or replacement attempts](results/zero-three-deforming-crystal-r1-results.json) |
 | pulse-block-displacement r1 | Not run | [Scientifically reviewed and frozen; deferred under existing-family priority](results/zero-three-pulse-block-r1-plan.json) |
 | adiabatic-capture r2 | Not run | [Scientifically reviewed and frozen; deferred under existing-family priority](results/zero-three-adiabatic-r2-plan.json) |
 
