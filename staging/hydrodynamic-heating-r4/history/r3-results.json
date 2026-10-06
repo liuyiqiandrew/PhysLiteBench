@@ -1,0 +1,172 @@
+{
+  "completed_utc": "2026-10-06T04:16:10.552153+00:00",
+  "task": "hydrodynamic-heating",
+  "revision": 3,
+  "passes": 2,
+  "trials": 3,
+  "physical_passes": 2,
+  "physical_failures": 1,
+  "mixed_physics_numerical_failures": 0,
+  "mathematical_failures": 0,
+  "errors": 0,
+  "scored_trial_exceptions": 0,
+  "unscored_attempts": 0,
+  "unstarted_setup_failures": 0,
+  "started_infrastructure_interruptions": 0,
+  "total_model_attempts": 3,
+  "total_attempts": 3,
+  "qualifies": false,
+  "disposition": "archived_above_zero_pass_threshold",
+  "archive": "archives/hydrodynamic-heating-r3",
+  "plan": "results/zero-three-hydro-r3-plan.json",
+  "plan_sha256": "c8a9654a11f90e40c59c33499dd981c897dae3c389f602ad93a27c789a9a286f",
+  "matrix_index": "jobs/matrix-zero-three-hydro-r3-20261005-065628/index.json",
+  "matrix_index_sha256": "72279e0174c9f3d6d06ec113b66a0b1ac9ac5789ee04bac7b91155213f86f682",
+  "matrix_index_interpretation": "Natural original matrix completed with oracle1/1, shortcut0/1 and exactly3 plain trials,2passes and0exceptions. No interrupted attempts, replacements or retrospective recovery catalog.",
+  "controls": {
+    "oracle": {
+      "passes": 1,
+      "trials": 1,
+      "errors": 0
+    },
+    "shortcut": {
+      "passes": 0,
+      "trials": 1,
+      "errors": 0
+    }
+  },
+  "reviews": "results/zero-three-hydro-r3-trial-reviews.json",
+  "review_sha256": "c46d9382e7c33eba5dca138780a746da6dca6dccf85d6df738a3157af495f44e",
+  "prior_two_trial_reviews": "results/zero-three-hydro-r3-trial-reviews-before-third.json",
+  "prior_two_trial_reviews_sha256": "423a077f903e9977deecfecd6460483e99f1e031c1d586862ef2d873d675eeff",
+  "prior_two_trial_objects_unchanged": true,
+  "source_review": "results/zero-three-hydro-r3-source-review.json",
+  "source_review_sha256": "11c146a1c2ffd7fdf5c281ae306b08dc3b220832924f00d77aa31c1e817db40c",
+  "final_snapshot_review": "results/zero-three-hydro-r3-final-snapshot-review.json",
+  "final_snapshot_review_sha256": "badf180dd4396eee7a3470d9b4e66116ecda6d1dd6997f62ae3b6a3ee8766e95",
+  "all_scored_native_inputs_and_model_configuration_verified": true,
+  "all_original_plan_current_and_plain_frozen_task_hashes_match": true,
+  "source_and_grading_unchanged_through_three_scored_trials": true,
+  "original_stage_manifest_sha256": "01cada1708c37a216ff004e8e0b36609bb117852610694f7ac43f40fed72030a",
+  "original_stage_payload_count": 42,
+  "preserved_original_stage_files": 43,
+  "trials_detail": [
+    {
+      "trial": "hydrodynamic-heating__gn4rjXy",
+      "job": "hydrodynamic-heating-zero-three-hydro-r3-plain-20261005-065628",
+      "origin": "original",
+      "reward": 1.0,
+      "classification": "physical_model_pass",
+      "reason": "Retains exact Maxwell/viscous fields and series-contact boundary conditions, and computes measured heat from squared dashpot velocity. The harmonic is alpha*J^2/[p^2*(1-i*omega*tau)^2], and mean is alpha*abs(J)^2/[p^2*abs(1-i*omega*tau)^2]. This repairs calorimetric heat versus mechanical work entering the energetic contact. Fit and all seven verifier tests pass.",
+      "trajectory_qualification": "Public prose calls this heat normalization, but the actual derivation/code selects dashpot velocity squared and therefore resolves the intended physical distinction. The rewritten mean is algebraically the original cycle-average work. A multiline syntax error introduced at10 is caught at11 and fixed at12 before successful tests. The git-diff failure is incidental; syntax checking is independently run afterward. No final math/code confound.",
+      "exception_info": null,
+      "metrics": {
+        "parameter": 1.0301321198676852,
+        "parameter_relative_error": 0.00012827171619922417,
+        "calibration_chi2": 1.04751212506053,
+        "hidden": {
+          "frequency_response": 0.00025502144253442466,
+          "contact_response": 0.0003044671496305775,
+          "slab_response": 0.0002810438541538273,
+          "mean_anchor": 0.00024339279565393257
+        }
+      },
+      "source_sha256": "eabf5a8ddd737c27db091cbe1bb9d118425cb7adcbd557acc9f9298714dcaaec",
+      "result_sha256": "4c7346981299b231212f68f5679221d663b5a159e9e49bba383a0ed47f1083fc",
+      "native_user_block_sha256": [
+        "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "18251b19781b4f80df719810c54459e0cf1ce6d76d79c5ebace96c986d2eed12",
+        "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62"
+      ],
+      "native_model": "gpt-5.6-luna",
+      "native_effort": "high",
+      "cli_version": "0.154.0"
+    },
+    {
+      "trial": "hydrodynamic-heating__wwHTbEW",
+      "job": "hydrodynamic-heating-zero-three-hydro-r3-plain-20261005-065628",
+      "origin": "original",
+      "reward": 0.0,
+      "classification": "physical_model_failure",
+      "reason": "Retains all four starter forward helpers, including harmonic=traction*current/p^2. This is mechanical work entering the spring-dashpot contact, not heat removed from its dashpot at twice the drive frequency. The required extra factor1/(1-i*omega*tau) is absent. The correctly fitted parameter and cycle-mean anchor pass, while all three harmonic groups fail at0.6321,0.8804,0.7851 versus0.04. Full public trajectory shows fit-only implementation and no attempted physical readout repair.",
+      "trajectory_qualification": "An early candidate-tuple ordering bug caused the public calibration failure at13; step14 corrects it, and15/18 pass public calibration at the final fitted parameter. It is transient and does not explain the final hidden failure. Tool-input syntax errors at5/11 and a git probe at16 are also incidental; random finiteness checks run successfully at17. No surviving mathematical/numerical confound is evident. Finite harmonic outputs alone do not verify the calorimetric observable.",
+      "exception_info": null,
+      "metrics": {
+        "parameter": 1.030132119648672,
+        "parameter_relative_error": 0.0001282715035648696,
+        "calibration_chi2": 1.047512125060522,
+        "hidden": {
+          "frequency_response": 0.632114785234937,
+          "contact_response": 0.8803974475715393,
+          "slab_response": 0.7850674852395279,
+          "mean_anchor": 0.000243392392170317
+        }
+      },
+      "source_sha256": "2201f8affa9b9d75fd027af8e8825bfc545b9b11a983a73937faadac380d9d9d",
+      "result_sha256": "31b9b8b08d150f9711b4038ec8321e4a0b579eb21344175d36764ee6c8557c6b",
+      "native_user_block_sha256": [
+        "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "18251b19781b4f80df719810c54459e0cf1ce6d76d79c5ebace96c986d2eed12",
+        "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62"
+      ],
+      "native_model": "gpt-5.6-luna",
+      "native_effort": "high",
+      "cli_version": "0.154.0"
+    },
+    {
+      "trial": "hydrodynamic-heating__zu6wHhG",
+      "job": "hydrodynamic-heating-zero-three-hydro-r3-plain-20261005-065628",
+      "origin": "original",
+      "reward": 1.0,
+      "classification": "physical_model_pass",
+      "reason": "Retains the exact Maxwell/viscous field equations and series-contact boundary conditions. Computes measured front dashpot heat with harmonic traction*current/[p^2*(1-i*omega*tau)] = alpha*current^2/[p^2*(1-i*omega*tau)^2]. The unchanged conjugated traction/current mean equals mean dashpot dissipation. Both signed quadratures follow exp(-i*omega*t). This resolves the physical work-versus-heat distinction; fit and all seven verifier tests pass.",
+      "trajectory_qualification": "The rejected combined delete/add patch at step10 was reapplied as two operations at11 with identical intended source and no physical change. Initial git-status failed because /app is not a repository. Neither affects final verification. No final mathematical or implementation confound. The observed fit optimum is interior; no claim of global accuracy for every possible noisy fit follows from sampled endpoint handling.",
+      "exception_info": null,
+      "metrics": {
+        "parameter": 1.0301321193595068,
+        "parameter_relative_error": 0.00012827122282210723,
+        "calibration_chi2": 1.0475121250604822,
+        "hidden": {
+          "frequency_response": 0.0002550204615924452,
+          "contact_response": 0.00030446597846189237,
+          "slab_response": 0.0002810427731156374,
+          "mean_anchor": 0.00024339185944843056
+        }
+      },
+      "source_sha256": "f9c643f1fa33a1bd317be7f2ad5a8149e4bd2309055c21faf8a63600c2f29c15",
+      "result_sha256": "4cd59db0083e410dc6c999dbfb10a2b92f3b354f7925ba34798a62020b0e1ed7",
+      "native_user_block_sha256": [
+        "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "18251b19781b4f80df719810c54459e0cf1ce6d76d79c5ebace96c986d2eed12",
+        "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62"
+      ],
+      "native_model": "gpt-5.6-luna",
+      "native_effort": "high",
+      "cli_version": "0.154.0"
+    }
+  ],
+  "unscored_attempts_detail": [],
+  "family_records": {
+    "source": "staging/hydrodynamic-heating-next-step-review/assessment.json",
+    "archive_copy": "family-review/assessment.json",
+    "sha256": "2beda2771f5e1656f6c6ce1ed3e62556edd0fba71b39df2e459a219c7b756f2b",
+    "qualification": "Byte-exact bounded historical assessment. It independently reviews only the first two r3 submissions, reports the third terminal reward from root, and leaves that third causal classification pending. The sealed three-trial ledger is the later authority. Its analytic thermoactive-contact option is not a numerical or model result and is not evaluated here."
+  },
+  "limitations": [
+    "The three original scored outcomes are preserved: two physical passes and one clean physical failure. r3 does not meet the zero-pass criterion.",
+    "Both passers compute heat from dashpot velocity squared while keeping the exact Maxwell/contact fields. The failure retains instantaneous contact work, with the correct fitted parameter and mean anchor. Its transient minimizer tuple bug was resolved before final verification and is not counted as a mathematical failure.",
+    "Original author/prelaunch manifests and early trial snapshot observations remain byte-exact historical records. The final snapshot audit closes the earlier pending plain frozen-task checks without rewriting prior entries.",
+    "Raw native payloads, complete public trajectories, configurations, output logs and submitted sources remain in original ignored jobs. Every raw file is hash-indexed; raw payloads are not copied into this publishable archive.",
+    "Initial author validator syntax and reference node-cap failures are preserved. The final independent peer qualifies the unscored tau=.3 limit row as in-domain despite its original scope label."
+  ],
+  "archive_operations": {
+    "model_runs": 0,
+    "scientific_runs": 0,
+    "source_edits": 0,
+    "original_raw_jobs_or_indexes_modified": false,
+    "canonical_sources_modified": false,
+    "shared_status_or_candidates_modified": false,
+    "git_operations": 0,
+    "stage_removal": "Only after exact original nongenerated-stage copy and exhaustive archive/raw-job/matrix hash and inventory verification."
+  }
+}

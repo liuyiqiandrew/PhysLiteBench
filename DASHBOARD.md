@@ -12,9 +12,9 @@ The five qualifying sources are frozen. The [current hardening plan](results/exi
 | reaction-diffusion r7 | 0/3 | 3 physical | Keep frozen |
 | single-file-memory r1 | 0/3 | 3 physical | Keep frozen |
 | rotating-reservoir r1 | 1/3 | 2 physical | r2 finished at 2/3 passes with one mixed failure; cellular-tracer replacement is frozen and queued under the documented family decision |
-| thermoelastic-rod r3 | 1/3 | 2 physical | r4 archived at 3/3 physical passes; crystal r2 bounded feasibility is incomplete after report serialization failed |
-| hydrodynamic-heating r1 | 1/3 | 2 physical | r3 archived at 2/3 passes and one physical failure; r4 bounded feasibility awaits independent review |
-| entropy-anomaly r3 | 2/3 | 1 mixed physical/mathematical | Pulse controls passed; all three plain attempts failed before model execution; diagnose setup before recovery |
+| thermoelastic-rod r3 | 1/3 | 2 physical | r4 archived at 3/3 physical passes; crystal r2 is now validated, peer-reviewed and frozen for evaluation |
+| hydrodynamic-heating r1 | 1/3 | 2 physical | r3 archived at 2/3 passes and one physical failure; r4 finished at 2/3 physical passes and one clean failure; archiving pending |
+| entropy-anomaly r3 | 2/3 | 1 mixed physical/mathematical | Pulse r1 archived at 3/3 physical passes; r2 bounded feasibility reviewed, with graded-row validation and runtime checks still required |
 | superconducting-heat r1 | 2/3 | 1 physical | After the first three family batches, evaluate the prepared changing-path capture replacement under the documented exception |
 
 The [bounded family decisions](results/existing-family-replacement-decisions.json) preserve the successful entropy and superconducting solutions and explain why the reviewed incremental revisions are unlikely to help. They permit two already prepared replacement attempts after the three priority family batches; they do not establish that either family is impossible to harden or qualify either replacement.
@@ -85,11 +85,13 @@ These are new scientific revisions under the stricter target. Each gets Docker c
 | rotating-reservoir r2 | 2/3 | [Archived: two physical passes, one mixed failure; no clean physical failures](results/zero-three-rotating-r2-results.json) |
 | thermoelastic-rod r4 | 3/3 | [Archived: three physical passes; one unstarted DNS failure and its exact replacement preserved](results/zero-three-rod-r4-results.json) |
 | hydrodynamic-heating r3 | 2/3 | [Archived: two physical passes, one clean physical failure; no exceptions](results/zero-three-hydro-r3-results.json) |
-| pulse-block-displacement r1 | No scored trials | [Controls valid; three strictly unstarted infrastructure failures; recovery pending](results/zero-three-pulse-block-r1-terminal-setup-review.json) |
-| adiabatic-capture r2 | Not run | [Frozen; superconducting replacement candidate after the three priority family batches](results/zero-three-adiabatic-r2-plan.json) |
-| cellular-tracer-dispersion r1 | Not run | [Science and independent input review complete; frozen behind pulse and adiabatic](results/zero-three-cellular-r1-plan.json) |
+| hydrodynamic-heating r4 | 2/3 | [Two physical passes and one clean physical failure; all three reviewed, archiving pending](results/zero-three-hydro-r4-results.json) |
+| deforming-crystal-current r2 | Not run | [Frozen; queued next after hydro r4](results/zero-three-deforming-crystal-r2-plan.json) |
+| pulse-block-displacement r1 | 3/3 | [Archived: three physical passes; three original unstarted failures preserved](results/zero-three-pulse-block-r1-results.json) |
+| adiabatic-capture r2 | Not run | [Frozen; queued after hydro r4 and crystal r2](results/zero-three-adiabatic-r2-plan.json) |
+| cellular-tracer-dispersion r1 | Not run | [Science and independent input review complete; queued after hydro r4, crystal r2 and adiabatic r2](results/zero-three-cellular-r1-plan.json) |
 
-Hydro r4 has a frozen [bounded feasibility report](staging/hydrodynamic-heating-r4-feasibility/manifest.json), with independent review pending. Crystal r2 preserves an [incomplete feasibility checkpoint](staging/deforming-crystal-current-r2-feasibility/manifest.json): report serialization failed and no numerical results were saved. Neither has a full task package or model trials.
+[Hydro r4](results/zero-three-hydro-r4-plan.json) and [crystal r2](results/zero-three-deforming-crystal-r2-plan.json) now have scientifically validated, independently reviewed and frozen task packages. Their local oracles pass all seven tests; completed shortcuts pass calibration and fail three intended prediction groups. Hydro r4 finished at 2/3 reviewed physical passes and one clean physical failure, with no exceptions. Its stage and raw jobs remain preserved pending archiving. Crystal r2 has no model trials. The crystal serialization failure and its isolated repair remain preserved. The evaluation order is crystal r2, adiabatic r2, then cellular r1.
 
 The [rotating-family decision](results/rotating-family-replacement-decision.json) supports the existing cellular-tracer package after review of both successful thermostat models and the mixed failure. Its earlier checkpoint is preserved. Scientific validation, independent peer review and the [frozen evaluation plan](results/zero-three-cellular-r1-plan.json) are complete; it has no model difficulty result. This decision does not authorize an unrelated candidate search.
 
