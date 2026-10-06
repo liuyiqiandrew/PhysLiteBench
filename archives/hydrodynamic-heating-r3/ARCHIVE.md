@@ -1,0 +1,3 @@
+Hydrodynamic heating r3 finished with two physical passes and one clean physical failure in exactly three original trials. Oracle passed and the completed shortcut failed. No attempt had an infrastructure exception, and no trial was replaced. The task did not meet the zero-pass criterion.
+
+The original frozen stage and manifest are preserved byte-for-byte. The separate archive manifest inventories the added result and review records. Raw jobs remain untouched under jobs/ and are exhaustively hash-indexed, including native sessions; raw payloads are not copied here. The family assessment is a bounded historical snapshot, not a later result or an evaluated r4.
