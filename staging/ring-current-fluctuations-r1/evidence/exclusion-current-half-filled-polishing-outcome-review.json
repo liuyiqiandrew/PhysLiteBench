@@ -1,0 +1,99 @@
+{
+  "review": "Half-filled exclusion-current polishing outcome and prospective domain assessment",
+  "created_utc": "2026-10-06T09:43:52.879137+00:00",
+  "reviewer": "crystal_plan_review; authored the polishing source, which root independently reviewed and froze before running",
+  "verdict": "sampled_numerical_screen_pass_conditional_domain_step_ready",
+  "provenance": {
+    "hashes": {
+      "staging/exclusion-current-half-filled-feasibility/screen.py": "8b98d640a204196faaf06767aae12f6bdfa43cef97ed21eb01e4725b481f70a5",
+      "staging/exclusion-current-half-filled-feasibility/plan.json": "36a1a2da2bf48929c92c8fc6a3d1b9f33ea64d8c5fc1068226f28179e5773f88",
+      "staging/exclusion-current-half-filled-feasibility/report.json": "22052e8977e087459fd314bb7ef90f656ca88a437661f5604eaca20e020bb2bb",
+      "staging/exclusion-current-half-filled-feasibility/polishing.py": "be7d80a81ce1a7fe0f7e480ce199423af4d1f08d88f25dea6f953b34f0c968ee",
+      "staging/exclusion-current-half-filled-feasibility/polishing-plan.json": "76e9a179d7faa010805c01fe11d4b8ab44280af70a7ad17780ec8617e7c57a29",
+      "staging/exclusion-current-half-filled-feasibility/polishing-report.json": "fcac1de4ab75c08f61fd2df9fc357eccf734eabff3b7a5011621349475081733",
+      "staging/exclusion-current-half-filled-feasibility/polishing-preexecution-manifest.json": "385c91f8dd314612eb7df73d2c0e516e771d4aff120e9f25af6aeb77deccab8a"
+    },
+    "all_manifest_hashes_match": true,
+    "manifest_checks": {
+      "polishing.py": true,
+      "polishing-plan.json": true,
+      "screen.py": true,
+      "plan.json": true,
+      "report.json": true,
+      "results/exclusion-current-half-filled-polishing-source-review.json": true
+    },
+    "original_report_status": "numerical_unresolved",
+    "original_failure_preserved": true,
+    "new_report_status": "polishing_pass",
+    "rows_retained": 72,
+    "all_parent_rows_and_starting_values_match": true,
+    "all_selected_profiles_reproduced_from_original_gates": true
+  },
+  "metrics": {
+    "seconds": 0.20230641699163243,
+    "polish_status_counts": {
+      "target_reached": 72
+    },
+    "accepted_step_counts": {
+      "0": 26,
+      "1": 46
+    },
+    "max_stationarity_all_rows": 6.7003035396339e-09,
+    "max_mass_all_rows": 4.617508632398515e-15,
+    "max_absolute_scfg_change": 2.503268703435424e-10,
+    "max_density_change": 8.106610768998657e-06,
+    "max_independent_relative_error": 0.00013435647528617915,
+    "max_grid_refinement_relative": 0.0004038648649822339,
+    "max_doubled_mesh_relative": 0.000100842736740339,
+    "all_original_gates": {
+      "all_spatial_runs_completed": true,
+      "constrained_interior": true,
+      "quadrature": true,
+      "branch_residual": true,
+      "independent_spatial": true,
+      "spatial_refinement": true,
+      "doubled_mesh": true,
+      "prediction_contrast": true,
+      "not_below_flat": true,
+      "symmetry": true,
+      "exact_anchors": true,
+      "monotonicity": true,
+      "separation": true
+    },
+    "ordinary_full_group_errors": {
+      "10.0": {
+        "elliptic": 0.2306602032121789,
+        "grid64": 0.23109642792319143,
+        "grid128": 0.2307691285667541
+      },
+      "12.0": {
+        "elliptic": 0.4234486863258966,
+        "grid64": 0.4241609665849842,
+        "grid128": 0.42362640887438424
+      }
+    }
+  },
+  "diagnosis_confirmed": "All 72 profiles meet the tighter polishing target. Forty-six require one Newton step and 26 require none. The largest SCGF change is only 2.51e-10, while the formerly excluded nonuniform profiles now meet the unchanged 1e-6 stationarity gate. The initial 51.54% mismatch was a stopping/selection artifact: the fixed filter had fallen back to the unstable flat stationary point. The original failed screen remains failed; this separately frozen diagnostic resolves its numerical blocker.",
+  "gold_assessment": {
+    "decision": "A defensible scientific reference within the published half-filled Bethe/MFT branch is now practical, subject to a bounded domain/reference check and calibration/noise validation. The repository accepts an independent derivation, analytical limit or numerical reference; a new rigorous global-optimum proof is not required.",
+    "independence": "The elliptic scalar solution and unrestricted-in-shape spatial optimization agree on the fixed cases with independent discretization and stationarity checks. The microscopic Bethe correspondence supplies published physical support; neither code agreement nor this review proves all thermodynamic assumptions or excludes every time-dependent history.",
+    "public_statement": "Specify the fixed half-filled canonical ring, positive exponential rates, counting of successful jumps across every bond, microscopic clock, order of limits, units, inputs and outputs. Do not redefine the observable as a stationary variational problem merely to make the oracle exact. The branch assumptions and citations belong in author/reference documentation.",
+    "completed_shortcut": "The homogeneous SCGF is a complete correct implementation of its assumed profile and fits weak-field calibration exactly before measurement noise. Its strong-field failure is a real conditioned-density omission."
+  },
+  "prospective_domain": {
+    "public_ranges": "E in [0,12], lambda in [-2E-2,2], D in [0.8,1.2]. This is a small natural continuous domain: E=0 is nonsingular, the bias interval is GC-symmetric and D adds only an exact multiplicative scale.",
+    "prediction_groups": "Retain precisely the six screened prediction points and the same two complete groups. Add an exact-limit group separately; never normalize an individual SCGF-zero point by its own zero value.",
+    "recommended_reference_sample": "The proposed 62-case check is sufficient but duplicates spatial solves at +/-eta. The direct objective depends exactly on eta^2. The smaller equivalent sample retains predictions first; adds E={6.5,8,10,12}, eta/eta_c={0,.5,.999,1,1.001}, and lambda={0,2}; adds controls (E,lambda)=(0,2),(4,-8),(4,-2),(4,2),(2pi,-2pi). Deduplicate by physical (E,lambda). This gives 37 cases and 222 spatial attempts at grids128/256 with the original three fresh seeds. Check omitted GC mirrors through the elliptic API and the exact identity, without repeated spatial solves.",
+    "sampling_and_gates": "Keep 600 seconds, the existing SLSQP followed by the reviewed fixed polish, and every original numerical/separation gate. The profile-contrast gate applies only to the six predictions, not flat or near-critical controls. Retain both grids and every seed. A 201-point root map and 121-point elliptic convexity slice per positive sampled field are cheap supporting diagnostics, not continuum certification.",
+    "convexity_gate_suggestion": "For each equally spaced 121-point bias slice require each second finite difference of psi to be >= -1e-9*max(1,max(abs(psi))). Check GC mirrors to the original symmetry tolerance. Freeze this new diagnostic threshold before execution.",
+    "calibration": "Use only E<=4 and several nonzero biases so that psi_i=D f_i with f_i=lambda_i(lambda_i+2E_i)/4. Weighted least squares through the origin identifies D; include multiple magnitudes and signs. Six to twelve independent observations are enough for this one parameter before the required 256-noise validation. Set reported measurement errors independently of the hidden true D so sigma does not encode it. Label observations as estimates of the stated asymptotic SCGF, not an undisclosed finite-ring/time observable.",
+    "gold_storage": "After the domain check, independent grid256 raw values at the six fixed predictions can supply verifier gold, with elliptic agreement and both-grid provenance retained. Exact D scaling avoids new PDE/grid solves at D endpoints. The prospective 60-second verifier need not rerun optimization.",
+    "status": "Conceptual proposal only; no domain source, study or task package was created or run by this reviewer."
+  },
+  "limitations": [
+    "The first failed numerical screen remains in the evidence chain.",
+    "The present pass covers only the fixed 12 cases and cannot certify the full continuous public domain.",
+    "No calibration/noise validation, Docker controls, package or model trial has been performed for this proposal."
+  ],
+  "actions": "Read and reduce retained results, check hashes/selection and review task-authoring rules. No new science executed during this review."
+}

@@ -1,0 +1,65 @@
+{
+  "review": "Independent outcome diagnosis of the first half-filled exclusion-current screen",
+  "created_utc": "2026-10-06T09:35:57.739723+00:00",
+  "reviewer": "crystal_plan_review",
+  "classification": "numerical_unresolved_optimizer_stationarity_and_selection",
+  "status_preserved": "numerical_unresolved",
+  "evidence_hashes": {
+    "staging/exclusion-current-half-filled-feasibility/screen.py": "8b98d640a204196faaf06767aae12f6bdfa43cef97ed21eb01e4725b481f70a5",
+    "staging/exclusion-current-half-filled-feasibility/plan.json": "36a1a2da2bf48929c92c8fc6a3d1b9f33ea64d8c5fc1068226f28179e5773f88",
+    "staging/exclusion-current-half-filled-feasibility/report.json": "22052e8977e087459fd314bb7ef90f656ca88a437661f5604eaca20e020bb2bb",
+    "staging/exclusion-current-half-filled-feasibility/preexecution-manifest.json": "d2fa224f9bded3e5117d250557306619b29a618105263a14fd52adede0415b77"
+  },
+  "frozen_match": true,
+  "execution": {
+    "completed_spatial_attempts": 72,
+    "optimizer_success_flags": 72,
+    "seconds": 2.112080082995817,
+    "failed_declared_gates": [
+      "independent_spatial",
+      "prediction_contrast"
+    ]
+  },
+  "diagnosis": {
+    "cause": "At E=12, lambda=-12, both nonuniform seeds on both grids fail the independent normalized stationarity gate. The fixed admissibility filter therefore selects the exact flat stationary point on each grid. This creates the 51.54% comparison error and zero profile contrast. The filter follows the frozen plan; the failure is not a wrong sign, factor, physical branch mismatch or new-model result.",
+    "selected": "N=64 and 128 both select psi=-36 with exactly zero gradient and zero contrast. Zero first variation is not a local-minimum certificate.",
+    "retained_nonuniform_N128": [
+      {
+        "seed": "first_mode",
+        "psi": -23.75326349495939,
+        "normalized_stationarity": 4.028081439102129e-06,
+        "mass_error": 1.1174047798157005e-13,
+        "bound_margin": 0.20458186672518708
+      },
+      {
+        "seed": "mixed_modes",
+        "psi": -23.753263494961715,
+        "normalized_stationarity": 5.699485189620469e-06,
+        "mass_error": 2.307290643266402e-14,
+        "bound_margin": 0.20458194022949394
+      }
+    ],
+    "elliptic_value": -23.756455328561167,
+    "raw_nonuniform_relative_value_error": 0.00013435647522456564,
+    "residual_gate": 1e-06,
+    "raw_rows_failing_residual": 31,
+    "stopping_interpretation": "SLSQP objective-based ftol termination can occur before the separately normalized KKT residual passes, especially with the stiff short-wavelength grid modes. Agreement of objective values does not authorize relaxing the declared residual. This is an inference strongly supported by the retained rows; no polishing run has yet tested it.",
+    "flat_instability": "For phi=epsilon cos(2pi x), the quadratic change of the minimized cost is epsilon^2[(2pi)^2+eta^2-E^2]/8 in the continuum, with (2pi)^2 replaced by 4N^2 sin^2(pi/N) on this grid. It is negative at E=12, eta=0. The flat point is therefore unstable in this direction despite its zero KKT residual.",
+    "derivative_review": "The cost gradient was independently rederived and is correct. The Hessian is (N/2)L plus diag[-E^2 cos(2phi)/(2N)+eta^2 sec^2(phi)(1+3tan^2(phi))/(2N H^2)] minus 2eta^2 outer(w,w)/(N^2 H^3), where w=sec^2(phi)tan(phi), H=mean(sec^2(phi)) and L=2I-periodic shifts. The equality-constraint Hessian is diag[-sin(phi)/N]."
+  },
+  "physical_evidence_limit": {
+    "elliptic_group_source_errors": {
+      "10.0": 0.23066020321217892,
+      "12.0": 0.42344868632589655
+    },
+    "interpretation": "The elliptic branch predicts 23.07% and 42.34% complete-group source errors. The other five prediction cases agree with admissible independent profiles to at most 0.0132%. The sixth has close raw values but fails the stationarity gate. This is promising evidence, not a validated gold standard or a passing screen."
+  },
+  "narrow_next_diagnostic": {
+    "proposal": "One separately frozen deterministic equality-constrained Newton polishing diagnostic on all 72 retained profiles, with no new seeds/cases or elliptic initialization. Reconstruct phi from the retained density; keep the direct functional, grids, bounds, original acceptance thresholds and group definitions.",
+    "limits": "At most 12 KKT steps per profile, at most 16 bound-preserving residual line-search halvings per step, target normalized stationarity 1e-8 and fixed least-squares handling of translation null directions. Retain every failed polish and the original report unchanged.",
+    "why_not_only_tighter_SLSQP": "Changing ftol is less code, but it again controls objective-based stopping rather than directly solving the failed first-order condition. The analytic Hessian is short and already checked, so a fixed KKT polish targets the observed problem without changing the science.",
+    "status": "Parent authorized implementation only; no diagnostic execution performed by this reviewer."
+  },
+  "next_domain_work": "Paused until the numerical issue is resolved. No task or domain package should be created from this screen outcome.",
+  "actions": "Read retained source/output, checked frozen hashes, and reduced existing rows only. No science, model run or frozen-file edit."
+}
