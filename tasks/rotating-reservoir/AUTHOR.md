@@ -1,39 +1,76 @@
-# Rotating-reservoir calorimetry, revision 1
+# Rotating reservoir revision 8: finite recirculating contact
 
-This task distinguishes internal thermal heat from laboratory mechanical power transferred to a moving reservoir. The supplied predictor already solves the full finite-inertia stationary covariance, including rotation, anisotropic confinement and both thermal noises. Its error is the interpretation of the calorimeter signal. All calibration has a stationary reservoir, where the two signals coincide exactly.
+Revision 7 produced three physical passes, including one original 600-second solving timeout whose installed source passed. Its full independent native-parameter review and Gaussian-SCGF ablation are preserved in results/rotating-reservoir-r7-trial-review.json. All 389 predecessor files, original plain/oracle/shortcut jobs, native sessions, exceptions, science and nested dependencies are verified under archives/rotating-reservoir-r7. No revision-7 trials were repeated. This revision changes the actual reservoir to one retained gas contact that carries recoil into later thermalization and collisions.
 
-The neutral instruction permits replacing any implementation. The public apparatus defines both ideal Langevin force laws, the motor-maintained reservoir motion, the thermostat readout, and the stationary preparation. It does not prescribe a heat formula or covariance solver. The force laws are the complete model; no fluid pressure, added mass, or unmodeled background force is assumed. Calibration sigma is fixed instrument noise rather than a function of the noiseless response. The hint is private unless explicitly added by a runner.
+## Complete apparatus and thermal measurement
 
-## Physics and calibration
+The public apparatus supplies a unit-inertia rotor velocity v, a retained unit-inertia gas velocity g and an independent motor s=+/-1. OU bath A thermalizes v at unknown common drag gamma and Ta. OU bath B thermalizes g at known lambda toward u=s*Omega and temperature Tb. Independent random collisions at nu[(1-eta)+eta|v-g|], nu=3.6, elastically swap v and g. They conserve total laboratory energy and tangential momentum. No particle is removed or redrawn. Motor flips at kappa change only the bath-B flow target, with no particle impulse, instantaneous particle work or heat. The public README states every state, stochastic increment, collision rule, measurement and parameter bound; no hidden interaction or preparation is introduced.
 
-Write b=0.9, gamma=drag, Omega=angular_speed, R=[[0,-1],[1,0]], and let C be the stationary covariance of (r,v). Define x2=tr(C_rr), v2=tr(C_vv), and L=<x*v_y-y*v_x>=tr(R*C_rv). The shortcut computes laboratory energy gain by reservoir B,
+The thermal bath-B calorimeter follows the shared-Wiener Ito current
 
-    q_lab = b*(v2-Omega*L)-2*b*T_b.
+    dQb = lambda[(g-u)^2-Tb]dt - sqrt(2lambda Tb)(g-u)dWb.
 
-Its internal thermal heat instead uses the particle's velocity relative to the reservoir's local mean motion,
+This is minus the relative velocity times its thermostat force in Stratonovich form. Collisions and flips have zero instantaneous Qb. The mean is lambda(E[(g-u)^2]-Tb); the noise is lim Var(Qb(t))/t in energy squared per time. Continuous motor work is u times the thermostat force, with mean P=lambda(Omega^2-Omega E[s g]). Bath A mean heat is JA=gamma(E[v^2]-Ta), and JA+JB=P at stationarity. The same Wb drives both g and Qb, so its response cross term cannot be replaced by an independent detector noise.
 
-    q_B = b*(v2-2*Omega*L+Omega^2*x2)-2*b*T_b.
+The unknown remains gamma in [.4,1.1]. Known public bounds are Ta in [.4,2], Tb in [.4,1.4], lambda in [.2,3], Omega in [-.65,.65], kappa in [.8,2] and eta in [0,1]. Mean remains the default readout; the other readout is thermal heat noise. The preceding fresh-gas finite-bias readout is not advertised for this different calorimeter. The function API and array convention are retained.
 
-The reservoir torque on the particle is tau=-b*(L-Omega*x2). The motor power is P=Omega*tau, so q_B=q_lab+P. With q_A=gamma*(v2-2*T_a), stationarity gives q_A+q_B=P. The static trap can exchange angular momentum but does no work. The Stratonovich noise contribution is 2*b*T_b in both heat expressions because position has no instantaneous noise in the stated finite-inertia model.
+## Deliberate calibration regeneration and identifiability
 
-At Omega=0 the exact signal is G(gamma)*(T_a-T_b), where G=2*b*gamma/(gamma+b). Its derivative 2*b^2/(gamma+b)^2 is strictly positive throughout the allowed range. Both models therefore share the same closed weighted least-squares fit, with gamma=b*G/(2*b-G). The source retains the full covariance even though this conductance identity simplifies calibration.
+All 288 revision-7 temperature/motor calibration preparations are retained, with known relaxation_rate=1.3 added, eta=Omega=0 and the same sigma=.001, calibration_seed=71063 and noise_seed=146824. Finite contact changes the mean conductance, so all calibration values are deliberately regenerated in matched public/private files. Their individual Gaussian noise realizations are retained. Reusing the old fresh-gas values would be physically incorrect.
 
-This is a frame-of-heat distinction, separate from the archived spring-reservoir boundary-energy and dispersive stored-energy tasks. A primary background source is Speck, Mehl and Seifert, [Role of External Flow and Frame Invariance in Stochastic Thermodynamics](https://doi.org/10.1103/PhysRevLett.100.178302), Physical Review Letters 100,178302 (2008), with [author manuscript](https://arxiv.org/abs/0712.0232). The present finite-inertia ideal force model and its heat balance are derived directly above; the source is background rather than an assumed formula for this apparatus.
+For the constant clock and zero circulation, exact second moments x=E[v^2] and y=E[g^2] obey
 
-## Independent checks
+    (2gamma+nu)x-nu y=2gamma Ta,
+    -nu x+(2lambda+nu)y=2lambda Tb.
 
-The oracle solves the four-dimensional continuous Lyapunov equation. The private reference independently integrates propagated stochastic impulses, C=integral exp(A*t)*Q*Q^T*exp(A^T*t) dt, and reconstructs heat from laboratory energy transfer plus torque work. A third frequency-response covariance integral agrees with both to 1.13e-13 over selected domain corners. Hidden oracle/reference agreement is 7.14e-15. A cold evaluation of all twelve private inputs takes 0.059 seconds, well below the verifier's 60-second limit.
+Thus JB=C(Ta-Tb), C=gamma lambda nu/[2gamma lambda+nu(gamma+lambda)]. Its derivative in gamma is strictly positive for positive lambda, so the known lambda and nonzero contrasts identify gamma. Fitting the uncertainty-weighted slope gives gamma=C lambda nu/[lambda nu-C(2lambda+nu)]. The private true gamma=.67 appears only in verifier metadata/reference. The public source has no true-parameter default. Its Model.fit is intentionally unfinished; the separate completed approximation implements the fit.
 
-A conservative Routh-Hurwitz bound gives a positive stability margin of 2.023775 throughout the public domain. Corner checks cover positive covariance, stationary first law, nonnegative entropy production q_A/T_a+q_B/T_b, and reversal of rotation. First-law residuals are below 7.33e-15. The formal one-bath, isotropic-trap limit recovers the rotating Gibbs covariance and zero thermal heat and torque; the stationary equal-temperature limit recovers ordinary Gibbs equilibrium. These author-only limit checks need not lie in the calibration domain.
+## Completed Gaussian moment/response approximation
 
-## Validation
+The public source and scripts/rotating_reservoir_baseline.py implement the same Gaussian moment/response physics, with only the source's unfinished fit differing. They retain both velocities, finite gas relaxation, recoil, motor-conditioned means and the full pair covariance. They do not reset the gas, ignore eta or kappa, or use independent collision shot noise.
 
-There are 288 calibration records, true drag 0.67, fixed sigma=0.001, calibration seed 71061 and noise seed 146822. Public and private data copies are identical. The fitted drag is 0.6698903768520476 and reduced chi-square is 1.059217. Nominal oracle hidden errors are at most 8.08e-5. Shortcut errors are 1.57049, 0.522332 and 1.59242 in the equal-temperature, temperature-bias and trap-stiffness groups. The standard hidden tolerance is 0.04 in group RMS relative error; parameter tolerance is 3% and reduced calibration chi-square must be below 1.5.
+Their five exact mean/second-moment equations are closed by a motor-conditioned joint Gaussian for the flux averages. With D=v-g and S=v+g, the necessary folded-normal integrals E[|D|D] and E[|D|DS] are evaluated analytically. At eta=0 that assumption disappears from these low-order equations: all first/second moments and mean calibration are exact even though the joint stationary law need not be Gaussian. The source then uses its assumed stationary Gaussian law to project the exact kinetic generator onto six quadratic observables and evaluate a quadratic Poisson response. It includes the correct shared-Wiener term as well as the direct noise. This is an explicit Gaussian moment/response approximation, not an assertion that this projected generator is an exact realizable Gaussian Markov path law. Positive covariance, projected decay, nonnegative noise, moment stationarity and energy balance are checked over the full box.
 
-All 256 independent noise draws pass parameter and calibration checks; every oracle passes all hidden groups and every shortcut fails. Maximum fitted parameter error is 0.0514%, worst oracle hidden error is 0.000254, and minimum shortcut hidden error is 0.52226. Exact noiseless recovery is checked near both endpoints of the parameter interval. Calibration predictions of the two physical closures are identical.
+There is no exact noise branch or high-order answer in the public source. In particular, eta=0 noise is still approximated; no discontinuous exact eta=0 exception conceals its nonGaussian law. Completed calibration, physically defined current, coherent assumed moment/response equations and accurate quadrature distinguish this control from a broken formula or unfinished numerical implementation.
 
-Local isolated pytest reports oracle 8/8 and shortcut 5 passes plus the three intended hidden failures, taking 0.34 seconds per control. These controls establish physical and numerical separation; they do not establish Luna difficulty. Docker controls and model evaluations are managed separately by the root runner.
+## Exact kinetic calculation and independent reference
 
-Reports: [science](../../results/rotating-reservoir-validation.json), [local controls](../../results/rotating-reservoir-local-controls.json), [source provenance](../../results/rotating-reservoir-source-provenance.json), [physics review](../../results/constraint-hardening-physics-review.json), and [independent prototype review](../../results/materials-rotating-bath-prototype-review.json).
+The private oracle solves the continuous joint kinetic generator in normalized Hermite polynomials. The motor-conditioned minus density is the simultaneous velocity reflection of the plus density; the reduced generator includes kappa[f(-v,-g)-f(v,g)]. Under an isotropic Gaussian integration weight, the elastic swap is reversible. Rotating to relative and total velocity and substituting z=+/-sqrt(2 variance t) lets Gauss-Laguerre/Hermite quadrature integrate the |v-g| collision matrix exactly within the finite polynomial subspace. The basis variance is the positive known max(Ta,Tb), so cold equilibrium uses its actual thermal weight. This numerical basis choice introduces no extra physical input. Degree34 is checked against degree42, a fixed positive alternative weight, equilibrium controls and an independent grid method. At eta=0 the degree-four polynomial generator closes exactly, including the motor, so that private branch is an exact special limit of the same physics.
 
-Reproduce with `uv run --no-project --python 3.13 --with numpy==2.3.3 --with scipy==1.16.3 --with pytest==8.4.2 python scripts/validate_rotating_reservoir.py`. Use `--generate` only when intentionally regenerating both frozen calibration copies.
+For the continuous calorimeter, the first two Feynman-Kac generator derivatives are
+
+    K1 f = 2lambda Tb(g-u)partial_g f - lambda[(g-u)^2-Tb]f,
+    K2 f = 2lambda Tb(g-u)^2 f.
+
+The oracle solves stationary moments and L r1=(-mean)1-K1 1 with stationary zero gauge, then evaluates noise=<K2 1>+2<K1 r1>. The derivative term includes the shared-Wiener correlation. No collision or motor heat mark is added.
+
+The self-contained verifier imports no oracle, prototype or archive. It uses a positive Cartesian finite-volume generator: independent Scharfetter-Gummel OU transitions, exact node swaps and exact simultaneous node reflections. It marks ONLY bath-B OU edges by minus the relative kinetic-energy difference. Its stationary probabilities and full marked-edge Poisson corrector give heat noise without Hermite polynomials, continuous Feynman-Kac matrices or Gaussian closure. Richardson grids81/162 remove the leading mesh error. Their finite-mesh calorimeter is an approximation to the unbounded continuum apparatus, not a physical velocity cutoff. Extent and resolution refinement are checked independently.
+
+## Independent anchors and causal distinction
+
+The root teammate independently implemented the full degree-four raw monomial generator and degree-two Poisson response at eta=0, including arbitrary circulation and motor persistence, in results/prototypes/rotating-reservoir-r8-root/exact_constant_collision.py. It agrees with the independently assembled Hermite method over 96 preparations. For the simpler zero-flow anchor, let A=E[v^4], B=E[g^4] and C4=E[v^2 g^2]. Exact equations give
+
+    (4gamma+nu)A-nu B=12gamma Ta x,
+    -nu A+(4lambda+nu)B=12lambda Tb y,
+    C4=(gamma Ta y+lambda Tb x)/(gamma+lambda),
+    C4-x*y=-nu(x-y)^2/[2(gamma+lambda)].
+
+Thus the retained contact develops negative energy correlations and nonzero fourth cumulants even when its first/second moments fit perfectly. A zero-mean Gaussian at the same x,y has C4=x*y and B=3y^2. The exact quadratic Poisson coefficients are av=lambda nu/D and ag=lambda(2gamma+nu)/D, D=4gamma lambda+2nu(gamma+lambda), yielding
+
+    noise=2lambda Tb y
+          +2lambda[av(C4-x*y)+ag(B-y^2)]
+          -8lambda Tb ag y.
+
+At eta=Omega=0 its quadratic response is exact, so replacing only those Gaussian fourth moments by the exact moments repairs the noise at unchanged gamma and unchanged calibration. At finite circulation the quadratic response still closes at eta=0, and nonGaussian conditional third moments can also contribute alongside the fourth moments. At Ta1.6,Tb.4,lambda2,Omega0, the exact noise is .8226015627733412; the approximation is .6806016007922262, a 17.26% miss. At Omega.6,kappa.8 the independent exact noise is1.3728843451653558, versus1.169358893270394, a14.82% miss. This identifies the physical source of failure before the additional flux kinetics is needed.
+
+Uniform-temperature, zero-flow noise obeys equilibrium FDT: noise=2T^2*dJB/dTa. For eta=0 it reduces to 2C T^2; the root independently checks mixed/full flux. With gamma=Omega=0, Qb is minus a bounded total-energy difference, so its asymptotic noise is zero. The oracle/reference also check exact momentum/energy conservation of swaps, motor reversal symmetry, heat/motor balance, nonnegative stationary thermal entropy production, covariance/noise positivity and numerical refinement.
+
+## Valid domain, groups and evidence
+
+For E=(v^2+g^2)/2, elastic swaps and motor flips leave E unchanged. The generator obeys LE <= -min(2gamma,lambda)E + gamma Ta+lambda Tb+lambda Omega^2/2. For exp(aE), choose a=.2 throughout the box: the leading terms are -a gamma(1-aTa)v^2 and -a lambda(1-aTb)g^2, with positive uniform margins. Completing a square bounds the flow term. Nondegenerate OU diffusion and this energy control give a unique stationary law with finite energy moments and a well-defined stationary heat-noise response. The symmetric collision intensity is invariant under the swap and does not introduce an inelastic heat port.
+
+Three predeclared four-case groups examine constant-contact nonGaussian energy noise, partial relative-flux contact noise and full-flux contact noise. At least one group has exact constant-clock anchors, isolating the correlation error before flux numerics; the others probe the same retained-contact physics. Four mean/equilibrium-noise anchors protect the calibrated and uniform limits. No near-zero-current relative amplification is used: noise denominators are finite. The inherited parameter .03, calibration chi-square1.5 and prediction relative RMS .04 gates and600/60-second resource limits are unchanged.
+
+The approved proposal audit is results/rotating-reservoir-r8-finite-contact-proposal-audit.json, its independent root review is results/rotating-reservoir-r8-proposal-peer-review.json, and all positive and negative screens are retained under results/prototypes/rotating-reservoir-r8-brownian. Mean-only separation was too weak, including strong thermal-contrast attempts; it was not used as a diagnostic. Initial fixed-weight numerical diagnostics are preserved. Proposal gaps were15.6-16.4%, independent grid/continuous errors about1e-4relative, and14-case cold grid evaluation8.31seconds. Final actual-source science,256 direct noisy fits, local oracle/shortcut controls and complete source hashes are recorded in results/rotating-reservoir-r8-validation.json.
+
+Reproduce after packaging with `OPENBLAS_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1 python -B scripts/validate_rotating_reservoir.py`. No paid evaluation is authorized by this document. Fresh Docker controls and exactly three frozen unhinted Luna High trials are separate steps, performed only after final peer review and freeze. Source difficulty is an empirical result, not guaranteed by the physical separation.

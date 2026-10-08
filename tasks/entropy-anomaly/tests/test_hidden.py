@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import numpy as np
 import pytest
@@ -28,7 +29,7 @@ def evaluated():
         assert np.isfinite(actual).all()
         scale = np.full_like(truth, np.sqrt(np.mean(truth**2)))
         result['hidden'][name] = float(np.sqrt(np.mean(((actual-truth)/scale)**2)))
-    log = Path('/logs/verifier/metrics.json')
+    log = Path(os.environ.get('METRICS_PATH', '/logs/verifier/metrics.json'))
     if log.parent.exists():
         log.write_text(json.dumps(result, indent=2)+'\n')
     return result

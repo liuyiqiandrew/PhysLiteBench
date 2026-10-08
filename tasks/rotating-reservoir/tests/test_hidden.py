@@ -13,9 +13,11 @@ def evaluated():
     spec=importlib.util.spec_from_file_location('submission',path);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     records=json.loads((HERE/'data/calibration.json').read_text());model=module.Model();returned=model.fit(records)
     values=np.array([r['value'] for r in records]);sigma=np.array([r['sigma'] for r in records]);pred=model.predict([r['input'] for r in records])
+    assert isinstance(pred,np.ndarray) and pred.shape==(len(records),) and np.isfinite(pred).all()
     hidden={}
     for key,inputs in reference.hidden_inputs().items():
         truth=reference.predict(inputs);got=model.predict(inputs)
+        assert isinstance(got,np.ndarray) and got.shape==(len(inputs),) and np.isfinite(got).all()
         hidden[key]=float(np.sqrt(np.mean((got-truth)**2))/np.sqrt(np.mean(truth**2)))
     metrics=dict(parameter_relative_error=abs(model.drag/reference.TRUE_PARAMETER-1),calibration_chi2=float(np.sum(((pred-values)/sigma)**2)/(len(records)-1)),hidden=hidden,parameter=float(model.drag))
     target=Path(os.environ.get('METRICS_PATH','/logs/verifier/metrics.json'));target.parent.mkdir(parents=True,exist_ok=True);target.write_text(json.dumps(metrics,indent=2))

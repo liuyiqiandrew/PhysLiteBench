@@ -1,5 +1,9 @@
 # Task physics
 
+The current publication has ten source-matched qualified tasks; see the [qualified roster](README.md) and [result manifest](results/qualified-tasks.json). Entropy anomaly r7, rotating reservoir r8 and superconducting heat r6 replace their earlier canonical revisions. Hierarchical glass overlaps r2 is the final addition. For current apparatus definitions and APIs, use each task's environment/README.md; its AUTHOR.md records derivations and validation. Earlier discussions below describe historical revisions where indicated.
+
+The hierarchical-glass task compares a quenched two-level Gaussian tree with an independent-coordinate approximation that has the same warm caloric law. It measures common-parent, common-state and exact labelled leaf partitions for two through six replicas. Selection of a parent reweights its descendants by a fractional power of the subtree partition sum; ignoring this correlation caused all three reviewed failures.
+
 All active tasks use a neutral instruction that permits replacing all implementation code. Current outcomes are in [DASHBOARD.md](DASHBOARD.md); archived scores do not describe revised sources. The descriptions below are author material and are excluded from agent images.
 
 | Active task | Physical issue | Public apparatus | Derivation and validation |
