@@ -70,19 +70,26 @@ def spin_basis_check(ref):
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--noise-trials',type=int,default=256);args=parser.parse_args()
     start=time.time();good,bad,ref=[module(p) for p in (TASK/'solution/model.py',ROOT/'scripts/superconducting_heat_baseline.py',TASK/'tests/reference.py')]
-    old=module(ROOT/'archives/superconducting-heat-r4/tasks/superconducting-heat/solution/model.py')
+    r4=ROOT/'archives/superconducting-heat-r4/tasks/superconducting-heat';skipped=[]
+    def available(check,path):
+        if path.exists():return True
+        skipped.append(dict(check=check,reason=f'{path.relative_to(ROOT)} is not published on this branch'))
+        print('WARNING: skipping',check,'check:',skipped[-1]['reason'],flush=True);return False
+    old=module(r4/'solution/model.py') if available('rho_zero_previous_heat',r4/'solution/model.py') else None
     meta=json.loads((TASK/'tests/metadata.json').read_text());true,sigma,limit=ref.TRUE_PARAMETER,meta['measurement_sigma'],meta['prediction_limit']
     records=json.loads((TASK/'environment/data/calibration.json').read_text());inputs=ref.calibration_inputs()
     assert records==json.loads((TASK/'tests/data/calibration.json').read_text())
-    assert (TASK/'environment/data/calibration.json').read_bytes()==(ROOT/'archives/superconducting-heat-r4/tasks/superconducting-heat/environment/data/calibration.json').read_bytes()
+    calibration_checked=available('calibration_bytes_match_r4',r4/'environment/data/calibration.json')
+    if calibration_checked:assert (TASK/'environment/data/calibration.json').read_bytes()==(r4/'environment/data/calibration.json').read_bytes()
     assert [r['input'] for r in records]==inputs and all(r['sigma']==sigma for r in records)
     exact=ref.predict(inputs,true);hidden=ref.hidden_inputs();truth={name:ref.predict(es,true) for name,es in hidden.items()}
+    frozen=module(ROOT/'scripts/freeze_hidden_truth.py').check(TASK,json.loads((TASK/'tests/data/hidden_truth.json').read_text()))
     def chi(model,rs):
         residual=(model.predict(inputs)-np.array([r['value'] for r in rs]))/sigma
         return float(residual@residual/(len(rs)-1))
     def scores(model):
         return {name:float(np.sqrt(np.mean((model.predict(es)-truth[name])**2)/np.mean(truth[name]**2))) for name,es in hidden.items()}
-    report=dict(revision=6,calibration_preserved=True,noise_trials=args.noise_trials,measurement_sigma_pW=sigma,calibration_seed=meta['calibration_seed'],noise_seed=meta['noise_seed'],controls={})
+    report=dict(revision=6,calibration_preserved=True if calibration_checked else None,noise_trials=args.noise_trials,measurement_sigma_pW=sigma,calibration_seed=meta['calibration_seed'],noise_seed=meta['noise_seed'],frozen_hidden_truth_max_difference_over_group_rms=frozen,skipped_checks=skipped,controls={})
     for label,source in (('oracle',good),('shortcut',bad)):
         model=source.Model().fit(records)
         result=dict(parameter=model.conductance,parameter_relative_error=abs(model.conductance/true-1),calibration_chi2=chi(model,records),hidden=scores(model))
@@ -130,8 +137,9 @@ def main():
         if (j+1)%16==0:print('Domain systems',j+1,flush=True)
     rhozero=[];normal=[];extra=[];multiple=[];refinement=[];equilibrium=[];contrast=[]
     for case in random[:12]:
-        args0=(*case[:5],0.,case[6]);a=good.stationary(*args0,true);oldstate=old.stationary_state(*case[:5],true)
-        rhozero.append(float(max(abs(a['heat'][:3]-oldstate['heat']))))
+        if old is not None:
+            args0=(*case[:5],0.,case[6]);a=good.stationary(*args0,true);oldstate=old.stationary_state(*case[:5],true)
+            rhozero.append(float(max(abs(a['heat'][:3]-oldstate['heat']))))
         base=good.stationary(*case,true)
         for seed in ((5.,5.),(-5.,-5.),(5.,-5.)):
             other=good.stationary(*case,true,initial=seed);multiple.append(float(max(abs(base['mu']-other['mu']))))
@@ -151,7 +159,8 @@ def main():
         for e in es:
             args=good.oscillator_arguments(e);other=(*args[:2],(args[2]+2*np.pi)%(2*np.pi)-np.pi,*args[3:]);one,two=good.stationary(*args,true),good.stationary(*other,true)
             value=good.predict_at([e],true)[0];contrast.append(dict(input=e,readout_identity_pW=float(value-(one['heat'][0]-two['heat'][0])/2),phase_population_difference_K=float(max(abs(one['mu']-two['mu'])))))
-    assert max(rhozero)<1e-7 and max(multiple)<1e-7 and max(extra)<1e-7 and max(refinement)<1e-7
+    if old is not None:assert max(rhozero)<1e-7
+    assert max(multiple)<1e-7 and max(extra)<1e-7 and max(refinement)<1e-7
     assert max(r['closed_mu_error_K'] for r in normal)<1e-9
     assert max(r['independent_heat_error_pW'] for r in normal)<1e-7 and max(r['shortcut_normal_heat_error_pW'] for r in normal)<1e-9
     assert max(abs(r['readout_identity_pW']) for r in contrast)<1e-10
@@ -159,13 +168,13 @@ def main():
     largest_total=2/np.expm1(24/24)+1
     tail=float(poisson.sf(24,largest_total));second_moment_tail=float(largest_total**2*poisson.sf(22,largest_total)+largest_total*poisson.sf(23,largest_total))
     assert tail<1e-16 and second_moment_tail<1e-13
-    report['physics']=dict(domain_seed=931006,domain_systems=len(checks),domain=checks,rho_zero_previous_heat_error_pW=max(rhozero),normal_state=normal,extra_conductance_agreement_max_pW=max(extra),multiple_start_mu_max_K=max(multiple),independent288_vs384_24_vs32_max_pW=max(refinement),common_temperature_passivity=equilibrium,contrast_preparation=contrast,spin_basis_invariance=basis,oscillator_sideband_probability_tail_bound=tail,oscillator_second_recoil_moment_tail_bound=second_moment_tail,initial_Fock_state_tail_bound=float(np.exp(-96)),tail_derivation='Absolute sideband gain is bounded by total emission+absorption count, Poisson with max mean rho(2nB+1); unitarity bounds discarded initial thermal Fock probability.',independent_reference='Explicit thermal Laguerre/Fock displacement covariances, four normal-dispersion Bogoliubov branches, 2x2 singlet spin matrices, independently checked expanding-window root balance and higher-order quadrature.')
+    report['physics']=dict(domain_seed=931006,domain_systems=len(checks),domain=checks,rho_zero_previous_heat_error_pW=max(rhozero) if rhozero else None,normal_state=normal,extra_conductance_agreement_max_pW=max(extra),multiple_start_mu_max_K=max(multiple),independent288_vs384_24_vs32_max_pW=max(refinement),common_temperature_passivity=equilibrium,contrast_preparation=contrast,spin_basis_invariance=basis,oscillator_sideband_probability_tail_bound=tail,oscillator_second_recoil_moment_tail_bound=second_moment_tail,initial_Fock_state_tail_bound=float(np.exp(-96)),tail_derivation='Absolute sideband gain is bounded by total emission+absorption count, Poisson with max mean rho(2nB+1); unitarity bounds discarded initial thermal Fock probability.',independent_reference='Explicit thermal Laguerre/Fock displacement covariances, four normal-dispersion Bogoliubov branches, 2x2 singlet spin matrices, independently checked expanding-window root balance and higher-order quadrature.')
     local={label:local_control(source) for label,source in (('oracle',TASK/'solution/model.py'),('shortcut',ROOT/'scripts/superconducting_heat_baseline.py'))}
     assert local['oracle']['returncode']==0 and local['oracle']['seconds']<60
     assert local['shortcut']['returncode']!=0 and local['shortcut']['seconds']<60
     assert '3 failed, 4 passed' in local['shortcut']['stdout']
     report['local_controls']=local;report['seconds']=time.time()-start
-    files=[p for p in TASK.rglob('*') if p.is_file() and '__pycache__' not in p.parts]+[ROOT/'scripts/superconducting_heat_baseline.py',Path(__file__)]
+    files=[p for p in TASK.rglob('*') if p.is_file() and '__pycache__' not in p.parts]+[ROOT/'scripts/superconducting_heat_baseline.py',ROOT/'scripts/freeze_hidden_truth.py',Path(__file__)]
     report['source_sha256']={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
     output=ROOT/'results/superconducting-heat-r6-validation.json';output.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps({k:v for k,v in report.items() if k not in ('physics','source_sha256','local_controls')},indent=2))

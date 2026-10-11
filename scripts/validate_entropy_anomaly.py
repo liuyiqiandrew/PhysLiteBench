@@ -15,9 +15,19 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT/'tasks/entropy-anomaly'
 ARCHIVE = ROOT/'archives/entropy-anomaly-r6'
+PREVIOUS = ARCHIVE/'tasks/entropy-anomaly/solution/model.py'
 RESULTS = ROOT/'results'
 NOISE_SEED = 9161066
 ANCHORS = ['bulk_anchor', 'uniform_port_anchor']
+SKIPPED = []
+
+
+def available(path, check):
+    """Run a check that needs an unpublished r6 archive file only if it exists; otherwise record the skip."""
+    if path.exists(): return True
+    reason = f'{path.relative_to(ROOT)} is not published on this branch'
+    SKIPPED.append(dict(check=check,reason=reason)); print(f'WARNING: skipping {check}: {reason}',flush=True)
+    return False
 
 
 def module(path, name):
@@ -77,16 +87,21 @@ def isotropic_gradient_formula(e,gamma):
 
 
 def spatial_port_checks(ref,oracle,shortcut,previous):
-    oldref=module(ARCHIVE/'tasks/entropy-anomaly/tests/reference.py','bulk_r6_reference')
-    bulk=sum(oldref.hidden_inputs().values(),[])
+    bulk=[]
+    if available(ARCHIVE/'tasks/entropy-anomaly/tests/reference.py','spatial_port_checks on the archived r6 hidden preparations'):
+        oldref=module(ARCHIVE/'tasks/entropy-anomaly/tests/reference.py','bulk_r6_reference')
+        bulk=sum(oldref.hidden_inputs().values(),[])
+    preserved=available(PREVIOUS,'spatial_port_checks.bulk_preservation_max_abs (r6 oracle comparison)')
+    half_bulk=available(PREVIOUS,'spatial_port_checks.uniform_profile_half_bulk_error, r6 half-bulk part')
     rng=np.random.default_rng(710607)
     for _ in range(64):
         bulk.append(ref.experiment(rng.uniform(-1.5,1.5),rng.uniform(-1.5,1.5),rng.uniform(.25,8),rng.uniform(-5,5),rng.uniform(.8,1.4),rng.uniform(0,.65),int(rng.integers(1,4)),rng.uniform(0,.65),rng.uniform(.2,2)))
     bulk_errors=[];complements=[];phase_periodicity=[];equal_contacts=[];uniform=[];lag_anchors=[]
     weighted_values=[];density_lag=[]
     for gamma in [.7,1.1,1.6]:
-        expected=previous.coefficients(bulk,gamma)
-        bulk_errors.extend(abs(oracle.coefficients(bulk,gamma)-expected));bulk_errors.extend(abs(shortcut.coefficients(bulk,gamma)-expected))
+        if preserved:
+            expected=previous.coefficients(bulk,gamma)
+            bulk_errors.extend(abs(oracle.coefficients(bulk,gamma)-expected));bulk_errors.extend(abs(shortcut.coefficients(bulk,gamma)-expected))
         for e in bulk:
             first=dict(e,detector_phase=.7);other=dict(e,detector_phase=.7-np.pi)
             for source in [oracle,shortcut]:
@@ -97,7 +112,8 @@ def spatial_port_checks(ref,oracle,shortcut,previous):
             zero=dict(first,bath_contrast=0.)
             equal_contacts.append(abs(oracle.coefficients([zero],gamma)[0]-shortcut.coefficients([zero],gamma)[0]))
             flat=dict(first,contrast=0.)
-            uniform.extend([abs(oracle.coefficients([flat],gamma)[0]-.5*previous.coefficients([dict(e,contrast=0.)],gamma)[0]),abs(oracle.coefficients([flat],gamma)[0]-shortcut.coefficients([flat],gamma)[0])])
+            if half_bulk:uniform.append(abs(oracle.coefficients([flat],gamma)[0]-.5*previous.coefficients([dict(e,contrast=0.)],gamma)[0]))
+            uniform.append(abs(oracle.coefficients([flat],gamma)[0]-shortcut.coefficients([flat],gamma)[0]))
             if e['drag_ratio']==1. and e['magnetic']==0.:
                 state=oracle.limiting_state(e,gamma)
                 delta,kappa=e['bath_contrast'],e['switch_rate'];weight=(1+np.cos(state['phase']-.7))/2
@@ -141,7 +157,7 @@ def spatial_port_checks(ref,oracle,shortcut,previous):
         background_scaling.append(abs(measured_background*mass-other*mass/2))
     errors=bulk_errors+complements+phase_periodicity+equal_contacts+uniform+lag_anchors+weighted_energy_errors+background_scaling
     assert max(errors)<2e-7 and all(0<r<1 for r in residence),max(errors)
-    return dict(bulk_preservation_cases=len(bulk),bulk_preservation_max_abs=float(max(bulk_errors)),complementary_port_sum_error=float(max(complements)),
+    return dict(bulk_preservation_cases=len(bulk),bulk_preservation_max_abs=float(max(bulk_errors)) if preserved else None,complementary_port_sum_error=float(max(complements)),
                 detector_phase_periodicity_error=float(max(phase_periodicity)),equal_contact_port_source_error=float(max(equal_contacts)),
                 uniform_profile_half_bulk_error=float(max(uniform)),isotropic_closed_label_lag_anchor_error=float(max(lag_anchors)),
                 weighted_energy_transport_identity_error=float(max(weighted_energy_errors)),actual_finite_mass_weighted_residences=residence,
@@ -160,6 +176,8 @@ def physics_checks(ref,oracle,shortcut,previous,truths):
     assert max(checks.values())<2e-6,checks
     print('entropy r7 independent mass/basis refinements pass',flush=True)
     identity = dict(normalization=0.,current_balance=0.,first_moment_current=0.,summed_leading_second=0.,constant_local_leak=0.,density_correction_normalization=0.,field_reflection=0.,label_reversal=0.,uniform_force=0.,equal_bath=0.)
+    equal_bath=available(PREVIOUS,'identities.equal_bath (r6 oracle comparison at delta=0 corners)')
+    if not equal_bath:del identity['equal_bath']
     minimum_density=np.inf; covariance_minimum=np.inf; minimum_excess=np.inf; fourth_mixture_minimum=np.inf; corners=0
     for friction,ratio,field,temp,contrast,delta,rate,fx,fy in itertools.product([.7,1.6],[.25,8.],[-5.,5.],[.8,1.4],[0.,.65],[0.,.65],[.2,2.],[-1.5,1.5],[-1.5,1.5]):
         e=ref.experiment(fx,fy,ratio,field,temp,contrast,3,delta,rate)
@@ -182,7 +200,7 @@ def physics_checks(ref,oracle,shortcut,previous,truths):
         if contrast==0:
             _,_,expected=uniform_covariance_entropy(e,friction,.001)
             identity['uniform_force']=max(identity['uniform_force'],abs(actual-expected))
-        if delta==0:
+        if delta==0 and equal_bath:
             identity['equal_bath']=max(identity['equal_bath'],abs(actual-previous.coefficients([e],friction)[0]))
         corners+=1
     assert minimum_density>0 and covariance_minimum>0 and fourth_mixture_minimum>-1e-9
@@ -248,21 +266,28 @@ def physics_checks(ref,oracle,shortcut,previous,truths):
 
 
 def validate(noise_trials):
-    start=time.monotonic();ref=module(TASK/'tests/reference.py','entropy_r7_ref');oracle=module(TASK/'solution/model.py','entropy_r7_oracle');shortcut=module(ROOT/'scripts/entropy_anomaly_baseline.py','entropy_r7_shortcut');previous=module(ARCHIVE/'tasks/entropy-anomaly/solution/model.py','entropy_r6_oracle')
+    start=time.monotonic();ref=module(TASK/'tests/reference.py','entropy_r7_ref');oracle=module(TASK/'solution/model.py','entropy_r7_oracle');shortcut=module(ROOT/'scripts/entropy_anomaly_baseline.py','entropy_r7_shortcut');previous=module(PREVIOUS,'entropy_r6_oracle') if PREVIOUS.exists() else None
     records=json.loads((TASK/'environment/data/calibration.json').read_text());private=json.loads((TASK/'tests/data/calibration.json').read_text())
     assert records==private and len(records)==192
-    assert (TASK/'environment/data/calibration.json').read_bytes()==(ARCHIVE/'tasks/entropy-anomaly/environment/data/calibration.json').read_bytes()
+    preserved=available(ARCHIVE/'tasks/entropy-anomaly/environment/data/calibration.json','calibration_bytes_preserved_from_r6')
+    if preserved:assert (TASK/'environment/data/calibration.json').read_bytes()==(ARCHIVE/'tasks/entropy-anomaly/environment/data/calibration.json').read_bytes()
     assert all(r['input']['bath_contrast']==r['input']['magnetic']==0 for r in records)
-    inputs=[r['input'] for r in records];true=ref.TRUE_PARAMETER;sigma=np.array([r['sigma'] for r in records]);coefficient=oracle.coefficients(inputs);noiseless=previous.coefficients(inputs,true)
+    inputs=[r['input'] for r in records];true=ref.TRUE_PARAMETER;sigma=np.array([r['sigma'] for r in records]);coefficient=oracle.coefficients(inputs);noiseless=previous.coefficients(inputs,true) if previous else None
     equivalence={}
-    for gamma in [.7,1.1,1.6]:
-        expected=previous.coefficients(inputs,gamma)
-        for label,mod in [('oracle',oracle),('shortcut',shortcut)]:equivalence[label+str(gamma)]=float(max(abs(expected-mod.coefficients(inputs,gamma))))
-    assert max(equivalence.values())<2e-7
-    sample_indices=[0,7,19,31,47,63,79,95];cal_ref=ref.predict([inputs[i] for i in sample_indices],true)
-    cal_error=float(max(abs(cal_ref-noiseless[sample_indices])));assert cal_error<2e-6
+    if available(PREVIOUS,'calibration_equivalence (r6 oracle comparison)'):
+        for gamma in [.7,1.1,1.6]:
+            expected=previous.coefficients(inputs,gamma)
+            for label,mod in [('oracle',oracle),('shortcut',shortcut)]:equivalence[label+str(gamma)]=float(max(abs(expected-mod.coefficients(inputs,gamma))))
+        assert max(equivalence.values())<2e-7
+    cal_error=None
+    if available(PREVIOUS,'calibration_finite_mass_reference_error (r6 oracle noiseless calibration values)'):
+        sample_indices=[0,7,19,31,47,63,79,95];cal_ref=ref.predict([inputs[i] for i in sample_indices],true)
+        cal_error=float(max(abs(cal_ref-noiseless[sample_indices])));assert cal_error<2e-6
     hidden=ref.hidden_inputs();tref=time.monotonic();truths={key:ref.predict(es,true) for key,es in hidden.items()};cold_reference_seconds=time.monotonic()-tref
     assert cold_reference_seconds<45
+    # The verifier grades against tests/data/hidden_truth.json, which must still match this reference.
+    frozen_error=module(ROOT/'scripts/freeze_hidden_truth.py','freeze_hidden_truth').check(TASK,json.loads((TASK/'tests/data/hidden_truth.json').read_text()))
+    print('entropy r7 frozen hidden truth matches reference',flush=True)
     controls={}
     for label,mod in [('oracle',oracle),('shortcut',shortcut)]:
         model=mod.Model().fit(records);residual=(model.predict(inputs)-np.array([r['value'] for r in records]))/sigma
@@ -271,26 +296,31 @@ def validate(noise_trials):
         for key,value in metrics['hidden'].items():assert value<.04 if key in ANCHORS or label=='oracle' else value>.04
         controls[label]=metrics
     print('entropy r7 fitted controls pass intended gates',flush=True)
-    rng=np.random.default_rng(NOISE_SEED);fitted=[];noise={label:dict(max_parameter_error=0.,max_chi2=0.,hidden_min=1e10,hidden_max=0.,anchor_max=0.,successful_trials=0) for label in ['oracle','shortcut']}
-    for i in range(noise_trials):
-        values=noiseless+rng.normal(0,sigma);inverse=np.sum(coefficient*values/sigma**2)/np.sum(coefficient**2/sigma**2);gamma=float(1/inverse);chi=float(np.sum(((coefficient/gamma-values)/sigma)**2)/(len(values)-1));fitted.append(gamma)
-        sample=[dict(input=e,value=float(v),sigma=float(s)) for e,v,s in zip(inputs,values,sigma)]
-        for label,mod in [('oracle',oracle),('shortcut',shortcut)]:
-            model=mod.Model().fit(sample);assert abs(model.friction-gamma)<1e-12
-            scores={key:error(model.predict(es),truths[key]) for key,es in hidden.items()};diagnostic=[v for key,v in scores.items() if key not in ANCHORS];anchors=[scores[key] for key in ANCHORS]
-            assert abs(gamma/true-1)<.03 and chi<1.5 and max(anchors)<.04
-            assert max(diagnostic)<.04 if label=='oracle' else min(diagnostic)>.04
-            row=noise[label];row['max_parameter_error']=max(row['max_parameter_error'],abs(gamma/true-1));row['max_chi2']=max(row['max_chi2'],chi);row['hidden_min']=min(row['hidden_min'],min(diagnostic));row['hidden_max']=max(row['hidden_max'],max(diagnostic));row['anchor_max']=max(row['anchor_max'],max(anchors));row['successful_trials']+=1
-    print('entropy r7 all 256 noisy controls pass',flush=True)
-    report=dict(revision=7,status='scientific_and_local_controls_pass_model_evaluation_pending',calibration_records=len(records),calibration_bytes_preserved_from_r6=True,calibration_copies_equal=True,calibration_equivalence=equivalence,calibration_finite_mass_reference_error=cal_error,cold_hidden_reference_seconds=cold_reference_seconds,controls=controls,noise_trials=noise_trials,noise_seed=NOISE_SEED,noise=noise,fitted_parameter_range=[min(fitted),max(fitted)],independent_checks=physics_checks(ref,oracle,shortcut,previous,truths),local_controls=local_controls())
+    fitted=[];noise=None
+    if available(PREVIOUS,'noise (noisy calibration refits around r6 oracle noiseless values)'):
+        rng=np.random.default_rng(NOISE_SEED);noise={label:dict(max_parameter_error=0.,max_chi2=0.,hidden_min=1e10,hidden_max=0.,anchor_max=0.,successful_trials=0) for label in ['oracle','shortcut']}
+        for i in range(noise_trials):
+            values=noiseless+rng.normal(0,sigma);inverse=np.sum(coefficient*values/sigma**2)/np.sum(coefficient**2/sigma**2);gamma=float(1/inverse);chi=float(np.sum(((coefficient/gamma-values)/sigma)**2)/(len(values)-1));fitted.append(gamma)
+            sample=[dict(input=e,value=float(v),sigma=float(s)) for e,v,s in zip(inputs,values,sigma)]
+            for label,mod in [('oracle',oracle),('shortcut',shortcut)]:
+                model=mod.Model().fit(sample);assert abs(model.friction-gamma)<1e-12
+                scores={key:error(model.predict(es),truths[key]) for key,es in hidden.items()};diagnostic=[v for key,v in scores.items() if key not in ANCHORS];anchors=[scores[key] for key in ANCHORS]
+                assert abs(gamma/true-1)<.03 and chi<1.5 and max(anchors)<.04
+                assert max(diagnostic)<.04 if label=='oracle' else min(diagnostic)>.04
+                row=noise[label];row['max_parameter_error']=max(row['max_parameter_error'],abs(gamma/true-1));row['max_chi2']=max(row['max_chi2'],chi);row['hidden_min']=min(row['hidden_min'],min(diagnostic));row['hidden_max']=max(row['hidden_max'],max(diagnostic));row['anchor_max']=max(row['anchor_max'],max(anchors));row['successful_trials']+=1
+        print('entropy r7 all 256 noisy controls pass',flush=True)
+    report=dict(revision=7,status='scientific_and_local_controls_pass_model_evaluation_pending',calibration_records=len(records),calibration_bytes_preserved_from_r6=preserved or None,calibration_copies_equal=True,calibration_equivalence=equivalence,calibration_finite_mass_reference_error=cal_error,cold_hidden_reference_seconds=cold_reference_seconds,frozen_hidden_truth_max_difference_over_group_rms=frozen_error,controls=controls,noise_trials=noise_trials if noise else 0,noise_seed=NOISE_SEED,noise=noise,fitted_parameter_range=[min(fitted),max(fitted)] if noise else None,independent_checks=physics_checks(ref,oracle,shortcut,previous,truths),local_controls=local_controls())
+    report['skipped_checks']=SKIPPED
+    if SKIPPED:report['status']+='_r6_archive_checks_skipped'
     report['seconds']=time.monotonic()-start
-    files=sorted(p for p in TASK.rglob('*') if p.is_file() and not any(part in ['__pycache__','.pytest_cache'] for part in p.parts));files += [ROOT/'scripts/entropy_anomaly_baseline.py',Path(__file__).resolve()]
+    files=sorted(p for p in TASK.rglob('*') if p.is_file() and not any(part in ['__pycache__','.pytest_cache'] for part in p.parts));files += [ROOT/'scripts/entropy_anomaly_baseline.py',ROOT/'scripts/freeze_hidden_truth.py',Path(__file__).resolve()]
     report['source_sha256']={str(p.relative_to(ROOT)):fingerprint(p) for p in files};return report
 
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--noise-trials',type=int,default=256);parser.add_argument('--output',type=Path,default=RESULTS/'entropy-anomaly-r7-validation.json');args=parser.parse_args()
     report=validate(args.noise_trials);args.output.parent.mkdir(parents=True,exist_ok=True);args.output.write_text(json.dumps(report,indent=2)+'\n');print('entropy r7 validation PASS',report['seconds'],flush=True)
+    if SKIPPED:print(f'WARNING: {len(SKIPPED)} checks were skipped because r6 archive files are not published; see skipped_checks in {args.output}',flush=True)
 
 
 if __name__=='__main__':main()
