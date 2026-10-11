@@ -5,11 +5,16 @@ from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
+import re
 import subprocess
 import sys
 import threading
 
 ROOT = Path(__file__).resolve().parents[1]
+# Completed shortcuts not named '<task_with_underscores>_baseline.py'.
+SHORTCUT_ALIASES = {'reaction-diffusion':'reaction_baseline.py'}
+# A failing hidden prediction test; hierarchical-glass-overlaps names them test_coincidences.
+PREDICTION_FAILURE = re.compile(r'FAILED \S*\btest_hidden\.py::(test_prediction|test_coincidences)\b')
 
 
 def summary(job):
@@ -20,6 +25,30 @@ def summary(job):
             rewards.extend([float(score)]*len(trials))
     return {'trials':len(rewards), 'passes':sum(r == 1 for r in rewards),
             'errors':result['stats']['n_errored_trials']}
+
+
+def shortcut_model(control_root, task):
+    path = control_root/f'{task.replace("-", "_")}_baseline.py'
+    if (ROOT/path).is_file() or task not in SHORTCUT_ALIASES:
+        return path
+    return control_root/SHORTCUT_ALIASES[task]
+
+
+def check_control(job, condition):
+    """Oracle passes every check; the shortcut fails only hidden prediction tests."""
+    verifiers = list(job.glob('*/verifier'))
+    assert len(verifiers) == 1, verifiers
+    metrics = json.loads((verifiers[0]/'metrics.json').read_text())
+    assert 'error' not in metrics, f'{job.name}: hidden verifier wrote no metrics: {metrics}'
+    if condition == 'shortcut':
+        lines = (verifiers[0]/'test-stdout.txt').read_text().splitlines()
+        failed = [line for line in lines if line.startswith('FAILED ')]
+        totals = [line for line in lines if re.search(r'\d+ (failed|passed)\b.* in [\d.]+s', line)]
+        counts = {word:int(n) for n, word in re.findall(r'(\d+) (\w+)', totals[-1])} if totals else {}
+        # Every test ran and none errored or was skipped, so the tests not listed as failed passed.
+        complete = failed and counts.get('failed') == len(failed) and set(counts) <= {'failed', 'passed', 'warning', 'warnings'}
+        assert complete and all(PREDICTION_FAILURE.match(line) for line in failed), \
+            f'{job.name}: shortcut must fail only hidden prediction tests:\n'+'\n'.join(failed+totals[-1:])
 
 
 def main():
@@ -44,9 +73,27 @@ def main():
         not math.isfinite(args.agent_setup_timeout_multiplier) or args.agent_setup_timeout_multiplier <= 0
     ):
         parser.error('--agent-setup-timeout-multiplier must be positive and finite')
+    problems = [f'duplicate task: {task}' for task in sorted(set(args.tasks)) if args.tasks.count(task) > 1]
+    if not args.label or Path(args.label).name != args.label:
+        problems.append(f'label must be a directory name: {args.label!r}')
+    for task in dict.fromkeys(args.tasks):
+        task_dir = ROOT/args.task_root/task
+        if not task or Path(task).name != task:
+            problems.append(f'task must be a directory name: {task}')
+            continue
+        if not task_dir.is_dir():
+            problems.append(f'missing task directory: {task_dir}')
+            continue
+        if 'hint' in args.conditions and not (task_dir/'hint.md').is_file():
+            problems.append(f'missing physics hint: {task_dir/"hint.md"}')
+        shortcut = ROOT/shortcut_model(args.control_root, task)
+        if 'shortcut' in args.conditions and not shortcut.is_file():
+            problems.append(f'missing completed shortcut: {shortcut}')
+    if problems:
+        parser.error('nothing was launched:\n  '+'\n  '.join(problems))
     stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
     directory = ROOT/'jobs'/f'matrix-{args.label}-{stamp}'
-    directory.mkdir()
+    directory.mkdir(parents=True)
     lock = threading.Lock()
     index = {'label':args.label, 'started':stamp, 'model':'gpt-5.6-luna', 'effort':'high',
              'task_root':str(args.task_root), 'control_root':str(args.control_root), 'runs':[]}
@@ -63,7 +110,7 @@ def main():
             if condition in ['oracle', 'shortcut']:
                 command += ['--agent', 'oracle', '--trials', '1', '--concurrency', '1']
                 if condition == 'shortcut':
-                    command += ['--solution-model', str(args.control_root/f'{task.replace("-", "_")}_baseline.py')]
+                    command += ['--solution-model', str(shortcut_model(args.control_root, task))]
             else:
                 command += ['--model', 'gpt-5.6-luna', '--reasoning-effort', 'high', '--trials', '3',
                             '--concurrency', str(min(args.trial_concurrency, 3))]
@@ -84,11 +131,7 @@ def main():
                 raise RuntimeError(f'Incomplete/errored Harbor batch: {name}')
             if condition in ['oracle', 'shortcut']:
                 assert row['passes'] == (1 if condition == 'oracle' else 0), row
-                metrics = list((ROOT/'jobs'/name).glob('*/verifier/metrics.json'))
-                assert len(metrics) == 1
-                m = json.loads(metrics[0].read_text())
-                parameter_error = m.get('parameter_relative_error', m.get('parameter_relative_error_max'))
-                assert m['calibration_chi2'] < 1.5 and parameter_error < .03, m
+                check_control(ROOT/'jobs'/name, condition)
         return task
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
