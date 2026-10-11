@@ -287,7 +287,7 @@ def transition(left,right,oscillator_temperature,channels,mu):
 
 @lru_cache(maxsize=4096)
 def stationary(left, right, phase, amplitude, drive, rho, oscillator_temperature,
-               conductance=45., nodes=192, count=24, normal=False, factorized=False,
+               conductance, nodes=192, count=24, normal=False, factorized=False,
                initial=(0., 0.)):
     ratio = QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
     bound, guess = 40., np.array(initial, dtype=float)
