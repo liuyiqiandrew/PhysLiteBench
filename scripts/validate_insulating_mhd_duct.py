@@ -44,9 +44,11 @@ def main():
     axis_equality=float(np.max(abs(axis_oracle.predict(inputs)-axis_shortcut.predict(inputs))))
     assert axis_equality<1e-14
     hidden=reference.hidden_inputs();truths={k:reference.predict(v,true) for k,v in hidden.items()}
+    # The hidden test reads this frozen truth; it must still equal reference.py at the true parameter.
+    frozen_truth=module(ROOT/'scripts/freeze_hidden_truth.py').check(task,json.loads((task/'tests/data/hidden_truth.json').read_text()))
     def scores(model):
         return {k:float(np.linalg.norm(model.predict(hidden[k])-y)/np.linalg.norm(y)) for k,y in truths.items()}
-    report=dict(revision=2,calibration_seed=meta['calibration_seed'],noise_seed=meta['noise_seed'],noise_trials=args.noise_trials,measurement_sigma=float(sigma),calibration_control_agreement_max=axis_equality,controls={})
+    report=dict(revision=2,calibration_seed=meta['calibration_seed'],noise_seed=meta['noise_seed'],noise_trials=args.noise_trials,measurement_sigma=float(sigma),calibration_control_agreement_max=axis_equality,frozen_hidden_truth_max_difference_over_group_rms=frozen_truth,controls={})
     for name,cls in [('oracle',oracle),('shortcut',shortcut)]:
         exact=cls();exact.viscosity=true
         agreement=float(np.linalg.norm(exact.predict(inputs)-noiseless)/np.linalg.norm(noiseless));assert agreement<1e-3

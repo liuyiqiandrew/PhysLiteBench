@@ -1,4 +1,4 @@
-import importlib.util,json,os
+import importlib.util,json,math,os
 from pathlib import Path
 import numpy as np
 import pytest
@@ -6,6 +6,15 @@ import reference
 
 HERE=Path(__file__).parent
 METADATA=json.loads((HERE/'metadata.json').read_text())
+# reference.predict(hidden_inputs, TRUE_PARAMETER), frozen by scripts/freeze_hidden_truth.py so the verifier does not recompute it.
+FROZEN=json.loads((HERE/'data/hidden_truth.json').read_text())['groups']
+def canonical(value):return json.loads(json.dumps(value,default=lambda x:x.tolist() if hasattr(x,'tolist') else x))
+def same_inputs(a,b):
+    # Equal structure and strings; numbers equal up to last-bit differences between CPUs.
+    if isinstance(a,dict):return isinstance(b,dict) and a.keys()==b.keys() and all(same_inputs(a[k],b[k]) for k in a)
+    if isinstance(a,list):return isinstance(b,list) and len(a)==len(b) and all(map(same_inputs,a,b))
+    if isinstance(a,(int,float)) and isinstance(b,(int,float)):return math.isclose(a,b,rel_tol=1e-12,abs_tol=1e-300)
+    return a==b
 
 @pytest.fixture(scope='module')
 def evaluated():
@@ -16,7 +25,8 @@ def evaluated():
     assert isinstance(pred,np.ndarray) and pred.shape==(len(records),) and np.isfinite(pred).all()
     hidden={}
     for key,inputs in reference.hidden_inputs().items():
-        truth=reference.predict(inputs);got=model.predict(inputs)
+        assert same_inputs(FROZEN[key]['inputs'],canonical(inputs)),key
+        truth=np.array(FROZEN[key]['truth']);got=model.predict(inputs)
         assert isinstance(got,np.ndarray) and got.shape==(len(inputs),) and np.isfinite(got).all()
         hidden[key]=float(np.sqrt(np.mean((got-truth)**2))/np.sqrt(np.mean(truth**2)))
     metrics=dict(parameter_relative_error=abs(model.drag/reference.TRUE_PARAMETER-1),calibration_chi2=float(np.sum(((pred-values)/sigma)**2)/(len(records)-1)),hidden=hidden,parameter=float(model.drag))

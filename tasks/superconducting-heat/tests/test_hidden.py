@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import math
 from pathlib import Path
 import numpy as np
 import pytest
@@ -10,6 +11,23 @@ spec = importlib.util.spec_from_file_location('physical_reference', HERE/'refere
 reference = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reference)
 METADATA = json.loads((HERE/'metadata.json').read_text())
+# reference.predict(hidden_inputs, TRUE_PARAMETER), frozen by scripts/freeze_hidden_truth.py.
+FROZEN = json.loads((HERE/'data/hidden_truth.json').read_text())['groups']
+
+
+def canonical(value):
+    return json.loads(json.dumps(value, default=lambda x: x.tolist() if hasattr(x, 'tolist') else x))
+
+
+def same_inputs(a, b):
+    """Equal structure and strings; numbers equal up to last-bit differences between CPUs."""
+    if isinstance(a, dict):
+        return isinstance(b, dict) and a.keys() == b.keys() and all(same_inputs(a[k], b[k]) for k in a)
+    if isinstance(a, list):
+        return isinstance(b, list) and len(a) == len(b) and all(map(same_inputs, a, b))
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return math.isclose(a, b, rel_tol=1e-12, abs_tol=1e-300)
+    return a == b
 
 
 @pytest.fixture(scope='module')
@@ -26,7 +44,8 @@ def evaluated():
               'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
               'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
     for name, experiments in reference.hidden_inputs().items():
-        truth = reference.predict(experiments, reference.TRUE_PARAMETER)
+        assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+        truth = np.array(FROZEN[name]['truth'])
         actual = model.predict(experiments)
         assert isinstance(actual, np.ndarray) and actual.shape == truth.shape
         assert np.isfinite(actual).all()
