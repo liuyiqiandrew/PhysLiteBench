@@ -1,0 +1,54 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,50 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Estimate the (single) drag coefficient from calibration readings.
++
++        The calibration protocol deliberately has identical baths and no magnetic
++        field.  In that case the small-mass result is proportional to
++        ``1 / friction`` (the contact rate drops out because switching identical
++        contacts has no effect).  Writing the prediction as ``a / friction``
++        makes the Gaussian, inverse-variance weighted fit a one-parameter
++        linear least-squares problem in ``1 / friction``.  Besides being more
++        accurate than an arbitrary grid search, this keeps fitting independent
++        of an optional scipy installation.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments=[]
++        values=[]
++        sigmas=[]
++        for record in records:
++            try:
++                experiment=record['input']
++                value=float(record['value'])
++                sigma=float(record['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("each calibration record needs input, value, and positive sigma") from exc
++            if not np.isfinite(value) or not np.isfinite(sigma) or sigma <= 0:
++                raise ValueError("calibration values must be finite and sigma must be positive")
++            experiments.append(experiment)
++            values.append(value)
++            sigmas.append(sigma)
++
++        # `coefficients(..., 1.)` is the coefficient a in a / friction for
++        # the documented calibration preparation.
++        a=coefficients(experiments,1.)
++        y=np.asarray(values)
++        inv_variance=1./np.square(np.asarray(sigmas))
++        denominator=float(np.dot(inv_variance*a,a))
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError("calibration inputs do not identify friction")
++        inverse_friction=float(np.dot(inv_variance*a,y)/denominator)
++        if not np.isfinite(inverse_friction) or inverse_friction <= 0:
++            raise ValueError("calibration data imply a non-positive friction")
++
++        # Friction is specified to lie in this closed physical range.  Project
++        # a noisy unconstrained estimate onto that range.
++        self.friction=float(np.clip(1./inverse_friction,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

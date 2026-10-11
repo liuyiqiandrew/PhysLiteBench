@@ -38,3 +38,12 @@ Every input contains force_x and force_y, each in [-1.5,1.5]; drag_ratio in [.25
 Calibration omits detector_phase and measures the unweighted readout. It uses bath_contrast=0 and magnetic=0, with nonuniform spatial profiles, varied switch_rate controls, unequal as well as equal drag ratios and known forces. Records in data/calibration.json contain input, value and independent Gaussian standard uncertainty sigma. These measurements identify the common friction coefficient.
 
 Implement Model.fit(records), returning self and storing Model.friction. Model.predict(experiments) must return a finite NumPy array of shape (len(experiments),), in input order, with the specified limiting excess entropy rates. Any implementation preserving this interface may be used.
+
+
+## Three-contact cyclic valve preparation
+
+If `valve_cycle` is present, use three reservoirs with labels s=-1,0,+1 in that cyclic order, replacing the two-contact valve. Reservoir s has T_s(x)=temperature*(1+s*bath_contrast)*(1+contrast*cos(wavenumber*x)). Its drag coefficients are gamma_x,s=friction*(1+s*contact_drag_contrast) and gamma_y,s=drag_ratio*gamma_x,s. The optional contact_drag_contrast is in [0,.7] and defaults to zero. Use these state-specific coefficients in both the stated friction force and the noise amplitude, and in that reservoir's calorimeter. Magnetic and external forces are unchanged.
+
+At positive mass, a jump to the next label in the cycle occurs at switch_rate*(1+valve_cycle)/m, and a jump to the previous label occurs at switch_rate*(1-valve_cycle)/m. The signed valve_cycle lies in [-.9,.9]. The externally prescribed valve has stationary probabilities one third, even for a directed cycle. Its jumps remain independent of position, velocity, and the Wiener increments; they change neither particle position nor velocity and carry no particle energy or calorimeter increment. No entropy attributed to operating the valve is included in particle bath calorimetry.
+
+The same weighted-residence background subtraction applies. Its uniform, force-free background keeps valve_cycle and contact_drag_contrast as well as all the previously specified matched settings. Take the same stationary small-mass limit at fixed control values. If valve_cycle is absent, use exactly the original two-contact preparation. Calibration uses only that original preparation. The unknown friction, detector definition, prediction interface, and other parameter ranges are unchanged.

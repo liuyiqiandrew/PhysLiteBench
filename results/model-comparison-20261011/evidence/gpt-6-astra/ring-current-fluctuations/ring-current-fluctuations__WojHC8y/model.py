@@ -1,0 +1,106 @@
+"""Large-ring current SCGF for the half-filled weakly asymmetric ring.
+
+The microscopic clock is fixed, so the entire SCGF scales linearly with D.
+Above the current-fluctuation transition the optimal density is nonuniform;
+using the homogeneous quadratic branch there would underestimate the SCGF.
+"""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.optimize import brentq
+from scipy.special import ellipe, ellipk, elliprj
+
+
+_CRITICAL_SQUARED = 4.0 * np.pi**2
+
+
+@lru_cache(maxsize=512)
+def _zero_current_modulus(field):
+    """Elliptic parameter at zero current: K(m) = E/4."""
+    return brentq(
+        lambda m: ellipk(m) - field / 4.0,
+        0.0,
+        np.nextafter(1.0, 0.0),
+        xtol=5e-15,
+        rtol=1e-14,
+    )
+
+
+@lru_cache(maxsize=4096)
+def _unit_scgf(field, bias):
+    """SCGF at D=1, including the symmetry-broken branch."""
+    quadratic = bias * (bias + 2.0 * field) / 4.0
+    # At the transition the two branches agree to first order. Treat a
+    # roundoff-sized neighborhood as homogeneous so algebraically equivalent
+    # evaluations of the threshold cannot produce an invalid root bracket.
+    threshold_slack = 8.0 * np.finfo(float).eps * max(1.0, field**2)
+    if quadratic >= -np.pi**2 - threshold_slack:
+        return quadratic
+
+    # At half filling the optimal traveling density wave has zero velocity.
+    # Writing u=2*rho-1, its first integral is
+    # u'^2 = E^2 (a^2-u^2)(b^2-u^2), with u=a*sn(E*b*x | m),
+    # m=a^2/b^2 and E*b=4*K(m) to give a single period on the ring.
+    # The conjugate current relation fixes m through
+    # (lambda+E)^2 = E^2*(1-a^2)*(1-b^2)*(Pi(a^2|m)/K(m))^2.
+    shifted_bias_squared = (bias + field) ** 2
+    upper = _zero_current_modulus(field)
+
+    def current_equation(m):
+        # Use exact endpoint values to avoid roundoff in E^2-16*K^2.
+        if m <= 0.0:
+            return field**2 - _CRITICAL_SQUARED - shifted_bias_squared
+        if m >= upper:
+            return -shifted_bias_squared
+        k = ellipk(m)
+        b_squared = (4.0 * k / field) ** 2
+        a_squared = m * b_squared
+        # Carlson's symmetric integral evaluates the complete third-kind
+        # integral Pi(n|m) = K(m) + n*RJ(0,1-m,1,1-n)/3.
+        mean_inverse = 1.0 + a_squared * elliprj(
+            0.0, 1.0 - m, 1.0, 1.0 - a_squared
+        ) / (3.0 * k)
+        return (
+            field**2 * (1.0 - b_squared) * (1.0 - a_squared)
+            * mean_inverse**2 - shifted_bias_squared
+        )
+
+    m = brentq(current_equation, 0.0, upper, xtol=5e-15, rtol=1e-14)
+    k = ellipk(m)
+    # Substitution into the macroscopic fluctuation action cancels the
+    # third-kind integrals, leaving only K and the second-kind integral.
+    return -4.0 * k * ((m - 1.0) * k + 2.0 * ellipe(m))
+
+
+def predict_at(experiments, diffusivity):
+    """Return raw SCGF values in inverse microscopic time units."""
+    return float(diffusivity) * np.asarray(
+        [_unit_scgf(float(e["field"]), float(e["bias"])) for e in experiments],
+        dtype=float,
+    )
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Fit D by bounded Gaussian maximum likelihood (weighted least squares)."""
+        records = list(records)
+        basis = predict_at([r["input"] for r in records], 1.0)
+        values = np.asarray([r["value"] for r in records], dtype=float)
+        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
+        if not np.all(np.isfinite(sigma) & (sigma > 0.0)):
+            raise ValueError("Measurement standard deviations must be finite and positive.")
+        if not np.all(np.isfinite(values)):
+            raise ValueError("Calibration values must be finite.")
+        weighted_basis = basis / sigma
+        information = weighted_basis @ weighted_basis
+        if information > 0.0:
+            estimate = (weighted_basis @ (values / sigma)) / information
+            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

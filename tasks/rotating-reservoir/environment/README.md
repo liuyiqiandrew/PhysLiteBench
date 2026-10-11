@@ -36,10 +36,44 @@ Equivalently the Ito increment, which specifies the measurement jointly with the
 
 The Wiener increment here is the SAME W_B driving g. Only continuous bath-B evolution contributes to Q_B; collisions and motor switches carry no instantaneous Q_B. In particular a collision's gas kinetic-energy change is stored in the retained contact and is not itself a deposit into the thermal reservoir. Flow-maintaining motor work is separate from heat. Its continuous particle work is u times the bath-B thermostat force in the laboratory kinetic-energy balance. There is no background subtraction or other detector contribution.
 
-Records start in the stationary joint rotor/contact/motor ensemble. With statistic="mean", the output is lim(t→infinity) E[Q_B(t)]/t, in energy/time. With statistic="noise", it is lim(t→infinity) Var[Q_B(t)]/t, in energy²/time. This variance is centered about the ensemble mean and includes all stationary rotor, retained contact, motor, collision and Wiener randomness, including their correlations. The ideal calorimeter adds no electronic noise or sampling error to predictions. Statistic is optional and defaults to "mean"; a prediction list may mix both readouts.
+Records start in the stationary joint rotor/contact/motor ensemble. With statistic="mean", the output is lim(t→infinity) E[Q_B(t)]/t, in energy/time. With statistic="noise", it is lim(t→infinity) Var[Q_B(t)]/t, in energy²/time. This variance is centered about the ensemble mean and includes all stationary rotor, retained contact, motor, collision and Wiener randomness, including their correlations. The ideal calorimeter adds no electronic noise or sampling error to predictions. With statistic="third_cumulant", the output is lim(t→infinity) E[(Q_B(t)-E[Q_B(t)])³]/t, in energy³/time. The expectation is over the stationary ensemble and the same physical randomness as the variance. This is the third cumulant rate; it is not divided by the variance or its powers and may be signed. Statistic is optional and defaults to "mean"; a prediction list may mix these readouts.
 
 Every experiment contains angular_speed in [-.65,.65], flip_rate in [.8,2], temperature_a in [.4,2], temperature_b in [.4,1.4], flux_fraction in [0,1], and relaxation_rate in [.2,3]. All settings are exact, give stationary dynamics and finite stated readouts, and refer to the apparatus above. The only unknown is the common laboratory drag. The finite contact replaces an infinite stream of fresh gas; relaxation_rate is never implicitly infinite.
 
 Calibration uses flux_fraction=0, angular_speed=0, and relaxation_rate=1.3 with varied temperatures and motor rates. Its records omit statistic and measure mean heat. The 288 records in data/calibration.json contain input, measured value and independent Gaussian standard uncertainty sigma=.001 in energy/time.
 
 Implement Model.fit(records), returning self and storing drag. Model.predict(experiments) returns a finite NumPy array of shape (len(experiments),), in input order, containing the selected stationary calorimeter readout. Any implementation preserving this interface may be used.
+
+
+## Angularly gated calorimeter preparation
+
+An optional ideal detector records a gain-weighted bath-B heat signal Y in
+place of Q_B. Its dimensionless gain depends on the instantaneous physical
+rotor angle:
+
+    w(theta) = 1 + detector_contrast*cos(detector_harmonic*theta),
+    dY = w(theta) dQ_B,    Y(0)=0.
+
+The Ito heat increment dQ_B and its shared W_B are exactly those specified
+above. Since dtheta=v dt has finite variation at finite time, this weighting
+introduces no additional Ito correction. The gain multiplies the entire heat
+increment, including its Wiener term. Neither collisions nor motor switches
+produce an instantaneous detector increment. The detector is passive: it
+changes no force, reservoir, collision rate or stored energy, and adds no
+noise, lag, threshold or sample averaging. Y is the gain-weighted reading;
+Q_B remains the physical heat in the energy balance.
+
+For this preparation theta modulo 2*pi is initially uniform and independent
+of the stationary velocity/contact/motor ensemble. It then follows the same
+continuous dtheta=v dt throughout a record; collisions change v but not theta.
+The statistics "mean", "noise" and "third_cumulant" now mean the respective
+long-time cumulant rates of Y, with the same centering and units as before.
+
+detector_contrast is optional, defaults to zero, and lies in [0,.8].
+detector_harmonic is optional, defaults to 1, and is an integer in {1,2,3}.
+Nonzero detector_contrast is used only with angular_speed=0. All previously
+stated temperature, drag, relaxation, flux and motor-flip ranges still apply.
+At zero contrast the original Q_B readouts and full original flow range apply.
+Calibration has zero contrast. A list may mix gated and ungated preparations.
+The supplied gated predictor uses the limiting approximation of independently
+rapidly mixed detector phase. All its helpers may be modified or replaced.

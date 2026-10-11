@@ -1,0 +1,1 @@
+Take the small-mass limit of the measured position–velocity correlations before identifying the mechanical area with an integral along a limiting position process. The antisymmetric Lorentz mobility can retain a finite contribution from fast velocity motion even when its relaxation time tends to zero. Check the area accumulated from a fully thermal equilibrium preparation.

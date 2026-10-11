@@ -1,0 +1,40 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,36 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the shared viscosity from the calibration measurements.
++
++        At fixed apparatus parameters, the response is inversely proportional
++        to viscosity.  Writing the unit-viscosity response as ``a_i``, each
++        measurement has mean ``a_i / viscosity``.  The known independent
++        Gaussian uncertainties make the fit a weighted least-squares problem.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        amplitudes = np.asarray(
++            [response(**record['input']) for record in records], dtype=float)
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.all(np.isfinite(amplitudes)) or
++                not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(sigmas)) or np.any(sigmas <= 0)):
++            raise ValueError('Calibration values and positive uncertainties must be finite.')
++
++        # The objective is quadratic in q = 1 / viscosity.  Constrain its
++        # minimizer to the documented viscosity interval [.8, 1.6].
++        weights = 1.0 / sigmas**2
++        denominator = np.sum(weights * amplitudes**2)
++        if denominator == 0 or not np.isfinite(denominator):
++            raise ValueError('Calibration records contain no viscosity-sensitive response.')
++        q = np.sum(weights * amplitudes * values) / denominator
++        q = np.clip(q, 1.0 / 1.6, 1.0 / 0.8)
++        self.viscosity = float(1.0 / q)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

@@ -26,3 +26,14 @@ def test_calibration(fitted, data):
         predictions.append(predicted)
     residual = (np.array(predictions)-data["concentration"])/data["sigma"]
     assert np.sum(residual**2)/(residual.size-1) < 1.5
+
+
+def test_correlation_interface():
+    from pathlib import Path
+    import numpy as np
+    from model import TransportModel
+    data=dict(np.load(Path(__file__).parent/'data/calibration.npz'))
+    model=TransportModel().fit(data)
+    result=model.correlate(np.array([0.,1.,10.]),np.array([.8,1.2]),2)
+    assert isinstance(result,np.ndarray) and result.shape==(3,2,2)
+    assert np.isfinite(result).all()

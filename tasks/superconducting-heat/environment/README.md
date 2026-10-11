@@ -1,5 +1,9 @@
 # Phase-contrast heat exchange through a quantum electromagnetic environment
 
+Model.predict supports four statistics: `mean`, `phase_contrast`,
+`gate_noise`, and `gate_third`. The sections below define the stochastic spin dynamics and
+macroscopic limits for both work cumulants. Read all apparatus sections.
+
 Two noninteracting metallic islands L and R have flat normal electronic
 state densities, equal charge chemical potentials, and spin-singlet proximity
 pairing. Use one fixed laboratory spin basis, with up and down along z.
@@ -153,3 +157,136 @@ finite NumPy array of shape `(len(experiments),)` in pW. You may replace the
 entire implementation within this API. Calibration is in
 `data/calibration.json`. Run `python -m pytest -q test_public.py` for interface
 and calibration checks.
+
+
+## Optional second electromagnetic mode
+
+Each cell may contain an additional independent harmonic mode c_i with hbar*omega1/k_B=48 K. Its optional dimensionless secondary_coupling is in [0,1] and defaults to zero. When this coupling is nonzero, replace D_i in the same tunneling Hamiltonian by
+
+    D_i=exp{i[sqrt(rho)*(b_i+b_i†)
+                +sqrt(secondary_coupling)*(c_i+c_i†)]}.
+
+The oscillator Hamiltonian includes hbar*omega1*(c_i†*c_i+1/2) for every cell. Different modes commute. Both modes are in independent thermal states at the same supplied oscillator_temperature. The second mode has thermal Fock probabilities (1-r1)*r1^m, r1=exp[-48 K/oscillator_temperature]. The same weak-cell equilibration and sharp-line hierarchy applies independently to each mode. All joint transitions allowed by this displacement operator contribute at the same leading tunneling order, without a coupling expansion. Final oscillator states are unobserved. There is no additional detector port, drive, spin source, or fitted parameter.
+
+The original mean and phase_contrast readouts include electronic energy transfer through the full contact Hamiltonian, with both oscillator baths present. Each phase preparation again reaches its own stationary spin state. Calibration has both couplings zero. The other ranges, units, phase preparation, and API are unchanged. With mode energies 24 K and 48 K, nonzero sideband energies remain multiples of 24 K, so the stated spectral separation from electronic thresholds still applies.
+
+
+## Nonlinear phase coupling
+
+The optional real dimensionless quadratic_coupling is in [-.2,.2] and defaults
+to zero. It changes the first mode's phase coupling, with X_i=b_i+b_i†, to
+
+    D_i=exp{i[sqrt(rho)*X_i + quadratic_coupling*X_i²
+                +sqrt(secondary_coupling)*(c_i+c_i†)]}.
+
+This is the full unitary operator in H_T. Hermitian conjugation conjugates the
+entire operator. It is a static nonlinear contact coupling: neither oscillator
+Hamiltonian, oscillator thermal state, nor island spectrum is changed. The
+phase controller fixes phi=phi_L-phi_R in H_j as written, including when the
+contact operator has a nonzero thermal mean phase; it adds no compensating
+phase shift. All joint final oscillator states remain unobserved. Use the same
+leading single-electron transition order and retain all contributions from
+this specified operator without expanding its exponential. There is no new
+fitted parameter, heat path, or work source. Every other preparation and
+measurement rule, including separate spin equilibration for phase contrast,
+continues to apply. Calibration has quadratic_coupling=0.
+
+
+## Ordered coupling to conjugate oscillator quadratures
+
+An optional dimensionless momentum_coupling chi lies in [-.6,.6] and defaults
+to zero. For nonzero chi the first-mode part of the tunnel operator is an
+ordered product. Define X_i=b_i+b_i† and P_i=i*(b_i†-b_i), so [X_i,P_i]=2i.
+The full operator in H_T is
+
+    D_i = exp{i[sqrt(rho)*X_i + quadratic_coupling*X_i²]}
+          exp{i*momentum_coupling*P_i}
+          exp{i*sqrt(secondary_coupling)*(c_i+c_i†)}.
+
+Factors act on a ket from right to left exactly in this order. This formula
+replaces the preceding single-exponential definition when chi is nonzero
+and reduces to it when chi is zero. It is a fixed static contact operator,
+with no separate time pulses or classical noisy field. The oscillator
+Hamiltonians and their thermal states are unchanged. The contact remains
+Hermitian through the stated h.c. term, which conjugates the entire product.
+The parent phase convention and controller are unchanged and add no phase
+compensation. There is no extra work source, energy path, fitted parameter,
+or observation of oscillator final states. All earlier ranges, weak-cell
+limits, measurements and kinetic equations apply. Calibration has chi=0.
+
+
+## Long-time noise of classical gate work
+
+The additional statistic="gate_noise" measures fluctuations of the work
+supplied by the prescribed rotating magnetic barrier. At leading tunnel
+order, count the work n*hbar*Omega supplied in each Floquet transition with
+harmonic n; the reverse transition has opposite work. Equivalently this is
+the stochastic energy delivered by the classical gate through H_T. Static
+barrier transitions have n=0. Oscillator-bath exchange is separate and is not
+added to gate work. Work may be positive or negative event by event. No
+electronic or oscillator state is measured or reset by this detector.
+
+For this noise measurement retain fluctuations of the island spin populations.
+Conditional on the instantaneous spin populations, the same rapid local
+equilibration gives the stated Fermi forms, with mu_j determined by
+
+    S_j=N_up-N_down=nu*integral_(d_j)^infinity
+          [E/sqrt(E^2-d_j^2)]*[f_j,+ (E)-f_j,- (E)] dE.
+
+Single-electron tunneling events have the conditional leading-order quantum
+transition rates of H_T, including Pauli blocking, both directions and every
+allowed oscillator transition. At this weak-cell order their event counts
+are independent conditional Poisson processes. Each event changes S_L and
+S_R by its actual quasiparticle spin changes. The equal-energy spin flips
+already specified are also stochastic transitions with occupation factors
+f_j,s(E)*[1-f_j,-s(E)] and per-state rate 1/(2*tau_j(E)); each changes S_j by
+minus 2*s. Fast recombination and temperature equilibration conserve S_j.
+There are no other spin sources, spin clamps, or detector fluctuations.
+
+The requested result is the leading macroscopic noise. To define it precisely,
+multiply both nu and the number of independent tunnel cells by a common size
+factor Lambda, so the total conductance is Lambda*conductance. Keep every
+temperature, coupling, drive, per-cell transparency and spin-relaxation time
+fixed. This scaling leaves the stationary intensive state unchanged. At each
+finite Lambda first reach stationarity and take the long observation-time
+limit, then report
+
+    limit_(Lambda->infinity) (1/Lambda) limit_(t->infinity)
+        Var[W_gate(t)]/t.
+
+The units are pW^2*s (joule^2/second times 10^24). The centering is over the
+full stationary ensemble, including tunneling, spin flips and induced spin
+population fluctuations. This is zero-frequency noise with no extra factor
+of two. It is not the second moment of the mean power. Lambda is a limiting
+construction, not an input or new fitted parameter. The existing mean and
+phase_contrast readouts retain their preceding definitions. At amplitude=0
+gate work and its noise vanish. Every earlier parameter range applies.
+Calibration is unchanged and contains only the original mean heat records.
+The provided noise predictor uses independent event counts at fixed stationary
+spin populations; all helpers may be replaced.
+
+
+## Third cumulant of gate work
+
+The statistic="gate_third" uses the identical large-island scaling, initial
+stationary ensemble, gate-work record and stochastic event rules as
+gate_noise. Its output is
+
+    lim_(Lambda->infinity) (1/Lambda) lim_(t->infinity)
+        E[(W_gate(t)-E[W_gate(t)])^3]/t.
+
+Report this signed third cumulant rate in pW^3*s^2. Centering is by the full
+stationary ensemble mean for that same Lambda and time; there is no Gaussian
+subtraction, conditioning on spin populations, or subtraction of intrinsic
+Poisson skewness. The same spin population changes and finite-size spin
+fluctuations that enter gate_noise also enter this statistic. Retain the full
+state dependence of every conditional tunnelling and spin-flip rate as
+defined above. The limit is the leading extensive third cumulant, not the
+third moment of the leading Gaussian approximation to intensive spin.
+When amplitude=0, W_gate is identically zero. All earlier parameter ranges,
+units for inputs, calibration records and prediction interfaces are unchanged.
+No additional parameter is fitted.
+
+The provided third-cumulant predictor uses independent stationary Poisson
+events with work increments modified by the linear stationary spin response.
+As with every supplied helper, this approximation may be replaced.

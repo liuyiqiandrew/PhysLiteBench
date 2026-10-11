@@ -23,3 +23,8 @@ def test_parameter(measured):
 @pytest.mark.parametrize("index", range(3))
 def test_prediction(measured, index):
     assert measured["hidden_nrmse"][index] < .05
+
+
+@pytest.mark.parametrize('case',['dilute_charge_correlations','bound_cluster_correlations','asymmetric_mixture_correlations'])
+def test_fluctuation_prediction(measured,case):
+    assert measured['fluctuation_nrmse'][case]<.05

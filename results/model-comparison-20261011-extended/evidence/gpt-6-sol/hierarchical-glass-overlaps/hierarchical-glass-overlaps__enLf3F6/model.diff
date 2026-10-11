@@ -1,0 +1,82 @@
+--- starter/model.py
++++ submission/model.py
+@@ -20,13 +20,21 @@
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def joint_leaf_partition(q, alpha, blocks):
++    """Probability of one labelled leaf partition inside one shared family.
++
++    The family masses have PD(q) law. Conditional on a family sampled by
++    replicas, its leaf partition has PD(alpha, -q) law: the family's random
++    leaf partition sum size-biases the selected family. Multiplying the two
++    sampling formulae cancels their common rising factorial.
++    """
+     n = sum(blocks)
+-    k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0 / math.factorial(n - 1)
++    for i in range(1, len(blocks)):
++        result *= i * alpha - q
+     for size in blocks:
+-        for j in range(1,size):
+-            result *= j-alpha
++        for j in range(1, size):
++            result *= j - alpha
+     return result
+ 
+ 
+@@ -37,8 +45,8 @@
+     if observable == 'parent_collision':
+         return parent
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        return participation(alpha,replicas)
++    return joint_leaf_partition(q,alpha,blocks)
+ 
+ 
+ class Model:
+@@ -54,11 +62,39 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        numerator = []
++        denominator = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(measured)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Invalid calibration record.')
++            x = beta / sigma
++            y = measured / sigma
++            if not math.isfinite(x) or not math.isfinite(y):
++                raise ValueError('Invalid calibration record.')
++            numerator.append(-x * y)
++            denominator.append(x * x)
++        if not denominator:
++            raise ValueError('At least one calibration record is required.')
++        width_squared = math.fsum(numerator) / math.fsum(denominator)
++        width_squared = min(WIDTH_INTERVAL[1]**2,
++                            max(WIDTH_INTERVAL[0]**2, width_squared))
++        self.width = math.sqrt(width_squared)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        result = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Outside the stated calibration range.')
++            result.append(-beta * value * value)
++        return np.asarray(result,dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

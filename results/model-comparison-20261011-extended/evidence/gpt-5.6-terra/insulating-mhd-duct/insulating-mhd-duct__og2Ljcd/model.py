@@ -1,0 +1,146 @@
+"""Transient quasi-static MHD model for the rectangular duct."""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.linalg import eigh
+from scipy.optimize import minimize_scalar
+
+WIDTH, HEIGHT = 0.012, 0.008
+DENSITY, CONDUCTIVITY = 1000.0, 1.0e5
+X_MODES, Y_MODES = 40, 56
+
+
+def derivative_overlap(target, source):
+    """Return <sin(target*pi*s), d sin(source*pi*s)/ds>."""
+    p = np.asarray(target, dtype=float)[:, None]
+    m = np.asarray(source, dtype=float)[None, :]
+    denominator = p * p - m * m
+    return np.divide(4.0 * p * m, denominator, out=np.zeros_like(denominator),
+                     where=((p + m) % 2 == 1))
+
+
+@lru_cache(maxsize=4)
+def operators(nx=X_MODES, ny=Y_MODES):
+    """Modal data and the same-direction insulated-wall Lorentz operators."""
+    mm, nn = np.meshgrid(np.arange(1, nx + 1), np.arange(1, ny + 1), indexing="ij")
+    keep = (mm + nn) % 2 == 0
+    m, n = mm[keep], nn[keep]
+    wave2 = (m * np.pi / WIDTH) ** 2 + (n * np.pi / HEIGHT) ** 2
+    mean = np.where(m % 2 == 1, 8.0 / (np.pi ** 2 * m * n), 0.0)
+    qx = np.zeros((m.size, m.size))
+    qy = np.zeros_like(qx)
+    electric = np.arange(1, 401)
+
+    # Q_i = D_i.T (-laplacian_D)^-1 D_i.  Extra stream-function modes
+    # accurately resolve the derivative expansion's slowly decaying tail.
+    for fixed in np.unique(n):
+        ids = np.flatnonzero(n == fixed)
+        d = derivative_overlap(electric, m[ids]) / WIDTH
+        k2 = (electric * np.pi / WIDTH) ** 2 + (fixed * np.pi / HEIGHT) ** 2
+        qx[np.ix_(ids, ids)] = d.T @ (d / k2[:, None])
+    for fixed in np.unique(m):
+        ids = np.flatnonzero(m == fixed)
+        d = derivative_overlap(electric, n[ids]) / HEIGHT
+        k2 = (fixed * np.pi / WIDTH) ** 2 + (electric * np.pi / HEIGHT) ** 2
+        qy[np.ix_(ids, ids)] = d.T @ (d / k2[:, None])
+    return m, n, wave2, mean, qx, qy
+
+
+@lru_cache(maxsize=4)
+def mixed_operator(nx=X_MODES, ny=Y_MODES):
+    """Return Q_xy + Q_yx, needed when both field components are nonzero."""
+    m, n, *_ = operators(nx, ny)
+    dx = derivative_overlap(np.arange(1, nx + 1), np.arange(1, nx + 1)) / WIDTH
+    dy = derivative_overlap(np.arange(1, ny + 1), np.arange(1, ny + 1)) / HEIGHT
+    # C[a,b] = <D_x a, (-laplacian)^-1 D_y b>, with intermediate mode
+    # (m_b, n_a).  The full cross term is C+C.T.
+    x = dx[np.ix_(m - 1, m - 1)]
+    y = dy[np.ix_(n - 1, n - 1)]
+    denominator = ((n[:, None] * np.pi / HEIGHT) ** 2
+                   + (m[None, :] * np.pi / WIDTH) ** 2)
+    c = x.T * y / denominator
+    return c + c.T
+
+
+@lru_cache(maxsize=32)
+def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+    """Eigen-expansion of the damped modal system, split into cheap blocks."""
+    m, n, wave2, mean, qx, qy = operators(nx, ny)
+    active = np.flatnonzero((m % 2 == 1) & (n % 2 == 1))
+    if bx == 0.0 and by == 0.0:
+        rates = viscosity / DENSITY * wave2[active]
+        return ((active, rates, None, mean[active]),)
+
+    base = np.diag(viscosity / DENSITY * wave2)
+    if bx == 0.0:
+        groups = [active[m[active] == fixed] for fixed in np.unique(m[active])]
+        magnetic = by * by * qy
+    elif by == 0.0:
+        groups = [active[n[active] == fixed] for fixed in np.unique(n[active])]
+        magnetic = bx * bx * qx
+    else:
+        # The mixed term couples the initially forced odd/odd modes to
+        # even/even modes, so the complete retained parity sector is needed.
+        groups = [np.arange(m.size)]
+        magnetic = (bx * bx * qx + by * by * qy
+                    + bx * by * mixed_operator(nx, ny))
+
+    operator = base + CONDUCTIVITY / DENSITY * magnetic
+    result = []
+    for ids in groups:
+        values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+        result.append((ids, values, vectors, vectors.T @ mean[ids]))
+    return tuple(result)
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        """Fit the shared viscosity using the stated independent Gaussian errors."""
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+        experiments = [record["input"] for record in records]
+        measured = np.asarray([record["value"] for record in records], dtype=float)
+        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
+        if (not np.isfinite(measured).all() or not np.isfinite(sigma).all()
+                or np.any(sigma <= 0.0)):
+            raise ValueError("values must be finite and sigma must be positive")
+
+        def objective(viscosity):
+            residual = (self._predict(experiments, float(viscosity)) - measured) / sigma
+            return float(residual @ residual)
+
+        optimum = minimize_scalar(objective, bounds=(0.006, 0.018), method="bounded",
+                                  options={"xatol": 2e-9})
+        # Also consider exact bounds: they are valid estimates for monotone data.
+        candidates = (0.006, float(optimum.x), 0.018)
+        self.viscosity = min(candidates, key=objective)
+        return self
+
+    def _predict(self, experiments, viscosity):
+        m, n, _, mean, *_ = operators()
+        output = np.empty(len(experiments), dtype=float)
+        for row, experiment in enumerate(experiments):
+            bx, by = float(experiment["magnetic_x"]), float(experiment["magnetic_y"])
+            time = float(experiment["time"])
+            if experiment["observable"] == "mean":
+                observation = mean
+            else:
+                observation = (2.0 * np.sin(m * np.pi * float(experiment["x"]))
+                               * np.sin(n * np.pi * float(experiment["y"])))
+            response = 0.0
+            for ids, rates, vectors, forcing in spectrum(viscosity, bx, by):
+                transient = -np.expm1(-rates * time) / rates
+                amplitude = transient * forcing if vectors is None else vectors @ (transient * forcing)
+                response += observation[ids] @ amplitude
+            output[row] = float(experiment["pressure_gradient"]) / DENSITY * response
+        return output
+
+    def predict(self, experiments):
+        if self.viscosity is None:
+            raise RuntimeError("fit must be called before predict")
+        return self._predict(list(experiments), float(self.viscosity))

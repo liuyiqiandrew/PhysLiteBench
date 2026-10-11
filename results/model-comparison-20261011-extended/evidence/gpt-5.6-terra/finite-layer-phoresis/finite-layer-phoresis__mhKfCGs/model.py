@@ -1,0 +1,123 @@
+"""Prediction model for solute-driven motion of a spherical particle."""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.integrate import quad, solve_bvp
+
+
+@lru_cache(maxsize=256)
+def response(radius, width, strength, slip):
+    """Return the response multiplied by the solvent viscosity.
+
+    The concentration is written as ``c = exp(-U) f(r) cos(theta)``.  The
+    radial amplitude ``f`` follows from zero solute flux at the sphere and
+    matching to the applied concentration gradient outside the interaction
+    layer.  A reciprocal-theorem calculation then gives the particle speed.
+    Keeping viscosity out of this function makes it useful for the one
+    parameter calibration below.
+    """
+    radius = float(radius)
+    width = float(width)
+    strength = float(strength)
+    slip = float(slip)
+    if strength == 0.0:
+        return 0.0
+
+    outer_radius = radius + width
+
+    # y is f(r), with x=(r-radius)/width. Outside the layer f=r+B/r**2.
+    def equations(x, y):
+        r = radius + width * x
+        return np.array([
+            y[1],
+            -(2.0 * width / r + 2.0 * strength * (1.0 - x)) * y[1]
+            + 2.0 * width**2 * y[0] / r**2,
+        ])
+
+    def boundary(left, right):
+        # No normal solute flux at r=radius, and exterior matching at r=R.
+        return np.array([
+            left[1],
+            outer_radius * right[1] / width + 2.0 * right[0] - 3.0 * outer_radius,
+        ])
+
+    grid = np.linspace(0.0, 1.0, 129)
+    r_grid = radius + width * grid
+    initial = np.array([
+        r_grid + radius**3 / (2.0 * r_grid**2),
+        width * (1.0 - radius**3 / r_grid**3),
+    ])
+    solution = solve_bvp(equations, boundary, grid, initial, tol=2e-10, max_nodes=10000)
+    if not solution.success:
+        raise RuntimeError("Unable to solve concentration field: " + solution.message)
+
+    # Translational drag relative to no slip, and the radial part of the
+    # corresponding auxiliary Stokes flow. Both depend on the Navier slip
+    # length; dividing a no-slip kernel by its changed drag is not enough.
+    beta = slip / radius
+    drag_ratio = (1.0 + 2.0 * beta) / (1.0 + 3.0 * beta)
+    coefficient_a = 1.5 * radius * drag_ratio
+    coefficient_b = radius**3 / (2.0 * (1.0 + 3.0 * beta))
+
+    def integrand(r):
+        x = (r - radius) / width
+        concentration_amplitude = np.exp(-strength * (1.0 - x) ** 2) * solution.sol(x)[0]
+        potential_derivative = -2.0 * strength * (1.0 - x) / width
+        auxiliary_radial_velocity = 1.0 - coefficient_a / r + coefficient_b / r**3
+        return r**2 * auxiliary_radial_velocity * concentration_amplitude * potential_derivative
+
+    integral = quad(integrand, radius, outer_radius, epsabs=2e-11, epsrel=2e-11)[0]
+    return 2.0 * integral / (9.0 * radius * drag_ratio)
+
+
+def predict_at(experiments, viscosity):
+    """Evaluate a sequence of documented experiment dictionaries."""
+    return np.asarray([
+        response(e["radius"], e["width"], e["strength"], e["slip"]) / viscosity
+        for e in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        """Infer viscosity by weighted least squares over calibration records."""
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        responses = np.asarray([
+            response(
+                record["input"]["radius"], record["input"]["width"],
+                record["input"]["strength"], record["input"]["slip"],
+            )
+            for record in records
+        ], dtype=float)
+        values = np.asarray([record["value"] for record in records], dtype=float)
+        sigmas = np.asarray([record["sigma"] for record in records], dtype=float)
+        if not (np.isfinite(responses).all() and np.isfinite(values).all() and np.isfinite(sigmas).all()):
+            raise ValueError("calibration records must be finite")
+        if np.any(sigmas <= 0.0):
+            raise ValueError("calibration uncertainties must be positive")
+
+        # response / viscosity is linear in inverse viscosity. This is the
+        # maximum-likelihood estimate for the stated independent Gaussian
+        # measurement errors.
+        weights = 1.0 / sigmas**2
+        denominator = np.sum(weights * responses**2)
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError("calibration records do not identify viscosity")
+        inverse_viscosity = np.sum(weights * responses * values) / denominator
+        if not np.isfinite(inverse_viscosity) or inverse_viscosity <= 0.0:
+            raise ValueError("calibration data imply a non-positive viscosity")
+
+        self.viscosity = float(1.0 / inverse_viscosity)
+        return self
+
+    def predict(self, experiments):
+        if self.viscosity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.viscosity)

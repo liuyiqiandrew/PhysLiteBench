@@ -1,0 +1,56 @@
+--- starter/model.py
++++ submission/model.py
+@@ -172,17 +172,33 @@
+ def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+-    w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
+-    def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+-    c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+-    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+-    return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
++    # Fourier coefficients of w and w**2.  The n=1 resolvent includes
++    # i*harmonic*v: detector phase follows the actual rotor, rather than
++    # being redrawn independently of its velocity.
++    w1=eps/2
++    w2zero=1+eps*eps/2
++    w2one=eps
++    mean=float(p@(A1@constant))  # Eigenvalue derivative for exp(-k Y).
++    stationary=L.copy();stationary[0]=p
++    def invert_zero(rhs):
++        rhs=rhs.copy();rhs[0]=0.
++        return solve(stationary,rhs,check_finite=False)
++    first_harmonic=L.astype(complex)+1j*harmonic*V
++    if phase_mixing_rate:
++        first_harmonic-=phase_mixing_rate*harmonic**2*np.eye(len(p))
++    def invert_one(rhs):
++        return solve(first_harmonic,rhs,check_finite=False)
++    a1constant=A1@constant
++    a2constant=A2@constant
++    r10=invert_zero(mean*constant-a1constant)
++    r11=invert_one(-w1*a1constant) if eps else np.zeros(len(p),dtype=complex)
++    a1r10=A1@r10
++    a1r11=A1@r11
++    c2=float(p@(w2zero*a2constant+2*(a1r10+2*w1*a1r11.real)))
++    r20=invert_zero(c2*constant+2*mean*r10-2*(a1r10+2*w1*a1r11.real)-w2zero*a2constant)
++    r21=invert_one(2*mean*r11-2*(a1r11+w1*a1r10)-w2one*a2constant) if eps else np.zeros(len(p),dtype=complex)
++    c3=float(3*p@(A1@r20+2*w1*(A1@r21).real+w2zero*(A2@r10)+2*w2one*(A2@r11).real))
++    return dict(mean=-mean,noise=c2,third_cumulant=-c3)
+ 
+ 
+ @lru_cache(512)
+@@ -207,6 +223,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

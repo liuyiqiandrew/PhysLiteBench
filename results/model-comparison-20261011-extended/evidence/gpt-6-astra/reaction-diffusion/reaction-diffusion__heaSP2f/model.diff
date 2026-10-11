@@ -1,0 +1,257 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,86 +1,189 @@
++"""Electroneutral transport with fast, reversible four-ion association."""
++
+ import numpy as np
+ from scipy.fft import dct, idct
++from scipy.integrate import solve_ivp
++from scipy.linalg import eigh
+ from scipy.optimize import minimize_scalar
+-from scipy.integrate import solve_ivp
+ from scipy.sparse import diags
+ 
+-# Neutral four-ion association A+ + B+ + 2 C- <-> P.
+-ASSOCIATION=0.5
+-NEUTRAL_MOBILITY=0.15
++ASSOCIATION = 0.5
++NEUTRAL_MOBILITY = 0.15
++CELL_LENGTH = 0.001
++CHARGE = np.array([1., 1., -1., 0.])
++CONSTITUENTS = np.array([[1., 0., 0., 1.], [0., 1., 0., 1.]])
++RELATIVE_DIFFUSIVITY = np.array([1., 4., 2., NEUTRAL_MOBILITY])
++
+ 
+ def equilibrium(total):
+-    a,b=np.asarray(total).T
+-    bound=np.zeros_like(a)
+-    for _ in range(24):
+-        free_a=a-bound;free_b=b-bound;anion=free_a+free_b
+-        value=bound-ASSOCIATION*free_a*free_b*anion**2
+-        derivative=1+ASSOCIATION*(anion**3+4*free_a*free_b*anion)
+-        change=value/derivative
+-        bound=np.clip(bound-change,0.,np.minimum(a,b))
+-        if np.max(abs(change))<1e-13:break
+-    return np.column_stack((a-bound,b-bound,a+b-2*bound,bound))
++    """Return free A, B, C and bound P at prescribed total A and B.
++
++    The scalar mass-action equation is strictly increasing in P on
++    [0, min(total_A, total_B)]. Newton iteration from zero approaches its
++    unique physical root from below.
++    """
++    total = np.asarray(total, dtype=float)
++    a, b = total[..., 0], total[..., 1]
++    bound = np.zeros_like(a)
++    for _ in range(64):
++        free_a, free_b = a - bound, b - bound
++        anion = free_a + free_b
++        value = bound - ASSOCIATION * free_a * free_b * anion**2
++        derivative = 1 + ASSOCIATION * (anion**3 + 4 * free_a * free_b * anion)
++        updated = np.clip(bound - value / derivative, 0., np.minimum(a, b))
++        if np.all(np.abs(updated - bound) <= 1e-14 * (1 + np.abs(bound))):
++            bound = updated
++            break
++        bound = updated
++    return np.stack((a - bound, b - bound, a + b - 2 * bound, bound), axis=-1)
++
++
++def fluctuation_matrices(totals, diffusivity):
++    """Equilibrium susceptibility and zero-current constituent mobility.
++
++    Ideal species populations have covariance diag(c). Conditioning on zero
++    charge gives a Schur complement; mapping to conserved constituents then
++    includes fluctuations of the equilibrium cluster population. Association
++    events themselves conserve these constituents and add no separate noise.
++
++    The same charge projection applied to diag(D_i*c_i) removes the Brownian
++    charge current as well as the deterministic current.
++    """
++    concentration = equilibrium(totals)
++    population = np.diag(concentration)
++    population_charge = population @ CHARGE
++    conditional = population - np.outer(population_charge, population_charge) / (
++        CHARGE @ population_charge
++    )
++    susceptibility = CONSTITUENTS @ conditional @ CONSTITUENTS.T
++
++    mobile = np.diag(diffusivity * RELATIVE_DIFFUSIVITY * concentration)
++    mobile_charge = mobile @ CHARGE
++    constrained = mobile - np.outer(mobile_charge, mobile_charge) / (CHARGE @ mobile_charge)
++    mobility = CONSTITUENTS @ constrained @ CONSTITUENTS.T
++    return susceptibility, mobility
++
++
++def equilibrium_correlations(t, totals, harmonic, diffusivity):
++    """S(t) = exp(-q^2 M chi^-1 t) chi, evaluated symmetrically."""
++    covariance, mobility = fluctuation_matrices(totals, diffusivity)
++    # Generalized eigenvectors obey V.T @ chi @ V = I. Thus chi @ V is
++    # a covariance factor, and all decay rates are real and nonnegative.
++    rates, vectors = eigh(mobility, covariance)
++    factors = covariance @ vectors
++    q_squared = (harmonic * np.pi / CELL_LENGTH)**2
++    decay = np.exp(-np.asarray(t, dtype=float)[:, None] * q_squared * rates)
++    return np.einsum('ik,tk,jk->tij', factors, decay, factors)
++
+ 
+ class TransportModel:
+     def __init__(self):
+         self.diffusivity = None
+ 
+-    def fit(self,data):
+-        raise NotImplementedError('Fit the common ionic diffusion scale from calibration.')
++    def fit(self, data):
++        """Fit the one positive diffusion scale by Gaussian maximum likelihood.
+ 
+-    def _binary(self,t,x,initial):
+-        t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)
+-        count=len(x)-1
+-        spatial_rate=4/(x[1]-x[0])**2*np.sin(np.arange(count+1)*np.pi/(2*count))**2
+-        coefficients=dct(initial,type=1,axis=0)
+-        rates=spatial_rate[:,None]*self.diffusivity*np.array([4/3,8/3])[None,:]
+-        return idct(np.exp(-t[:,None,None]*rates[None,:,:])*coefficients[None,:,:],type=1,axis=1)
++        Calibration records contain only one cation, so P=0. Zero current
++        gives ambipolar diffusivities 4D/3 (A,C) and 8D/3 (B,C). The cosine
++        transform diagonalizes the conservative, blocking-end spatial grid.
++        """
++        x = np.asarray(data['x'], dtype=float)
++        t = np.asarray(data['t'], dtype=float)
++        initial = np.asarray(data['initial'], dtype=float)
++        observed = np.asarray(data['concentration'], dtype=float)
++        sigma = np.asarray(data['sigma'], dtype=float)
++        coefficients = dct(initial, type=1, axis=1)
++        rates = self._binary_rates(x)
+ 
+-    def predict(self,t,x,initial):
+-        t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)
+-        if t[-1]==0:
+-            return initial[None,:,:].copy()
+-        if np.all(initial[:,0]==0) or np.all(initial[:,1]==0):
+-            return self._binary(t,x,initial)
+-        count=len(x);dx=x[1]-x[0]
+-        width=np.full(count,dx);width[[0,-1]]*=.5
+-        da,db,dc=self.diffusivity*np.array([1.,4.,2.])
+-        def derivative(time,flat):
+-            c=equilibrium(flat.reshape(count,2))
+-            face=(c[:-1]+c[1:])/2
+-            gradient=np.diff(c,axis=0)/dx
+-            potential_gradient=-(da*gradient[:,0]+db*gradient[:,1]-dc*gradient[:,2])/(da*face[:,0]+db*face[:,1]+dc*face[:,2])
+-            free_flux=-np.array([da,db])*(gradient[:,:2]+face[:,:2]*potential_gradient[:,None])
+-            bound_flux=-self.diffusivity*NEUTRAL_MOBILITY*gradient[:,3]
+-            flux=np.zeros((count+1,2))
+-            flux[1:-1]=free_flux+bound_flux[:,None]
+-            return (-np.diff(flux,axis=0)/width[:,None]).ravel()
+-        sparsity=diags([np.ones(2*count-abs(i)) for i in range(-3,4)],range(-3,4),format="csr")
+-        result=solve_ivp(derivative,(0,t[-1]),initial.ravel(),method="BDF",t_eval=t,rtol=1e-8,atol=1e-10,jac_sparsity=sparsity)
++        def objective(log_diffusivity):
++            decay = np.exp(-np.exp(log_diffusivity) * t[:, None, None] * rates)
++            prediction = idct(coefficients[:, None, :, :] * decay[None, :, :, :],
++                              type=1, axis=2)
++            residual = (prediction - observed) / sigma
++            return np.sum(residual**2)
++
++        positive_times = t[t > 0]
++        if not positive_times.size:
++            raise ValueError('Fitting diffusivity requires observations at positive times.')
++        scale = (x[-1] - x[0])**2 / positive_times[-1]
++        # First locate the informative region to avoid the flat objective at
++        # diffusion scales where all observed profiles have already relaxed.
++        grid = np.log(scale) + np.linspace(-16., 12., 57)
++        losses = np.array([objective(value) for value in grid])
++        best = int(np.argmin(losses))
++        lower, upper = grid[max(0, best - 1)], grid[min(len(grid) - 1, best + 1)]
++        result = minimize_scalar(objective, bounds=(lower, upper), method='bounded',
++                                 options={'xatol': 1e-11})
+         if not result.success:
+             raise RuntimeError(result.message)
+-        return result.y.T.reshape(len(t),count,2)
++        self.diffusivity = float(np.exp(result.x))
++        return self
+ 
+-from scipy.linalg import expm
++    @staticmethod
++    def _binary_rates(x):
++        intervals = len(x) - 1
++        spatial_rate = 4 / (x[1] - x[0])**2 * np.sin(
++            np.arange(intervals + 1) * np.pi / (2 * intervals)
++        )**2
++        return spatial_rate[:, None] * np.array([4 / 3, 8 / 3])
+ 
+-def fluctuation_matrices(totals,diffusivity):
+-    concentration=equilibrium(np.asarray(totals)[None,:])[0]
+-    charge=np.array([1.,1.,-1.,0.]);constituents=np.array([[1.,0.,0.,1.],[0.,1.,0.,1.]])
+-    population=np.diag(concentration)
+-    conditional=population-np.outer(concentration*charge,concentration*charge)/(charge@population@charge)
+-    susceptibility=constituents@conditional@constituents.T
+-    mobile=np.diag(diffusivity*np.array([1.,4.,2.,.15])*concentration)
+-    mobile_charge=mobile@charge
+-    constrained=mobile-np.outer(mobile_charge,mobile_charge)/(charge@mobile@charge)
+-    mobility=constituents@constrained@constituents.T
+-    return susceptibility,mobility
++    def _check_fitted(self):
++        if self.diffusivity is None or not np.isfinite(self.diffusivity) or self.diffusivity <= 0:
++            raise ValueError('Fit the model before making predictions.')
+ 
+-def equilibrium_correlations(t,totals,harmonic,diffusivity):
+-    covariance,mobility=fluctuation_matrices(totals,diffusivity)
+-    relaxation=(harmonic*np.pi/.001)**2*mobility@np.linalg.inv(covariance)
+-    initial_covariance=np.diag(totals)
+-    return np.array([expm(-float(time)*relaxation)@initial_covariance for time in t])
++    def _binary(self, t, x, initial):
++        coefficients = dct(initial, type=1, axis=0)
++        rates = self.diffusivity * self._binary_rates(x)
++        result = idct(np.exp(-t[:, None, None] * rates) * coefficients,
++                      type=1, axis=1)
++        result[t == 0] = initial
++        return result
+ 
+-def correlate(self,t,totals,harmonic=1):
+-    return equilibrium_correlations(np.asarray(t),np.asarray(totals),int(harmonic),self.diffusivity)
++    def predict(self, t, x, initial):
++        """Evolve total constituent profiles with blocking boundary fluxes."""
++        self._check_fitted()
++        t, x, initial = (np.asarray(value, dtype=float) for value in (t, x, initial))
++        if not len(t):
++            return np.empty((0, len(x), 2))
++        if t[-1] == 0:
++            return np.broadcast_to(initial, (len(t), len(x), 2)).copy()
++        if np.all(initial[:, 0] == 0) or np.all(initial[:, 1] == 0):
++            return self._binary(t, x, initial)
++        count = len(x)
++        dx = x[1] - x[0]
++        width = np.full(count, dx)
++        width[[0, -1]] *= .5
++        da, db, dc = self.diffusivity * RELATIVE_DIFFUSIVITY[:3]
+ 
+-TransportModel.correlate=correlate
++        def derivative(time, flat):
++            c = equilibrium(flat.reshape(count, 2))
++            face = (c[:-1] + c[1:]) / 2
++            gradient = np.diff(c, axis=0) / dx
++            conductivity = da * face[:, 0] + db * face[:, 1] + dc * face[:, 2]
++            charge_gradient = da * gradient[:, 0] + db * gradient[:, 1] - dc * gradient[:, 2]
++            potential_gradient = np.divide(-charge_gradient, conductivity,
++                                           out=np.zeros_like(conductivity), where=conductivity > 0)
++            free_flux = -np.array([da, db]) * (
++                gradient[:, :2] + face[:, :2] * potential_gradient[:, None]
++            )
++            bound_flux = -self.diffusivity * NEUTRAL_MOBILITY * gradient[:, 3]
++            flux = np.zeros((count + 1, 2))
++            flux[1:-1] = free_flux + bound_flux[:, None]
++            return (-np.diff(flux, axis=0) / width[:, None]).ravel()
++
++        sparsity = diags([np.ones(2 * count - abs(i)) for i in range(-3, 4)],
++                         range(-3, 4), format='csr')
++        result = solve_ivp(derivative, (0, t[-1]), initial.ravel(), method='BDF',
++                           t_eval=t, rtol=1e-10, atol=1e-12, jac_sparsity=sparsity)
++        if not result.success:
++            raise RuntimeError(result.message)
++        return result.y.T.reshape(len(t), count, 2)
++
++    def correlate(self, t, totals, harmonic=1):
++        """Return the stationary two-time covariance of a nonzero cosine mode."""
++        self._check_fitted()
++        if harmonic != int(harmonic) or not 1 <= harmonic <= 8:
++            raise ValueError('harmonic must be an integer from 1 through 8.')
++        return equilibrium_correlations(np.asarray(t, dtype=float),
++                                        np.asarray(totals, dtype=float),
++                                        int(harmonic), self.diffusivity)

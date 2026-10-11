@@ -1,4 +1,4 @@
-"""Independent phase-dephasing/energy-exchange closure with finite spin balance."""
+"""Thermal quantum phase oscillator and stationary spin-resolved BCS heat."""
 from functools import lru_cache
 import numpy as np
 from numpy.polynomial.legendre import leggauss
@@ -191,35 +191,100 @@ class Model:
         self.conductance = None
 
     def fit(self, records):
-        raise NotImplementedError("Fit conductance from the calibration records")
+        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
 
     def predict(self, experiments):
         return predict_at(experiments, self.conductance)
 
 
-from scipy.special import ive
+from scipy.special import gammaln, logsumexp
+from scipy.linalg import eigh_tridiagonal,expm
 OSCILLATOR_ENERGY = 24.
 
 
-def sidebands(rho, temperature, count=24):
+def sidebands(rho, temperature, count=24, energy=OSCILLATOR_ENERGY):
     ell = np.arange(-count, count+1)
     if rho == 0:
         return ell, (ell == 0).astype(float)
-    nb = 1/np.expm1(OSCILLATOR_ENERGY/temperature)
-    argument = 2*rho*np.sqrt(nb*(nb+1))
-    probabilities = ive(abs(ell), argument)*np.exp(
-        -rho*(2*nb+1)+argument+ell*OSCILLATOR_ENERGY/(2*temperature))
-    return ell, probabilities
+    nb = 1/np.expm1(energy/temperature)
+    emission, absorption = rho*(nb+1), rho*nb
+    # Difference of two independent Poisson counts, summed in log space.
+    # This also preserves the zero-temperature Poisson limit.
+    positive = np.arange(count+1)[:,None]
+    pairs = np.arange(64)[None,:]
+    if absorption == 0:
+        log_positive = -emission+positive[:,0]*np.log(emission)-gammaln(positive[:,0]+1)
+    else:
+        log_positive = (-emission-absorption+positive[:,0]*np.log(emission)
+                        +logsumexp(pairs*np.log(emission*absorption)
+                                   -gammaln(pairs+1)-gammaln(pairs+positive+1),axis=1))
+    log_probabilities = log_positive[abs(ell)] + np.minimum(ell,0)*energy/temperature
+    return ell, np.exp(log_probabilities)
+
+
+
+@lru_cache(256)
+def nonlinear_spectrum(rho,eta,temperature,count=64,states=192):
+    x,v=eigh_tridiagonal(np.zeros(states),np.sqrt(np.arange(1,states)))
+    unitary=(v*np.exp(1j*(np.sqrt(rho)*x+eta*x*x)))@v.T
+    thermal=(1-np.exp(-24/temperature))*np.exp(-24/temperature*np.arange(states))
+    p=[];c=[]
+    for ell in range(-count,count+1):
+        m=np.arange(max(0,-ell),min(states,states-ell));d=unitary[m+ell,m]
+        p.append(thermal[m]@abs(d)**2);c.append(thermal[m]@(d*d))
+    return np.arange(-count,count+1),np.array(p),np.array(c)
+
+def operator_matrix(rho,eta,chi,states=192,commuting=False):
+    x,v=eigh_tridiagonal(np.zeros(states),np.sqrt(np.arange(1,states)))
+    if commuting:
+        ann=np.diag(np.sqrt(np.arange(1,states)),1);X=ann+ann.T;P=1j*(ann.T-ann)
+        return expm(1j*(np.sqrt(rho)*X+eta*X@X+chi*P))
+    first=(v*np.exp(1j*(np.sqrt(rho)*x+eta*x*x)))@v.T
+    momentum=1j**np.arange(states)[:,None]*v
+    second=(momentum*np.exp(1j*chi*x))@momentum.conj().T
+    return first@second
+
+def spectrum(matrix,temperature,count=64,thermal_states=None):
+    states=len(matrix);thermal_states=thermal_states or states
+    data=[]
+    for ell in range(-count,count+1):
+        m=np.arange(max(0,-ell),min(thermal_states,states-ell));a=matrix[m+ell,m];b=matrix[m,m+ell]
+        thermal=(1-np.exp(-24/temperature))*np.exp(-24/temperature*m)
+        data.append((ell,float(thermal@abs(a)**2),float(thermal@abs(b)**2),complex(thermal@(a*b))))
+    return data
+
+@lru_cache(256)
+def ordered_spectrum(rho,eta,chi,temperature,count=64,states=192):
+    rows=spectrum(operator_matrix(rho,eta,chi,states),temperature,count)
+    return np.array([r[0] for r in rows]),np.array([(r[1]+r[2])/2 for r in rows]),np.array([r[3] for r in rows])
+
+@lru_cache(256)
+def bath_spectrum(rho, secondary, temperature, count=64, quadratic_coupling=0., momentum_coupling=0.):
+    if momentum_coupling:
+        first,p,cross=ordered_spectrum(rho,quadratic_coupling,momentum_coupling,temperature,count)
+    elif quadratic_coupling:
+        first,p,cross=nonlinear_spectrum(rho,quadratic_coupling,temperature,count)
+    else:
+        first,p=sidebands(rho,temperature,count);cross=(-1.)**first*p
+    if secondary==0:return first,p,cross
+    second,q=sidebands(secondary,temperature,count,energy=2*OSCILLATOR_ENERGY)
+    separated=np.zeros(4*count+1);separated[::2]=q
+    signed=np.zeros(4*count+1);signed[::2]=(-1.)**second*q
+    return (np.arange(-3*count,3*count+1),np.convolve(p,separated),
+            np.convolve(cross,signed))
 
 
 @lru_cache(maxsize=512)
 def prepare(left, right, phase, amplitude, drive, rho, oscillator_temperature,
-            nodes=192, count=24, window=40., normal=False):
+            nodes=192, count=64, window=40., normal=False, factorized=False, secondary_coupling=0., quadratic_coupling=0., momentum_coupling=0.):
     dl, dr = (0., 0.) if normal else (gap(left, 1.2), gap(right, 1.9))
     x, weights = leggauss(nodes)
-    ells, probabilities = sidebands(rho, oscillator_temperature, count)
+    ells, probabilities, coherences = bath_spectrum(rho, secondary_coupling, oscillator_temperature, count, quadratic_coupling, momentum_coupling)
     nb = 1/np.expm1(OSCILLATOR_ENERGY/oscillator_temperature)
-    dephasing = np.exp(-2*rho*(2*nb+1))
+    nb_second = 1/np.expm1(2*OSCILLATOR_ENERGY/oscillator_temperature)
+    sigma=2*nb+1
+    denominator=1-4j*quadratic_coupling*sigma
+    dephasing = np.exp(-2*rho*sigma/denominator-2*secondary_coupling*(2*nb_second+1))/np.sqrt(denominator)
     upper = np.sqrt(80*max(left, right)+window)
     z = (x+1)*upper/2
     angle = (x+1)*np.pi/4
@@ -229,24 +294,25 @@ def prepare(left, right, phase, amplitude, drive, rho, oscillator_temperature,
             continue
         transfer_spins = ((1, 1, .5), (-1, -1, .5)) if n == 0 else ((-n, n, amplitude**2/2),)
         pair_spins = ((1, -1, .5), (-1, 1, .5)) if n == 0 else ((n, n, amplitude**2/2),)
-        for ell, probability, reverse_probability in zip(ells, probabilities, probabilities[::-1]):
-            if probability == reverse_probability == 0:
+        for ell, probability, reverse_probability, coherence in zip(ells, probabilities, probabilities[::-1], coherences):
+            if max(probability,reverse_probability) < 1e-26:
                 continue
             shift = n*drive-ell*OSCILLATOR_ENERGY
-            parity = dephasing
-            sign = (-1 if n == 0 else 1)*parity
+            parity = dephasing if factorized else complex(float(coherence.real)/float(probability), float(coherence.imag)/float(probability)) if probability>0 else 0.
+            phase_weight=np.real(parity*np.exp(-1j*phase))
+            sign = (-1 if n == 0 else 1)*phase_weight
             edge = max(dl, dr-shift)
             energy, other = edge+z*z, edge+z*z+shift
             denominator = np.sqrt((energy-dl)*(energy+dl)*(other-dr)*(other+dr))
-            measure = weights*upper/2*2*z*(energy*other+sign*dl*dr*np.cos(phase))/denominator
+            measure = weights*upper/2*2*z*(energy*other+sign*dl*dr)/denominator
             for sl, sr, weight in transfer_spins:
                 channels.append((energy, other, measure*weight, sl, sr, False,
                                  n*drive, ell*OSCILLATOR_ENERGY, probability, reverse_probability))
             if shift > dl+dr:
                 energy = dl+(shift-dl-dr)*np.sin(angle)**2
                 other = shift-energy
-                sign = (1 if n == 0 else -1)*parity
-                measure = weights*np.pi/4*2*(energy*other+sign*dl*dr*np.cos(phase))/np.sqrt((energy+dl)*(other+dr))
+                sign = (1 if n == 0 else -1)*phase_weight
+                measure = weights*np.pi/4*2*(energy*other+sign*dl*dr)/np.sqrt((energy+dl)*(other+dr))
                 for sl, sr, weight in pair_spins:
                     channels.append((energy, other, measure*weight, sl, sr, True,
                                      n*drive, ell*OSCILLATOR_ENERGY, probability, reverse_probability))
@@ -283,13 +349,13 @@ def transition(left,right,oscillator_temperature,channels,mu):
 
 @lru_cache(maxsize=4096)
 def stationary(left, right, phase, amplitude, drive, rho, oscillator_temperature,
-               conductance, nodes=192, count=24, normal=False,
-               initial=(0., 0.)):
+               conductance, nodes=192, count=64, normal=False, factorized=False,
+               initial=(0., 0.), secondary_coupling=0., quadratic_coupling=0., momentum_coupling=0.):
     ratio = QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
     bound, guess = 40., np.array(initial, dtype=float)
     for expansion in range(8):
         dl, dr, channels = prepare(left, right, phase, amplitude, drive, rho, oscillator_temperature,
-                                   nodes, count, bound, normal)
+                                   nodes, count, bound, normal, factorized, secondary_coupling, quadratic_coupling, momentum_coupling)
         def residual(mu):
             spin = transition(left, right, oscillator_temperature, channels, mu)[1]
             losses = [spin_loss(t, d, m)[0] for t,d,m in zip((left,right),(dl,dr),mu)]
@@ -336,9 +402,9 @@ def oscillator_arguments(e):
 
 
 def mean_heat(e,conductance):
-    if e.get('oscillator_coupling',0.)==0:
+    if e.get('oscillator_coupling',0.)==0 and e.get('secondary_coupling',0.)==0 and e.get('quadratic_coupling',0.)==0 and e.get('momentum_coupling',0.)==0:
         return float(r4_predict_at([e],conductance)[0])
-    return float(stationary(*oscillator_arguments(e),conductance)['heat'][0])
+    return float(stationary(*oscillator_arguments(e),conductance,factorized=FACTORIZED,secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))['heat'][0])
 
 
 def predict_at(experiments,conductance):
@@ -352,3 +418,68 @@ def predict_at(experiments,conductance):
     return np.array(values)
 
 
+FACTORIZED = False
+
+def gate_statistics(e,conductance,nodes=192,count=64):
+    work_noise=True
+    args=oscillator_arguments(e);kwargs=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+    state=stationary(*args,conductance,nodes=nodes,count=count,**kwargs);mu=state['mu'];left,right=args[:2]
+    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kwargs)
+    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+    fl=expit((sl*mu[0]-energy)/left);fr=expit((sr*mu[1]-other)/right);df=fl*(1-fl)/left;dg=fr*(1-fr)/right
+    forward=np.where(pair,pf*(1-fl)*(1-fr),pf*fl*(1-fr));backward=np.where(pair,pb*fl*fr,pb*fr*(1-fl));shot=measure*(forward+backward)
+    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-fr)+pb*fr)
+    dright=-sr*dg*np.where(pair,pf*(1-fl)+pb*fl,pf*fl+pb*(1-fl))
+    loss=np.broadcast_to(work[:,None],energy.shape) if work_noise else np.where(pair,-energy,energy);hprime=np.array([np.sum(measure*loss*dleft),np.sum(measure*loss*dright)])
+    response=hprime@np.linalg.inv(state['jacobian'])
+    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+    flips=[]
+    for temp,delta,pol in zip([left,right],[dl,dr],mu):
+        current,slope=spin_loss(temp,delta,pol)
+        intensity=current/np.tanh(pol/temp) if abs(pol/temp)>1e-7 else temp*slope
+        flips.append(2*ratio*intensity)
+    raw=float(np.sum(shot*loss**2));correct=float(np.sum(shot*(loss-(injection@response)[:,None])**2)+np.sum(np.array(flips)*response**2))
+    scale=RATE_CONVERSION*conductance*KB**2*1e24
+    return dict(noise=correct*scale,shot=raw*scale,response=response.tolist(),mu=mu.tolist(),
+                heat_derivative=hprime.tolist(),spin_jacobian=state['jacobian'].tolist(),flip_noise=flips,
+                work_spin_identity_error=float(np.max(abs(work-args[4]/2*injection.sum(axis=1)))))
+
+
+mean_predict=predict_at
+def predict_at(experiments,conductance):
+    return np.array([gate_statistics(e,conductance)['noise'] if e.get('statistic','mean')=='gate_noise'
+                     else mean_predict([e],conductance)[0] for e in experiments])
+
+def gate_third(e,conductance,nodes=192,count=64):
+    args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+    state=stationary(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+    f=expit((sl*mu[0]-energy)/tl);g=expit((sr*mu[1]-other)/tr)
+    rp=measure*np.where(pair,pf*(1-f)*(1-g),pf*f*(1-g));rm=measure*np.where(pair,pb*f*g,pb*g*(1-f))
+    
+    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+    flipdata=[]
+    for j,(temp,delta,pol) in enumerate(zip([tl,tr],[dl,dr],mu)):
+        x,w=leggauss(160);upper=delta+max(80*temp,6*abs(pol));ee=delta+(x+1)*(upper-delta)/2;mm=w*(upper-delta)/2*ratio/2
+        u=expit((pol-ee)/temp);d=expit((-pol-ee)/temp);ap=mm*u*(1-d);am=mm*d*(1-u)
+        flipdata.append((temp,u,d,mm,ap,am))
+    # Differentiate the actual work-marked rates directly. This avoids
+    # subtracting spin-loss Jacobians and is exactly zero for a static gate.
+    df=f*(1-f)/tl;dg=g*(1-g)/tr
+    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-g)+pb*g)
+    dright=-sr*dg*np.where(pair,pf*(1-f)+pb*f,pf*f+pb*(1-f))
+    hp=np.array([np.sum(measure*work[:,None]*dleft),np.sum(measure*work[:,None]*dright)])
+    p1=-np.linalg.solve(state['jacobian'].T,hp)
+    mark=work+injection@p1;mark=mark[:,None]
+    bare=float(np.sum((rp-rm)*mark**3))
+    for j,(temp,u,d,mm,ap,am) in enumerate(flipdata):
+        ell=-2*p1[j];bare+=float(np.sum(ap-am))*ell**3
+    scale=RATE_CONVERSION*conductance*KB**3*1e36
+    return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
+
+
+noise_predict=predict_at
+def predict_at(experiments,conductance):
+    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+                     else noise_predict([e],conductance)[0] for e in experiments])

@@ -1,0 +1,120 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,10 +1,12 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+-X_MODES, Y_MODES = 40, 56
++# Comparable spatial resolution along the two physical dimensions.
++X_MODES, Y_MODES = 64, 48
+ 
+ 
+ def derivative_overlap(target, source):
+@@ -17,6 +19,14 @@
+ 
+ @lru_cache(4)
+ def operators(nx=X_MODES, ny=Y_MODES):
++    """Galerkin operators in the area-normalized basis 2 sin(m pi x/W)
++    sin(n pi y/H). Only modes invariant under a half turn are forced.
++
++    Write the in-plane current as j=(psi_y, -psi_x). Insulating walls
++    make psi constant on the connected boundary (chosen to be zero).
++    Ohm's law gives -Laplacian(psi) = sigma * (B dot grad)u, so the
++    magnetic dissipation is sigma * D.T @ (-Laplacian)^-1 @ D.
++    """
+     m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+     keep = (m+n) % 2 == 0
+     m, n = m[keep], n[keep]
+@@ -35,20 +45,29 @@
+         k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+         qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+ 
+-    return m, n, wave2, mean, qx, qy
++    # For <dx u_i, (-Laplacian)^-1 dy u_j>, the electric mode is
++    # (m_j, n_i). Unlike the squared-field terms, this couples odd/odd
++    # velocity modes to even/even modes and retains the field's sign.
++    cross = (derivative_overlap(m, m).T/WIDTH
++             * derivative_overlap(n, n)/HEIGHT
++             / ((m[None, :]*np.pi/WIDTH)**2
++                + (n[:, None]*np.pi/HEIGHT)**2))
++    qxy = cross + cross.T
++
++    return m, n, wave2, mean, qx, qy, qxy
+ 
+ 
+-@lru_cache(64)
++@lru_cache(16)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    m, n, wave2, mean, qx, qy, qxy = operators(nx, ny)
++    magnetic = bx*bx*qx+by*by*qy+bx*by*qxy
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,17 +80,50 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate the common viscosity by Gaussian maximum likelihood."""
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required')
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], float)
++        errors = np.asarray([record['sigma'] for record in records], float)
++        if not (np.isfinite(values).all() and np.isfinite(errors).all()
++                and (errors > 0).all()):
++            raise ValueError('Calibration values must be finite and sigma positive')
++
++        def objective(viscosity):
++            residual = (self._predict(experiments, viscosity)-values)/errors
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018),
++                                 method='bounded', options={'xatol': 1e-10})
++        if not result.success:
++            raise RuntimeError('Viscosity calibration failed: ' + result.message)
++        # Include endpoints, since the constrained optimum can be on a bound.
++        candidates = [(float(result.fun), float(result.x))]
++        candidates.extend((objective(v), v) for v in (0.006, 0.018))
++        self.viscosity = min(candidates)[1]
++        return self
+ 
+     def predict(self, experiments):
++        """Return mean or point velocities in m/s after a pressure step."""
++        if self.viscosity is None:
++            raise ValueError('Call fit before predict')
++        return self._predict(experiments, self.viscosity)
++
++    @staticmethod
++    def _predict(experiments, viscosity):
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:
++            if e['time'] == 0 or e['pressure_gradient'] == 0:
++                output.append(0.)
++                continue
+             bx, by = e['magnetic_x'], e['magnetic_y']
+             observation = mean if e['observable'] == 'mean' else 2*np.sin(m*np.pi*e['x'])*np.sin(n*np.pi*e['y'])
+             value = 0.
+-            for ids, rates, vectors, forcing in spectrum(self.viscosity, bx, by):
++            for ids, rates, vectors, forcing in spectrum(viscosity, bx, by):
+                 amplitude = vectors@(-np.expm1(-rates*e['time'])/rates*forcing)
+                 value += observation[ids]@amplitude
+             output.append(e['pressure_gradient']/DENSITY*value)
+-        return np.array(output)
++        return np.asarray(output, dtype=float)

@@ -1,0 +1,30 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,25 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
+-    def predict(self,experiments):return predict_at(experiments,self.friction)
++        """Estimate the common fluid friction from calibration records.
++
++        The calibration is performed at zero field without the retained
++        contact, so its four readouts have the closed-form small-mass limit
++        implemented by :func:`zero_field_calibration`.  Each residual is
++        scaled by its stated independent standard uncertainty.
++        """
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++        self.friction=fit_friction(records)
++        return self
++
++    def predict(self,experiments):
++        """Return predictions in input order as a one-dimensional array."""
++        if not experiments:
++            return np.empty(0,dtype=float)
++        if self.friction is None:
++            raise ValueError('Call fit(records) before predict(experiments).')
++        result=np.asarray(predict_at(experiments,float(self.friction)),dtype=float)
++        if result.shape!=(len(experiments),) or not np.isfinite(result).all():
++            raise ValueError('Prediction produced an invalid output.')
++        return result

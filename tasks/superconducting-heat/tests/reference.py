@@ -205,9 +205,9 @@ def proximity_gaps(left,right):
 
 
 @lru_cache(maxsize=256)
-def fock_covariances(rho, temperature, count=24, states=96):
+def fock_covariances(rho, temperature, count=24, states=96, omega=OMEGA):
     """Direct D(i sqrt(rho)) and D(-i sqrt(rho)) matrix elements."""
-    r=np.exp(-OMEGA/temperature)
+    r=np.exp(-omega/temperature)
     cov=[]
     for ell in range(-count,count+1):
         m=np.arange(max(0,-ell),states)
@@ -245,14 +245,67 @@ def branch_matrix(energy,other,dl,dr,phase,harmonic,amplitude,covariance,creatio
     return result
 
 
+
+@lru_cache(256)
+def nonlinear_fock_covariances(rho,eta,temperature,count=64,states=96):
+    dimension=states+count;a=1-2j*eta
+    aa=1/a-1;bb=1/a;cc=1j*np.sqrt(rho)/a
+    d=np.zeros((dimension,dimension),complex);d[0,0]=np.exp(-rho/(2*a))/np.sqrt(a)
+    for m in range(dimension-1):d[0,m+1]=(cc*d[0,m]+(aa*np.sqrt(m)*d[0,m-1] if m else 0))/np.sqrt(m+1)
+    for n in range(dimension-1):
+        for m in range(dimension):
+            d[n+1,m]=(cc*d[n,m]+(aa*np.sqrt(n)*d[n-1,m] if n else 0)+(bb*np.sqrt(m)*d[n,m-1] if m else 0))/np.sqrt(n+1)
+    p=[];c=[]
+    for ell in range(-count,count+1):
+        m=np.arange(max(0,-ell),states);transition=d[m+ell,m];thermal=(1-np.exp(-24/temperature))*np.exp(-24/temperature*m)
+        p.append(thermal@abs(transition)**2);c.append(thermal@(transition*transition))
+    return [(ell,float(pe),float(pe),complex(coh)) for ell,pe,coh in zip(range(-count,count+1),p,c)]
+
+from scipy.special import roots_hermitenorm
+def coordinate_matrix(rho,eta,chi,states=144,quadrature=256):
+    x,w=roots_hermitenorm(quadrature);w=w/np.sqrt(2*np.pi)
+    def wave_polynomials(y):
+        h=np.zeros((len(y),states));h[:,0]=np.sqrt(w)*np.exp(-chi*chi/4)
+        if states>1:h[:,1]=y*h[:,0]
+        for n in range(1,states-1):h[:,n+1]=(y*h[:,n]-np.sqrt(n)*h[:,n-1])/np.sqrt(n+1)
+        return h
+    left=wave_polynomials(x-chi);right=wave_polynomials(x+chi)
+    return left.T@(np.exp(1j*(np.sqrt(rho)*(x-chi)+eta*(x-chi)**2))[:,None]*right)
+
+def spectrum(matrix,temperature,count=64,thermal_states=None):
+    states=len(matrix);thermal_states=thermal_states or states
+    data=[]
+    for ell in range(-count,count+1):
+        m=np.arange(max(0,-ell),min(thermal_states,states-ell));a=matrix[m+ell,m];b=matrix[m,m+ell]
+        thermal=(1-np.exp(-24/temperature))*np.exp(-24/temperature*m)
+        data.append((ell,float(thermal@abs(a)**2),float(thermal@abs(b)**2),complex(thermal@(a*b))))
+    return data
+
+@lru_cache(256)
+def ordered_fock_covariances(rho,eta,chi,temperature,count=64,states=96,quadrature=256):
+    return spectrum(coordinate_matrix(rho,eta,chi,states+count,quadrature),temperature,count,states)
+
+@lru_cache(maxsize=256)
+def two_mode_fock_covariances(rho,secondary,temperature,count=64,states=96,quadratic_coupling=0.,momentum_coupling=0.):
+    first=(ordered_fock_covariances(rho,quadratic_coupling,momentum_coupling,temperature,count,states) if momentum_coupling else
+           nonlinear_fock_covariances(rho,quadratic_coupling,temperature,count,states) if quadratic_coupling else fock_covariances(rho,temperature,count,states))
+    if secondary==0:return first
+    second=fock_covariances(secondary,temperature,count,states,omega=2*OMEGA)
+    totals={index:np.zeros(3,dtype=complex) for index in range(-3*count,3*count+1)}
+    for ell,pe,ph,cross in first:
+        for k,qe,qh,other_cross in second:
+            totals[ell+2*k]+=np.array([pe*qe,ph*qh,cross*other_cross])
+    return [(ell,float(a[0].real),float(a[1].real),complex(a[2])) for ell,a in totals.items()]
+
+
 @lru_cache(maxsize=128)
-def fock_channels(left,right,phase,amplitude,drive,rho,temperature,nodes=288,count=24,normal=False,window=40.):
+def fock_channels(left,right,phase,amplitude,drive,rho,temperature,nodes=288,count=64,normal=False,window=40.,secondary_coupling=0.,quadratic_coupling=0.,momentum_coupling=0.):
     dl,dr=(0.,0.) if normal else proximity_gaps(left,right)
     x,wt=leggauss(nodes)
     cutoff=np.sqrt(100*max(left,right)+window)
     z=(x+1)*cutoff/2
     angle=(x+1)*np.pi/4
-    covariances=fock_covariances(rho,temperature,count)
+    covariances=two_mode_fock_covariances(rho,secondary_coupling,temperature,count,quadratic_coupling=quadratic_coupling,momentum_coupling=momentum_coupling)
     reverse={ell:(pe,ph,cross) for ell,pe,ph,cross in covariances}
     rows=[]
     for n in (-1,0,1):
@@ -313,11 +366,11 @@ def loss(temperature,delta,mu):
     return value,slope
 
 
-def oscillator_components(left,right,phase,amplitude,drive,rho,temperature,conductance=45.,nodes=288,count=24,normal=False):
+def oscillator_components(left,right,phase,amplitude,drive,rho,temperature,conductance=45.,nodes=288,count=64,normal=False,secondary_coupling=0.,quadratic_coupling=0.,momentum_coupling=0.):
     ratio=NU/(TAU*RATE*conductance)
     window,guess=40.,np.zeros(2)
     for expansion in range(8):
-        dl,dr,rows=fock_channels(left,right,phase,amplitude,drive,rho,temperature,nodes,count,normal,window)
+        dl,dr,rows=fock_channels(left,right,phase,amplitude,drive,rho,temperature,nodes,count,normal,window,secondary_coupling,quadratic_coupling,momentum_coupling)
         def balance(mu):
             return oscillator_transitions(left,right,temperature,rows,mu)[1]-ratio*np.array([loss(t,d,m)[0] for t,d,m in zip((left,right),(dl,dr),mu)])
         def derivative(mu):
@@ -348,9 +401,9 @@ def oscillator_arguments(e):
 
 
 def mean_heat(e,conductance):
-    if e.get('oscillator_coupling',0.)==0:
+    if e.get('oscillator_coupling',0.)==0 and e.get('secondary_coupling',0.)==0 and e.get('quadratic_coupling',0.)==0 and e.get('momentum_coupling',0.)==0:
         return float(r4_predict([e],conductance)[0])
-    return float(oscillator_components(*oscillator_arguments(e),conductance)['heat'][0])
+    return float(oscillator_components(*oscillator_arguments(e),conductance,secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))['heat'][0])
 
 
 def predict(experiments,conductance):
@@ -377,4 +430,115 @@ def hidden_inputs():
                                          amplitude=amplitude,drive_energy=drive,oscillator_coupling=rho,
                                          oscillator_temperature=tph,statistic='phase_contrast'))
         groups[name]=settings
+    return groups
+
+single_mode_hidden_inputs=hidden_inputs
+def hidden_inputs():
+    return {name.replace('oscillator_','two_mode_'):[dict(e,secondary_coupling=.45 if e['oscillator_temperature']==12. else .9) for e in es]
+            for name,es in single_mode_hidden_inputs().items()}
+
+linear_hidden_inputs=hidden_inputs
+def hidden_inputs():
+    return {name.replace('two_mode_','quadratic_'):[dict(e,quadratic_coupling=.18 if e['phase']==0. else -.15) for e in es]
+            for name,es in linear_hidden_inputs().items()}
+
+coordinate_hidden_inputs=hidden_inputs
+def hidden_inputs():
+    return {name.replace('quadratic_','ordered_'):[dict(e,momentum_coupling=.55 if e['phase']==0. else -.5) for e in es]
+            for name,es in coordinate_hidden_inputs().items()}
+
+from scipy.integrate import quad
+def gate_noise(e,conductance,nodes=288,count=64,derivative_step=1e-5):
+    work_noise=True
+    args=oscillator_arguments(e);kwargs=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+    state=oscillator_components(*args,conductance,nodes=nodes,count=count,**kwargs);mu=state['mu'];left,right=args[:2];temperature=args[6]
+    dl,dr,rows=fock_channels(*args,nodes=nodes,count=count,window=state['search_bound'],**kwargs)
+    qss=np.zeros((2,2));qhs=np.zeros(2);qhh=0.
+    for el,er,forward,backward,sl,sr,pair,work,recoil in rows:
+        fl=expit((sl*mu[0]-el)/left);fr=expit((sr*mu[1]-er)/right)
+        intensity=(forward*(1-fl)*(1-fr)+backward*fl*fr) if pair else (forward*fl*(1-fr)+backward*fr*(1-fl))
+        ds=np.array([sl,sr]) if pair else np.array([-sl,sr]);ql=np.full_like(el,work) if work_noise else -el if pair else el
+        qhh+=float(intensity@(ql*ql));qhs+=(intensity@ql)*ds;qss+=intensity.sum()*np.outer(ds,ds)
+    ratio=NU/(TAU*RATE*conductance)
+    for index,(temp,delta,pol) in enumerate(zip([left,right],[dl,dr],mu)):
+        upper=max(delta,abs(pol))+80*temp
+        integral=quad(lambda x:expit((pol-x)/temp)+expit((-pol-x)/temp)-2*expit((pol-x)/temp)*expit((-pol-x)/temp),delta,upper,epsabs=1e-12,epsrel=1e-12)[0]
+        qss[index,index]+=2*ratio*integral
+    J=oscillator_transitions(left,right,temperature,rows,mu)[2]-ratio*np.diag([loss(t,d,m)[1] for t,d,m in zip([left,right],[dl,dr],mu)])
+    hprime=[];step=derivative_step
+    for axis in [0,1]:
+        v=np.eye(2)[axis]*step
+        component=2 if work_noise else 0
+        hprime.append((oscillator_transitions(left,right,temperature,rows,mu+v)[0][component]-oscillator_transitions(left,right,temperature,rows,mu-v)[0][component])/(2*step))
+    hprime=np.array(hprime)
+    # Linearized stationary saddle equations of the joint spin/heat jump Hamiltonian.
+    saddle=np.block([[J,qss],[np.zeros((2,2)),J.T]])
+    response=np.linalg.solve(saddle,-np.r_[qhs,hprime]);state_response=response[:2];conjugate_response=response[2:]
+    cumulant=qhh+qhs@conjugate_response+hprime@state_response
+    return float(cumulant*RATE*conductance*KB**2*1e24)
+
+mean_predict=predict
+def predict(experiments,conductance):
+    return np.array([gate_noise(e,conductance) if e.get('statistic','mean')=='gate_noise'
+                     else mean_predict([e],conductance)[0] for e in experiments])
+
+mean_hidden_inputs=hidden_inputs
+def gate_experiment(left=.5,right=.9,phase=.7,amplitude=.8,drive=.3,rho=.5,temperature=18.,secondary=.6,quadratic=.15,momentum=.4):
+    return dict(left_temperature=left,right_temperature=right,phase=phase,amplitude=amplitude,drive_energy=drive,
+                oscillator_coupling=rho,oscillator_temperature=temperature,secondary_coupling=secondary,
+                quadratic_coupling=quadratic,momentum_coupling=momentum,statistic='gate_noise')
+
+def hidden_inputs():
+    result=mean_hidden_inputs()
+    result['gate_low_frequency_noise']=[gate_experiment(left=l,right=r,amplitude=a,drive=w) for l,r,a,w in [(.5,.9,.8,.3),(.3,1.,1.,.1),(.9,.4,.7,.5),(1.,.7,1.,.4)]]
+    result['gate_pair_drive_noise']=[gate_experiment(left=l,right=r,amplitude=a,drive=w,phase=p) for l,r,a,w,p in [(.5,.9,1.,7.,.7),(.25,1.05,1.,12.,-1.),(.9,.4,.8,9.,0.),(1.,.7,.6,10.,2.)]]
+    result['gate_no_oscillator_noise']=[gate_experiment(left=l,right=r,amplitude=a,drive=w,rho=0.,secondary=0.,quadratic=0.,momentum=0.) for l,r,a,w in [(.5,.9,.8,.3),(.3,1.,1.,.5),(.9,.4,.8,9.),(1.,.7,1.,12.)]]
+    return result
+
+from numpy.polynomial.legendre import leggauss
+def saddle_reference(e,conductance,nodes=288,count=64,step=.0005):
+    args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+    state=oscillator_components(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+    dl,dr,rows=fock_channels(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+    # Integrate each independent Bogoliubov channel without using oracle rates.
+    ee=[];rr=[];fp=[];bp=[];ss=[];sp=[];pairs=[];marks=[];spins=[]
+    for el,er,fwd,bwd,sl,sr,pair,w,recoil in rows:
+        ee.append(el);rr.append(er);fp.append(fwd);bp.append(bwd);ss.append(sl);sp.append(sr);pairs.append(pair);marks.append(w);spins.append([sl,sr] if pair else [-sl,sr])
+    ee=np.array(ee);rr=np.array(rr);fp=np.array(fp);bp=np.array(bp);ss=np.array(ss)[:,None];sp=np.array(sp)[:,None];pairs=np.array(pairs)[:,None];spins=np.array(spins);marks=np.array(marks)
+    ratio=NU/(TAU*RATE*conductance);flip=[]
+    for temp,delta,pol in zip([tl,tr],[dl,dr],mu):
+        x,w=leggauss(nodes);upper=max(delta,abs(pol))+80*temp;en=delta+(x+1)*(upper-delta)/2;ww=w*(upper-delta)/2*ratio/2;flip.append((temp,en,ww))
+    def logistic(x):
+        y=np.empty_like(x);positive=x.real>=0;y[positive]=1/(1+np.exp(-x[positive]));v=np.exp(x[~positive]);y[~positive]=v/(1+v);return y
+    def rates(chem):
+        f=logistic((ss*chem[0]-ee)/tl);g=logistic((sp*chem[1]-rr)/tr)
+        plus=np.sum(fp*np.where(pairs,(1-f)*(1-g),f*(1-g)),axis=1);minus=np.sum(bp*np.where(pairs,f*g,g*(1-f)),axis=1)
+        extra=[]
+        for j,(temp,en,ww) in enumerate(flip):
+            u=logistic((chem[j]-en)/temp);d=logistic((-chem[j]-en)/temp);extra.extend([np.sum(ww*u*(1-d)),np.sum(ww*d*(1-u))])
+        return np.r_[plus,minus,extra]
+    ds=np.vstack((spins,-spins,[[-2,0],[2,0],[0,-2],[0,2]]));ws=np.r_[marks,-marks,np.zeros(4)]
+    def saddle(z,q,return_value=False):
+        chem=z[:2];p=z[2:];a=rates(chem);ell=ds@p+q*ws;em=np.expm1(ell)
+        if return_value:return float(a@em)
+        jac=np.column_stack([rates(chem.astype(complex)+1j*1e-20*np.eye(2)[j]).imag/1e-20 for j in [0,1]])
+        return np.r_[(a*np.exp(ell))@ds,jac.T@em]
+    answer=[]
+    for sign in [-2,-1,1,2]:
+        q=step*sign;sol=root(lambda z:saddle(z,q),np.r_[mu,0.,0.],options={'xtol':1e-10});res=float(max(abs(saddle(sol.x,q))));assert res<1e-9,(sol.message,res)
+        answer.append(saddle(sol.x,q,True))
+    hminus2,hminus,hplus,hplus2=answer;third=(hplus2-2*hplus+2*hminus-hminus2)/(2*step**3)
+    return dict(third=float(third*RATE*conductance*KB**3*1e36),tilt_values=answer,step=step)
+
+
+noise_predict=predict
+def predict(experiments,conductance):
+    return np.array([saddle_reference(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+                     else noise_predict([e],conductance)[0] for e in experiments])
+
+noise_hidden_inputs=hidden_inputs
+def hidden_inputs():
+    groups=noise_hidden_inputs()
+    for name in ['gate_low_frequency_noise','gate_pair_drive_noise','gate_no_oscillator_noise']:
+        groups[name.replace('noise','third')]=[dict(e,statistic='gate_third') for e in groups[name]]
     return groups

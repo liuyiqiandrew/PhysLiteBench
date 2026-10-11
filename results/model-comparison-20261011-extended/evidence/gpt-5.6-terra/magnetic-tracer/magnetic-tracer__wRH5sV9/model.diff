@@ -1,0 +1,43 @@
+--- starter/model.py
++++ submission/model.py
+@@ -189,7 +189,10 @@
+ 
+ 
+ def predict_at(experiments,friction):
+-    if not experiments:return np.empty(0)
++    # Keep the public empty-input contract independent of whether callers pass
++    # a list, tuple, or another sized collection.
++    if len(experiments) == 0:
++        return np.empty(0, dtype=float)
+     out=[]
+     for e in experiments:
+         if e.get('geometry','harmonic')=='periodic_channel':
+@@ -202,11 +205,24 @@
+                         float(e.get('memory_drag',0)),float(memory_scale),
+                         float(e.get('memory_temperature',e['temperature'])))
+         out.append(values[KINDS[e['readout']]])
+-    return np.array(out)
++    return np.asarray(out, dtype=float)
+ 
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        self.friction = None
++
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
+-    def predict(self,experiments):return predict_at(experiments,self.friction)
++        """Estimate the common ordinary-fluid drag from calibration records.
++
++        The supplied calibration protocol has zero magnetic field and no
++        retained contact, so the closed-form zero-field covariance/area
++        solution gives a well-conditioned one-parameter weighted fit.
++        """
++        self.friction = fit_friction(records)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError('Call fit(records) before predict(experiments).')
++        return predict_at(experiments,self.friction)

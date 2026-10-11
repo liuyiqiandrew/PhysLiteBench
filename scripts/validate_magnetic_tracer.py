@@ -1,169 +1,78 @@
-"""Validate the finite-mass mechanical-area revision of magnetic-tracer."""
-import argparse
-import hashlib
-import importlib.util
-import json
-import os
 from pathlib import Path
-import shutil
-import subprocess
-import sys
-import tempfile
-import time
+import argparse,hashlib,importlib.util,json,time
 import numpy as np
-from scipy.integrate import solve_ivp
-
-ROOT = Path(__file__).resolve().parents[1]
-TASK = ROOT / 'tasks/magnetic-tracer'
-
-
-def load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
+from scipy.stats import chi2,binom
+S=Path(__file__).resolve().parents[1];T=S/'tasks/magnetic-tracer';A=S/'archives/qualification-20261011-dependencies/magnetic-tracer-r8'
+def load(n,p):
+    spec=importlib.util.spec_from_file_location(n,p);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+def err(a,b):return float(np.linalg.norm(a-b)/max(np.linalg.norm(b),1e-14))
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--generate-data', action='store_true')
-    parser.add_argument('--noise-trials', type=int, default=256)
-    args = parser.parse_args()
-    started = time.monotonic()
-    ref = load('reference', TASK / 'tests/reference.py')
-    good = load('oracle', TASK / 'solution/model.py')
-    bad = load('shortcut', ROOT / 'scripts/magnetic_tracer_baseline.py')
-    metadata = json.loads((TASK / 'tests/metadata.json').read_text())
-    inputs = ref.calibration_inputs()
-    true = ref.TRUE_PARAMETER
-    clean = ref.predict(inputs, true)
-    sigma = metadata['measurement_sigma']
-    def records(values):
-        return [dict(input=e, value=float(v), sigma=sigma) for e, v in zip(inputs, values)]
-    if args.generate_data:
-        measured = records(clean + np.random.default_rng(metadata['calibration_seed']).normal(0, sigma, len(inputs)))
-        for part in ['environment', 'tests']:
-            (TASK / part / 'data/calibration.json').write_text(json.dumps(measured, indent=2) + '\n')
-    measured = json.loads((TASK / 'environment/data/calibration.json').read_text())
-    assert measured == json.loads((TASK / 'tests/data/calibration.json').read_text())
-    hidden = ref.hidden_inputs()
-    truths = {name: ref.predict(es, true) for name, es in hidden.items()}
-    def scores(model, data):
-        residual = (model.predict(inputs) - np.array([r['value'] for r in data])) / sigma
-        errors = {name: float(np.linalg.norm(model.predict(es) - truths[name]) / np.linalg.norm(truths[name]))
-                  for name, es in hidden.items()}
-        return dict(friction=model.friction, parameter_relative_error=abs(model.friction / true - 1),
-                    calibration_chi2=float(residual @ residual) / (len(inputs) - 1), hidden=errors)
-    controls = {}
-    for name, source in [('oracle', good), ('shortcut', bad)]:
-        controls[name] = scores(source.Model().fit(measured), measured)
-        assert controls[name]['parameter_relative_error'] < .03 and controls[name]['calibration_chi2'] < 1.5
-        errors = list(controls[name]['hidden'].values())
-        assert max(errors) < .025 if name == 'oracle' else min(errors) > .025
-    print('Fixed-data controls passed', flush=True)
-    rng = np.random.default_rng(723801)
-    errors, refined, min_covariance, reversal = [], [], [], []
-    for gamma in [.5, .8, 1.5]:
-        for i in range(12):
-            angle = rng.uniform(-np.pi, np.pi)
-            rotation = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
-            c = rotation @ np.diag(rng.uniform(.2, 2., 2)) @ rotation.T
-            e = ref.experiment(float(rng.uniform(.1, 4)), float(rng.uniform(-2, 2)),
-                               float(rng.uniform(.5, 1.2)), rng.uniform(.7, 1.8, 2), c)
-            if i == 0:
-                e = ref.experiment(.1, 2., 1.2, (.7, 1.8), ((1.5, .3), (.3, .5)))
-            es = [{**e, 'readout': kind} for kind in ['xx', 'xy', 'yy', 'area']]
-            oracle = good.predict_at(es, gamma)
-            physical = ref.predict(es, gamma)
-            fine = ref.predict(es, gamma, .001)
-            errors.append(float(np.max(abs(oracle - physical))))
-            refined.append(float(np.max(abs(fine - oracle))))
-            min_covariance.append(float(np.linalg.eigvalsh([[oracle[0], oracle[1]], [oracle[1], oracle[2]]]).min()))
-            flipped = [[e['initial_covariance'][0][0], -e['initial_covariance'][0][1]],
-                       [-e['initial_covariance'][1][0], e['initial_covariance'][1][1]]]
-            mirrored = [{**a, 'field': -a['field'], 'initial_covariance': flipped} for a in es]
-            reversal.append(float(np.max(abs(good.predict_at(mirrored, gamma) - oracle * [1, -1, 1, -1]))))
-    assert max(errors) < 1e-7 and max(refined) < 2e-8
-    assert min(min_covariance) > 0 and max(reversal) < 1e-12
-    equilibrium_area = []
-    for gamma in [.5, .8, 1.5]:
-        for field in [-2., 0., 2.]:
-            e = ref.experiment(4., field, 1.2, (.7, 1.8), np.diag([1.2 / .7, 1.2 / 1.8]))
-            equilibrium_area.append(abs(float(good.predict_at([e], gamma)[0])))
-            assert abs(ref.predict([e], gamma)[0]) < 1e-12
-    assert max(equilibrium_area) < 1e-12
-    equivalence = max(float(np.max(abs(good.predict_at(inputs, g) - bad.predict_at(inputs, g))))
-                      for g in [.5, .8, 1.5])
-    assert equivalence == 0
-    # Check the finite-mass Lyapunov primitive against direct covariance+area ODEs.
-    gamma, field, temperature, mass, kx, ky, duration = .9, -.7, .8, .03, 1.1, 1.6, .7
-    generator = np.block([[np.zeros((2, 2)), np.eye(2)],
-                          [-np.diag([kx, ky]) / mass, np.array([[-gamma, field], [-field, -gamma]]) / mass]])
-    noise = np.zeros((4, 4)); noise[2:, 2:] = 2 * gamma * temperature / mass**2 * np.eye(2)
-    covariance = np.diag([1.4, .5, temperature / mass, temperature / mass])
-    covariance[0, 1] = covariance[1, 0] = .2
-    def derivative(t, state):
-        c = state[:16].reshape(4, 4)
-        return np.r_[(generator @ c + c @ generator.T + noise).ravel(), c[0, 3] - c[1, 2]]
-    numerical = solve_ivp(derivative, (0, duration), np.r_[covariance.ravel(), 0.],
-                          method='DOP853', rtol=1e-11, atol=1e-12)
-    assert numerical.success
-    c = numerical.y[:16, -1].reshape(4, 4)
-    direct = np.array([c[0, 0], c[0, 1], c[1, 1], numerical.y[-1, -1]])
-    primitive = ref.finite_mass(gamma, field, temperature, kx, ky, duration, 1.4, .2, .5, mass)
-    finite_mass_check = float(np.max(abs(direct - primitive)))
-    assert finite_mass_check < 1e-9
-    print('Independent finite-mass, refinement and physical checks passed', flush=True)
-    rng = np.random.default_rng(metadata['noise_seed'])
-    rows = {'oracle': [], 'shortcut': []}
-    for index in range(args.noise_trials):
-        trial = records(clean + rng.normal(0, sigma, len(inputs)))
-        shortcut = bad.Model().fit(trial)
-        oracle = good.Model(); oracle.friction = shortcut.friction
-        for name, model in [('oracle', oracle), ('shortcut', shortcut)]:
-            result = scores(model, trial)
-            assert result['parameter_relative_error'] < .03 and result['calibration_chi2'] < 1.5
-            error = list(result['hidden'].values())
-            assert max(error) < .025 if name == 'oracle' else min(error) > .025
-            rows[name].append([result['parameter_relative_error'], result['calibration_chi2'], *error])
-        if (index + 1) % 32 == 0:
-            print(f'Validated {index + 1}/{args.noise_trials} noise realizations', flush=True)
-    tests = {}
-    for name, source in [('oracle', TASK / 'solution/model.py'), ('shortcut', ROOT / 'scripts/magnetic_tracer_baseline.py')]:
-        with tempfile.TemporaryDirectory(prefix='magnetic-area-') as td:
-            p = Path(td)
-            shutil.copy(source, p / 'model.py')
-            for f in ['test_public.py']:
-                shutil.copy(TASK / 'environment' / f, p / f)
-            for f in ['test_hidden.py', 'reference.py', 'metadata.json']:
-                shutil.copy(TASK / 'tests' / f, p / f)
-            shutil.copytree(TASK / 'tests/data', p / 'data')
-            result = subprocess.run([sys.executable, '-m', 'pytest', '-q', 'test_public.py', 'test_hidden.py'],
-                                    cwd=p, env={**os.environ, 'PYTHONPATH': str(p)}, capture_output=True, text=True)
-            tests[name] = dict(returncode=result.returncode, summary=result.stdout.strip().splitlines()[-1])
-            assert result.returncode == (0 if name == 'oracle' else 1)
-            assert ('7 passed' if name == 'oracle' else '3 failed, 4 passed') in result.stdout
-    report = dict(revision=2, controls=controls, measurement_sigma=sigma, prediction_limit=.025,
-                  calibration_seed=metadata['calibration_seed'], noise_seed=metadata['noise_seed'],
-                  physical_checks=dict(independent_finite_mass_error_max=max(errors), refined_mass_error_max=max(refined),
-                                       finite_mass_primitive_vs_covariance_ode=finite_mass_check,
-                                       minimum_position_covariance_eigenvalue=min(min_covariance),
-                                       field_reversal_error_max=max(reversal), equilibrium_area_max=max(equilibrium_area),
-                                       zero_field_calibration_closure_difference=equivalence),
-                  monte_carlo={}, tests=tests, seconds=time.monotonic()-started)
-    for name, values in rows.items():
-        a = np.array(values)
-        report['monte_carlo'][name] = dict(n=len(a), min=a.min(axis=0).tolist(), max=a.max(axis=0).tolist(),
-                                          median=np.median(a, axis=0).tolist(), full_passes=int(np.sum(np.all(a[:, 2:] < .025, axis=1))))
-    report['source_hashes'] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-                               for p in [TASK / 'instruction.md', TASK / 'environment/README.md', TASK / 'environment/model.py',
-                                         TASK / 'solution/model.py', TASK / 'tests/reference.py', ROOT / 'scripts/magnetic_tracer_baseline.py']}
-    out = ROOT / 'jobs/magnetic-area-validation-r2';out.mkdir(parents=True, exist_ok=True)
-    for p in [out / 'summary.json', ROOT / 'results/magnetic-area-r2-validation.json']:
-        p.write_text(json.dumps(report, indent=2) + '\n')
-    np.savez(out / 'noise-controls.npz', oracle=rows['oracle'], shortcut=rows['shortcut'])
-    print(json.dumps(report, indent=2))
-
-
-if __name__ == '__main__':
-    main()
+    parser=argparse.ArgumentParser();parser.add_argument('--freeze',action='store_true');args=parser.parse_args();tick=time.monotonic()
+    good=load('good',T/'solution/model.py');bad=load('bad',S/'scripts/magnetic_tracer_baseline.py');ref=load('ref',T/'tests/reference.py');old=load('old',A/'task/solution/model.py');oldref=load('oldref',A/'task/tests/reference.py')
+    prior=json.loads((A/'validation.json').read_text());assert all(sha(A/'task'/p)==h for p,h in prior['source_sha256'].items())
+    assert (T/'tests/test_hidden.py').read_bytes()==(A/'task/tests/test_hidden.py').read_bytes()
+    records=json.loads((T/'environment/data/calibration.json').read_text());assert records==json.loads((T/'tests/data/calibration.json').read_text()) and sha(T/'environment/data/calibration.json')==sha(A/'task/environment/data/calibration.json')
+    inputs=[r['input'] for r in records];values=np.array([r['value'] for r in records]);sigma=np.array([r['sigma'] for r in records]);hidden=ref.hidden_inputs();truth={}
+    for name,es in hidden.items():
+        truth[name]=ref.predict(es);print('Independent group',name,round(time.monotonic()-tick,1),flush=True)
+    frozen_path=T/'tests/data/hidden_truth.json'
+    if args.freeze:frozen_path.write_text(json.dumps(dict(reference_sha256=sha(T/'tests/reference.py'),description='Full finite-mass driven two-state Kramers generator tilted by mechanical transverse circulation; extrapolate .0025,.00125,.000625. Undriven cases retain R8 reference.',groups={n:dict(inputs=hidden[n],truth=v.tolist()) for n,v in truth.items()}),indent=2)+'\n')
+    frozen=json.loads(frozen_path.read_text());assert frozen['reference_sha256']==sha(T/'tests/reference.py') and all(err(truth[n],np.array(frozen['groups'][n]['truth']))<1e-12 for n in hidden)
+    distinguishing=['anisotropic_circulation_noise','anisotropic_circulation_third']
+    def scores(m,g):return {n:err(m.predict_at(es,g),truth[n]) for n,es in hidden.items()}
+    controls={}
+    for name,m in [('oracle',good),('shortcut',bad)]:
+        fit=m.Model().fit(records);res=(fit.predict(inputs)-values)/sigma;start=time.monotonic();row=dict(parameter=fit.friction,calibration_chi2=float(res@res)/(len(records)-1),hidden=scores(m,fit.friction),seconds=time.monotonic()-start)
+        assert abs(fit.friction/.8-1)<.03 and row['calibration_chi2']<1.5 and row['seconds']<45
+        if name=='oracle':assert max(row['hidden'].values())<.025,row
+        else:assert all(row['hidden'][n]>.025 for n in distinguishing),row
+        controls[name]=row
+    print('CONTROLS',json.dumps(controls),flush=True)
+    # All previous apparatus predictions must remain identical before fitting.
+    regression={}
+    for name,es in oldref.hidden_inputs().items():
+        difference=float(max(abs(good.predict_at(es,.8)-old.predict_at(es,.8))));assert difference<1e-13;regression[name]=difference
+    rng=np.random.default_rng(202610119);domain=[]
+    for i in range(16):
+        g=float(rng.uniform(.5,1.5));z=float(rng.uniform(.4,1.3));kap=float(rng.uniform(.1,3));temp=float(rng.uniform(.5,1.2));tb=float(rng.uniform(.4,1.4));b0=float(rng.uniform(-1,1));b1=float(rng.uniform(0,1));phase=float(rng.uniform(-np.pi,np.pi));height=float(rng.uniform(0,1.2));rate=float(rng.uniform(.1,3));d=float(rng.uniform(-.7,.7));delta=float(rng.uniform(-.6,.6));k=int(rng.integers(1,4));q=['cos','sin'][i%2];force=float(rng.uniform(-.7,.7));fphase=float(rng.uniform(-np.pi,np.pi))
+        if i<8:
+            g=(.5,1.5)[i&1];z=(.4,1.3)[(i>>1)&1];kap=(.1,3.)[(i>>2)&1];temp=(.5,1.2)[i&1];tb=(.4,1.4)[(i>>1)&1];b0=(-1.,1.)[(i>>2)&1];b1=1.;height=1.2;phase=.8;rate=(.1,3.)[i&1];d=.7;delta=(-.6,.6)[(i>>2)&1];k=[1,3][i&1];force=(-.7,.7)[i&1];fphase=(-1.1,.7)[(i>>1)&1]
+        anisotropy=float(rng.uniform(-.75,.75));axis=float(rng.uniform(-np.pi,np.pi))
+        if i<8:anisotropy=(-.75,.75)[i&1];axis=(-.9,.6)[(i>>1)&1]
+        settings=(g,z,kap,temp,tb,b0,b1,phase,height,rate,d,delta);kw=dict(harmonic=k,quadrature=q,transverse_drive=force,drive_phase=fphase,fluid_anisotropy=anisotropy,fluid_axis=axis)
+        a=good.circulation(*settings,**kw);fine=good.circulation(*settings,n=129,**kw)
+        es=[dict(ref.circulation_experiment(obs,rate=rate,drag=d,contrast=delta,field=b0,modulation=b1,phase=phase,height=height,T=temp,Tb=tb,zeta=z,kappa=kap,harmonic=k,quadrature=q),transverse_drive=force,drive_phase=fphase,fluid_anisotropy=anisotropy,fluid_axis=axis) for obs in ['circulation_mean','circulation_noise','circulation_third','density']]
+        independent=ref.predict(es,g);density=good.channel_prediction(es[-1],g);reference_error=float(max(abs(np.r_[a,density]-independent)))
+        reflected=good.circulation(g,z,kap,temp,tb,-b0,-b1,phase,height,rate,d,delta,harmonic=k,quadrature=q,transverse_drive=-force,drive_phase=fphase,fluid_anisotropy=anisotropy,fluid_axis=-axis)*np.array([-1,1,-1])
+        shifted=good.circulation(*settings,harmonic=k,quadrature=q,transverse_drive=-force,drive_phase=fphase+np.pi,fluid_anisotropy=anisotropy,fluid_axis=axis)
+        relabel=good.circulation(g,z,kap,temp,tb,b0,b1,phase,height,rate,-d,-delta,**kw)
+        row=dict(settings=settings,detector_and_drive=kw,oracle=np.r_[a,density].tolist(),independent=independent.tolist(),independent_absolute_error=reference_error,spatial_error=float(max(abs(a-fine))),field_force_reversal_error=float(max(abs(a-reflected))),drive_phase_equivalence_error=float(max(abs(a-shifted))),valve_relabelling_error=float(max(abs(a-relabel))))
+        assert reference_error<3e-5,row
+        assert max(row[k] for k in ['spatial_error','field_force_reversal_error','drive_phase_equivalence_error','valve_relabelling_error'])<1e-8 and a[1]>0,row
+        if i in [0,7,15]:
+            refined=ref.predict(es,g,mass_scale=.00125,degree=6,n=33);row['joint_refinement_error']=float(max(abs(np.r_[a,density]-refined)));assert row['joint_refinement_error']<1e-5,row
+        bath_relabel=good.circulation(*settings,harmonic=k,quadrature=q,transverse_drive=force,drive_phase=fphase,fluid_anisotropy=-anisotropy,fluid_axis=axis+np.pi/2)
+        row['directional_bath_relabelling_error']=float(max(abs(a-bath_relabel)));assert row['directional_bath_relabelling_error']<1e-8,row
+        M,D,c,covs,K=good.valve_cell(g,z,kap,temp,tb,b0,rate,d,delta,anisotropy,axis)
+        row['minimum_fast_covariance_eigenvalue']=float(min(np.linalg.eigvalsh(c).min() for c in covs));assert row['minimum_fast_covariance_eigenvalue']>0
+        row['minimum_diffusion_eigenvalue']=float(np.linalg.eigvalsh(D).min());assert row['minimum_diffusion_eigenvalue']>0
+        domain.append(row)
+        if (i+1)%4==0:print('Domain',i+1,'of16',round(time.monotonic()-tick,1),flush=True)
+    nofield_args=dict(B0=0.,B1=0.,transverse_drive=.7,drive_phase=.4)
+    nofield=good.circulation(**nofield_args);assert max(abs(nofield-bad.circulation(**nofield_args)))<1e-12
+    clean=good.predict_at(inputs,.8);rng=np.random.default_rng(905475);fits=[]
+    for _ in range(256):
+        noisy=clean+rng.normal(size=len(records))*sigma;sample=[dict(r,value=float(v)) for r,v in zip(records,noisy)];gf=good.Model().fit(sample);bf=bad.Model().fit(sample);res=(gf.predict(inputs)-noisy)/sigma;chi=float(res@res)/(len(records)-1)
+        assert abs(gf.friction/.8-1)<.03 and abs(gf.friction-bf.friction)<1e-12;fits.append(dict(parameter=gf.friction,chi2=chi))
+    # The fixed grading cutoff necessarily rejects a small fraction of fresh
+    # Gaussian datasets. Retain all draws and compare that count to its null
+    # distribution; do not change the seed or the task's grading cutoff.
+    tail=float(chi2.sf(1.5*(len(records)-1),len(records)-1));rejections=sum(r['chi2']>=1.5 for r in fits)
+    upper=int(binom.ppf(.99,256,tail));assert rejections<=upper,(rejections,upper)
+    parameters=np.array([r['parameter'] for r in fits]);sensitivity=[]
+    for g in np.quantile(parameters,np.linspace(0,1,9)):
+        a=scores(good,g);b=scores(bad,g);assert max(a.values())<.025 and all(b[n]>.025 for n in distinguishing);sensitivity.append(dict(parameter=float(g),oracle=a,shortcut=b))
+    report=dict(revision=9,calibration_regenerated=False,inherited_r8_validation_sha256=sha(A/'validation.json'),controls=controls,physics=dict(domain=domain,undriven_regression=regression,zero_field_correct_shortcut_error=float(max(abs(nofield-bad.circulation(**nofield_args))))),noise=dict(seed=905475,trials=256,method='256 actual calibration fits; every draw retained. Gaussian calibration-cutoff rejections compared with a99percent binomial upper count. Full hidden predictions at nine fitted-parameter quantiles including extrema.',fit_min=float(parameters.min()),fit_max=float(parameters.max()),max_chi2=max(r['chi2'] for r in fits),calibration_rejections=rejections,gaussian_false_rejection_probability=tail,null_99percent_upper_count=upper,all_fits=fits,hidden_sensitivity=sensitivity),seconds=time.monotonic()-tick,source_sha256={str(p.relative_to(T)):sha(p) for p in T.rglob('*') if p.is_file() and not any(k in p.parts for k in ['__pycache__','.pytest_cache'])})
+    (S/'results/magnetic-tracer-r9-validation.json').write_text(json.dumps(report,indent=2)+'\n');print('PASS',round(report['seconds'],1),flush=True)
+if __name__=='__main__':main()

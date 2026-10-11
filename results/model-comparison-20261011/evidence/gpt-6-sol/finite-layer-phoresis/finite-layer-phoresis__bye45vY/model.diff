@@ -1,0 +1,50 @@
+--- starter/model.py
++++ submission/model.py
+@@ -5,6 +5,12 @@
+ 
+ @lru_cache(256)
+ def response(radius, width, strength, slip):
++    """Velocity per concentration gradient, multiplied by viscosity.
++
++    The solute dipole is found from its zero-flux diffusion equation.  The
++    integral then uses the reciprocal Stokes flow for a translating sphere
++    with the specified Navier slip length.
++    """
+     if strength == 0:
+         return 0.
+     end = radius+width
+@@ -25,7 +31,11 @@
+         x = (r-radius)/width
+         concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+         derivative = -2*strength*(1-x)/width
+-        weight = (r-radius)**2*(2*r+radius)/(2*r)
++        z = r-radius
++        # r**2 times (1 - u_r/cos(theta)) in the auxiliary flow.  The
++        # first term is the no-slip result; the second is the slip correction.
++        weight = (z*z*(2*r+radius)/(2*r)
++                  + 1.5*radius*(1-drag)*z*(r+radius)/r)
+         return weight*concentration*derivative
+     return 2/(9*radius*drag)*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
+ 
+@@ -40,7 +50,20 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++        values = np.array([record['value'] for record in records], dtype=float)
++        sigmas = np.array([record['sigma'] for record in records], dtype=float)
++        unscaled = np.array([response(**record['input']) for record in records])
++        weights = 1/sigmas**2
++        denominator = np.dot(weights, unscaled*unscaled)
++        if denominator == 0:
++            raise ValueError('The calibration records do not identify viscosity.')
++        inverse_viscosity = np.dot(weights, unscaled*values)/denominator
++        inverse_viscosity = np.clip(inverse_viscosity, 1/1.6, 1/.8)
++        self.viscosity = float(1/inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

@@ -1,0 +1,80 @@
+"""Scaled current CGF for the half-filled weakly asymmetric exclusion ring.
+
+The large-ring, long-time SCGF of the total current has the macroscopic
+fluctuation-theory form
+
+    psi(E, lambda; D) = D * lambda * (lambda + 2 E) / 4.
+
+Here ``D`` is in the original microscopic time units, so it must be fitted as
+an overall prefactor rather than absorbed into a time rescaling.
+"""
+
+import numpy as np
+
+
+_D_MIN = 0.8
+_D_MAX = 1.2
+
+
+def _design(experiments):
+    """Return the unit-diffusivity SCGF for a sequence of inputs."""
+    # Using fromiter also gives the desired, one-dimensional empty result for
+    # an empty input list.
+    experiments = list(experiments)
+    field = np.fromiter((item["field"] for item in experiments), dtype=float)
+    bias = np.fromiter((item["bias"] for item in experiments), dtype=float)
+    return bias * (bias + 2.0 * field) / 4.0
+
+
+def predict_at(experiments, diffusivity):
+    """Predict raw SCGF values at the supplied field/counting biases."""
+    return float(diffusivity) * _design(experiments)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Fit the shared diffusivity by inverse-variance weighted least squares.
+
+        Each record has the linear model ``value = diffusivity * design``.
+        The physical bounds are imposed after the analytic weighted fit, which
+        is equivalent to the constrained one-dimensional least-squares result.
+        """
+        records = list(records)
+        if not records:
+            return self
+
+        design = _design(record["input"] for record in records)
+        values = np.fromiter((record["value"] for record in records), dtype=float)
+        sigma = np.fromiter((record["sigma"] for record in records), dtype=float)
+
+        # Calibration uncertainties are specified as positive Gaussian standard
+        # deviations.  Ignore no-information points (design == 0); their values
+        # cannot affect this single multiplicative parameter.
+        valid = (
+            np.isfinite(design)
+            & np.isfinite(values)
+            & np.isfinite(sigma)
+            & (sigma > 0.0)
+        )
+        if np.any(valid):
+            x = design[valid]
+            y = values[valid]
+            weights = 1.0 / np.square(sigma[valid])
+            denominator = np.dot(weights, np.square(x))
+            if np.isfinite(denominator) and denominator > 0.0:
+                estimate = np.dot(weights * x, y) / denominator
+                if np.isfinite(estimate):
+                    self.diffusivity = float(np.clip(estimate, _D_MIN, _D_MAX))
+
+        # Preserve the API invariant even for degenerate/invalid calibration
+        # collections supplied outside the documented data format.
+        if not np.isfinite(self.diffusivity):
+            self.diffusivity = 1.0
+        self.diffusivity = float(np.clip(self.diffusivity, _D_MIN, _D_MAX))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

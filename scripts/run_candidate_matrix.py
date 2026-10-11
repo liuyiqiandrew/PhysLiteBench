@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # Completed shortcuts not named '<task_with_underscores>_baseline.py'.
 SHORTCUT_ALIASES = {'reaction-diffusion':'reaction_baseline.py'}
 # A failing hidden prediction test; hierarchical-glass-overlaps names them test_coincidences.
-PREDICTION_FAILURE = re.compile(r'FAILED \S*\btest_hidden\.py::(test_prediction|test_coincidences)\b')
+PREDICTION_FAILURE = re.compile(r'FAILED \S*\btest_hidden\.py::(test_prediction|test_coincidences|test_fluctuation_prediction)\b')
 
 
 def summary(job):

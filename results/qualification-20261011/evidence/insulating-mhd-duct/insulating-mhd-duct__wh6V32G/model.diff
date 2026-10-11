@@ -1,0 +1,51 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -61,7 +62,39 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate the viscosity from the calibration measurements.
++
++        There is only one unknown material parameter.  The calibration
++        uncertainties are supplied as standard deviations, so the natural
++        objective is the weighted sum of squared residuals.  Keeping the
++        search bounded is also useful here: it prevents an essentially flat
++        noisy fit from wandering outside the range in which the stated
++        continuum model applies.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('at least one calibration record is required')
++
++        experiments = [record['input'] for record in records]
++        measured = np.asarray([record['value'] for record in records], float)
++        uncertainty = np.asarray([record['sigma'] for record in records], float)
++        if (not np.isfinite(measured).all() or
++                not np.isfinite(uncertainty).all() or
++                np.any(uncertainty <= 0.)):
++            raise ValueError('calibration values and sigmas must be finite, with positive sigmas')
++
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - measured) / uncertainty
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018),
++                                 method='bounded',
++                                 options={'xatol': 1.e-12, 'maxiter': 100})
++        # Evaluate once at the selected value so that the public attribute is
++        # exactly the parameter represented by the fit result.
++        self.viscosity = float(np.clip(result.x, 0.006, 0.018))
++        return self
+ 
+     def predict(self, experiments):
+         m, n, _, mean, *_ = operators()

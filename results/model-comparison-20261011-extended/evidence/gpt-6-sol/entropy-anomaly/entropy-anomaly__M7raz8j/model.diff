@@ -1,0 +1,37 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,15 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At the next order the valve balances the divergence of each contact's
++    # particle current.  Its common component is immaterial: it contributes
++    # the same leading heat as the matched background times the residence.
++    contact_divergence=first[1,0]@d.T
++    population_operator=q.copy()
++    population_operator[-1]=1.
++    contact_divergence[-1]=0.
++    contact_correction=np.linalg.solve(population_operator,contact_divergence)
++    density_correction={(0,0):contact_correction}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +100,15 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        records=list(records)
++        experiments=[r['input'] for r in records]
++        reference=coefficients(experiments,1.)
++        measured=np.array([r['value'] for r in records],dtype=float)
++        sigma=np.array([r['sigma'] for r in records],dtype=float)
++        # Calibration has identical contacts and no magnetic field, so every
++        # excess rate scales exactly as the inverse of the common friction.
++        scaled_reference=reference/sigma
++        inverse_friction=np.dot(scaled_reference,measured/sigma)/np.dot(scaled_reference,scaled_reference)
++        self.friction=float(np.clip(1./inverse_friction,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

@@ -1,0 +1,39 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,35 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Fit the shared friction from the unweighted calibration records.
++
++        Calibration is collected with zero bath contrast and zero magnetic
++        field.  For that preparation the limiting readout is proportional to
++        inverse friction (as also encoded by ``entropy_rate``), so the
++        weighted least-squares fit is a one-parameter linear regression in
++        ``1 / friction``.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++
++        inputs=[record['input'] for record in records]
++        values=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigma).all()
++                or np.any(sigma<=0)):
++            raise ValueError("Calibration values must be finite with positive uncertainties.")
++
++        unit_friction=coefficients(inputs,1.)
++        weights=1./sigma**2
++        denominator=np.sum(weights*unit_friction**2)
++        if not np.isfinite(denominator) or denominator<=0:
++            raise ValueError("Calibration records do not identify friction.")
++        inverse_friction=np.sum(weights*unit_friction*values)/denominator
++        if not np.isfinite(inverse_friction) or inverse_friction<=0:
++            raise ValueError("Calibration records imply a nonpositive friction.")
++
++        # The apparatus specification bounds the unknown coefficient.
++        self.friction=float(np.clip(1./inverse_friction,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

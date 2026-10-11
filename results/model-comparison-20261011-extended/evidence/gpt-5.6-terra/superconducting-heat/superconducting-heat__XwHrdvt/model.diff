@@ -1,0 +1,78 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,10 +191,64 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Estimate the one apparatus parameter from independent Gaussian data.
++
++        The common (and deliberately inexpensive) calibration case is a
++        static barrier.  In that case the prediction is exactly proportional
++        to conductance, so solve the weighted one-parameter regression
++        directly.  Keeping the general bounded likelihood path is useful for
++        callers that supply calibration records containing a driven or
++        oscillator-coupled setting, for which the self-consistent spin state
++        makes the dependence mildly nonlinear.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("fit requires at least one calibration record")
++
++        try:
++            inputs = [r['input'] for r in records]
++            observed = np.asarray([r['value'] for r in records], dtype=float)
++            sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        except (KeyError, TypeError, ValueError) as exc:
++            raise ValueError("each calibration record needs input, value, and sigma") from exc
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values must be finite and sigma must be positive")
++
++        # All default calibration records have zero drive amplitude and no
++        # oscillator coupling.  Their stationary spin potentials vanish and
++        # the heat power is linear in G, including phase-contrast records.
++        linear = all(
++            e.get('amplitude', 0.) == 0.
++            and e.get('oscillator_coupling', 0.) == 0.
++            and e.get('secondary_coupling', 0.) == 0.
++            and e.get('quadratic_coupling', 0.) == 0.
++            and e.get('momentum_coupling', 0.) == 0.
++            and e.get('statistic', 'mean') in ('mean', 'phase_contrast')
++            for e in inputs
++        )
++        if linear:
++            unit = predict_at(inputs, 1.0)
++            denom = float(np.sum((unit / sigma) ** 2))
++            estimate = float(np.sum(unit * observed / sigma**2) / denom) if denom else 50.0
++            self.conductance = float(np.clip(estimate, 20., 80.))
++            return self
++
++        def chi_square(conductance):
++            residual = (predict_at(inputs, float(conductance)) - observed) / sigma
++            return float(residual @ residual) if np.isfinite(residual).all() else np.inf
++
++        result = minimize_scalar(chi_square, bounds=(20., 80.), method='bounded',
++                                 options={'xatol': 1e-8})
++        if not result.success or not np.isfinite(result.fun):
++            raise RuntimeError("conductance fit did not converge")
++        self.conductance = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
+-        return predict_at(experiments, self.conductance)
++        if self.conductance is None:
++            raise RuntimeError("call fit before predict")
++        return np.asarray(predict_at(list(experiments), self.conductance), dtype=float)
+ 
+ 
+ from scipy.special import gammaln, logsumexp

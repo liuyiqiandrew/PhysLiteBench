@@ -25,8 +25,9 @@ def evaluated():
     result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
               'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
               'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
-    for name, experiments in reference.hidden_inputs().items():
-        truth = reference.predict(experiments, reference.TRUE_PARAMETER)
+    frozen=json.loads((HERE/'data/hidden_truth.json').read_text())
+    for name, row in frozen['groups'].items():
+        experiments=row['inputs'];truth=np.asarray(row['truth'])
         actual = model.predict(experiments)
         assert isinstance(actual, np.ndarray) and actual.shape == truth.shape
         assert np.isfinite(actual).all()
@@ -46,6 +47,6 @@ def test_parameter_recovery(evaluated):
     assert evaluated['parameter_relative_error_max'] < .03
 
 
-@pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+@pytest.mark.parametrize('case', list(json.loads((HERE/'data/hidden_truth.json').read_text())['groups']))
 def test_prediction(evaluated, case):
     assert evaluated['hidden'][case] < METADATA['prediction_limit']

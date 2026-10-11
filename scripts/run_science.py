@@ -48,6 +48,8 @@ def main():
                         help="Multiply Codex setup timeout only; leave execution and verifier limits unchanged")
     parser.add_argument("--job-name")
     parser.add_argument("--hint", action="store_true", help="Append the task's author-owned physics hint to the instruction")
+    parser.add_argument("--restricted-network", action="store_true",
+                        help="Restrict agent network to OpenAI authentication/API hosts")
     args = parser.parse_args()
     source = args.task.resolve()
     if args.trials < 1 or args.concurrency < 1:
@@ -68,6 +70,12 @@ def main():
     with tempfile.TemporaryDirectory(prefix="science-task-") as tmp:
         task = Path(tmp) / source.name
         shutil.copytree(source, task, ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", ".git"))
+        if args.restricted_network:
+            config = task / "task.toml"
+            content = config.read_text()
+            if "network_mode" in content or content.count("[agent]") != 1:
+                parser.error("restricted-network requires one agent section without an existing network policy")
+            config.write_text(content.replace("[agent]", '[agent]\nnetwork_mode = "allowlist"\nallowed_hosts = ["chatgpt.com", "*.openai.com"]'))
         if args.hint:
             hint = source / "hint.md"
             if not hint.is_file():

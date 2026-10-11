@@ -1,0 +1,72 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,68 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Fit the common friction coefficient in the calibration range.
++
++        The calibration observations have independent, Gaussian errors, so the
++        natural fit is the one-dimensional weighted least-squares problem
++
++            sum(((prediction - value) / sigma)**2).
++
++        Keeping this search local (rather than fitting a surrogate to the
++        calibration set) is important: the same prediction routine is then
++        used for both calibration and subsequently requested experiments.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        inputs=[]
++        values=[]
++        sigmas=[]
++        for record in records:
++            if 'input' not in record or 'value' not in record or 'sigma' not in record:
++                raise ValueError("each calibration record needs input, value, and sigma")
++            sigma=float(record['sigma'])
++            if not np.isfinite(sigma) or sigma<=0.:
++                raise ValueError("calibration uncertainties must be positive and finite")
++            inputs.append(record['input'])
++            values.append(float(record['value']))
++            sigmas.append(sigma)
++        values=np.asarray(values,dtype=float)
++        sigmas=np.asarray(sigmas,dtype=float)
++
++        def objective(friction):
++            prediction=coefficients(inputs,float(friction))
++            residual=(prediction-values)/sigmas
++            return float(residual@residual)
++
++        # The documented physical range supplies a safe bracket.  Golden
++        # section is sufficient here and avoids making scipy a dependency of
++        # the model.  Include the endpoints explicitly in case the optimum is
++        # on a boundary for a nonstandard calibration set.
++        lower,upper=.7,1.6
++        best_f=lower
++        best_value=objective(lower)
++        upper_value=objective(upper)
++        if upper_value<best_value:
++            best_f,best_value=upper,upper_value
++        golden=(np.sqrt(5.)-1.)/2.
++        left,right=lower,upper
++        x1=right-golden*(right-left)
++        x2=left+golden*(right-left)
++        y1,y2=objective(x1),objective(x2)
++        for _ in range(64):
++            if y1<=y2:
++                right,x2,y2=x2,x1,y1
++                x1=right-golden*(right-left)
++                y1=objective(x1)
++            else:
++                left,x1,y1=x1,x2,y2
++                x2=left+golden*(right-left)
++                y2=objective(x2)
++        candidate=(left+right)/2.
++        candidate_value=objective(candidate)
++        if candidate_value<best_value:
++            best_f,best_value=candidate,candidate_value
++        self.friction=float(best_f)
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

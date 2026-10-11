@@ -1,0 +1,45 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,41 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the (normal-state) contact conductance in micro siemens.
++
++        The calibration set contains the original, unmodulated contact, for
++        which the predicted heat is linear in the conductance.  Consequently
++        the weighted least-squares estimate has a closed form and avoids
++        introducing a second numerical fit on top of the fairly expensive
++        spectral integrals.
++        """
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        coefficients = []
++        values = []
++        sigmas = []
++        for record in records:
++            inp = record['input']
++            coefficients.append(power_per_conductance(
++                inp['left_temperature'], inp['right_temperature'],
++                inp['phase'], inp.get('amplitude', 0.),
++                inp.get('drive_energy', .3)))
++            values.append(record['value'])
++            sigmas.append(record['sigma'])
++
++        coefficients = np.asarray(coefficients, dtype=float)
++        values = np.asarray(values, dtype=float)
++        sigmas = np.asarray(sigmas, dtype=float)
++        if (not np.isfinite(coefficients).all() or
++                not np.isfinite(values).all() or
++                not np.isfinite(sigmas).all() or np.any(sigmas <= 0)):
++            raise ValueError('Calibration records must contain finite values and positive sigmas.')
++        denominator = np.sum((coefficients / sigmas) ** 2)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records do not constrain conductance.')
++        self.conductance = float(np.sum(coefficients * values / sigmas ** 2) / denominator)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)

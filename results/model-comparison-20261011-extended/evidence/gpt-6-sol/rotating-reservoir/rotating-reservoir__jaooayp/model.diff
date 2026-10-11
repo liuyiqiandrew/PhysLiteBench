@@ -1,0 +1,68 @@
+--- starter/model.py
++++ submission/model.py
+@@ -146,7 +146,7 @@
+     return float(np.clip(conductance*lam*RATE/(lam*RATE-conductance*(2*lam+RATE)),.4,1.1))
+ 
+ 
+-def hermite_operators(e,gamma,degree=32):
++def hermite_operators(e,gamma,degree=20):
+     ta=e['temperature_a'];tb=e['temperature_b'];lam=e['relaxation_rate'];eta=e['flux_fraction'];variance=max(ta,tb)
+     width=degree+1;size=width**2;index=lambda n,m:n*width+m;L=np.zeros((size,size));V=np.zeros_like(L);G=np.zeros_like(L);dg=np.zeros_like(L);G2=np.zeros_like(L)
+     assert e['angular_speed']==0.
+@@ -165,23 +165,42 @@
+             if m+2<width:G2[index(n,m+2),j]=variance*np.sqrt((m+1)*(m+2))
+     L+=3.6*eta*collision_weak_matrix(degree,variance)
+     A1=2*lam*tb*G@dg-lam*(G2-tb*np.eye(size));A2=2*lam*tb*G2
++    # Total polynomial degree gives a much smaller Galerkin space while
++    # retaining every polynomial needed for the low order heat cumulants.
++    kept=np.array([index(n,m) for n in range(width) for m in range(width)
++                   if n+m<=degree])
++    L=L[np.ix_(kept,kept)]
++    V=V[np.ix_(kept,kept)]
++    A1=A1[np.ix_(kept,kept)]
++    A2=A2[np.ix_(kept,kept)]
++    size=len(kept)
+     system=L.T.copy();system[0]=0.;system[0,0]=1.;target=np.zeros(size);target[0]=1.;p=solve(system,target,check_finite=False)
+     constant=np.zeros(size);constant[0]=1.
+     return L,V,A1,A2,p,constant
+ 
+-def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
++def angular_hermite(e,gamma=.67,degree=32):
++    """Heat cumulants from the coupled velocity and rotor-angle generator.
++
++    Fourier mode n evolves with L + i*n*harmonic*v.  The heat tilt
++    couples modes through the Fourier coefficients of w and w squared.
++    Keeping modes through two suffices for the first three cumulants.
++    """
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+     w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
++    ns=range(-1,2);mean=p@A1@constant
+     def invert(n,rhs):
+         if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
++            return solve(L+1j*n*harmonic*V,rhs,check_finite=False)
+         system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+     r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+     c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+-    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
++    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+
++                 2*mean*r1.get(n,0)-
++                 2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-
++                 w2[n]*(A2@constant)) for n in range(-2,3)}
++    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n]) for n in ns)+
++                      3*p@sum(w2[-n]*(A2@r1[n]) for n in ns)))
+     return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
+ 
+ 
+@@ -207,6 +226,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

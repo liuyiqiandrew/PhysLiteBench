@@ -1,0 +1,45 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,7 +54,41 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit the material scale by Gaussian weighted least squares.
++
++        All calibration temperatures are below the first freezing
++        temperature for every allowed width.  Consequently the limiting
++        energy density is ``-beta * width**2``.  Writing ``x=width**2``
++        makes the likelihood a one-parameter, constrained linear fit.
++        """
++        numerator = 0.0
++        denominator = 0.0
++        count = 0
++
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++                observed = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError('Calibration records need finite beta, value, and sigma.') from exc
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(observed) or not math.isfinite(sigma)
++                    or sigma <= 0.0):
++                raise ValueError('Calibration records need beta in [0.2,0.6] and positive finite sigma.')
++
++            weight = 1.0 / (sigma * sigma)
++            numerator += -weight * beta * observed
++            denominator += weight * beta * beta
++            count += 1
++
++        if count == 0 or not math.isfinite(numerator) or not math.isfinite(denominator) or denominator <= 0.0:
++            raise ValueError('Supply at least one valid calibration record.')
++
++        lower, upper = WIDTH_INTERVAL
++        squared_width = min(upper * upper, max(lower * lower, numerator / denominator))
++        self.width = math.sqrt(squared_width)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

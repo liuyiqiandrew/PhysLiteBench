@@ -1,32 +1,41 @@
 # PhysLiteBench
 
-This branch publishes **thirteen physics tasks**, each selected with **0 passes in 3 completed unhinted Luna High trials** in its original qualification batch. The model was `gpt-5.6-luna` with reasoning effort `high`. Every qualifying failure was reviewed as a physical-model failure. Exact source hashes and trial IDs are in [the result manifest](results/qualified-tasks.json).
+The Desktop roster now contains **thirteen physics tasks**: the ten locally qualified snapshots below plus three additions from the remote branch. The [full roster](results/task-roster.json) records each exact revision, source hashes and evaluation status. The latest evidence does **not** establish 0/3 passes for all thirteen.
 
-**Fresh confirmation:** New unhinted runs returned 1/3 passes for swirling heat tails, 0/3 for hard-rod current and 0/3 for finite-ion cloud. Thus the 0/3 result repeated for 2 of the three additions. The heat pass correctly includes the stationary endpoint-energy tails. One ion failure also has a radial-exponent error, so only the rod batch repeats three clean physical failures. [Full results](results/expansion-confirmation-20261011-1709-results.json) and [independent review](results/expansion-confirmation-20261011-1709-review.md).
+## Three imported tasks
 
-| Task and public apparatus | Revision | Original passes | Original physical failures |
+| Imported task | Revision | Original selection passes | Latest GPT-5.6 Luna High passes |
 |---|---:|---:|---:|
-| [Entropy anomaly](tasks/entropy-anomaly/environment/README.md) | 7 | 0/3 | 3 |
-| [Finite-ion cloud](tasks/finite-ion-cloud/environment/README.md) | 3 | 0/3 | 3 |
-| [Finite-layer phoresis](tasks/finite-layer-phoresis/environment/README.md) | 2 | 0/3 | 3 |
-| [Hard-rod current](tasks/hard-rod-current/environment/README.md) | 2 | 0/3 | 3 |
-| [Hierarchical glass overlaps](tasks/hierarchical-glass-overlaps/environment/README.md) | 2 | 0/3 | 3 |
-| [Insulating MHD duct](tasks/insulating-mhd-duct/environment/README.md) | 2 | 0/3 | 3 |
-| [Magnetic tracer](tasks/magnetic-tracer/environment/README.md) | 2 | 0/3 | 3 |
-| [Reaction–diffusion](tasks/reaction-diffusion/environment/README.md) | 7 | 0/3 | 3 |
-| [Ring-current fluctuations](tasks/ring-current-fluctuations/environment/README.md) | 1 | 0/3 | 3 |
-| [Rotating reservoir](tasks/rotating-reservoir/environment/README.md) | 8 | 0/3 | 3 |
-| [Single-file memory](tasks/single-file-memory/environment/README.md) | 1 | 0/3 | 3 |
-| [Superconducting heat](tasks/superconducting-heat/environment/README.md) | 6 | 0/3 | 3 |
-| [Swirling heat tails](tasks/swirling-heat-tails/environment/README.md) | 1 | 0/3 | 3 |
+| [Swirling heat tails](tasks/swirling-heat-tails/environment/README.md) | 1 | 0/3 | **1/3** |
+| [Hard-rod current](tasks/hard-rod-current/environment/README.md) | 2 | 0/3 | **0/3** |
+| [Finite-ion cloud](tasks/finite-ion-cloud/environment/README.md) | 3 | 0/3 | **0/3** |
 
-The three-trial counts cover completed scientific evaluations; separate setup/infrastructure attempts for phoresis and single-file memory remain listed in the manifest.
+The three additions were merged from `origin/luna-high-qualified-tasks` at `6f4ca59`. Their fresh confirmation retained all nine completed trials with no infrastructure errors or retries. Swirling heat tails has a passing solution; hard-rod current has three clean physical failures; finite-ion cloud has two clean physical failures and one mixed physical/mathematical failure. These are the remote results, not new local benchmark runs. See the [confirmation results](results/expansion-confirmation-20261011-1709-results.json) and [independent review](results/expansion-confirmation-20261011-1709-review.md).
 
-Each task has a public apparatus, starter, calibration data and interface tests under `environment/`, private grading and an independent physical reference under `tests/`, and the correct implementation under `solution/`. Completed approximation controls and validators are under `scripts/`. Follow each task's public README for its exact API and its AUTHOR.md for derivations and validation details.
+Their web search was disabled, but shell networking remained available. This differs from the original ten's restricted-network qualification. The imported review found no external retrieval in the emitted trajectories. Original selection results and the passing confirmation outcome are both preserved.
 
-Hierarchical-glass-overlaps revision 2 completed the original ten-task roster. It predicts labelled replica partitions in a quenched Gaussian hierarchy. All three solutions fitted calibration correctly but retained the wrong parent–descendant correlation law. Correcting only that physical law at the original fitted widths repaired every graded group. The physical oracle passed all nine Docker tests; the completed approximation passed four and failed the five intended prediction groups. Its earlier revision had 1/3 passes and did not qualify.
+## Original ten qualified tasks
 
-The three requested additions are swirling-heat-tails r1, hard-rod-current r2 and finite-ion-cloud r3. Their reviewed failures respectively omit rare endpoint-energy constraints, current-conditioned rod composition, and the shared-angle constraint in a three-ion cell. Correcting only each response at its retained fitted parameter repairs every hidden group. Each oracle passes 7/7 Docker tests; each completed approximation passes four checks and fails the three intended prediction groups. See the [heat results](results/expansion-swirling-heat-tails-r1-results.json), [rod results](results/expansion-hard-rod-current-r2-results.json), [ion results](results/expansion-finite-ion-cloud-r3-results.json), and [expansion status](results/physics-expansion-status.json). All 66 development trials across 22 revisions are retained; nineteen excluded revisions remain in the [expansion archive](archives/physics-expansion-20261011/README.md).
+The preserved local set contains **ten qualified physics tasks**, each with **0 passes in 3 completed unhinted GPT-5.6 Luna High trials**. All thirty selected trials completed without infrastructure exceptions, and their failures were reviewed as physical-model errors. The [result manifest](results/qualified-tasks.json) identifies the exact source hashes, trial IDs and evidence.
+
+| Task and public apparatus | Revision | GPT-5.6 Luna High passes |
+|---|---:|---:|
+| [Entropy anomaly](tasks/entropy-anomaly/environment/README.md) | 9 | 0/3 |
+| [Finite-layer phoresis](tasks/finite-layer-phoresis/environment/README.md) | 2 | 0/3 |
+| [Hierarchical glass overlaps](tasks/hierarchical-glass-overlaps/environment/README.md) | 2 | 0/3 |
+| [Insulating MHD duct](tasks/insulating-mhd-duct/environment/README.md) | 2 | 0/3 |
+| [Magnetic tracer](tasks/magnetic-tracer/environment/README.md) | 9 | 0/3 |
+| [Reaction–diffusion](tasks/reaction-diffusion/environment/README.md) | 10 | 0/3 |
+| [Ring-current fluctuations](tasks/ring-current-fluctuations/environment/README.md) | 1 | 0/3 |
+| [Rotating reservoir](tasks/rotating-reservoir/environment/README.md) | 11 | 0/3 |
+| [Single-file memory](tasks/single-file-memory/environment/README.md) | 1 | 0/3 |
+| [Superconducting heat](tasks/superconducting-heat/environment/README.md) | 11 | 0/3 |
+
+The October 11 fresh rerun confirmed five previous revisions and found at least one pass on each of the other five. Entropy anomaly R9, magnetic tracer R9, reaction–diffusion R10, rotating reservoir R11 and superconducting heat R11 are the newly qualified revisions. Each received independent scientific validation, oracle/finished-approximation controls, exactly three fresh trials, source and trajectory review, and same-parameter causal repairs. All fifteen repairs passed. Earlier passing revisions and unsuccessful development batches remain in the [development ledger](results/qualification-20261011/development-ledger.json); the [original fresh rerun](results/fresh-ten-luna-high-20261011.json) remains unchanged.
+
+These tasks were selected and refined against GPT-5.6 Luna. Observed 0/3 outcomes do not establish a zero future pass rate. The separate five-model comparison uses frozen task versions and reports its own runtime and access limitations in [the dashboard](DASHBOARD.md).
+
+Each task supplies public apparatus, starter code, calibration and interface tests under `environment/`; private grading and an independent reference under `tests/`; and a correct solution under `solution/`. Completed approximation controls and validators are under `scripts/`. The public README defines the API; AUTHOR.md records the derivation. Private material stays outside ordinary agent images.
 
 ## Run a task
 
@@ -34,12 +43,11 @@ Start Docker, install uv, and use the pinned runner:
 
 ```bash
 python3 scripts/run_science.py tasks/hierarchical-glass-overlaps --agent oracle --trials 1
-python3 scripts/run_science.py tasks/hierarchical-glass-overlaps \
-  --model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3
+python3 scripts/run_science.py tasks/hierarchical-glass-overlaps   --model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3   --restricted-network --agent-setup-timeout-multiplier 3
 ```
 
-The runner pins Harbor 0.21.0 and Codex CLI 0.154.0. Ordinary runs use no physics hint. Keep authentication outside the repository. Hidden data and solutions are in this repository, and a trial agent with web access could read them while the repository is public. Before rerunning trials, make the repository private or disable agent web access.
+Qualification of the original ten used Harbor 0.21.0, Codex CLI 0.154.0, 600 seconds for solving and 60 seconds for verification. `--restricted-network` reproduces the runtime allowlist used in qualification: only OpenAI authentication/API hosts are reachable, and agent web search is disabled. It changes only the temporary runtime configuration and preserves source task bytes. Keep authentication outside the repository.
 
-Four tasks changed after qualification without new trials: entropy anomaly, insulating MHD duct, rotating reservoir and superconducting heat. Their verifiers now grade against frozen reference values; old and new verifiers gave identical results on every checked submission. The superconducting-heat starter no longer carries the true conductance as a default. The manifest still records the qualified snapshots in `source_sha256` and lists every changed file under `post_qualification_changes`; see [post-qualification maintenance](docs/BENCHMARK.md#post-qualification-maintenance).
+Task sources in both manifests exactly match their evaluated snapshots. The ten-task qualification manifest remains unchanged; the full roster adds the three imported snapshots. Prior canonical tasks and documentation are preserved in [the October 11 archive](archives/pre-qualification-20261011). Earlier post-qualification maintenance is historical evidence. Raw native jobs remain local; selected submissions, metrics, diffs and reviews are in [the evidence folder](results/qualification-20261011).
 
-Raw jobs, native transcripts and private staging work remain local. This branch publishes task sources, completed controls, validators, result records and the reviewed expansion archive. The inherited task folders `tasks/hydrodynamic-heating` and `tasks/thermoelastic-rod` are not in the qualified roster above. See [repository contribution guidance](docs/ADDING_TASKS.md).
+The inherited folders `tasks/hydrodynamic-heating` and `tasks/thermoelastic-rod` are outside this thirteen-task roster. See [benchmark protocol](docs/BENCHMARK.md) and [contribution guidance](docs/ADDING_TASKS.md).

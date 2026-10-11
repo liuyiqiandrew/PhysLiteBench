@@ -1,0 +1,58 @@
+--- starter/model.py
++++ submission/model.py
+@@ -25,7 +25,54 @@
+         self.diffusivity = None
+ 
+     def fit(self,data):
+-        raise NotImplementedError('Fit the common ionic diffusion scale from calibration.')
++        """Fit the common diffusion scale to the calibration profiles.
++
++        The calibration preparations contain a single cation constituent, so
++        association is absent and the electroneutral transport equation has
++        the usual binary ambipolar diffusivity.  Fitting in log space keeps
++        the parameter positive throughout the search.
++        """
++        x = np.asarray(data['x'], dtype=float)
++        t = np.asarray(data['t'], dtype=float)
++        initial = np.asarray(data['initial'], dtype=float)
++        observed = np.asarray(data['concentration'], dtype=float)
++        sigma = np.asarray(data['sigma'], dtype=float)
++
++        if initial.ndim == 2:
++            initial = initial[None, ...]
++        if observed.ndim == 3:
++            observed = observed[None, ...]
++        if sigma.ndim == 3:
++            sigma = sigma[None, ...]
++
++        # Transform each initial profile once.  The type-I cosine transform
++        # diagonalizes the no-flux finite-volume Laplacian on this mesh.
++        modes = len(x) - 1
++        spatial_rate = (4.0 / (x[1] - x[0])**2
++                        * np.sin(np.arange(modes + 1) * np.pi / (2*modes))**2)
++        coeff = dct(initial, type=1, axis=1)
++        ambipolar = np.array([4.0 / 3.0, 8.0 / 3.0])
++        weights = 1.0 / np.maximum(sigma, np.finfo(float).tiny)**2
++
++        def objective(log_diffusivity):
++            diffusivity = np.exp(log_diffusivity)
++            rates = (diffusivity * spatial_rate[:, None]
++                     * ambipolar[None, :])
++            decay = np.exp(-t[:, None, None] * rates[None, :, :])
++            prediction = np.stack([
++                idct(decay * coeff[r][None, :, :], type=1, axis=1)
++                for r in range(len(initial))
++            ])
++            residual = (prediction - observed) * np.sqrt(weights)
++            return float(np.sum(residual * residual))
++
++        result = minimize_scalar(objective, bounds=(np.log(1e-13), np.log(1e-5)),
++                                 method='bounded',
++                                 options={'xatol': 1e-12, 'maxiter': 300})
++        if not result.success or not np.isfinite(result.fun):
++            raise RuntimeError('Could not fit the diffusion coefficient.')
++        self.diffusivity = float(np.exp(result.x))
++        return self
+ 
+     def _binary(self,t,x,initial):
+         t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)

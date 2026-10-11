@@ -1,0 +1,53 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,40 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the (normal-state) conductance from the calibration records.
++
++        The supplied calibration set is deliberately restricted to the
++        unmodulated, oscillator-decoupled contact.  In that limit the heat
++        current is proportional to the conductance, so the weighted
++        one-parameter least-squares solution is both exact for the model and
++        considerably more stable than a generic nonlinear fit.
++        """
++        coefficients = []
++        values = []
++        weights = []
++        for record in records:
++            inp = record['input']
++            coefficients.append(power_per_conductance(
++                inp['left_temperature'], inp['right_temperature'],
++                inp['phase'], inp.get('amplitude', 0.),
++                inp.get('drive_energy', .3)))
++            values.append(record['value'])
++            sigma = float(record['sigma'])
++            if not np.isfinite(sigma) or sigma <= 0:
++                raise ValueError('Calibration uncertainties must be positive')
++            weights.append(1. / sigma**2)
++        coefficients = np.asarray(coefficients, dtype=float)
++        values = np.asarray(values, dtype=float)
++        weights = np.asarray(weights, dtype=float)
++        denominator = np.sum(weights * coefficients**2)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records contain no conductance information')
++        fitted = np.sum(weights * coefficients * values) / denominator
++        # The apparatus specifies this parameter's allowed range.  Clipping
++        # keeps the public model well-defined even for an unusually noisy
++        # calibration realization.
++        self.conductance = float(np.clip(fitted, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,6 +445,8 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
++            # Normalize phi + pi back to the documented [-pi, pi] range.
++            # For phi already in that range this is equivalently phi-pi.
+             other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)

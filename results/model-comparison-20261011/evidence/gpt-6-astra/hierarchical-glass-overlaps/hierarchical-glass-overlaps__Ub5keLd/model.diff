@@ -1,0 +1,71 @@
+--- starter/model.py
++++ submission/model.py
+@@ -20,10 +20,21 @@
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def leaf_partition(alpha, blocks, q=0.0):
++    """Joint probability of one family and a specified labelled partition.
++
++    The two-level Gibbs cascade has family weights PD(q, 0). Within a
++    Gibbs-selected family the leaf weights follow PD(alpha, -q): weighting
++    a family by its partition function tilts its internal distribution.
++    Multiplying its partition probability by the family participation
++    cancels the factors (j-q) in the denominator, giving this product.
++    Alpha=1 includes diffuse leaves, where only singleton blocks survive.
++    """
+     n = sum(blocks)
+     k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0/math.factorial(n-1)
++    for j in range(1, k):
++        result *= j*alpha-q
+     for size in blocks:
+         for j in range(1,size):
+             result *= j-alpha
+@@ -37,8 +48,9 @@
+     if observable == 'parent_collision':
+         return parent
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        # Flattening the cascade gives PD(alpha, 0) state weights.
++        return participation(alpha,replicas)
++    return leaf_partition(alpha,blocks,q)
+ 
+ 
+ class Model:
+@@ -54,7 +66,31 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit width by constrained Gaussian maximum likelihood.
++
++        Every calibration beta lies below the first critical beta even
++        at width=1.2, so the mean is -beta*width**2. Weighted least squares
++        is quadratic in width**2 and has an exact constrained solution.
++        """
++        readings = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Outside the stated calibration range.')
++            if not math.isfinite(measured) or not math.isfinite(sigma) or sigma <= 0:
++                raise ValueError('Use finite readings and positive finite sigma.')
++            readings.append((beta, measured, sigma))
++        if not readings:
++            raise ValueError('Supply at least one calibration reading.')
++        beta, measured, sigma = np.asarray(readings, dtype=float).T
++        # A common weight factor cancels; rescaling avoids squaring 1/sigma.
++        weights = (np.min(sigma)/sigma)**2
++        width_squared = -np.sum(weights*beta*measured)/np.sum(weights*beta*beta)
++        low, high = WIDTH_INTERVAL
++        self.width = math.sqrt(float(np.clip(width_squared, low*low, high*high)))
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

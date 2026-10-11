@@ -1,0 +1,47 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,7 +54,43 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        # In the calibration range beta is below both freezing thresholds for
++        # every allowed width.  The limiting equilibrium mean energy density
++        # is therefore -beta * width**2.  Fit its single coefficient by
++        # weighted least squares, using the supplied measurement errors.
++        beta_values = []
++        energy_values = []
++        sigmas = []
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++                energy = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError, OverflowError) as exc:
++                raise ValueError('Each calibration record needs beta, value, and sigma.') from exc
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(energy)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Invalid calibration beta, value, or uncertainty.')
++            beta_values.append(beta)
++            energy_values.append(energy)
++            sigmas.append(sigma)
++
++        if not beta_values:
++            raise ValueError('At least one calibration record is required.')
++
++        beta_values = np.asarray(beta_values, dtype=float)
++        energy_values = np.asarray(energy_values, dtype=float)
++        sigmas = np.asarray(sigmas, dtype=float)
++        weights = 1.0 / np.square(sigmas)
++        denominator = np.sum(weights * np.square(beta_values))
++        if not math.isfinite(float(denominator)) or denominator <= 0:
++            raise ValueError('Calibration inputs do not identify the material scale.')
++        width_squared = np.sum(weights * beta_values * -energy_values) / denominator
++        width_squared = float(np.clip(width_squared, WIDTH_INTERVAL[0]**2,
++                                      WIDTH_INTERVAL[1]**2))
++        self.width = math.sqrt(width_squared)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

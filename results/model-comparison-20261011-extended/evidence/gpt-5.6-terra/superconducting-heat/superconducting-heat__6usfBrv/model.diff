@@ -1,0 +1,75 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,9 +191,62 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one extensive parameter using the stated independent errors.
++
++        At the calibration settings the contact is unmodulated and has no
++        oscillator coupling.  Its heat current is therefore exactly linear in
++        the normal-state conductance.  Evaluating the (more general) predictor
++        at one reference conductance gives a numerically stable weighted
++        straight-line fit, without making a separate normal-state model.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        reference = 50.0
++        inputs = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values and sigmas must be finite, with sigma > 0")
++
++        # The supplied calibration data have this form.  Keep the analytic
++        # fit, since it is both exact and substantially faster than repeatedly
++        # solving the spin-balance equations for every record.
++        linear = all(
++            record['input'].get('statistic', 'mean') == 'mean'
++            and record['input'].get('amplitude', 0.) == 0.
++            and record['input'].get('oscillator_coupling', 0.) == 0.
++            and record['input'].get('secondary_coupling', 0.) == 0.
++            and record['input'].get('quadratic_coupling', 0.) == 0.
++            and record['input'].get('momentum_coupling', 0.) == 0.
++            for record in records
++        )
++        if linear:
++            coefficient = np.asarray(
++                [mean_heat(experiment, reference) / reference for experiment in inputs],
++                dtype=float,
++            )
++            denominator = np.sum((coefficient / sigma) ** 2)
++            if not np.isfinite(denominator) or denominator == 0:
++                raise ValueError("calibration does not constrain conductance")
++            estimate = np.sum(coefficient * observed / sigma ** 2) / denominator
++        else:
++            def chi_square(conductance):
++                residual = (predict_at(inputs, conductance) - observed) / sigma
++                return float(residual @ residual)
++            result = minimize_scalar(chi_square, bounds=(20., 80.), method='bounded',
++                                     options={'xatol': 2e-8})
++            if not result.success or not np.isfinite(result.fun):
++                raise RuntimeError("conductance fit failed")
++            estimate = result.x
++        # Conductance is physically restricted by the apparatus specification.
++        self.conductance = float(np.clip(estimate, 20.0, 80.0))
++        return self
+ 
+     def predict(self, experiments):
++        if self.conductance is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.conductance)
+ 
+ 

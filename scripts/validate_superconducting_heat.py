@@ -1,184 +1,68 @@
-"""Validate thermal Fock phase coherence, stationary spin balance and calorimetry."""
-import argparse,hashlib,importlib.util,json,shutil,subprocess,sys,tempfile,time
 from pathlib import Path
+import argparse,hashlib,importlib.util,json,time
 import numpy as np
-from scipy.optimize import brentq
-from scipy.stats import poisson
-
-ROOT=Path(__file__).resolve().parents[1]
-TASK=ROOT/'tasks/superconducting-heat'
-
-
-def module(path):
-    spec=importlib.util.spec_from_file_location('science_'+str(abs(hash(str(path)))),path)
-    value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value);return value
-
-
-def local_control(source):
-    start=time.time()
-    with tempfile.TemporaryDirectory(prefix='physlite-oscillator-control-') as temporary:
-        app,tests=Path(temporary)/'app',Path(temporary)/'tests'
-        shutil.copytree(TASK/'environment',app);shutil.copytree(TASK/'tests',tests)
-        shutil.copyfile(source,app/'model.py')
-        value=subprocess.run([sys.executable,'-m','pytest','-q',str(app/'test_public.py'),str(tests/'test_hidden.py')],cwd=app,text=True,capture_output=True,env=dict(__import__('os').environ,PYTHONPATH=str(app)))
-        return dict(returncode=value.returncode,stdout=value.stdout,stderr=value.stderr,seconds=time.time()-start)
-
-
-def phase_space(x,t):
-    if x==0:return t
-    if x/t>40:return x
-    if x/t< -40:return -x*np.exp(x/t)
-    return x/(-np.expm1(-x/t))
-
-
-def normal_closed(good,t,a,w,rho,tph,g):
-    ells,prob=good.sidebands(rho,tph,32)
-    def current(v):
-        return sum(p*(phase_space(v-ell*24,t)-phase_space(-v-ell*24,t)) for ell,p in zip(ells,prob))
-    ratio=good.QUASIPARTICLE_DENSITY/(good.NORMAL_POLARIZATION_TIME*good.RATE_CONVERSION*g)
-    return brentq(lambda mu:a*a/2*current(w-2*mu)-ratio*mu,0.,w/2,xtol=5e-15)
-
-
-def spin_basis_check(ref):
-    sx=np.array([[0,1],[1,0]],complex);sy=np.array([[0,-1j],[1j,0]],complex);sz=np.diag([1.,-1.]);identity=np.eye(2)
-    axis=(sx+2*sy+3*sz)/np.sqrt(14)
-    fl=np.diag([.3,.08]);fr=np.diag([.7,.16])
-    def rates(matrix,left,right,z,pair,pf,pb):
-        if pair:
-            l=pf*(identity-left)@matrix@(identity-right).T@matrix.conj().T-pb*left@matrix@right.T@matrix.conj().T
-            r=pf*(identity-right)@matrix.T@(identity-left).T@matrix.conj()-pb*right@matrix.T@left.T@matrix.conj()
-            return np.array([np.trace(l).real,np.trace(z@l).real,np.trace(z@r).real])
-        l=pf*left@matrix@(identity-right)@matrix.conj().T-pb*(identity-left)@matrix@right@matrix.conj().T
-        r=pf*(identity-right)@matrix.conj().T@left@matrix-pb*right@matrix.conj().T@(identity-left)@matrix
-        return np.array([np.trace(l).real,-np.trace(z@l).real,np.trace(z@r).real])
-    error=0.
-    for harmonic in (-1,0,1):
-        table=ref.matrices(.8);t=table[harmonic];h=ref.S@table[-harmonic].conj()@ref.S.conj().T
-        for ell in (0,1,2):
-            plus=(1j)**ell;minus=(-1j)**ell
-            for pair in (False,True):
-                matrix=(.8*.6*plus*t+.6*.8*np.exp(.7j)*minus*h)@ref.S if pair else .8*.8*plus*t-.6*.6*np.exp(.7j)*minus*h
-                original=rates(matrix,fl,fr,sz,pair,.7,.2)
-                for angle in (.4,1.7,2.8):
-                    u=np.cos(angle/2)*identity-1j*np.sin(angle/2)*axis
-                    changed=u.conj().T@matrix@(u.conj() if pair else u)
-                    actual=rates(changed,u.conj().T@fl@u,u.conj().T@fr@u,u.conj().T@sz@u,pair,.7,.2)
-                    error=max(error,float(max(abs(actual-original))))
-    return error
-
-
+S=Path(__file__).resolve().parents[1];T=S/'tasks/superconducting-heat';A=S/'archives/qualification-20261011-dependencies/superconducting-heat-r10'
+def load(n,p):
+    spec=importlib.util.spec_from_file_location(n,p);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+def rel(a,b):return float(np.linalg.norm(np.asarray(a)-b)/max(np.linalg.norm(b),1e-100))
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--noise-trials',type=int,default=256);args=parser.parse_args()
-    start=time.time();good,bad,ref=[module(p) for p in (TASK/'solution/model.py',ROOT/'scripts/superconducting_heat_baseline.py',TASK/'tests/reference.py')]
-    r4=ROOT/'archives/superconducting-heat-r4/tasks/superconducting-heat';skipped=[]
-    def available(check,path):
-        if path.exists():return True
-        skipped.append(dict(check=check,reason=f'{path.relative_to(ROOT)} is not published on this branch'))
-        print('WARNING: skipping',check,'check:',skipped[-1]['reason'],flush=True);return False
-    old=module(r4/'solution/model.py') if available('rho_zero_previous_heat',r4/'solution/model.py') else None
-    meta=json.loads((TASK/'tests/metadata.json').read_text());true,sigma,limit=ref.TRUE_PARAMETER,meta['measurement_sigma'],meta['prediction_limit']
-    records=json.loads((TASK/'environment/data/calibration.json').read_text());inputs=ref.calibration_inputs()
-    assert records==json.loads((TASK/'tests/data/calibration.json').read_text())
-    calibration_checked=available('calibration_bytes_match_r4',r4/'environment/data/calibration.json')
-    if calibration_checked:assert (TASK/'environment/data/calibration.json').read_bytes()==(r4/'environment/data/calibration.json').read_bytes()
-    assert [r['input'] for r in records]==inputs and all(r['sigma']==sigma for r in records)
-    exact=ref.predict(inputs,true);hidden=ref.hidden_inputs();truth={name:ref.predict(es,true) for name,es in hidden.items()}
-    frozen=module(ROOT/'scripts/freeze_hidden_truth.py').check(TASK,json.loads((TASK/'tests/data/hidden_truth.json').read_text()))
-    def chi(model,rs):
-        residual=(model.predict(inputs)-np.array([r['value'] for r in rs]))/sigma
-        return float(residual@residual/(len(rs)-1))
-    def scores(model):
-        return {name:float(np.sqrt(np.mean((model.predict(es)-truth[name])**2)/np.mean(truth[name]**2))) for name,es in hidden.items()}
-    report=dict(revision=6,calibration_preserved=True if calibration_checked else None,noise_trials=args.noise_trials,measurement_sigma_pW=sigma,calibration_seed=meta['calibration_seed'],noise_seed=meta['noise_seed'],frozen_hidden_truth_max_difference_over_group_rms=frozen,skipped_checks=skipped,controls={})
-    for label,source in (('oracle',good),('shortcut',bad)):
-        model=source.Model().fit(records)
-        result=dict(parameter=model.conductance,parameter_relative_error=abs(model.conductance/true-1),calibration_chi2=chi(model,records),hidden=scores(model))
-        assert result['calibration_chi2']<1.5 and result['parameter_relative_error']<.03
-        assert max(result['hidden'].values())<limit if label=='oracle' else min(result['hidden'].values())>limit
-        report['controls'][label]=result
-    print('Frozen controls passed',flush=True)
-    rng=np.random.default_rng(meta['noise_seed']);parameters=[];chi2s=[];oracle_errors=[];source_errors=[]
-    for trial in range(args.noise_trials):
-        sample=[dict(input=e,value=float(y),sigma=sigma) for e,y in zip(inputs,exact+rng.normal(0,sigma,len(inputs)))]
-        a,b=good.Model().fit(sample),bad.Model().fit(sample)
-        assert abs(a.conductance-b.conductance)<1e-10
-        parameters.append(a.conductance);chi2s.append(chi(a,sample));oracle_errors.extend(scores(a).values());source_errors.extend(scores(b).values())
-        if (trial+1)%32==0:print('Noise draws',trial+1,flush=True)
-    assert max(chi2s)<1.5 and max(abs(np.array(parameters)/true-1))<.03
-    assert max(oracle_errors)<limit and min(source_errors)>limit
-    report['noise']=dict(parameter_min=min(parameters),parameter_max=max(parameters),parameter_relative_error_max=float(max(abs(np.array(parameters)/true-1))),calibration_chi2_max=max(chi2s),oracle_prediction_error_max=max(oracle_errors),shortcut_prediction_error_min=min(source_errors),oracle_passes=args.noise_trials,shortcut_intended_failures=args.noise_trials)
-    print('Noise checks passed',flush=True)
-    corners=[]
-    for j in range(64):
-        corners.append(((.25,1.05)[j&1],(.25,1.05)[(j>>1)&1],(0.,np.pi)[j%2],(0.,1.)[(j>>2)&1],(.1,.5,7.,12.)[(j>>3)&3],(0.,1.)[(j>>5)&1],(12.,24.)[(j>>4)&1]))
-    rng=np.random.default_rng(931006)
-    random=[]
-    for i in range(32):
-        tl,tr=rng.uniform(.25,1.05,2);random.append((tl,tr,rng.uniform(-np.pi,np.pi),rng.uniform(0,1),rng.uniform(*((.1,.5) if i%2 else (7,12))),rng.uniform(0,1),rng.uniform(12,24)))
-    cases=corners+random
-    checks=[]
-    for j,case in enumerate(cases):
-        a=good.stationary(*case,true);b=bad.stationary(*case,true);r=ref.oscillator_components(*case,true)
-        finer=good.stationary(*case,true,nodes=288,count=32)
-        heat,spin=a['heat'],a['spin'];jac=a['jacobian'];ells,prob=good.sidebands(case[5],case[6],24);fock=ref.fock_covariances(case[5],case[6],24)
-        nb=1/np.expm1(24/case[6]);dw=np.exp(-2*case[5]*(2*nb+1))
-        ent=a['entropy']+a['flip_entropy'];sent=b['entropy']+b['flip_entropy'];thermo=(-heat[0]/case[0]-heat[1]/case[1]+heat[3]/case[6])*1e-12
-        reverse=good.stationary(case[0],case[1],-case[2],*case[3:],true)
-        row=dict(input=case,polarization_K=a['mu'].tolist(),heat_pW=heat.tolist(),source_heat_pW=b['heat'].tolist(),entropy_W_per_K=float(ent),source_entropy_W_per_K=float(sent),independent_heat_max_pW=float(max(abs(heat-r['heat']))),independent_mu_max_K=float(max(abs(a['mu']-r['mu']))),refined_heat_max_pW=float(max(abs(heat-finer['heat']))),refined_mu_max_K=float(max(abs(a['mu']-finer['mu']))),energy_identity_pW=float(heat[0]+heat[1]+heat[2]-heat[3]),spin_work_identity_pW=float(heat[2]-good.KB*case[4]/2*sum(spin)*1e12),entropy_identity_W_per_K=float(ent-thermo),minimum_rate=a['minimum_rate'],source_minimum_rate=b['minimum_rate'],balance_residual_normalized=float(max(abs(a['residual']))),jacobian_column_dominance_min=float(min(-np.diag(jac)-np.sum(abs(jac),axis=0)+abs(np.diag(jac)))),phase_reversal_pW=float(max(abs(heat-reverse['heat']))),probability_sum_error=float(sum(prob)-1),mean_recoil_error=float(ells@prob-case[5]),recoil_variance_error=float((ells-case[5])**2@prob-case[5]*(2*nb+1)),anomalous_weight_sum_error=float(((-1.)**ells)@prob-dw),fock_probability_error=float(max(abs(prob-np.array([v[1] for v in fock])))),fock_cross_error=float(max(abs(((-1.)**ells)*prob-np.array([v[3] for v in fock])))),search_bound=a['search_bound'],search_expansions=a['expansions'])
-        assert row['independent_heat_max_pW']<1e-7 and row['refined_heat_max_pW']<1e-7
-        assert row['independent_mu_max_K']<1e-7 and row['refined_mu_max_K']<1e-7
-        assert abs(row['energy_identity_pW'])<1e-9 and abs(row['spin_work_identity_pW'])<1e-9
-        assert ent>=-1e-24 and sent>=-1e-24 and abs(row['entropy_identity_W_per_K'])<1e-21
-        assert row['minimum_rate']>=-1e-20 and row['source_minimum_rate']>=-1e-20
-        assert row['balance_residual_normalized']<1e-9 and row['jacobian_column_dominance_min']>0
-        assert row['phase_reversal_pW']<1e-8
-        for key in ('probability_sum_error','mean_recoil_error','recoil_variance_error','anomalous_weight_sum_error','fock_probability_error','fock_cross_error'):assert abs(row[key])<1e-12
-        checks.append(row)
-        if (j+1)%16==0:print('Domain systems',j+1,flush=True)
-    rhozero=[];normal=[];extra=[];multiple=[];refinement=[];equilibrium=[];contrast=[]
-    for case in random[:12]:
-        if old is not None:
-            args0=(*case[:5],0.,case[6]);a=good.stationary(*args0,true);oldstate=old.stationary_state(*case[:5],true)
-            rhozero.append(float(max(abs(a['heat'][:3]-oldstate['heat']))))
-        base=good.stationary(*case,true)
-        for seed in ((5.,5.),(-5.,-5.),(5.,-5.)):
-            other=good.stationary(*case,true,initial=seed);multiple.append(float(max(abs(base['mu']-other['mu']))))
-        for conductance in (20.,80.):
-            a=good.stationary(*case,conductance);r=ref.oscillator_components(*case,conductance);extra.append(float(max(abs(a['heat']-r['heat']))))
-        other=ref.oscillator_components(*case,true,nodes=384,count=32);refinement.append(float(max(abs(ref.oscillator_components(*case,true)['heat']-other['heat']))))
-    for t in (.25,1.05):
-        for w in (.3,9.):
-            case=(t,t,.7,.8,w,.7,24.);a=good.stationary(*case,true,normal=True);b=bad.stationary(*case,true,normal=True);r=ref.oscillator_components(*case,true,normal=True);mu=normal_closed(good,t,.8,w,.7,24.,true)
-            normal.append(dict(input=case,closed_mu_K=mu,closed_mu_error_K=float(max(abs(a['mu']-mu))),independent_heat_error_pW=float(max(abs(a['heat']-r['heat']))),shortcut_normal_heat_error_pW=float(max(abs(a['heat']-b['heat'])))))
-    for drive in (.3,9.):
-        for amplitude in (0.,.8):
-            case=(.8,.8,.7,amplitude,drive,.7,.8);a=good.stationary(*case,true)
-            equilibrium.append(dict(input=case,work_pW=float(a['heat'][2]),entropy_W_per_K=float(a['entropy']+a['flip_entropy']),spin_balance=float(max(abs(a['residual'])))))
-            assert a['heat'][2]>=-1e-10 and equilibrium[-1]['entropy_W_per_K']>=-1e-24
-    for es in hidden.values():
-        for e in es:
-            args=good.oscillator_arguments(e);other=(*args[:2],(args[2]+2*np.pi)%(2*np.pi)-np.pi,*args[3:]);one,two=good.stationary(*args,true),good.stationary(*other,true)
-            value=good.predict_at([e],true)[0];contrast.append(dict(input=e,readout_identity_pW=float(value-(one['heat'][0]-two['heat'][0])/2),phase_population_difference_K=float(max(abs(one['mu']-two['mu'])))))
-    if old is not None:assert max(rhozero)<1e-7
-    assert max(multiple)<1e-7 and max(extra)<1e-7 and max(refinement)<1e-7
-    assert max(r['closed_mu_error_K'] for r in normal)<1e-9
-    assert max(r['independent_heat_error_pW'] for r in normal)<1e-7 and max(r['shortcut_normal_heat_error_pW'] for r in normal)<1e-9
-    assert max(abs(r['readout_identity_pW']) for r in contrast)<1e-10
-    basis=spin_basis_check(ref);assert basis<1e-12
-    largest_total=2/np.expm1(24/24)+1
-    tail=float(poisson.sf(24,largest_total));second_moment_tail=float(largest_total**2*poisson.sf(22,largest_total)+largest_total*poisson.sf(23,largest_total))
-    assert tail<1e-16 and second_moment_tail<1e-13
-    report['physics']=dict(domain_seed=931006,domain_systems=len(checks),domain=checks,rho_zero_previous_heat_error_pW=max(rhozero) if rhozero else None,normal_state=normal,extra_conductance_agreement_max_pW=max(extra),multiple_start_mu_max_K=max(multiple),independent288_vs384_24_vs32_max_pW=max(refinement),common_temperature_passivity=equilibrium,contrast_preparation=contrast,spin_basis_invariance=basis,oscillator_sideband_probability_tail_bound=tail,oscillator_second_recoil_moment_tail_bound=second_moment_tail,initial_Fock_state_tail_bound=float(np.exp(-96)),tail_derivation='Absolute sideband gain is bounded by total emission+absorption count, Poisson with max mean rho(2nB+1); unitarity bounds discarded initial thermal Fock probability.',independent_reference='Explicit thermal Laguerre/Fock displacement covariances, four normal-dispersion Bogoliubov branches, 2x2 singlet spin matrices, independently checked expanding-window root balance and higher-order quadrature.')
-    local={label:local_control(source) for label,source in (('oracle',TASK/'solution/model.py'),('shortcut',ROOT/'scripts/superconducting_heat_baseline.py'))}
-    assert local['oracle']['returncode']==0 and local['oracle']['seconds']<60
-    assert local['shortcut']['returncode']!=0 and local['shortcut']['seconds']<60
-    assert '3 failed, 4 passed' in local['shortcut']['stdout']
-    report['local_controls']=local;report['seconds']=time.time()-start
-    files=[p for p in TASK.rglob('*') if p.is_file() and '__pycache__' not in p.parts]+[ROOT/'scripts/superconducting_heat_baseline.py',ROOT/'scripts/freeze_hidden_truth.py',Path(__file__)]
-    report['source_sha256']={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
-    output=ROOT/'results/superconducting-heat-r6-validation.json';output.write_text(json.dumps(report,indent=2)+'\n')
-    print(json.dumps({k:v for k,v in report.items() if k not in ('physics','source_sha256','local_controls')},indent=2))
-    print('Full scientific report:',str(output),flush=True)
-
-
+    parser=argparse.ArgumentParser();parser.add_argument('--freeze',action='store_true');args=parser.parse_args();tick=time.monotonic()
+    good=load('good',T/'solution/model.py');bad=load('bad',S/'scripts/superconducting_heat_baseline.py');ref=load('ref',T/'tests/reference.py');old=load('old',A/'task/solution/model.py')
+    prior=json.loads((A/'validation.json').read_text());assert all(sha(A/'task'/p)==h for p,h in prior['source_sha256'].items())
+    assert (T/'solution/model.py').read_text().startswith((A/'task/solution/model.py').read_text())
+    assert (T/'tests/test_hidden.py').read_bytes()==(A/'task/tests/test_hidden.py').read_bytes()
+    records=json.loads((T/'environment/data/calibration.json').read_text());assert records==json.loads((T/'tests/data/calibration.json').read_text()) and sha(T/'environment/data/calibration.json')==sha(A/'task/environment/data/calibration.json')
+    inputs=[r['input'] for r in records];y=np.array([r['value'] for r in records]);sigma=np.array([r['sigma'] for r in records]);hidden=ref.hidden_inputs();truth={}
+    for name,es in hidden.items():
+        truth[name]=ref.predict(es,45.);print('Independent group',name,round(time.monotonic()-tick,1),flush=True)
+    frozen_path=T/'tests/data/hidden_truth.json'
+    if args.freeze:frozen_path.write_text(json.dumps(dict(reference_sha256=sha(T/'tests/reference.py'),description='Independent Fock/Bogoliubov channels and nonlinear finite-counting-field stationary jump-Hamiltonian saddle; central third difference at4nonzero counting fields. Prior heat and noise references retained.',true_parameter=45.,groups={n:dict(inputs=hidden[n],truth=v.tolist()) for n,v in truth.items()}),indent=2)+'\n')
+    frozen=json.loads(frozen_path.read_text());assert frozen['reference_sha256']==sha(T/'tests/reference.py') and all(rel(truth[n],np.array(frozen['groups'][n]['truth']))<1e-12 for n in hidden)
+    thirds=[n for n in hidden if n.endswith('_third')]
+    def scores(m,g):return {n:rel(m.predict_at(es,g),truth[n]) for n,es in hidden.items()}
+    controls={}
+    for name,m in [('oracle',good),('shortcut',bad)]:
+        fit=m.Model().fit(records);res=(fit.predict(inputs)-y)/sigma;start=time.monotonic();row=dict(parameter=fit.conductance,calibration_chi2=float(res@res)/(len(records)-1),hidden=scores(m,fit.conductance),seconds=time.monotonic()-start)
+        assert abs(fit.conductance/45.-1)<.03 and row['calibration_chi2']<1.5 and row['seconds']<45
+        if name=='oracle':assert max(row['hidden'].values())<.04,row
+        else:assert min(row['hidden'][n] for n in thirds)>.04,row
+        controls[name]=row
+    print('CONTROLS',json.dumps(controls),flush=True)
+    rng=np.random.default_rng(2026101121);domain=[]
+    for i in range(24):
+        left,right=rng.uniform(.25,1.05,2);phase=float(rng.uniform(-np.pi,np.pi));amplitude=float(rng.uniform(.3,1.));drive=float(rng.uniform(*((.1,.5) if i%2 else (7.,12.))));rho=float(rng.uniform(0,1));temperature=float(rng.uniform(12,24));secondary=float(rng.uniform(0,1));quadratic=float(rng.uniform(-.2,.2));momentum=float(rng.uniform(-.6,.6));conductance=float(rng.uniform(20,80))
+        if i<8:left=(.25,1.05)[i&1];right=(.25,1.05)[(i>>1)&1];amplitude=(.3,1.)[(i>>2)&1];drive=(.1,.5,7.,12.)[i%4];rho=(0.,1.)[i&1];temperature=(12.,24.)[(i>>1)&1];secondary=(0.,1.)[(i>>2)&1];quadratic=(-.2,.2)[i&1];momentum=(-.6,.6)[(i>>1)&1];conductance=(20.,80.)[i&1]
+        e=ref.gate_experiment(left=left,right=right,phase=phase,amplitude=amplitude,drive=drive,rho=rho,temperature=temperature,secondary=secondary,quadratic=quadratic,momentum=momentum);e['statistic']='gate_third'
+        a=good.gate_third(e,conductance);b=ref.saddle_reference(e,conductance);fine=good.gate_third(e,conductance,nodes=288,count=80)
+        row=dict(experiment=e,conductance=conductance,oracle=a,independent=b,independent_relative_error=rel(a['third'],b['third']),quadrature_basis_relative_error=rel(a['third'],fine['third']))
+        assert row['independent_relative_error']<.002 and row['quadrature_basis_relative_error']<2e-4,row
+        if i in [0,7,15,23]:
+            refined=ref.saddle_reference(e,conductance,nodes=384,count=80,step=.00025);row['reference_refinement_relative_error']=rel(a['third'],refined['third']);assert row['reference_refinement_relative_error']<.002,row
+        # Higher statistics extend the exact preceding model; no previous
+        # observable may change as a side effect of this revision.
+        for statistic in ['mean','gate_noise']:
+            anchor=dict(e,statistic=statistic);before=old.predict_at([anchor],conductance);after=good.predict_at([anchor],conductance);assert np.array_equal(before,after)
+        domain.append(row)
+        good.prepare.cache_clear();bad.prepare.cache_clear();old.prepare.cache_clear();ref.fock_channels.cache_clear()
+        if (i+1)%4==0:print('Third domain',i+1,'of24',round(time.monotonic()-tick,1),flush=True)
+    limits=[]
+    e=ref.gate_experiment(amplitude=0.);a=good.gate_third(e,45.);b=ref.saddle_reference(e,45.);assert a['third']==b['third']==bad.gate_third(e,45.)['third']==0.;limits.append(dict(kind='static_barrier',third=0.))
+    e=ref.gate_experiment(amplitude=1.,drive=9.);old_tau=good.NORMAL_POLARIZATION_TIME
+    try:
+        good.NORMAL_POLARIZATION_TIME=old_tau/1e6;good.stationary.cache_clear();a=good.gate_third(e,45.);difference=abs(a['third']/a['screened_poisson']-1);assert difference<1e-5,difference;limits.append(dict(kind='rapid_spin_relaxation',relative_nonlinear_correction=difference,third=a['third']))
+    finally:good.NORMAL_POLARIZATION_TIME=old_tau;good.stationary.cache_clear()
+    # For the zero spin-loss conservation law, w=drive/2*sum(ds) on each
+    # tunnel event means its integrated work is a bounded spin difference.
+    # The corresponding counting conjugate cancels every mark identically.
+    e=ref.gate_experiment(drive=7.);args0=good.oscillator_arguments(e);kw=dict(secondary_coupling=e['secondary_coupling'],quadratic_coupling=e['quadratic_coupling'],momentum_coupling=e['momentum_coupling']);state=good.stationary(*args0,45.,**kw);ch=good.prepare(*args0,window=state['search_bound'],**kw)[2];mark=ch[6]-args0[4]/2*ch[-1].sum(axis=1);assert max(abs(mark))<1e-13;limits.append(dict(kind='no_spin_loss_boundary_work_identity',maximum_event_mark=float(max(abs(mark)))))
+    clean=good.predict_at(inputs,45.);rng=np.random.default_rng(43023);fits=[]
+    for _ in range(256):
+        noisy=clean+rng.normal(size=len(records))*sigma;sample=[dict(r,value=float(v)) for r,v in zip(records,noisy)];a=good.Model().fit(sample);b=bad.Model().fit(sample);res=(a.predict(inputs)-noisy)/sigma;chi=float(res@res)/(len(records)-1)
+        assert abs(a.conductance/45.-1)<.03 and abs(a.conductance-b.conductance)<1e-10 and chi<1.5;fits.append(dict(parameter=a.conductance,chi2=chi))
+    params=np.array([r['parameter'] for r in fits]);sensitivity=[]
+    for g in np.quantile(params,np.linspace(0,1,9)):
+        a=scores(good,g);b=scores(bad,g);assert max(a.values())<.04 and min(b[n] for n in thirds)>.04;sensitivity.append(dict(parameter=float(g),oracle=a,shortcut=b));print('Third fits',len(sensitivity),'of9',flush=True)
+    report=dict(revision=11,calibration_regenerated=False,inherited_r10_validation_sha256=sha(A/'validation.json'),controls=controls,physics=dict(domain=domain,limits=limits),noise=dict(seed=43023,trials=256,method='256 actual calibration fits using the same unchanged-calibration noise seed as R10; all hidden predictions at nine fitted-parameter quantiles including extrema.',fit_min=float(params.min()),fit_max=float(params.max()),max_chi2=max(r['chi2'] for r in fits),hidden_sensitivity=sensitivity),seconds=time.monotonic()-tick,source_sha256={str(p.relative_to(T)):sha(p) for p in T.rglob('*') if p.is_file() and not any(k in p.parts for k in ['__pycache__','.pytest_cache'])})
+    (S/'results/superconducting-heat-r11-validation.json').write_text(json.dumps(report,indent=2)+'\n');print('PASS',round(report['seconds'],1),flush=True)
 if __name__=='__main__':main()

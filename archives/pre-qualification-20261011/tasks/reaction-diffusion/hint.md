@@ -1,0 +1,1 @@
+All three ions share one electric field. Derive their Nernst–Planck fluxes and impose zero total charge current before eliminating the common anion using bulk electroneutrality. The local conductivity depends on the evolving local concentrations; a transport matrix evaluated at spatially averaged concentrations is only a linear-response approximation.

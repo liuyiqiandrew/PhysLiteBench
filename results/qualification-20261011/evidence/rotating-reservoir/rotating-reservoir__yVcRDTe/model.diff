@@ -1,0 +1,90 @@
+--- starter/model.py
++++ submission/model.py
+@@ -14,7 +14,7 @@
+     return h
+ 
+ 
+-@lru_cache(16)
++@lru_cache(64)
+ def collision_weak_matrix(degree, variance=1.6, quadrature=None):
+     """Exact Gaussian polynomial integral for the nonsmooth collision rate.
+ 
+@@ -22,7 +22,7 @@
+     |z| times its Gaussian exactly after z=+/-sqrt(2*variance*y).
+     Summing both signs cancels odd z powers; Hermite integrates the t part.
+     """
+-    q=quadrature or (2*degree+4)
++    q=quadrature or (2*degree+6)
+     th,tw=hermgauss(q);yl,yw=laggauss(q)
+     t=np.sqrt(2*variance)*th[None,:]
+     blocks=[];swapped=[];weights=[]
+@@ -33,6 +33,8 @@
+         hg=normalized_hermites(g.ravel()/np.sqrt(variance),degree)
+         blocks.append((hv[:,:,None]*hg[:,None,:]).reshape(q*q,-1))
+         swapped.append((hg[:,:,None]*hv[:,None,:]).reshape(q*q,-1))
++        # The two signs and the Laguerre change of variables together give
++        # sqrt(variance)/pi per sign for |v-g|=sqrt(2)|z|.
+         weights.append((np.sqrt(variance)/np.pi*yw[:,None]*tw[None,:]).ravel())
+     b=np.concatenate(blocks);jump=np.concatenate(swapped)-b;w=np.concatenate(weights)
+     matrix=b.T@(w[:,None]*jump)
+@@ -115,6 +117,8 @@
+ def kinetic_statistics(e,drag,degree=34,variance=None):
+     variance=max(e['temperature_a'],e['temperature_b']) if variance is None else float(variance)
+     if e['flux_fraction']==0.:
++        # With a constant collision clock the generator preserves polynomial
++        # degree.  Degree six is sufficient for the third heat cumulant.
+         return hermite(e,drag,degree=6,variance=variance,total_degree=True,noise=True)
+     return hermite(e,drag,degree=degree,variance=variance,noise=True)
+ 
+@@ -147,12 +151,15 @@
+ 
+ 
+ def hermite_operators(e,gamma,degree=32):
+-    ta=e['temperature_a'];tb=e['temperature_b'];lam=e['relaxation_rate'];eta=e['flux_fraction'];variance=max(ta,tb)
++    ta=e['temperature_a'];tb=e['temperature_b'];lam=e['relaxation_rate'];eta=e['flux_fraction'];
++    flip=e.get('flip_rate',0.);variance=max(ta,tb)
+     width=degree+1;size=width**2;index=lambda n,m:n*width+m;L=np.zeros((size,size));V=np.zeros_like(L);G=np.zeros_like(L);dg=np.zeros_like(L);G2=np.zeros_like(L)
+     assert e['angular_speed']==0.
+     for n in range(width):
+         for m in range(width):
+-            j=index(n,m);L[j,j]-=gamma*n+lam*m+3.6*(1-eta);L[index(m,n),j]+=3.6*(1-eta)
++            j=index(n,m)
++            L[j,j]-=gamma*n+lam*m+flip*(1-(-1)**(n+m))+3.6*(1-eta)
++            L[index(m,n),j]+=3.6*(1-eta)
+             if n>=2:L[index(n-2,m),j]+=gamma*(ta/variance-1)*np.sqrt(n*(n-1))
+             if m>=2:L[index(n,m-2),j]+=lam*(tb/variance-1)*np.sqrt(m*(m-1))
+             if n>=1:V[index(n-1,m),j]=np.sqrt(variance*n)
+@@ -185,10 +192,11 @@
+     return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
+ 
+ 
+-@lru_cache(512)
+-def angular_readouts(temperature_a,temperature_b,relaxation_rate,flux_fraction,contrast,harmonic,drag):
++@lru_cache(1024)
++def angular_readouts(temperature_a,temperature_b,flip_rate,relaxation_rate,flux_fraction,contrast,harmonic,drag):
+     e=dict(temperature_a=temperature_a,temperature_b=temperature_b,relaxation_rate=relaxation_rate,
+-           flux_fraction=flux_fraction,angular_speed=0.,detector_contrast=contrast,detector_harmonic=harmonic)
++           flux_fraction=flux_fraction,flip_rate=flip_rate,angular_speed=0.,
++           detector_contrast=contrast,detector_harmonic=harmonic)
+     return angular_hermite(e,drag)
+ 
+ def predict_at(experiments,drag):
+@@ -196,7 +204,8 @@
+     for e in experiments:
+         if e.get('detector_contrast',0.)!=0.:
+             if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
+-            values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
++            values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['flip_rate']),
++                float(e['relaxation_rate']),
+                 float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+             result.append(values[e.get('statistic','mean')])
+         else:result.append(readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)))
+@@ -207,6 +216,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

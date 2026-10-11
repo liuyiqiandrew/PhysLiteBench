@@ -1,0 +1,77 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,7 +191,56 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the (microsiemens) normal-state contact conductance.
++
++        The supplied calibration set is deliberately taken with the default,
++        unmodulated contact.  In that limit every transition rate, and hence
++        the measured heat current, is proportional to the total normal-state
++        conductance.  Doing the weighted one-parameter least-squares fit
++        directly is both more accurate and considerably cheaper than invoking
++        the nonlinear spin solver for each trial conductance.
++        """
++        records = list(records)
++        coefficients = []
++        values = []
++        weights = []
++        simple = True
++        for record in records:
++            experiment = record['input']
++            is_simple = not any(key in experiment for key in (
++                'amplitude', 'drive_energy', 'oscillator_coupling',
++                'oscillator_temperature', 'secondary_coupling',
++                'quadratic_coupling', 'momentum_coupling', 'statistic'))
++            simple &= is_simple
++            coefficient = power_per_conductance(
++                experiment['left_temperature'], experiment['right_temperature'],
++                experiment['phase'], 0., .3)
++            sigma = float(record['sigma'])
++            coefficients.append(float(coefficient))
++            values.append(float(record['value']))
++            weights.append(1. / (sigma * sigma))
++        if not records:
++            raise ValueError('At least one calibration record is required')
++        coefficients = np.asarray(coefficients)
++        values = np.asarray(values)
++        weights = np.asarray(weights)
++        if not simple:
++            def objective(conductance):
++                prediction = predict_at(
++                    [record['input'] for record in records], conductance)
++                residual = (prediction - values) * np.sqrt(weights)
++                return float(residual @ residual)
++            result = minimize_scalar(objective, bounds=(20., 80.), method='bounded')
++            if not result.success or not np.isfinite(result.fun):
++                raise ValueError('Conductance fit failed')
++            self.conductance = float(result.x)
++            return self
++        denominator = float(np.sum(weights * coefficients * coefficients))
++        if not np.isfinite(denominator) or denominator <= 0.:
++            raise ValueError('Calibration records do not identify conductance')
++        estimate = float(np.sum(weights * coefficients * values) / denominator)
++        self.conductance = float(np.clip(estimate, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,6 +461,7 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
++            # The second preparation differs by pi, not by a full period.
+             other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)

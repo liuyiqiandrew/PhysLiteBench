@@ -1,0 +1,139 @@
+from functools import lru_cache
+import numpy as np
+from scipy.linalg import eigh
+from scipy.optimize import minimize_scalar
+
+WIDTH, HEIGHT = .012, .008
+DENSITY, CONDUCTIVITY = 1000., 1e5
+X_MODES, Y_MODES = 40, 56
+
+
+def derivative_overlap(target, source):
+    """Integral of normalized sine(target) times derivative of sine(source)."""
+    p, m = np.asarray(target, float)[:, None], np.asarray(source, float)[None, :]
+    denominator = p*p-m*m
+    return np.divide(4*p*m, denominator, out=np.zeros_like(denominator),
+                     where=((p+m) % 2 == 1))
+
+
+@lru_cache(4)
+def operators(nx=X_MODES, ny=Y_MODES):
+    m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+    keep = (m+n) % 2 == 0
+    m, n = m[keep], n[keep]
+    wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+    mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+    qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+    electric = np.arange(1, 401)
+    for fixed in np.unique(n):
+        ids = np.flatnonzero(n == fixed)
+        d = derivative_overlap(electric, m[ids])/WIDTH
+        k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+        qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+    for fixed in np.unique(m):
+        ids = np.flatnonzero(m == fixed)
+        d = derivative_overlap(electric, n[ids])/HEIGHT
+        k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+        qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+
+    # Both components of B act on the same induced current.  The cross term
+    # couples odd/odd velocity modes to even/even ones.  In the stream-function
+    # formulation of the insulating-wall problem, the stream function has
+    # zero boundary value and its source is B · grad(u).
+    dx = derivative_overlap(m, m)/WIDTH
+    dy = derivative_overlap(n, n)/HEIGHT
+    electric_wave2 = (m[None, :]*np.pi/WIDTH)**2 + (n[:, None]*np.pi/HEIGHT)**2
+    cross = -dx*dy/electric_wave2
+
+    return m, n, wave2, mean, qx, qy, cross + cross.T
+
+
+@lru_cache(16)
+def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+    m, n, wave2, mean, qx, qy, qxy = operators(nx, ny)
+    magnetic = bx*bx*qx+by*by*qy+bx*by*qxy
+    operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+    if bx == 0.:
+        groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+    elif by == 0.:
+        groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+    else:
+        groups = [np.arange(len(m))]
+    result = []
+    for ids in groups:
+        values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+        result.append((ids, values, vectors, vectors.T@mean[ids]))
+    return result
+
+
+@lru_cache(4096)
+def zero_field_response(viscosity, time, observable, x=0., y=0.):
+    """Response per unit acceleration with B=0, including short scales."""
+    if time == 0.:
+        return 0.
+    diffusivity = viscosity/DENSITY
+    if time <= .001:
+        if observable == 'point':
+            # Every allowed point is at least 1.2 mm from a wall.  Over this
+            # interval the heat front from a wall has not reached a point.
+            return time
+        return (time - 8/(3*np.sqrt(np.pi))*np.sqrt(diffusivity)*time**1.5
+                *(1/WIDTH+1/HEIGHT)
+                + 8*diffusivity*time*time/(np.pi*WIDTH*HEIGHT))
+
+    modes = np.arange(1, 802 if observable == 'point' else 402, 2)
+    mx, ny = modes[:, None], modes[None, :]
+    forcing = 8/(np.pi*np.pi*mx*ny)
+    if observable == 'mean':
+        observation = forcing
+    else:
+        observation = 2*np.sin(np.pi*mx*x)*np.sin(np.pi*ny*y)
+    rates = diffusivity*np.pi*np.pi*(mx*mx/WIDTH**2+ny*ny/HEIGHT**2)
+    return float(np.sum(observation*forcing*(-np.expm1(-rates*time)/rates)))
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        experiments = [record['input'] for record in records]
+        measured = np.asarray([record['value'] for record in records], dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
+
+        def weighted_error(viscosity):
+            self.viscosity = viscosity
+            residual = (self.predict(experiments)-measured)/sigma
+            return float(residual @ residual)
+
+        result = minimize_scalar(weighted_error, bounds=(.006, .018),
+                                 method='bounded',
+                                 options={'xatol': 1e-9})
+        self.viscosity = float(result.x)
+        return self
+
+    def predict(self, experiments):
+        m, n, wave2, mean, *_ = operators()
+        output = []
+        for e in experiments:
+            bx, by = e['magnetic_x'], e['magnetic_y']
+            time = e['time']
+            gradient = e['pressure_gradient']
+            if time == 0. or gradient == 0.:
+                output.append(0.)
+                continue
+            observable = e['observable']
+            x, y = (0., 0.) if observable == 'mean' else (e['x'], e['y'])
+            observation = mean if observable == 'mean' else 2*np.sin(m*np.pi*x)*np.sin(n*np.pi*y)
+            value = 0.
+            for ids, rates, vectors, forcing in spectrum(self.viscosity, bx, by):
+                amplitude = vectors@(-np.expm1(-rates*time)/rates*forcing)
+                value += observation[ids]@amplitude
+            # The finite Galerkin basis poorly represents the initially
+            # uniform acceleration at very short times.  Add the exact
+            # zero-field response and subtract its finite-basis counterpart.
+            zero_rates = self.viscosity/DENSITY*wave2
+            low_zero = observation@(mean*(-np.expm1(-zero_rates*time)/zero_rates))
+            value += zero_field_response(self.viscosity, time, observable, x, y)-low_zero
+            output.append(gradient/DENSITY*value)
+        return np.array(output)

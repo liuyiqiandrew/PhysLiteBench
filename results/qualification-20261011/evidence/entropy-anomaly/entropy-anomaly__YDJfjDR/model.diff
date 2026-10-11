@@ -1,0 +1,52 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,48 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Fit the common friction coefficient from calibration observations.
++
++        The calibration experiments use the original two-contact apparatus with
++        ``bath_contrast == magnetic == 0``.  In that case changing the common
++        friction only rescales the limiting readout: the stationary spatial
++        distribution is unchanged and the entropy rate is proportional to
++        ``1 / friction``.  Computing the unit-friction predictions once also
++        makes the fit both quick and reproducible.
++
++        A weighted least-squares fit is used because each record supplies an
++        independent Gaussian standard uncertainty.  The small safeguards make
++        the method well behaved for malformed or degenerate calibration data
++        while retaining the documented friction range.
++        """
++        if not records:
++            raise ValueError("records must contain at least one calibration record")
++
++        experiments=[]
++        values=[]
++        sigmas=[]
++        for record in records:
++            experiments.append(record['input'])
++            values.append(float(record['value']))
++            sigma=float(record['sigma'])
++            if not np.isfinite(sigma) or sigma<=0:
++                raise ValueError("calibration uncertainties must be positive and finite")
++            sigmas.append(sigma)
++
++        unit=np.asarray(coefficients(experiments,1.),dtype=float)
++        values=np.asarray(values,dtype=float)
++        sigmas=np.asarray(sigmas,dtype=float)
++        if unit.shape!=values.shape or not np.isfinite(unit).all() or not np.isfinite(values).all():
++            raise ValueError("calibration records produced non-finite predictions")
++
++        weights=1./(sigmas*sigmas)
++        denominator=float(np.sum(weights*unit*values))
++        if denominator>0:
++            fitted=float(np.sum(weights*unit*unit)/denominator)
++        else:
++            # This branch is not needed by the supplied calibration, but gives
++            # a deterministic bounded result for an uninformative record set.
++            fitted=1.
++        self.friction=float(np.clip(fitted,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

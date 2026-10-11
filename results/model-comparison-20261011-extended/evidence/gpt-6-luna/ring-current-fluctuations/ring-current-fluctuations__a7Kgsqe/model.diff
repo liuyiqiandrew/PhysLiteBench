@@ -1,0 +1,50 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,43 @@
+-"""Current SCGF model and calibration interface."""
++"""Hydrodynamic current SCGF and calibration interface for the ring model."""
++
+ import numpy as np
+ 
++
+ def predict_at(experiments, diffusivity):
++    """Return the leading large-ring SCGF for each (field, bias) pair.
++
++    At density one half the homogeneous hydrodynamic branch is
++    D * lambda * (lambda + 2 E) / 4.  The documented input domain stays
++    within this branch.
++    """
++    if not experiments:
++        return np.empty(0, dtype=float)
+     field = np.asarray([e["field"] for e in experiments], dtype=float)
+     bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    return float(diffusivity) * bias * (bias + 2.0 * field) / 4.0
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Fit the common rate prefactor by weighted least squares."""
++        if not records:
++            self.diffusivity = 1.0
++            return self
++
++        experiments = [record["input"] for record in records]
++        basis = predict_at(experiments, 1.0)
++        values = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        weights = 1.0 / np.square(sigma)
++        denominator = np.sum(weights * basis * basis)
++        if denominator == 0.0:
++            return self
++        estimate = np.sum(weights * basis * values) / denominator
++        self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

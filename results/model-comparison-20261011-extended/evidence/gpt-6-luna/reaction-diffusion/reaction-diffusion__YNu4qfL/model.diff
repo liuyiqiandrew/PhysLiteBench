@@ -1,0 +1,46 @@
+--- starter/model.py
++++ submission/model.py
+@@ -25,7 +25,42 @@
+         self.diffusivity = None
+ 
+     def fit(self,data):
+-        raise NotImplementedError('Fit the common ionic diffusion scale from calibration.')
++        """Fit the common diffusion scale from the calibration records.
++
++        Calibration preparations contain just one cation constituent.  In
++        that case local electroneutrality and zero current reduce the
++        constituent equation to ordinary diffusion, with effective
++        diffusivities 4D/3 for A and 8D/3 for B.  Using that exact solution
++        makes the fit both fast and consistent with the mixed-species model.
++        """
++        t=np.asarray(data['t'],dtype=float)
++        x=np.asarray(data['x'],dtype=float)
++        initial=np.asarray(data['initial'],dtype=float)
++        observed=np.asarray(data['concentration'],dtype=float)
++        sigma=np.asarray(data['sigma'],dtype=float)
++        if initial.ndim==2:
++            initial=initial[None,...]
++        if observed.ndim==3:
++            observed=observed[None,...]
++        if sigma.ndim==3:
++            sigma=sigma[None,...]
++        if initial.shape[0]!=observed.shape[0] or observed.shape!=sigma.shape:
++            raise ValueError('Inconsistent calibration array shapes.')
++        if observed.shape[1:]!=(len(t),len(x),2):
++            raise ValueError('Calibration concentration must have shape (R,T,X,2).')
++
++        def objective(log_diffusivity):
++            self.diffusivity=float(np.exp(log_diffusivity))
++            predictions=np.stack([self._binary(t,x,record) for record in initial])
++            residual=(predictions-observed)/sigma
++            return float(np.sum(residual*residual))
++
++        result=minimize_scalar(objective,method='bounded',bounds=(np.log(1e-13),np.log(1e-5)),
++                               options={'xatol':1e-11})
++        if not result.success or not np.isfinite(result.fun):
++            raise RuntimeError('Could not fit the diffusion scale.')
++        self.diffusivity=float(np.exp(result.x))
++        return self
+ 
+     def _binary(self,t,x,initial):
+         t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)

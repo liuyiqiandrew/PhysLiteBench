@@ -1,0 +1,19 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,15 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Estimate the common ordinary-fluid friction from calibration data.
++
++        Calibration records are deliberately restricted to the zero-field,
++        no-retained-contact experiment.  In that case the small-mass
++        prediction has a closed form (``zero_field_calibration``), so fitting
++        is a one-dimensional, uncertainty-weighted least-squares problem.
++        Keeping this separate from ``predict_at`` is useful: it avoids making
++        the fit depend on the more general numerical channel discretisation.
++        """
++        self.friction = fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)
