@@ -2,7 +2,7 @@
 
 ## Structure
 
-Tasks are under `tasks/`. `README.md` lists the ten qualified tasks; `tasks/` also contains two inherited folders, `hydrodynamic-heating` and `thermoelastic-rod`, that are not in that roster. Superseded and weak candidates are preserved under `archives/`. Every task has public files in `environment/`, private verification in `tests/`, and a reference solution in `solution/`. Keep private answers, tests, physics hints, and author documentation out of the ordinary agent image. The runner adds a task's `hint.md` to the instruction only when `--hint` is requested.
+Tasks are under `tasks/`. `README.md` lists the qualified tasks; `tasks/` also contains two inherited folders, `hydrodynamic-heating` and `thermoelastic-rod`, that are not in that roster. Superseded and weak candidates are preserved under `archives/`. Every task has public files in `environment/`, private verification in `tests/`, and a reference solution in `solution/`. Keep private answers, tests, physics hints, and author documentation out of the ordinary agent image. The runner adds a task's `hint.md` to the instruction only when `--hint` is requested.
 
 Read `TASKS.md` for physics, `docs/BENCHMARK.md` for grading and validation, and `DASHBOARD.md` for the latest results. `scripts/` contains the runner, validators, and completed shortcut controls. `results/` holds shareable summaries; new run artifacts go in ignored `jobs/`.
 

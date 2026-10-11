@@ -1,6 +1,6 @@
 # Benchmark interface and validation
 
-The current publication has ten qualified tasks; see the [qualified roster](../README.md) and the [result manifest](../results/qualified-tasks.json), which is the canonical record of the roster, the qualified source hashes and the trial IDs. Four tasks have since had [post-qualification maintenance](#post-qualification-maintenance) without new trials. Entropy anomaly r7, rotating reservoir r8 and superconducting heat r6 replace their earlier canonical revisions. Hierarchical glass overlaps r2 is the final addition. For current apparatus definitions and APIs, use each task's environment/README.md; its AUTHOR.md records derivations and validation. Earlier discussions below describe historical revisions where indicated.
+The current publication has thirteen qualified tasks; see the [qualified roster](../README.md) and the [result manifest](../results/qualified-tasks.json), which is the canonical record of the roster, the qualified source hashes and the trial IDs. Four tasks have since had [post-qualification maintenance](#post-qualification-maintenance) without new trials. Entropy anomaly r7, rotating reservoir r8 and superconducting heat r6 replace their earlier canonical revisions. Swirling heat tails r1, hard-rod current r2 and finite-ion cloud r3 are qualified expansion tasks. For current apparatus definitions and APIs, use each task's environment/README.md; its AUTHOR.md records derivations and validation. Earlier discussions below describe historical revisions where indicated.
 
 Hierarchical glass uses Model.fit(records), predict_calibration(records, width=None), and predict(experiments, width=None). Prediction records supply beta, replicas and observable; leaf_partition additionally supplies positive block sizes summing to replicas. The 58 graded outputs form six groups, each with relative Euclidean error below4%; parameter error must be below3%, and calibration chi-square per record below1.5. It keeps600-second agent and60-second verifier limits. Its validator reads checked-in data and requires --task, --baseline and --output paths.
 
@@ -9,6 +9,12 @@ The target was **ten tasks at 0/3 each** in unhinted Luna-high trials, with pred
 Historically, the [existing-family hardening plan](../results/existing-family-hardening-plan.json) froze the five sources that qualified at that time and prioritized rotating reservoir, thermoelastic rod and hydrodynamic heating, followed by entropy anomaly and superconducting heat. Entropy anomaly r7, rotating reservoir r8 and superconducting heat r6 later qualified. Thermoelastic rod r4 passed 3/3 and hydrodynamic heating r4 passed 2/3, so neither qualified. Ring-current fluctuations r1 and hierarchical glass overlaps r2 completed the ten. The plan's rules still apply to new revisions. Review successful as well as failed trajectories before revising the physics. A replacement requires a documented explanation of why further hardening of the existing family is unlikely to help. Every revision still needs scientific validation, frozen inputs/grading and exactly three fresh unhinted trials; unfinished candidates and single-run failures do not count toward the ten.
 
 PhysLiteBench tests whether a coding agent revises a physical approximation that fits calibration but fails elsewhere in the stated apparatus. An earlier roster was selected through a conditional screen with one reviewed physical failure per task (0/1). Historically, a separate fresh three-trial confirmation of that roster ([retained-three r1](../results/retained-three-r1-results.json), 2026-10-04) found 6 of its ten tasks at or below one pass. Phoresis revision 2 and single-file revision 1 then replaced two of those tasks, each evaluated at 0/3 completed trials with separate infrastructure accounting. [The dashboard](../DASHBOARD.md) reports the current roster; archived scores stay with their archived sources.
+
+The new expansion targets three additional tasks under the same 0/3 criterion, with `gpt-5.6-luna` High explicitly authorized after exact `gpt-6-luna` access failed. Swirling heat tails r1 is the first qualified addition. Its `Model.fit(records)` stores `mobility`; `predict(experiments)` reads stiffness, drive_ratio and relative_heat and returns one rate per input. Four prediction groups use relative Euclidean error below 4%, parameter error below 3%, and reduced calibration chi-square below 1.5. The validator is `scripts/validate_swirling_heat_tails.py`; the three trials used disabled web search and standard 600/60-second limits. [Results and response-only repairs](../results/expansion-swirling-heat-tails-r1-results.json) preserve all outcomes. [Nineteen excluded revisions](../archives/physics-expansion-20261011/README.md) retain their sources and evidence.
+
+Hard-rod current r2 uses `Model.fit(records)` to store `speed`, then `predict(experiments)` for mean current, variance growth, or a scaled cumulant generating function. Inputs are density, mean length, length contrast, counting field, and statistic. It uses the same four-group 4% prediction gate, 3% parameter gate, and 1.5 reduced chi-square gate. Run `scripts/validate_hard_rod_current.py` for the independent flow/composition contraction, finite-time rank calculation, and noise checks. [Results and response-only repairs](../results/expansion-hard-rod-current-r2-results.json) cover all three trials. Revision 1 is preserved in the expansion archive.
+
+Finite-ion cloud r3 uses `Model.fit(records)` to store `coupling`, then `predict(experiments)` for finite-cell osmotic pressure. Inputs are ion_count (1, 2 or 3), temperature_multiplier, radius_ratio and disk_radius. One-ion and two-ion calibration identifies the shared coupling; three-ion predictions test consistency of the relative angles. It uses the same 4% prediction, 3% parameter and 1.5 reduced chi-square gates. `scripts/validate_finite_ion_cloud.py` checks positive microscopic Gibbs quadrature, determinant anchors, domain convergence and 256 noise draws. [Results and response-only repairs](../results/expansion-finite-ion-cloud-r3-results.json) cover all three physical failures. Revisions 1 and 2 each passed 3/3 and remain archived. This completes the three requested additions.
 
 ## Agent task
 
@@ -36,6 +42,23 @@ python3 scripts/run_candidate_matrix.py magnetic-tracer \
 ```
 
 The matrix runner checks the oracle and completed shortcut, then runs exactly three unhinted Luna high trials. The oracle reward should be 1 and the completed shortcut reward 0, with only hidden prediction tests failing. The runner checks task directories, requested hints and shortcut files before launching anything; ring-current fluctuations has no `hint.md`, so omit the `hint` condition for it. Infrastructure errors stop that task for review. New job names must be unique; never overwrite an existing result. Staged candidates can use `--task-root staging/REVISION/tasks --control-root staging/REVISION/scripts`.
+
+The expansion batches explicitly disabled web search using Harbor's agent
+setting `web_search=disabled`. This disables the built-in web tool, not shell
+network access; the archived annihilating-gas trials retrieved primary
+literature through shell HTTP requests. These are not offline runs.
+The working-tree runner already exposed this
+setting; its unrelated changes are not part of the expansion. The same pinned
+agent setup can be invoked directly, with `CODEX_AUTH_JSON_PATH` pointing to
+an existing authentication file outside the repository:
+
+```bash
+uvx --python 3.13 harbor@0.21.0 run -p tasks/hard-rod-current \
+  -a codex --env docker -n 3 -k 3 -m gpt-5.6-luna \
+  --ak version=0.154.0 --ak reasoning_effort=high --ak web_search=disabled \
+  --ae "CODEX_AUTH_JSON_PATH=$CODEX_AUTH_JSON_PATH" \
+  --job-name "hard-rod-current-$(date -u +%Y%m%d-%H%M%S)"
+```
 
 The historical conditional screen used `run_neutrality_screen.py`: an initial pass triggered two more trials, while an initial failure stopped at 0/1. The initial outcome was never discarded. The fresh confirmation used `run_candidate_matrix.py --conditions plain` for all ten retained tasks; it did not use conditional stopping or hints.
 
