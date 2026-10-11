@@ -22,6 +22,26 @@ The older validator's direct domain calls used an unintended exact-branch
 default; the fresh targeted run corrects that author validation issue. Its
 256 noisy predictions did use the selected factorized implementation.
 
+After qualification, the `conductance=45.` default of `stationary()` was
+removed from the public starter, the completed shortcut and the oracle. It
+equalled the true conductance. Every caller already passed the conductance,
+and predictions are bit-identical. The change only withholds information, and
+no model trials were rerun after it. `tests/metadata.json` now records
+revision 6 instead of the stale 5; no test reads that field. The verifier no
+longer evaluates the independent reference while grading.
+`tests/data/hidden_truth.json` stores `reference.predict(hidden_inputs(),
+TRUE_PARAMETER)` for each hidden group, written by
+`scripts/freeze_hidden_truth.py`; `tests/test_hidden.py` checks the stored
+inputs against `hidden_inputs()` and grades against the stored values. It gave
+the same rewards, test outcomes and metrics as live recomputation for the
+controls and near-threshold test submissions. Regenerate the file after any
+change to `tests/reference.py`; the validator recomputes and compares it. The
+r4 archive, the inheritance report and the staged proposal bundle cited here
+are not published on this branch. Without `archives/superconducting-heat-r4`
+the validator skips the rho=0 comparison with the r4 heat and the r4
+calibration byte check, prints a warning and lists both under
+`skipped_checks` in its report.
+
 ## Physics
 
 This revision retains the BCS heat family, the pinned noninteracting proximity

@@ -1,6 +1,6 @@
 # PhysLiteBench evaluation dashboard
 
-**Ten tasks qualify at 0/3 completed unhinted Luna High passes each.** The [README roster](README.md) and [result manifest](results/qualified-tasks.json) identify all ten source snapshots and their trial IDs.
+**Ten tasks qualify at 0/3 completed unhinted Luna High passes each.** The [README roster](README.md) and [result manifest](results/qualified-tasks.json) identify all ten source snapshots and their trial IDs. Four tasks later had maintenance without new trials, mainly frozen hidden truth in their verifiers; see [post-qualification maintenance](docs/BENCHMARK.md#post-qualification-maintenance) and the manifest's `post_qualification_changes`.
 
 The final hierarchical-glass-overlaps R2 batch contained CyG9A9V, VXrRYjC and sYzT2qQ. All failed for the same reviewed physical correlation assumption, with no infrastructure exceptions. Calibration, parameter recovery and parent-collision checks passed; state and joint-partition groups failed. A same-parameter correction of the descendant-selection law repaired every group. Oracle controls passed 9/9 tests; the complete approximation passed 4 and failed 5.
 

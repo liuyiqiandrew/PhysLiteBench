@@ -5,17 +5,17 @@ This branch publishes **ten qualified physics tasks**, each with **0 passes in 3
 | Task and public apparatus | Revision | Passes | Reviewed physical failures |
 |---|---:|---:|---:|
 | [Entropy anomaly](tasks/entropy-anomaly/environment/README.md) | 7 | 0/3 | 3 |
-| [Finite-layer phoresis](tasks/finite-layer-phoresis/environment/README.md) | — | 0/3 | 3 |
+| [Finite-layer phoresis](tasks/finite-layer-phoresis/environment/README.md) | 2 | 0/3 | 3 |
 | [Hierarchical glass overlaps](tasks/hierarchical-glass-overlaps/environment/README.md) | 2 | 0/3 | 3 |
-| [Insulating MHD duct](tasks/insulating-mhd-duct/environment/README.md) | — | 0/3 | 3 |
-| [Magnetic tracer](tasks/magnetic-tracer/environment/README.md) | — | 0/3 | 3 |
-| [Reaction–diffusion](tasks/reaction-diffusion/environment/README.md) | — | 0/3 | 3 |
+| [Insulating MHD duct](tasks/insulating-mhd-duct/environment/README.md) | 2 | 0/3 | 3 |
+| [Magnetic tracer](tasks/magnetic-tracer/environment/README.md) | 2 | 0/3 | 3 |
+| [Reaction–diffusion](tasks/reaction-diffusion/environment/README.md) | 7 | 0/3 | 3 |
 | [Ring-current fluctuations](tasks/ring-current-fluctuations/environment/README.md) | 1 | 0/3 | 3 |
 | [Rotating reservoir](tasks/rotating-reservoir/environment/README.md) | 8 | 0/3 | 3 |
-| [Single-file memory](tasks/single-file-memory/environment/README.md) | — | 0/3 | 3 |
+| [Single-file memory](tasks/single-file-memory/environment/README.md) | 1 | 0/3 | 3 |
 | [Superconducting heat](tasks/superconducting-heat/environment/README.md) | 6 | 0/3 | 3 |
 
-A dash means the inherited result record identifies the revision by its source hashes. The three-trial counts cover completed scientific evaluations; separate setup/infrastructure attempts for phoresis and single-file memory remain listed in the manifest.
+The three-trial counts cover completed scientific evaluations; separate setup/infrastructure attempts for phoresis and single-file memory remain listed in the manifest.
 
 Each task has a public apparatus, starter, calibration data and interface tests under `environment/`, private grading and an independent physical reference under `tests/`, and the correct implementation under `solution/`. Completed approximation controls and validators are under `scripts/`. Follow each task's public README for its exact API and its AUTHOR.md for derivations and validation details.
 
@@ -31,6 +31,8 @@ python3 scripts/run_science.py tasks/hierarchical-glass-overlaps \
   --model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3
 ```
 
-The runner pins Harbor 0.21.0 and Codex CLI 0.154.0. Ordinary runs use no physics hint. Keep authentication outside the repository. Task scientific sources are unchanged from the qualified Desktop snapshots; publishing ran source-integrity checks rather than new paid trials.
+The runner pins Harbor 0.21.0 and Codex CLI 0.154.0. Ordinary runs use no physics hint. Keep authentication outside the repository. Hidden data and solutions are in this repository, and a trial agent with web access could read them while the repository is public. Before rerunning trials, make the repository private or disable agent web access.
 
-Raw jobs, native transcripts, private staging work and the full review archive remain local. This branch publishes the task sources, completed controls, validators and concise result records. Existing historical task folders inherited from the base branch are excluded from the ten-task qualified roster above. See [repository contribution guidance](docs/ADDING_TASKS.md).
+Four tasks changed after qualification without new trials: entropy anomaly, insulating MHD duct, rotating reservoir and superconducting heat. Their verifiers now grade against frozen reference values; old and new verifiers gave identical results on every checked submission. The superconducting-heat starter no longer carries the true conductance as a default. The manifest still records the qualified snapshots in `source_sha256` and lists every changed file under `post_qualification_changes`; see [post-qualification maintenance](docs/BENCHMARK.md#post-qualification-maintenance).
+
+Raw jobs, native transcripts, private staging work and the full review archive remain local. This branch publishes the task sources, completed controls, validators and concise result records. The inherited task folders `tasks/hydrodynamic-heating` and `tasks/thermoelastic-rod` are not in the ten-task qualified roster above. See [repository contribution guidance](docs/ADDING_TASKS.md).

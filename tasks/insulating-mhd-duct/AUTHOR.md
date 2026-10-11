@@ -89,6 +89,17 @@ thread in Docker to keep dense eigensolver runtime predictable. Dependencies,
 controls and Luna evaluation for this revision are pending until separately
 launched by the controller; scientific validation is not a difficulty claim.
 
+The verifier does not evaluate the independent reference while grading.
+`tests/data/hidden_truth.json` stores `reference.predict(hidden_inputs(),
+TRUE_PARAMETER)` for each hidden group, written by
+`scripts/freeze_hidden_truth.py`; `tests/test_hidden.py` checks the stored
+inputs against `hidden_inputs()` and grades against the stored values.
+Regenerate the file after any change to `tests/reference.py`; the validator
+recomputes and compares it. This file was added after qualification. It gave
+the same rewards, test outcomes and metrics as live recomputation for the
+oracle, the shortcut, the starter and near-threshold test submissions. The
+validator reads no unpublished inputs and skips no checks.
+
 ## Completed scientific validation
 
 Both controls fit eta=0.0100064345 Pa s with reduced chi²=0.96019. Oracle

@@ -59,7 +59,7 @@ Document every public input and output: function signatures, array shapes, units
 
 `solution/solve.sh` should install the correct implementation without editing tests. Keeping the implementation in `solution/model.py` also enables the runner's `--solution-model` control: that option replaces **only this file**, then runs the existing solution installer. Adapt this arrangement explicitly if a new task needs multiple solution files.
 
-Keep the current 600-second agent and 60-second verifier limits for comparable evaluations. Explain any required limit or dependency changes in the PR.
+Keep the current 600-second agent and 60-second verifier limits for comparable evaluations. Explain any required limit or dependency changes in the PR. Keep the verifier's own runtime well under the 60-second limit, so a correct but slower submission is not cut off. If the reference is expensive, freeze its hidden predictions into `tests/data/` with `scripts/freeze_hidden_truth.py`, grade against the stored values, and have the validator recompute and compare them. The script expects `tests/reference.py` to define `hidden_inputs()`, `predict(experiments, parameter)` and `TRUE_PARAMETER`.
 
 ## 4. Validate the task before measuring agent difficulty
 

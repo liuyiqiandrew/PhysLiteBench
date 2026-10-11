@@ -1,6 +1,6 @@
 # Ring-current-fluctuations: qualified task
 
-This branch publishes only the ring-current-fluctuations task and its supporting scientific and evaluation evidence from local checkpoint `51e550ba5fe6bb226a313feba38d6465052cd148`. Other task work remains local. Existing project-wide status files are inherited from the base revision.
+Ring-current-fluctuations is one of the ten qualified tasks in the [README roster](../README.md). Its task and supporting scientific and evaluation evidence come from local checkpoint `51e550ba5fe6bb226a313feba38d6465052cd148`. Its first publication (commit 04d5088) added only this task and its evidence; other task work stayed local, and the project-wide status files were inherited from the base revision.
 
 The frozen revision scored **0 passes in 3 unhinted GPT-5.6 Luna/high trials**. All three failures were reviewed as genuine physical-model failures, with no scored exceptions or retries. Each submission retained a homogeneous conditioned density profile and failed the two strong-field prediction groups while passing calibration and parameter recovery.
 
