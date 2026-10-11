@@ -1,8 +1,10 @@
 # PhysLiteBench
 
-This branch publishes **thirteen qualified physics tasks**, each with **0 passes in 3 completed unhinted Luna High trials**. The model was `gpt-5.6-luna` with reasoning effort `high`. Every qualifying failure was reviewed as a physical-model failure. Exact source hashes and trial IDs are in [the result manifest](results/qualified-tasks.json).
+This branch publishes **thirteen physics tasks**, each selected with **0 passes in 3 completed unhinted Luna High trials** in its original qualification batch. The model was `gpt-5.6-luna` with reasoning effort `high`. Every qualifying failure was reviewed as a physical-model failure. Exact source hashes and trial IDs are in [the result manifest](results/qualified-tasks.json).
 
-| Task and public apparatus | Revision | Passes | Reviewed physical failures |
+**Fresh confirmation:** New unhinted runs returned 1/3 passes for swirling heat tails, 0/3 for hard-rod current and 0/3 for finite-ion cloud. Thus the 0/3 result repeated for 2 of the three additions. The heat pass correctly includes the stationary endpoint-energy tails. One ion failure also has a radial-exponent error, so only the rod batch repeats three clean physical failures. [Full results](results/expansion-confirmation-20261011-1709-results.json) and [independent review](results/expansion-confirmation-20261011-1709-review.md).
+
+| Task and public apparatus | Revision | Original passes | Original physical failures |
 |---|---:|---:|---:|
 | [Entropy anomaly](tasks/entropy-anomaly/environment/README.md) | 7 | 0/3 | 3 |
 | [Finite-ion cloud](tasks/finite-ion-cloud/environment/README.md) | 3 | 0/3 | 3 |
@@ -24,7 +26,7 @@ Each task has a public apparatus, starter, calibration data and interface tests 
 
 Hierarchical-glass-overlaps revision 2 completed the original ten-task roster. It predicts labelled replica partitions in a quenched Gaussian hierarchy. All three solutions fitted calibration correctly but retained the wrong parent–descendant correlation law. Correcting only that physical law at the original fitted widths repaired every graded group. The physical oracle passed all nine Docker tests; the completed approximation passed four and failed the five intended prediction groups. Its earlier revision had 1/3 passes and did not qualify.
 
-The three requested additions are swirling-heat-tails r1, hard-rod-current r2 and finite-ion-cloud r3. Their reviewed failures respectively omit rare endpoint-energy constraints, current-conditioned rod composition, and the shared-angle constraint in a three-ion cell. Correcting only each response at its retained fitted parameter repairs every hidden group. Each oracle passes 7/7 Docker tests; each completed approximation passes four checks and fails the three intended prediction groups. See the [heat results](results/expansion-swirling-heat-tails-r1-results.json), [rod results](results/expansion-hard-rod-current-r2-results.json), [ion results](results/expansion-finite-ion-cloud-r3-results.json), and [expansion status](results/physics-expansion-status.json). All 66 trials across 22 revisions are retained; nineteen excluded revisions remain in the [expansion archive](archives/physics-expansion-20261011/README.md).
+The three requested additions are swirling-heat-tails r1, hard-rod-current r2 and finite-ion-cloud r3. Their reviewed failures respectively omit rare endpoint-energy constraints, current-conditioned rod composition, and the shared-angle constraint in a three-ion cell. Correcting only each response at its retained fitted parameter repairs every hidden group. Each oracle passes 7/7 Docker tests; each completed approximation passes four checks and fails the three intended prediction groups. See the [heat results](results/expansion-swirling-heat-tails-r1-results.json), [rod results](results/expansion-hard-rod-current-r2-results.json), [ion results](results/expansion-finite-ion-cloud-r3-results.json), and [expansion status](results/physics-expansion-status.json). All 66 development trials across 22 revisions are retained; nineteen excluded revisions remain in the [expansion archive](archives/physics-expansion-20261011/README.md).
 
 ## Run a task
 

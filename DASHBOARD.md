@@ -1,14 +1,26 @@
 # PhysLiteBench evaluation dashboard
 
-**Thirteen tasks qualify at 0/3 completed unhinted Luna High passes each.** The [README roster](README.md) and [result manifest](results/qualified-tasks.json) identify all thirteen source snapshots and their trial IDs. Four tasks later had maintenance without new trials, mainly frozen hidden truth in their verifiers; see [post-qualification maintenance](docs/BENCHMARK.md#post-qualification-maintenance) and the manifest's `post_qualification_changes`.
+## Fresh Luna confirmation, 2026-10-11
+
+The user requested three new independent unhinted `gpt-5.6-luna` High trials for each expansion task. All nine completed without infrastructure errors or retries, with all 49 task source files matching the original snapshots.
+
+| Task | Fresh passes | Clean physical failures | Mixed failures | Original + fresh passes |
+|---|---:|---:|---:|---:|
+| Swirling heat tails r1 | 1/3 | 2 | 0 | 1/6 |
+| Hard-rod current r2 | 0/3 | 3 | 0 | 0/6 |
+| Finite-ion cloud r3 | 0/3 | 2 | 1 | 0/6 |
+
+**The original 0/3 did not repeat for swirling heat tails.** Its passing solution correctly adds the stationary endpoint-energy branches. Seven failures are clean physical-model errors; one ion failure also introduces an incorrect radial exponent. Correcting either error alone in that mixed submission still fails; correcting both passes at the retained coupling. Only the rod batch repeats three clean physical failures. These fixed confirmation outcomes are separate from development selection. [Plan](results/expansion-confirmation-20261011-1709-plan.json), [all trial evidence](results/expansion-confirmation-20261011-1709-results.json) and [independent review](results/expansion-confirmation-20261011-1709-review.md).
+
+**Original qualification: thirteen tasks had 0/3 completed unhinted Luna High passes each.** The [README roster](README.md) and [result manifest](results/qualified-tasks.json) identify all thirteen source snapshots and their trial IDs. Four tasks later had maintenance without new trials, mainly frozen hidden truth in their verifiers; see [post-qualification maintenance](docs/BENCHMARK.md#post-qualification-maintenance) and the manifest's `post_qualification_changes`.
 
 The final hierarchical-glass-overlaps R2 batch contained CyG9A9V, VXrRYjC and sYzT2qQ. All failed for the same reviewed physical correlation assumption, with no infrastructure exceptions. Calibration, parameter recovery and parent-collision checks passed; state and joint-partition groups failed. A same-parameter correction of the descendant-selection law repaired every group. Oracle controls passed 9/9 tests; the complete approximation passed 4 and failed 5.
 
 Scientific validation checked 2,052 domain outputs and 50 labelled-partition normalization cases against positive marked-Poisson integrals. Across 256 noise datasets, the worst correct-model group error was 0.2902%, below the 4% gate. The approximation missed a joint group by at least 48.69%. Full source/history and causal reviews confirmed the qualification.
 
-R1 previously returned 1/3 passes and remains unqualified. Historical native jobs and extended review evidence are retained locally; this publication does not rerun or resample any task.
+R1 previously returned 1/3 passes and remains unqualified. Historical native jobs and extended review evidence are retained locally; the original publication did not rerun or resample these tasks.
 
-## Physics expansion, 2026-10-11
+## Original physics expansion, 2026-10-11
 
 Swirling heat tails r1 passed 0/3 unhinted `gpt-5.6-luna` High trials with no infrastructure errors. All three fitted calibration and mobility correctly but used the unrestricted work rate for heat. The missing endpoint-energy constraints caused the three tail groups to fail by 12–37%; replacing only the response law at the original mobility repaired every group. The oracle passed 7/7 tests and the completed approximation passed four and failed the three intended predictions. [Frozen plan](results/expansion-swirling-heat-tails-r1-plan.json), [scientific review](results/expansion-swirling-heat-tails-r1-physics-review.md), and [per-trial evidence and repairs](results/expansion-swirling-heat-tails-r1-results.json) record provenance.
 
