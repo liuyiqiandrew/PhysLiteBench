@@ -2,9 +2,17 @@
 
 The Desktop roster now contains **thirteen physics tasks**: the ten locally qualified snapshots below plus three additions from the remote branch. The [full roster](results/task-roster.json) records each exact revision, source hashes and evaluation status. The latest evidence does **not** establish 0/3 passes for all thirteen.
 
+## Latest effort comparison
+
+**[Results report](results/sol-terra-low-medium-20261011-185155/report.md)** · **[Pareto analysis CSV](results/sol-terra-low-medium-20261011-185155/pareto-summary.csv)** · [Luna details](results/luna-all-efforts-20261011-205240/report.md)
+
+The October 11 evaluation contains **390 unhinted trials** on all thirteen tasks at commit `34dedfb`: GPT-5.6 Sol and Terra at low/medium effort, and GPT-5.6 Luna at none/low/medium/high/xhigh/max, each run independently three times per task. Reports include pass results, token counts, API-equivalent costs, frozen pricing and verification records. Two interrupted Luna runs have unknown full costs; their recorded costs are lower bounds. Trajectories remain local.
+
+The qualification and imported-confirmation results below are historical selection evidence, separate from this fresh comparison.
+
 ## Three imported tasks
 
-| Imported task | Revision | Original selection passes | Latest GPT-5.6 Luna High passes |
+| Imported task | Revision | Original selection passes | Imported confirmation: GPT-5.6 Luna High passes |
 |---|---:|---:|---:|
 | [Swirling heat tails](tasks/swirling-heat-tails/environment/README.md) | 1 | 0/3 | **1/3** |
 | [Hard-rod current](tasks/hard-rod-current/environment/README.md) | 2 | 0/3 | **0/3** |
