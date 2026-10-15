@@ -1,5 +1,7 @@
 # PhysLiteBench evaluation dashboard
 
+The [general/physics hint summary](results/hint-comparison-20261015-005800/summary.md) covers all thirteen tasks and the ten model/effort settings from the latest [Terra/Sol](results/sol-terra-low-medium-20261011-185155/report.md) and [Luna](results/luna-all-efforts-20261011-205240/report.md) no-hint batches: three fresh attempts with each hint, **780 attempts total**. General hints passed **183/390 (46.9%)** and physics hints passed **257/390 (65.9%)**; the historical no-hint panels passed **84/390 (21.5%)**. Recorded usage totals **337,196,408 tokens** and **at least $88.070178 in API-equivalent cost**; 19 matrix attempts have unknown full costs. Per-panel costs, task pass rates, failure-category counts and verification metadata are included; full trajectories and the evidence archive remain local. Five pre-agent setup failures were preserved alongside five replacements. Source and grading hashes match the baselines, while CPU limits and worker concurrency differ.
+
 **October 11, 2026: thirteen tasks are installed; the original ten each have 0/3 completed unhinted GPT-5.6 Luna High passes.** The selected thirty trials have no infrastructure exceptions. Exact evaluated sources are installed in `tasks/`; the [full thirteen-task roster](results/task-roster.json) also records the imported additions below, while [the manifest](results/qualified-tasks.json) and [reviewed evidence](results/qualification-20261011) identify each outcome.
 
 | Task and public apparatus | Revision | GPT-5.6 Luna High passes |

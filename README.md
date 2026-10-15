@@ -8,6 +8,8 @@ The Desktop roster now contains **thirteen physics tasks**: the ten locally qual
 
 The October 11 evaluation contains **390 unhinted trials** on all thirteen tasks at commit `34dedfb`: GPT-5.6 Sol and Terra at low/medium effort, and GPT-5.6 Luna at none/low/medium/high/xhigh/max, each run independently three times per task. Reports include pass results, token counts, API-equivalent costs, frozen pricing and verification records. Two interrupted Luna runs have unknown full costs; their recorded costs are lower bounds. Trajectories remain local.
 
+The [general/physics hint summary](results/hint-comparison-20261015-005800/summary.md) covers the same ten model/effort settings and thirteen tasks, with three independent attempts per hint: **780 attempts**. General hints passed **183/390 (46.9%)** and physics hints passed **257/390 (65.9%)**, compared with **84/390 (21.5%)** in the historical no-hint panels. Recorded usage totals **337,196,408 tokens** and **at least $88.070178 in API-equivalent cost**; full cost remains unknown for 19 attempts. The summary includes per-panel accounting, task pass rates and verification metadata. Full trajectories and the evidence archive remain local. CPU limits and worker concurrency differed from the no-hint batches, so the comparisons are descriptive.
+
 The qualification and imported-confirmation results below are historical selection evidence, separate from this fresh comparison.
 
 ## Three imported tasks
