@@ -1,5 +1,11 @@
 # PhysLiteBench evaluation dashboard
 
+## Current study artifacts
+
+[Final presentation](%21PhysLiteBench-FINAL.pptx) · [Unified Python plots and source data](output/presentation-20261014/PhysLiteBench-no-pilot-figures-20261016/README.txt) · [Completed High-effort hint comparison](results/hint-comparison-20261014/FINAL-REPORT.txt) · [DeepSeek execution errors](results/deepseek-failure-review-20261016/diagnosis.json)
+
+The hint comparison has recorded all 351 observations. The unified plotting bundle combines the available studies by model, effort and hint condition, removes known duplicate trials, and retains execution errors and cost uncertainty. The versioned reports below preserve their original scope and protocols.
+
 ## Thirteen-task reasoning-effort comparison
 
 The [current comparison report](results/reasoning-sweep-20261011/README.md) varies reasoning effort across GPT-6 Luna, GPT-6 Sol, GPT-5.6 Terra and GPT-6 Astra, and records DeepSeek V4.1 Flash through Prime. Each complete plotted point covers thirteen frozen tasks and three attempts per task. The report distinguishes completed panels, partial panels, execution errors and passing checkpoints after timeouts. OpenAI High reuses the matching original ten-task observations and adds the three imported tasks. The October 12 continuation evaluates Astra Extra High and a fresh DeepSeek cohort at None, Low, High and Max after a reproduced transport correction; the legacy DeepSeek cohort remains separately preserved.
@@ -9,6 +15,10 @@ The [current comparison report](results/reasoning-sweep-20261011/README.md) vari
 [PDF](output/reasoning-sweep-20261011/pareto-reasoning.pdf) · [SVG](output/reasoning-sweep-20261011/pareto-reasoning.svg) · [Summary CSV](results/reasoning-sweep-20261011/summary.csv) · [Per-task scores](results/reasoning-sweep-20261011/per-task-scores.csv) · [Trial outcomes](results/reasoning-sweep-20261011/trial-outcomes.csv) · [Model inventory](results/reasoning-sweep-20261011/model-inventory.json) · [Reproduce the figure](results/reasoning-sweep-20261011/REPRODUCE.md)
 
 OpenAI costs apply published token rates to recorded usage. Prime costs include its reconciled request ledger and retained reserves for missing usage. The budget-limited delivery contains 15 complete comparison points. DeepSeek None is partial at 3/39 attempts, with 36 attempts unrun and excluded from the plot. See the report for account-budget limits, execution errors and the documented Terra and DeepSeek host-sleep effects. The GPT-5.6 Luna development-selected qualification baseline and the original ten-task comparison are preserved below.
+
+## GPT-5.6 effort and hint comparison
+
+The [general/physics hint summary](results/hint-comparison-20261015-005800/summary.md) covers all thirteen tasks and the ten model/effort settings from the latest [Terra/Sol](results/sol-terra-low-medium-20261011-185155/report.md) and [Luna](results/luna-all-efforts-20261011-205240/report.md) no-hint batches: three fresh attempts with each hint, **780 attempts total**. General hints passed **183/390 (46.9%)** and physics hints passed **257/390 (65.9%)**; the historical no-hint panels passed **84/390 (21.5%)**. Recorded usage totals **337,196,408 tokens** and **at least $88.070178 in API-equivalent cost**; 19 matrix attempts have unknown full costs. Per-panel costs, task pass rates, failure-category counts and verification metadata are included; full trajectories and the evidence archive remain local. Five pre-agent setup failures were preserved alongside five replacements. Source and grading hashes match the baselines, while CPU limits and worker concurrency differ.
 
 ## Qualification and task roster
 
