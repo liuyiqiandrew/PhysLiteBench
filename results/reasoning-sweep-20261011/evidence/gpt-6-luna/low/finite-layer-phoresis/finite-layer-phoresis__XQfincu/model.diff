@@ -1,0 +1,36 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,32 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the viscosity from independent Gaussian calibration records.
++
++        For fixed apparatus parameters the response is ``a / viscosity``, so
++        weighted least squares has a closed form in the reciprocal viscosity.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record.get('sigma', 1.0) for record in records], dtype=float)
++        if (not np.all(np.isfinite(values)) or not np.all(np.isfinite(sigma))
++                or np.any(sigma <= 0)):
++            raise ValueError('Calibration values must be finite and uncertainties positive.')
++
++        unit_viscosity_response = predict_at(experiments, 1.0)
++        weights = 1.0 / sigma**2
++        denominator = np.sum(weights * unit_viscosity_response**2)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records do not identify the viscosity.')
++        inverse_viscosity = np.sum(weights * unit_viscosity_response * values) / denominator
++        if not np.isfinite(inverse_viscosity) or inverse_viscosity <= 0:
++            raise ValueError('Calibration records imply a nonpositive viscosity.')
++        self.viscosity = float(1.0 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

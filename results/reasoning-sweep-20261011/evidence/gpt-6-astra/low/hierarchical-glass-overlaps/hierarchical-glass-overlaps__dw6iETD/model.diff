@@ -1,0 +1,71 @@
+--- starter/model.py
++++ submission/model.py
+@@ -20,10 +20,20 @@
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def leaf_partition(alpha, blocks, q=0.0):
++    """Joint probability of one labelled leaf partition in a single family.
++
++    In the two-level cascade the family masses have PD(q, 0) law.
++    Their normalized leaf masses have the tilted PD(alpha, -q) law,
++    rather than PD(alpha, 0). Multiplying its partition probability by
++    the family participation cancels the factors (j-q), giving the
++    expression below. At alpha=1 only singleton blocks survive.
++    """
+     n = sum(blocks)
+     k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0/math.factorial(n-1)
++    for j in range(1, k):
++        result *= j*alpha-q
+     for size in blocks:
+         for j in range(1,size):
+             result *= j-alpha
+@@ -37,8 +47,9 @@
+     if observable == 'parent_collision':
+         return parent
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        # The marginal state masses have PD(alpha, 0) law.
++        return participation(alpha,replicas)
++    return leaf_partition(alpha,blocks,q)
+ 
+ 
+ class Model:
+@@ -54,7 +65,32 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Constrained Gaussian maximum likelihood fit of width squared.
++
++        Every calibration temperature is below the first transition,
++        even at width=1.2, so the energy density is -beta*width**2.
++        """
++        rows = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(measured)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Use finite calibration readings with beta in [0.2,0.6] and positive sigma.')
++            rows.append((beta, measured, sigma))
++        if not rows:
++            raise ValueError('Supply at least one calibration reading.')
++        # Rescale inverse variances without changing the minimizer.
++        scale = min(sigma for _, _, sigma in rows)
++        weights = [(scale/sigma)**2 for _, _, sigma in rows]
++        numerator = math.fsum(-w*beta*y for w, (beta, y, _) in zip(weights, rows))
++        denominator = math.fsum(w*beta*beta for w, (beta, _, _) in zip(weights, rows))
++        squared = numerator/denominator
++        self.width = math.sqrt(min(WIDTH_INTERVAL[1]**2,
++                                   max(WIDTH_INTERVAL[0]**2, squared)))
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

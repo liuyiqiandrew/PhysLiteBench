@@ -1,0 +1,53 @@
+--- frozen-starter/model.py
++++ submitted/model.py
+@@ -1,18 +1,47 @@
+ """Current SCGF model and calibration interface."""
+ import numpy as np
+ 
++DIFFUSIVITY_BOUNDS = (0.8, 1.2)
++
++
++def _feature(field, bias):
++    """Per-unit-diffusivity prediction: D * bias * (bias + 2*field) / 4."""
++    return bias * (bias + 2.0 * field) / 4.0
++
++
+ def predict_at(experiments, diffusivity):
++    """Evaluate psi(E, lambda; D) for a sequence of input dictionaries."""
++    experiments = list(experiments)
++    if not experiments:
++        return np.empty(0, dtype=float)
+     field = np.asarray([e["field"] for e in experiments], dtype=float)
+     bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    return diffusivity * _feature(field, bias)
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        records = list(records)
++        field = np.asarray([r["input"]["field"] for r in records], dtype=float)
++        bias = np.asarray([r["input"]["bias"] for r in records], dtype=float)
++        value = np.asarray([r["value"] for r in records], dtype=float)
++        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
++
++        feature = _feature(field, bias)
++        weight = 1.0 / sigma**2
++
++        denom = float(np.sum(weight * feature**2))
++        if denom > 0.0:
++            estimate = float(np.sum(weight * feature * value) / denom)
++        else:
++            estimate = 1.0
++
++        lo, hi = DIFFUSIVITY_BOUNDS
++        self.diffusivity = float(np.clip(estimate, lo, hi))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

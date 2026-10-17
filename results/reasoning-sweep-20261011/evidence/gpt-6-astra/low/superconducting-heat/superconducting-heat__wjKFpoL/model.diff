@@ -1,0 +1,176 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,25 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        records = list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required")
++        experiments = [r['input'] for r in records]
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if np.any(sigma <= 0) or not np.all(np.isfinite(sigma)):
++            raise ValueError("Calibration uncertainties must be finite and positive")
++        if all(e.get('amplitude', 0.) == 0 for e in experiments):
++            basis = predict_at(experiments, 1.) / sigma
++            if basis @ basis == 0:
++                raise ValueError("Calibration does not identify the conductance")
++            self.conductance = float(np.clip(basis @ (values/sigma) / (basis @ basis), 20., 80.))
++        else:
++            answer = least_squares(
++                lambda g: (predict_at(experiments, float(g[0]))-values)/sigma,
++                [50.], bounds=([20.], [80.]), ftol=1e-12, xtol=1e-12, gtol=1e-12)
++            self.conductance = float(answer.x[0])
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -407,7 +425,7 @@
+     return float(stationary(*oscillator_arguments(e),conductance,factorized=FACTORIZED,secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))['heat'][0])
+ 
+ 
+-def predict_at(experiments,conductance):
++def mean_predict(experiments,conductance):
+     values=[]
+     for e in experiments:
+         value=mean_heat(e,conductance)
+@@ -445,41 +463,99 @@
+                 work_spin_identity_error=float(np.max(abs(work-args[4]/2*injection.sum(axis=1)))))
+ 
+ 
+-mean_predict=predict_at
+-def predict_at(experiments,conductance):
+-    return np.array([gate_statistics(e,conductance)['noise'] if e.get('statistic','mean')=='gate_noise'
+-                     else mean_predict([e],conductance)[0] for e in experiments])
+-
+-def gate_third(e,conductance,nodes=192,count=64):
+-    args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+-    state=stationary(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+-    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+-    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+-    f=expit((sl*mu[0]-energy)/tl);g=expit((sr*mu[1]-other)/tr)
+-    rp=measure*np.where(pair,pf*(1-f)*(1-g),pf*f*(1-g));rm=measure*np.where(pair,pb*f*g,pb*g*(1-f))
+-    
+-    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+-    flipdata=[]
+-    for j,(temp,delta,pol) in enumerate(zip([tl,tr],[dl,dr],mu)):
+-        x,w=leggauss(160);upper=delta+max(80*temp,6*abs(pol));ee=delta+(x+1)*(upper-delta)/2;mm=w*(upper-delta)/2*ratio/2
+-        u=expit((pol-ee)/temp);d=expit((-pol-ee)/temp);ap=mm*u*(1-d);am=mm*d*(1-u)
+-        flipdata.append((temp,u,d,mm,ap,am))
+-    # Differentiate the actual work-marked rates directly. This avoids
+-    # subtracting spin-loss Jacobians and is exactly zero for a static gate.
+-    df=f*(1-f)/tl;dg=g*(1-g)/tr
+-    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-g)+pb*g)
+-    dright=-sr*dg*np.where(pair,pf*(1-f)+pb*f,pf*f+pb*(1-f))
+-    hp=np.array([np.sum(measure*work[:,None]*dleft),np.sum(measure*work[:,None]*dright)])
+-    p1=-np.linalg.solve(state['jacobian'].T,hp)
+-    mark=work+injection@p1;mark=mark[:,None]
+-    bare=float(np.sum((rp-rm)*mark**3))
+-    for j,(temp,u,d,mm,ap,am) in enumerate(flipdata):
+-        ell=-2*p1[j];bare+=float(np.sum(ap-am))*ell**3
+-    scale=RATE_CONVERSION*conductance*KB**3*1e36
+-    return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
+-
+-
+-noise_predict=predict_at
+-def predict_at(experiments,conductance):
+-    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+-                     else noise_predict([e],conductance)[0] for e in experiments])
++def gate_third(e, conductance, nodes=192, count=64):
++    """Extensive third cumulant from the stationary tilted jump Hamiltonian.
++
++    H(mu,p,k) = sum r(mu) [exp(p.v + k*w)-1].  Its stationary
++    saddle gives the leading macroscopic scaled cumulant generator.  Expanding
++    both saddle coordinates retains the rate curvature and the modulation of
++    shot noise by the fluctuating spins, in addition to Poisson skewness.
++    Spin potentials can replace populations in the saddle equations because
++    the population-to-potential map is invertible.
++    """
++    if e.get('amplitude', 0.) == 0:
++        return dict(third=0., screened_poisson=0., count_response=[0., 0.])
++    args = oscillator_arguments(e)
++    kw = {key: e.get(key, 0.) for key in
++          ('secondary_coupling', 'quadratic_coupling', 'momentum_coupling')}
++    state = stationary(*args, conductance, nodes=nodes, count=count, **kw)
++    mu = state['mu']
++    tl, tr = args[:2]
++    dl, dr, ch = prepare(*args, nodes=nodes, count=count,
++                         window=state['search_bound'], **kw)
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = ch
++    f = expit((sl*mu[0]-energy)/tl)
++    g = expit((sr*mu[1]-other)/tr)
++    f1, g1 = sl*f*(1-f)/tl, sr*g*(1-g)/tr
++    f2, g2 = f*(1-f)*(1-2*f)/tl**2, g*(1-g)*(1-2*g)/tr**2
++    rates, gradients, hessians, jumps, marks = [], [], [], [], []
++    for reverse in (False, True):
++        if reverse:
++            a, a1, a2 = np.where(pair, f, 1-f), np.where(pair, f1, -f1), np.where(pair, f2, -f2)
++            b, b1, b2, weight = g, g1, g2, measure*pb
++        else:
++            a, a1, a2 = np.where(pair, 1-f, f), np.where(pair, -f1, f1), np.where(pair, -f2, f2)
++            b, b1, b2, weight = 1-g, -g1, -g2, measure*pf
++        rates.extend(np.sum(weight*a*b, axis=1))
++        gradients.extend(np.stack((np.sum(weight*a1*b, axis=1),
++                                   np.sum(weight*a*b1, axis=1)), axis=1))
++        h = np.zeros((len(work), 2, 2))
++        h[:, 0, 0] = np.sum(weight*a2*b, axis=1)
++        h[:, 1, 1] = np.sum(weight*a*b2, axis=1)
++        h[:, 0, 1] = h[:, 1, 0] = np.sum(weight*a1*b1, axis=1)
++        hessians.extend(h)
++        jumps.extend((-1 if reverse else 1)*injection)
++        marks.extend((-1 if reverse else 1)*work)
++
++    ratio = QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
++    x, w = leggauss(nodes)
++    for j, (temp, delta, pol) in enumerate(zip((tl, tr), (dl, dr), mu)):
++        width = 80*temp + 2*abs(pol)
++        ee = delta + (x+1)*width/2
++        weight = w*width/2*ratio/2
++        for spin in (-1, 1):
++            u, d = expit((spin*pol-ee)/temp), expit((-spin*pol-ee)/temp)
++            u1, d1 = spin*u*(1-u)/temp, -spin*d*(1-d)/temp
++            u2, d2 = u*(1-u)*(1-2*u)/temp**2, d*(1-d)*(1-2*d)/temp**2
++            rates.append(weight @ (u*(1-d)))
++            grad, hess, jump = np.zeros(2), np.zeros((2, 2)), np.zeros(2)
++            grad[j] = weight @ (u1*(1-d)-u*d1)
++            hess[j, j] = weight @ (u2*(1-d)-2*u1*d1-u*d2)
++            jump[j] = -2*spin
++            gradients.append(grad)
++            hessians.append(hess)
++            jumps.append(jump)
++            marks.append(0.)
++    rates, gradients, hessians = map(np.asarray, (rates, gradients, hessians))
++    jumps, marks = np.asarray(jumps), np.asarray(marks)
++    jac = jumps.T @ gradients
++    p1 = -np.linalg.solve(jac.T, marks @ gradients)
++    effective = marks + jumps @ p1
++    mu1 = -np.linalg.solve(jac, jumps.T @ (rates*effective))
++    bare = rates @ effective**3
++    noise_gradient = effective**2 @ gradients
++    drift_curvature = np.einsum('a,aij->ij', effective, hessians)
++    third = bare + 3*noise_gradient @ mu1 + 3*mu1 @ drift_curvature @ mu1
++    scale = RATE_CONVERSION*conductance*KB**3*1e36
++    return dict(third=float(third*scale), screened_poisson=float(bare*scale),
++                count_response=p1.tolist(), state_response=mu1.tolist())
++
++
++def predict_at(experiments, conductance):
++    if conductance is None:
++        raise ValueError("Fit the model before predicting")
++    values = []
++    for e in experiments:
++        statistic = e.get('statistic', 'mean')
++        if statistic in ('gate_noise', 'gate_third') and e.get('amplitude', 0.) == 0:
++            value = 0.
++        elif statistic == 'gate_third':
++            value = gate_third(e, conductance)['third']
++        elif statistic == 'gate_noise':
++            value = gate_statistics(e, conductance)['noise']
++        elif statistic in ('mean', 'phase_contrast'):
++            value = mean_predict([e], conductance)[0]
++        else:
++            raise ValueError("Unknown statistic: " + str(statistic))
++        values.append(value)
++    return np.asarray(values, dtype=float)

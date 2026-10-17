@@ -1,0 +1,16 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,12 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Fit the common fluid friction by weighted least squares.
++
++        The calibration is specified at zero field with no retained contact;
++        in that case the overdamped harmonic solution is available in closed
++        form, and the supplied uncertainties define the residual weights.
++        """
++        self.friction=fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

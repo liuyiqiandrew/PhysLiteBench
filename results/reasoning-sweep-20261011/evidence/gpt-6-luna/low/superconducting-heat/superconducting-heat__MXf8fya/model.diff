@@ -1,0 +1,60 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,18 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        # Calibration records in the supplied data are in the unmodulated,
++        # oscillator-decoupled regime.  Keep the general documented interface:
++        # optimize the single shared conductance against any supplied records.
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        def residual(x):
++            return (predict_at(inputs, float(x[0])) - values) / sigma
++        result = least_squares(residual, np.array([45.]), bounds=([20.], [80.]),
++                               xtol=1e-12, ftol=1e-12, gtol=1e-12)
++        self.conductance = float(result.x[0])
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -446,9 +457,6 @@
+ 
+ 
+ mean_predict=predict_at
+-def predict_at(experiments,conductance):
+-    return np.array([gate_statistics(e,conductance)['noise'] if e.get('statistic','mean')=='gate_noise'
+-                     else mean_predict([e],conductance)[0] for e in experiments])
+ 
+ def gate_third(e,conductance,nodes=192,count=64):
+     args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+@@ -480,6 +488,24 @@
+ 
+ 
+ noise_predict=predict_at
+-def predict_at(experiments,conductance):
+-    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+-                     else noise_predict([e],conductance)[0] for e in experiments])
++
++def predict_at(experiments, conductance):
++    """Evaluate all documented readouts with independent phase preparations."""
++    values = []
++    for e in experiments:
++        statistic = e.get('statistic', 'mean')
++        if statistic == 'gate_noise':
++            value = gate_statistics(e, conductance)['noise']
++        elif statistic == 'gate_third':
++            value = gate_third(e, conductance)['third']
++        elif statistic == 'mean':
++            value = mean_heat(e, conductance)
++        elif statistic == 'phase_contrast':
++            q1 = mean_heat(e, conductance)
++            opposite = dict(e, phase=float(e['phase'] + np.pi))
++            q2 = mean_heat(opposite, conductance)
++            value = (q1 - q2) / 2
++        else:
++            raise ValueError(f"Unknown statistic: {statistic}")
++        values.append(value)
++    return np.asarray(values, dtype=float)

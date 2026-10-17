@@ -1,0 +1,36 @@
+--- starter/model.py
++++ submission/model.py
+@@ -206,7 +206,30 @@
+ 
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        # Kept public: a few clients inspect the fitted physical parameter
++        # directly rather than only using ``predict``.
++        self.friction = None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
+-    def predict(self,experiments):return predict_at(experiments,self.friction)
++        """Fit the common, scalar ordinary-fluid friction.
++
++        Calibration records are deliberately restricted to the zero-field,
++        no-retained-contact experiment.  In that case the covariance has a
++        closed form (``zero_field_calibration``), so this is a one-dimensional
++        Gaussian maximum-likelihood/weighted least-squares fit.
++        """
++        if records is None or len(records) == 0:
++            raise ValueError('at least one calibration record is required')
++        self.friction = fit_friction(records)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError('call fit(records) before predict(experiments)')
++        answer = np.asarray(predict_at(experiments, self.friction), dtype=float)
++        # The contract calls for a finite 1-D result.  Raising here produces a
++        # useful failure at the offending experiment instead of quietly
++        # returning a physically meaningless NaN.
++        if answer.ndim != 1 or not np.isfinite(answer).all():
++            raise FloatingPointError('prediction produced a non-finite value')
++        return answer

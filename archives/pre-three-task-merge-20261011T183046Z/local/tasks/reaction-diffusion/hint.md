@@ -1,0 +1,1 @@
+Constituent mean transport and equilibrium fluctuation strength require separate physical checks. Charge conservation and reversible association correlate A and B even in an ideal solution; derive the equilibrium susceptibility before applying regression.

@@ -1,0 +1,7 @@
+# Reaction diffusion R8
+
+The original zero-current ternary electrolyte is extended by a neutral ABC2 cluster in rapid local mass-action equilibrium. The calibration has a missing cation constituent, so cluster concentration is identically zero and its measurements are retained exactly. Predictions report conserved total constituents, not free ions.
+
+Let a=A-p, b=B-p, c=A+B-2p. The equilibrium root p=K a b c² is unique on [0,min(A,B)] since the derivative of p-K a b c² is 1+K[c³+4abc]>0. The root conserves charge and constituents and maintains nonnegative species. Solve the zero-current field from the three charged fluxes, add the neutral flux to both total cation fluxes, and evolve conservative total concentrations. The oracle uses this equilibrium reduction. The independent reference transports all four species with a finite reversible reaction, preserving electroneutrality, and extrapolates three increasing reaction rates before comparison. Grid refinement is checked separately.
+
+The completed shortcut is the predecessor's physically correct fully dissociated nonlinear Nernst-Planck model, which omits association. It passes the unchanged binary calibration and parameter recovery but misses mixed-salt transport. The same five-percent prediction tolerance and 600/60-second agent/verifier limits apply. All task outcomes must be retained; qualification requires independent validation and three fresh unhinted trials.

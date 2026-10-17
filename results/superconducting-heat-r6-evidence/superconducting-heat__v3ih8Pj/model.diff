@@ -1,0 +1,85 @@
+--- before/model.py
++++ after/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,9 +191,47 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit conductance from the calibration records")
++        """Fit the one apparatus parameter from weighted calibration data."""
++        if not records:
++            raise ValueError("records must not be empty")
++
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (values.ndim != 1 or sigmas.ndim != 1 or
++                not np.isfinite(values).all() or
++                not np.isfinite(sigmas).all() or np.any(sigmas <= 0)):
++            raise ValueError("record values and sigmas must be finite, positive arrays")
++
++        # With no rotating barrier and no oscillator, every readout (including
++        # a phase contrast) is exactly proportional to the conductance.
++        simple = all(float(e.get('amplitude', 0.)) == 0. and
++                     float(e.get('oscillator_coupling', 0.)) == 0.
++                     for e in inputs)
++        if simple:
++            unit = np.asarray([predict_at([e], 1.)[0] for e in inputs])
++            weights = 1. / sigmas**2
++            denominator = float(np.sum(weights * unit * unit))
++            if denominator <= 0. or not np.isfinite(denominator):
++                estimate = 50.
++            else:
++                estimate = float(np.sum(weights * unit * values) / denominator)
++        else:
++            def objective(conductance):
++                prediction = predict_at(inputs, float(conductance))
++                residual = (prediction - values) / sigmas
++                return float(residual @ residual)
++
++            result = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                     options={'xatol': 1e-8, 'maxiter': 100})
++            estimate = float(result.x)
++
++        self.conductance = float(np.clip(estimate, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
++        if self.conductance is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.conductance)
+ 
+ 
+@@ -245,6 +283,8 @@
+             if shift > dl+dr:
+                 energy = dl+(shift-dl-dr)*np.sin(angle)**2
+                 other = shift-energy
++                # The singlet spin-conserving and spin-flip pair channels have
++                # opposite anomalous coherence signs.
+                 sign = (1 if n == 0 else -1)*parity
+                 measure = weights*np.pi/4*2*(energy*other+sign*dl*dr*np.cos(phase))/np.sqrt((energy+dl)*(other+dr))
+                 for sl, sr, weight in pair_spins:
+@@ -346,9 +386,12 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            # The second preparation is phi + pi.  It has its own stationary
++            # spin state and therefore needs a separate mean_heat call.
++            other_phase = e['phase'] + np.pi
++            if other_phase > np.pi:
++                other_phase -= 2*np.pi
++            other=dict(e, phase=other_phase)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)
+-
+-

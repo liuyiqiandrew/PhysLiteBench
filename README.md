@@ -2,6 +2,10 @@
 
 The Desktop roster now contains **thirteen physics tasks**: the ten locally qualified snapshots below plus three additions from the remote branch. The [full roster](results/task-roster.json) records each exact revision, source hashes and evaluation status. The latest evidence does **not** establish 0/3 passes for all thirteen.
 
+## Reasoning effort and cost on all thirteen tasks
+
+The [reasoning-effort comparison](results/reasoning-sweep-20261011/README.md) reports GPT-6 Luna, GPT-6 Sol, GPT-5.6 Terra, GPT-6 Astra and DeepSeek V4.1 Flash with three attempts per task. It records Low, High and Extra High settings where tested, plus DeepSeek None, Low, High and Max. The budget-limited delivery contains 15 complete points; DeepSeek None has 3/39 attempts and its remaining 36 attempts are unrun. Incomplete panels are excluded from the plot. Every complete point in the [Pareto plot](output/reasoning-sweep-20261011/pareto-reasoning.png) contains 39 attempts across the frozen thirteen-task roster. The historical GPT-5.6 Luna qualification baseline remains separately identified below.
+
 ## Three imported tasks
 
 | Imported task | Revision | Original selection passes | Latest GPT-5.6 Luna High passes |

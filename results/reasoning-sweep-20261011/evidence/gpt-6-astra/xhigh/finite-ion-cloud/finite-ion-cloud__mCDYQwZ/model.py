@@ -1,0 +1,142 @@
+"""Finite canonical ionic cells with genuine two-dimensional electrostatics.
+
+Writing L = log(R/a), the outer-wall pressure gives
+    phi = (1 - exp(-2*L)) / (2*N) * d(log Z)/dL.
+The overall length scale and all L-independent factors in Z cancel.
+"""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.integrate import quad
+from scipy.optimize import minimize_scalar
+from scipy.special import exprel, hyp2f1, roots_legendre
+
+
+@lru_cache(maxsize=4096)
+def coefficient(gamma, count, ratio):
+    """Osmotic coefficient at a specified electrostatic coupling Gamma."""
+    if count == 3:
+        return three_ion_coefficient(gamma, ratio)
+    length = np.log(ratio)
+    if count == 1:
+        # exprel keeps the logarithmic case Gamma = 2 regular.
+        return -np.expm1(-2*length)/(2*length*exprel((gamma-2)*length))
+    if count != 2:
+        raise ValueError("ion_count must be 1, 2, or 3")
+
+    # Order the logarithmic radii as s, s+d and integrate over s.
+    slope, gap_slope = 4-3*gamma, 2-gamma
+
+    def angular(gap):
+        return hyp2f1(-gamma/2, -gamma/2, 1, np.exp(-2*gap))
+
+    partition = quad(
+        lambda d: angular(d)*np.exp(gap_slope*d)
+        * (length-d)*exprel(slope*(length-d)),
+        0, length, epsabs=1e-11, epsrel=1e-11,
+    )[0]
+    boundary = quad(
+        lambda d: angular(d)*np.exp(gap_slope*d+slope*(length-d)),
+        0, length, epsabs=1e-11, epsrel=1e-11,
+    )[0]
+    return -np.expm1(-2*length)*boundary/(4*partition)
+
+
+def predict_at(experiments, coupling):
+    # disk_radius cancels because the energy depends only on scaled positions.
+    return np.asarray([
+        coefficient(e['temperature_multiplier']*coupling,
+                    e['ion_count'], e['radius_ratio'])
+        for e in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.coupling = None
+
+    def fit(self, records):
+        """Fit the shared reference coupling by Gaussian maximum likelihood."""
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+        experiments = [r['input'] for r in records]
+        values = np.asarray([r['value'] for r in records], dtype=float)
+        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
+        if not np.all(np.isfinite(values)):
+            raise ValueError("calibration values must be finite")
+        if not np.all(np.isfinite(sigma) & (sigma > 0)):
+            raise ValueError("calibration sigma must be finite and positive")
+
+        def objective(coupling):
+            residual = (predict_at(experiments, coupling)-values)/sigma
+            return float(np.dot(residual, residual))
+
+        result = minimize_scalar(
+            objective, bounds=(0.7, 1.4), method='bounded',
+            options={'xatol': 1e-12},
+        )
+        if not result.success:
+            raise RuntimeError("coupling fit failed: " + result.message)
+        # Include the endpoints for data whose constrained optimum is a bound.
+        self.coupling = float(min((0.7, result.x, 1.4), key=objective))
+        return self
+
+    def predict(self, experiments):
+        if self.coupling is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.coupling)
+
+
+@lru_cache(maxsize=16)
+def nodes(order):
+    x, w = roots_legendre(order)
+    return (x+1)/2, w/2
+
+
+def _three_ion_angular(gamma, d1, d2, modes=64):
+    """Joint angular average for three ordered radii with adjacent log gaps.
+
+    For f(q, theta) = |1-q*exp(i*theta)|**Gamma, its Fourier coefficient is
+        c_k(q) = q**k * (-p)_k/k! * 2F1(-p, k-p; k+1; q*q), p = Gamma/2.
+    Integrating the product of all three pair factors over the two independent
+    angles selects equal Fourier indices around the triangle. Thus the mean
+    is c_0(q1)c_0(q2)c_0(q1*q2) + 2*sum_{k>=1} c_k(q1)c_k(q2)c_k(q1*q2).
+    Keeping just k=0 would incorrectly treat the pair angles as independent.
+
+    The series converges even at coincident radii; 64 modes put its truncation
+    well below the radial quadrature error over the stated input domain.
+    """
+    p = gamma/2
+    k = np.arange(modes+1)
+    prefactor = np.ones(modes+1)
+    # A recurrence avoids factorial overflow and handles integer p exactly.
+    prefactor[1:] = np.cumprod((k[1:]-1-p)/k[1:])
+
+    def fourier(gap):
+        gap = np.asarray(gap)[..., None]
+        return (np.exp(-gap*k)*prefactor
+                * hyp2f1(-p, k-p, k+1, np.exp(-2*gap)))
+
+    terms = fourier(d1)*fourier(d2)*fourier(d1+d2)
+    return terms[..., 0] + 2*np.sum(terms[..., 1:], axis=-1)
+
+
+def three_ion_coefficient(gamma, ratio, order=32):
+    """Integrate the full three-ion Gibbs weight and its outer-wall boundary."""
+    length = np.log(ratio)
+    x, w = nodes(order)
+    # Ordered log radii are s, s+d1, s+d1+d2. The gaps form a triangle.
+    d1 = (length*x)[:, None]
+    d2 = (length-d1)*x[None, :]
+    weights = length*(length-d1)*w[:, None]*w[None, :]
+    angular = _three_ion_angular(gamma, d1, d2)
+    span = length-d1-d2
+    slope = 6-6*gamma
+    weight = weights*angular*np.exp((4-3*gamma)*d1+(2-gamma)*d2)
+    # Integrate s analytically. Differentiating the original gap integral in L
+    # replaces that integral by its upper-boundary weight; its edge term is 0.
+    partition = np.sum(weight*span*exprel(slope*span))
+    boundary = np.sum(weight*np.exp(slope*span))
+    return -np.expm1(-2*length)*boundary/(6*partition)

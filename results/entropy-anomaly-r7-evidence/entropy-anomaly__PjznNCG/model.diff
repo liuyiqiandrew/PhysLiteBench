@@ -1,0 +1,69 @@
+--- before/model.py
++++ after/model.py
+@@ -108,7 +108,64 @@
+         self.friction = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Fit the common friction coefficient to calibration measurements.
++
++        The calibration contains independent Gaussian measurements, so the
++        appropriate objective is the weighted residual sum of squares.  There
++        is only one unknown parameter and its allowed interval is specified by
++        the apparatus description; a bounded golden-section search keeps the
++        implementation self-contained and avoids making the result depend on
++        an optional optimisation package.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (observed.shape != sigma.shape or not np.isfinite(observed).all() or
++                not np.isfinite(sigma).all() or np.any(sigma <= 0)):
++            raise ValueError("calibration values and uncertainties must be finite, with sigma > 0")
++
++        def objective(friction):
++            predicted = coefficients(experiments, float(friction))
++            residual = (predicted - observed)/sigma
++            return float(residual @ residual)
++
++        lower, upper = 0.7, 1.6
++        # A small initial scan also makes the search robust if the objective
++        # is nearly flat over part of the allowed interval.
++        grid = np.linspace(lower, upper, 19)
++        values = np.asarray([objective(point) for point in grid])
++        best = int(np.argmin(values))
++        if best == 0 or best == len(grid)-1:
++            self.friction = float(grid[best])
++            return self
++
++        left, right = float(grid[best-1]), float(grid[best+1])
++        golden = (np.sqrt(5.) - 1.)/2.
++        x1 = right - golden*(right-left)
++        x2 = left + golden*(right-left)
++        f1, f2 = objective(x1), objective(x2)
++        for _ in range(80):
++            if f1 <= f2:
++                right, x2, f2 = x2, x1, f1
++                x1 = right - golden*(right-left)
++                f1 = objective(x1)
++            else:
++                left, x1, f1 = x1, x2, f2
++                x2 = left + golden*(right-left)
++                f2 = objective(x2)
++
++        candidate = (left + right)/2.
++        # Include the scan points in the final comparison in case the
++        # objective is not strictly unimodal for an unusual record set.
++        candidates = [candidate, grid[best], x1, x2]
++        self.friction = float(min(candidates, key=objective))
++        return self
+ 
+     def predict(self, experiments):
+-        return coefficients(experiments, self.friction)
++        if self.friction is None:
++            raise ValueError("fit the model before requesting predictions")
++        return coefficients(experiments, float(self.friction))

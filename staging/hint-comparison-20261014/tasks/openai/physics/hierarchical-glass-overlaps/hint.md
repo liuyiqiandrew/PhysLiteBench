@@ -1,0 +1,1 @@
+Consider the normalized Gibbs measure of the full hierarchy before taking disorder averages. A family with a large descendant partition sum is more likely to be selected. The descendant measure under selection of a family is reweighted by a fractional power of that sum. Apply this reweighting also to events with several distinct leaves.

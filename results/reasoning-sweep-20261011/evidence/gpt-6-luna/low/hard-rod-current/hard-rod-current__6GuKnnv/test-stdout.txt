@@ -1,0 +1,64 @@
+FF..FFF                                                                  [100%]
+=================================== FAILURES ===================================
+________________________ test_interface_and_calibration ________________________
+
+    def test_interface_and_calibration():
+        records=json.loads((Path(__file__).parent/'data/calibration.json').read_text())
+        model=Model();assert model.fit(records) is model
+        predicted=model.predict([r['input'] for r in records]);assert isinstance(predicted,np.ndarray) and predicted.shape==(len(records),) and np.isfinite(predicted).all()
+        residual=(predicted-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+>       assert np.mean(residual**2)<1.5
+E       assert np.float64(449.2097433588606) < 1.5
+E        +  where np.float64(449.2097433588606) = <function mean at 0xffffaef131b0>((array([  0.60591736,  -3.40529151,  -9.68350757, -20.67739022,\n         0.77062046,  -4.12770981,  -6.39843794, -13.44... 42.07824948,  41.14356272,  42.22476071,  43.02591504,\n        17.90433945,  18.91664214,  17.91218369,  18.44142022]) ** 2))
+E        +    where <function mean at 0xffffaef131b0> = np.mean
+
+test_public.py:11: AssertionError
+___________________________ test_private_calibration ___________________________
+
+evaluated = {'calibration_chi2': 451.08928203400234, 'hidden': {'dense_mixtures': 0.5119581141567634, 'mixture_fields': 0.53134879...ared_anchors': 0.022126600031818548}, 'parameter': 1.097715648114022, 'parameter_relative_error': 0.019896742755337593}
+
+    def test_private_calibration(evaluated):
+>       assert evaluated['calibration_chi2'] < 1.5
+E       assert 451.08928203400234 < 1.5
+
+/tests/test_hidden.py:43: AssertionError
+_______________________ test_prediction[mixture_fields] ________________________
+
+evaluated = {'calibration_chi2': 451.08928203400234, 'hidden': {'dense_mixtures': 0.5119581141567634, 'mixture_fields': 0.53134879...ared_anchors': 0.022126600031818548}, 'parameter': 1.097715648114022, 'parameter_relative_error': 0.019896742755337593}
+case = 'mixture_fields'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.5313487923603526 < 0.04
+
+/tests/test_hidden.py:52: AssertionError
+_______________________ test_prediction[dense_mixtures] ________________________
+
+evaluated = {'calibration_chi2': 451.08928203400234, 'hidden': {'dense_mixtures': 0.5119581141567634, 'mixture_fields': 0.53134879...ared_anchors': 0.022126600031818548}, 'parameter': 1.097715648114022, 'parameter_relative_error': 0.019896742755337593}
+case = 'dense_mixtures'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.5119581141567634 < 0.04
+
+/tests/test_hidden.py:52: AssertionError
+______________________ test_prediction[moderate_mixtures] ______________________
+
+evaluated = {'calibration_chi2': 451.08928203400234, 'hidden': {'dense_mixtures': 0.5119581141567634, 'mixture_fields': 0.53134879...ared_anchors': 0.022126600031818548}, 'parameter': 1.097715648114022, 'parameter_relative_error': 0.019896742755337593}
+case = 'moderate_mixtures'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.3953724970651006 < 0.04
+
+/tests/test_hidden.py:52: AssertionError
+=========================== short test summary info ============================
+FAILED test_public.py::test_interface_and_calibration - assert np.float64(449...
+FAILED ../tests/test_hidden.py::test_private_calibration - assert 451.0892820...
+FAILED ../tests/test_hidden.py::test_prediction[mixture_fields] - assert 0.53...
+FAILED ../tests/test_hidden.py::test_prediction[dense_mixtures] - assert 0.51...
+FAILED ../tests/test_hidden.py::test_prediction[moderate_mixtures] - assert 0...
+5 failed, 2 passed in 0.65s

@@ -1,0 +1,59 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,50 @@
+-"""Current SCGF model and calibration interface."""
++"""Large-ring current SCGF for the weakly asymmetric exclusion process.
++
++At half filling the macroscopic current generating function is
++``D * lambda * (lambda + 2 * E) / 4``.  D is a rate in the supplied
++microscopic clock, hence it multiplies the answer.
++"""
+ import numpy as np
+ 
++
++_D_MIN = 0.8
++_D_MAX = 1.2
++
++
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    """Evaluate the asymptotic SCGF for an iterable of experiment inputs."""
++    # This construction also returns the required one-dimensional empty array.
++    field = np.asarray([experiment["field"] for experiment in experiments], dtype=float)
++    bias = np.asarray([experiment["bias"] for experiment in experiments], dtype=float)
++    return float(diffusivity) * bias * (bias + 2.0 * field) / 4.0
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Fit the shared rate by inverse-variance least squares."""
++        records = list(records)
++        if not records:
++            return self
++
++        coefficient = predict_at([record["input"] for record in records], 1.0)
++        values = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        valid = (
++            np.isfinite(coefficient) & np.isfinite(values) & np.isfinite(sigma)
++            & (sigma > 0.0) & (coefficient != 0.0)
++        )
++        if np.any(valid):
++            x = coefficient[valid]
++            weights = 1.0 / np.square(sigma[valid])
++            denominator = np.sum(weights * np.square(x))
++            if np.isfinite(denominator) and denominator > 0.0:
++                estimate = np.sum(weights * x * values[valid]) / denominator
++                if np.isfinite(estimate):
++                    self.diffusivity = float(np.clip(estimate, _D_MIN, _D_MAX))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

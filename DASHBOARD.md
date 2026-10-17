@@ -1,5 +1,17 @@
 # PhysLiteBench evaluation dashboard
 
+## Thirteen-task reasoning-effort comparison
+
+The [current comparison report](results/reasoning-sweep-20261011/README.md) varies reasoning effort across GPT-6 Luna, GPT-6 Sol, GPT-5.6 Terra and GPT-6 Astra, and records DeepSeek V4.1 Flash through Prime. Each complete plotted point covers thirteen frozen tasks and three attempts per task. The report distinguishes completed panels, partial panels, execution errors and passing checkpoints after timeouts. OpenAI High reuses the matching original ten-task observations and adds the three imported tasks. The October 12 continuation evaluates Astra Extra High and a fresh DeepSeek cohort at None, Low, High and Max after a reproduced transport correction; the legacy DeepSeek cohort remains separately preserved.
+
+![Reasoning effort and cost on thirteen tasks](output/reasoning-sweep-20261011/pareto-reasoning.png)
+
+[PDF](output/reasoning-sweep-20261011/pareto-reasoning.pdf) · [SVG](output/reasoning-sweep-20261011/pareto-reasoning.svg) · [Summary CSV](results/reasoning-sweep-20261011/summary.csv) · [Per-task scores](results/reasoning-sweep-20261011/per-task-scores.csv) · [Trial outcomes](results/reasoning-sweep-20261011/trial-outcomes.csv) · [Model inventory](results/reasoning-sweep-20261011/model-inventory.json) · [Reproduce the figure](results/reasoning-sweep-20261011/REPRODUCE.md)
+
+OpenAI costs apply published token rates to recorded usage. Prime costs include its reconciled request ledger and retained reserves for missing usage. The budget-limited delivery contains 15 complete comparison points. DeepSeek None is partial at 3/39 attempts, with 36 attempts unrun and excluded from the plot. See the report for account-budget limits, execution errors and the documented Terra and DeepSeek host-sleep effects. The GPT-5.6 Luna development-selected qualification baseline and the original ten-task comparison are preserved below.
+
+## Qualification and task roster
+
 **October 11, 2026: thirteen tasks are installed; the original ten each have 0/3 completed unhinted GPT-5.6 Luna High passes.** The selected thirty trials have no infrastructure exceptions. Exact evaluated sources are installed in `tasks/`; the [full thirteen-task roster](results/task-roster.json) also records the imported additions below, while [the manifest](results/qualified-tasks.json) and [reviewed evidence](results/qualification-20261011) identify each outcome.
 
 | Task and public apparatus | Revision | GPT-5.6 Luna High passes |
@@ -33,7 +45,7 @@ The fresh comparison of GPT-6 Luna, GPT-5.6 Terra, GPT-6 Sol, GPT-6 Astra and De
 
 The chart uses per-request token usage and published OpenAI Standard and Prime gateway prices, including cache rates, to estimate cost per attempt. This is not a measurement of the Pro subscription bill. The development-selected GPT-5.6 Luna baseline is labeled separately from fresh comparison results.
 
-## Completed model comparison
+## Original ten-task model comparison
 
 These panels cover the original ten tasks only. The three imported additions have not been evaluated in this comparison.
 

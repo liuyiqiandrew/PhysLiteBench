@@ -1,0 +1,42 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,17 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        # Conductance is the sole fitted quantity and every weak-tunnelling
++        # prediction is linear in it.  The calibrated records are therefore
++        # optimally combined by a weighted one-parameter least-squares fit.
++        inputs = [r['input'] for r in records]
++        unit = predict_at(inputs, 1.0)
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        weights = 1.0 / sigma**2
++        estimate = np.sum(weights * unit * values) / np.sum(weights * unit**2)
++        self.conductance = float(np.clip(estimate, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -481,5 +491,18 @@
+ 
+ noise_predict=predict_at
+ def predict_at(experiments,conductance):
+-    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+-                     else noise_predict([e],conductance)[0] for e in experiments])
++    values=[]
++    for e in experiments:
++        statistic=e.get('statistic','mean')
++        if statistic == 'gate_third':
++            value=gate_third(e,conductance)['third']
++        elif statistic == 'gate_noise':
++            value=gate_statistics(e,conductance)['noise']
++        elif statistic == 'phase_contrast':
++            first=mean_heat(e,conductance)
++            second=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            value=(first-mean_heat(second,conductance))/2
++        else:
++            value=mean_heat(e,conductance)
++        values.append(value)
++    return np.asarray(values,dtype=float)

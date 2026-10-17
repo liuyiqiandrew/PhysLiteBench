@@ -1,0 +1,17 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,13 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Estimate the (common) ordinary-fluid friction.
++
++        The calibration data deliberately contains only the zero-field,
++        no-memory experiments.  In that case the position covariance and the
++        area have closed forms (``zero_field_calibration``), so fitting the one
++        unknown is a well-conditioned weighted least-squares problem.
++        """
++        self.friction = fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

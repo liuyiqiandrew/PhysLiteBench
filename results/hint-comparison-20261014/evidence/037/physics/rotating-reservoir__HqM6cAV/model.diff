@@ -1,0 +1,102 @@
+--- starter/model.py
++++ submission/model.py
+@@ -170,19 +170,79 @@
+     return L,V,A1,A2,p,constant
+ 
+ def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
++    """Cumulant rates for the angle-weighted heat signal.
++
++    The angle is uniform in the stationary ensemble, but it is not an
++    independently redrawn phase at each instant.  In particular, a Fourier
++    component exp(i*k*theta) evolves with the extra backward-generator term
++    i*k*v.  Keeping these components is important here: the detector weight
++    is correlated with both the integrated rotor velocity and the Wiener
++    term in the heat.
++
++    Only modes generated through the third cumulant are needed.  For
++    ``w=1+eps*cos(h*theta)``, the first response has modes 0,+/-1 and the
++    second response has modes 0,+/-1,+/-2, so the finite block system below
++    is closed for the three requested cumulants.
++    """
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+-    w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
+-    def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+-    c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+-    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+-    return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
++    eps=float(eps);harmonic=int(harmonic)
++    w={0:1.,-1:eps/2,1:eps/2}
++    w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
++
++    # A mode is represented by the coefficient of exp(i*n*h*theta).
++    # Responses through order two occupy modes -2,...,+2.  The operators
++    # below apply the velocity part first and then shift the Fourier mode by
++    # a coefficient of w or w^2.
++    modes=tuple(range(-2,3))
++    nstate=len(p)
++
++    def weighted_operator(coefficients,operator,vector):
++        result={n:np.zeros(nstate,dtype=complex) for n in modes}
++        for n in modes:
++            image=operator@vector[n]
++            for shift,coefficient in coefficients.items():
++                target=n+shift
++                if target in result:
++                    result[target]+=coefficient*image
++        return result
++
++    def invert(mode,rhs):
++        rhs=np.asarray(rhs,dtype=complex).copy()
++        if mode:
++            system=L+1j*mode*harmonic*V
++        else:
++            # L has the constant function as its right null vector.  Replace
++            # one equation by the stationary normalization p*r=0.
++            system=L.astype(complex).copy()
++            system[0]=p
++            rhs[0]=0.
++        return solve(system,rhs,check_finite=False)
++
++    zero={n:np.zeros(nstate,dtype=complex) for n in modes}
++    zero[0]=constant.astype(complex)
++
++    # For exp(-k*Y), the tilted generator is
++    # L_k = L + k*w*A1 + k^2*w^2*A2/2.
++    first_on_zero=weighted_operator(w,A1,zero)
++    first_eigenvalue=np.real_if_close(p@first_on_zero[0]).item()
++    response1={n:invert(n,first_eigenvalue*zero[n]-first_on_zero[n]) for n in modes}
++
++    second_on_zero=weighted_operator(w2,A2,zero)
++    first_on_response1=weighted_operator(w,A1,response1)
++    second_eigenvalue=np.real_if_close(
++        p@(second_on_zero[0]+2*first_on_response1[0])).item()
++
++    rhs2={n:(second_eigenvalue*zero[n]+2*first_eigenvalue*response1[n]
++             -2*first_on_response1[n]-second_on_zero[n]) for n in modes}
++    response2={n:invert(n,rhs2[n]) for n in modes}
++
++    third_eigenvalue=np.real_if_close(
++        p@(3*weighted_operator(w,A1,response2)[0]
++          +3*weighted_operator(w2,A2,response1)[0])).item()
++    return dict(mean=-float(np.real(first_eigenvalue)),
++                noise=float(np.real(second_eigenvalue)),
++                third_cumulant=-float(np.real(third_eigenvalue)))
+ 
+ 
+ @lru_cache(512)
+@@ -207,6 +267,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

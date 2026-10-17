@@ -1,0 +1,53 @@
+--- before/model.py
++++ after/model.py
+@@ -54,7 +54,49 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit the material width from independent calibration readings.
++
++        Throughout the calibration range both levels are in their
++        high-temperature phase.  Consequently the limiting mean energy per
++        particle is
++
++            E[E]/N = -beta * width**2.
++
++        The calibration errors have known standard deviations, so the
++        maximum-likelihood estimate is the weighted least-squares estimate
++        of ``width**2``.  Keeping the fit in terms of the squared parameter
++        also avoids a needless nonlinear optimization.
++        """
++        numerator = 0.0
++        denominator = 0.0
++        count = 0
++
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++                measured = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError, OverflowError) as exc:
++                raise ValueError('Invalid calibration record.') from exc
++
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(measured)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Invalid calibration record.')
++
++            weight = 1.0 / (sigma * sigma)
++            numerator -= weight * beta * measured
++            denominator += weight * beta * beta
++            count += 1
++
++        if not count or denominator == 0.0:
++            raise ValueError('At least one calibration record is required.')
++
++        squared_width = numerator / denominator
++        lower, upper = (bound * bound for bound in WIDTH_INTERVAL)
++        squared_width = min(upper, max(lower, squared_width))
++        self.width = math.sqrt(squared_width)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

@@ -1,0 +1,101 @@
+--- starter/model.py
++++ submission/model.py
+@@ -49,6 +49,26 @@
+     value=np.linalg.solve(a,-source.reshape(count*(degree+1),points)).reshape(count,degree+1,points)
+     return {pair:value[:,i] for i,pair in enumerate(basis)}
+ 
++def contact_density_correction(q,first,derivative):
++    """Return the order-m, zero-total contact-population correction.
++
++    The leading position density has equal (or, more generally, stationary)
++    contact populations.  At the next even order the individual populations
++    need not be stationary: their source is the divergence of the order-sqrt(m)
++    velocity moment.  The total density at this order is deliberately fixed to
++    zero here.  Its only effect on the requested observable is cancelled by
++    the measured-residence background subtraction.
++    """
++    source=(derivative@first[1,0].T).T
++    # The leading stationary equation makes sum(source) zero.  Remove the
++    # round-off-sized violation before solving a singular generator equation.
++    source=source-source.mean(axis=0,keepdims=True)
++    system=q.copy()
++    system[-1,:]=1.
++    rhs=source.copy()
++    rhs[-1]=0.
++    return np.linalg.solve(system,rhs)
++
+ def limiting_state(e,friction,points=129):
+     phase,d=spatial_grid(points);d=d*e['wavenumber'];dx=2*np.pi/points
+     factors,gx,gy,q=contact_parameters(e,friction);count=len(gx)
+@@ -71,8 +91,10 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # This is the non-stationary part of the order-m contact distribution.
++    # Its total is set to zero; the undetermined total positional correction
++    # cancels exactly against B_m R_m in the definition of the excess rate.
++    density_correction={(0,0):contact_density_correction(q,first,d)}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +115,56 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Estimate the one shared drag coefficient by weighted least squares."""
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments=[record['input'] for record in records]
++        observed=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma<=0)):
++            raise ValueError("calibration values and positive sigmas must be finite")
++        weight=1./sigma**2
++
++        # The documented calibration protocol has identical contacts and no
++        # magnetic field.  In that case a common rescaling of both drags only
++        # rescales the excess rate, so the weighted fit has a closed form.
++        simple=all(
++            e.get('bath_contrast',0.)==0. and e.get('magnetic',0.)==0.
++            and 'valve_cycle' not in e for e in experiments
++        )
++        if simple:
++            unit=coefficients(experiments,1.)
++            denominator=float(np.dot(weight*unit,unit))
++            if denominator>0 and np.isfinite(denominator):
++                inverse_friction=float(np.dot(weight*unit,observed)/denominator)
++                self.friction=float(np.clip(1./inverse_friction,.7,1.6)) if inverse_friction>0 else 1.6
++                return self
++
++        def loss(friction):
++            residual=(coefficients(experiments,float(friction))-observed)/sigma
++            return float(residual@residual)
++
++        # A bounded golden-section search avoids making SciPy part of the API.
++        lower,upper=.7,1.6
++        ratio=(np.sqrt(5.)-1.)/2.
++        left=upper-ratio*(upper-lower)
++        right=lower+ratio*(upper-lower)
++        left_loss,right_loss=loss(left),loss(right)
++        for _ in range(36):
++            if left_loss<=right_loss:
++                upper,right,right_loss=right,left,left_loss
++                left=upper-ratio*(upper-lower)
++                left_loss=loss(left)
++            else:
++                lower,left,left_loss=left,right,right_loss
++                right=lower+ratio*(upper-lower)
++                right_loss=loss(right)
++        self.friction=float((lower+upper)/2.)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("fit must be called before predict")
++        return coefficients(experiments,float(self.friction))

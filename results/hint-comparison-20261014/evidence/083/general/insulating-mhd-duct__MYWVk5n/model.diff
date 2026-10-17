@@ -1,0 +1,71 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -61,16 +62,58 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate the viscosity from independent calibration records.
++
++        The forward model is linear in the applied pressure gradient, but
++        nonlinear in viscosity through the decay rates.  Consequently this
++        is a one-dimensional weighted least-squares problem.  The supplied
++        ``sigma`` values are measurement standard deviations, so the
++        objective is the usual Gaussian chi-square.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        measured = np.asarray([record['value'] for record in records], dtype=float)
++        uncertainty = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(measured).all() or
++                not np.isfinite(uncertainty).all() or
++                np.any(uncertainty <= 0.0)):
++            raise ValueError("calibration values and sigma must be finite, with sigma > 0")
++
++        def objective(viscosity):
++            prediction = self._predict(experiments, viscosity)
++            residual = (prediction - measured) / uncertainty
++            return float(residual @ residual)
++
++        result = minimize_scalar(
++            objective,
++            bounds=(0.006, 0.018),
++            method='bounded',
++            options={'xatol': 1e-12},
++        )
++        # Include the endpoints explicitly.  This also makes the behavior
++        # robust if a future calibration set prefers a boundary value.
++        candidates = [(result.fun, result.x)]
++        for viscosity in (0.006, 0.018):
++            candidates.append((objective(viscosity), viscosity))
++        _, self.viscosity = min(candidates, key=lambda item: item[0])
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
++        return self._predict(experiments, self.viscosity)
++
++    def _predict(self, experiments, viscosity):
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:
+             bx, by = e['magnetic_x'], e['magnetic_y']
+             observation = mean if e['observable'] == 'mean' else 2*np.sin(m*np.pi*e['x'])*np.sin(n*np.pi*e['y'])
+             value = 0.
+-            for ids, rates, vectors, forcing in spectrum(self.viscosity, bx, by):
++            for ids, rates, vectors, forcing in spectrum(viscosity, bx, by):
+                 amplitude = vectors@(-np.expm1(-rates*e['time'])/rates*forcing)
+                 value += observation[ids]@amplitude
+             output.append(e['pressure_gradient']/DENSITY*value)

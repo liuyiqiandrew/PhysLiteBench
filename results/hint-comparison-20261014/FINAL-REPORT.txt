@@ -1,0 +1,118 @@
+Physics hint comparison: final results
+
+351 observations: 313 local attempts and 38 imported historical Luna High baselines.
+13 frozen tasks, 3 models, 3 prompt conditions, 3 repeats. All model reasoning efforts are High.
+
+A completed pass requires verifier reward 1 and no execution exception. Every started slot remains in the denominator. Execution errors are not assigned a physics failure mode.
+
+Model | Condition | Completed passes / attempts | Execution errors | Graded failures without execution error | Mean API-equivalent cost / attempt
+gpt-5.6-luna | No hint | 4/39 | 1 | 34 | withheld (38/39 costs complete)
+gpt-5.6-luna | General hint | 7/39 | 0 | 32 | $0.02907746
+gpt-5.6-luna | Physics hint | 32/39 | 1 | 6 | withheld (38/39 costs complete)
+gpt-5.6-terra | No hint | 7/39 | 1 | 31 | $0.18675001
+gpt-5.6-terra | General hint | 13/39 | 6 | 20 | $0.23917631
+gpt-5.6-terra | Physics hint | 36/39 | 1 | 2 | $0.26700235
+deepseek/deepseek-v4.1-flash | No hint | 0/39 | 37 | 2 | withheld (38/39 costs complete)
+deepseek/deepseek-v4.1-flash | General hint | 0/39 | 39 | 0 | withheld (36/39 costs complete)
+deepseek/deepseek-v4.1-flash | Physics hint | 1/39 | 38 | 0 | withheld (36/39 costs complete)
+
+Interpretation
+Physics hints have the highest observed completed-pass counts for Luna and Terra in this cohort. This is a descriptive result. Luna uses historical controls, and runtime resources changed during the local study. Hint length is not matched. DeepSeek execution errors dominate its results, so its low completion rate does not establish a physics reasoning deficit.
+
+Luna baseline combines 38 historical Codex CLI 0.154.0/concurrency-4 trials with one local CLI 0.160.0 trial. Local hints used up to 3 concurrent trials before the user scheduling amendment and up to 6 sharing 8 Docker CPUs afterward. Task, instruction and grading hashes match, but client version, run date, concurrency and resource policy differ: this is a descriptive historical-control comparison, not an isolated causal hint effect.
+User-authorized scheduling amendment after block 131: earlier local observations used one block/up to 3 trials with unrestricted Docker CPU affinity. Later observations run up to 2 blocks/up to 6 trials, with all main containers and network sidecars sharing Docker CPUs 0-7 of 12. No model, effort, task, prompt, grading, agent timeout or verifier timeout changed. Resource contention can affect completion and cost, so retain execution-cohort labels.
+Imported published aggregates, source metadata and hashes were checked locally. Raw remote transcripts were not independently verified locally.
+
+Cost and frontier rules
+Costs are API-equivalent estimates for Codex usage and reconciled provider estimates for Prime, not Codex subscription charges. A setting enters its prompt-condition frontier only when all 39 costs are available. There are four eligible settings; five are withheld. Singleton frontiers are shown as points. These are observed frontiers restricted to complete-cost settings, not proven frontiers over the missing settings. Seven Prime observations retain nonzero uncertainty bounds. Upper reserves are not confirmed spending.
+
+deepseek/deepseek-v4.1-flash No hint provider cost sum bounds: $4.79652264 to $4.97428824. Upper value includes conservative reserves.
+deepseek/deepseek-v4.1-flash General hint provider cost sum bounds: $5.02112374 to $5.69193544. Upper value includes conservative reserves.
+deepseek/deepseek-v4.1-flash Physics hint provider cost sum bounds: $6.05734512 to $6.73609572. Upper value includes conservative reserves.
+
+Execution exceptions
+gpt-5.6-luna / No hint: {"NonZeroAgentExitCodeError": 1}; reward-1 checkpoints with execution errors: 0 (excluded from completed passes).
+gpt-5.6-luna / General hint: {}; reward-1 checkpoints with execution errors: 0 (excluded from completed passes).
+gpt-5.6-luna / Physics hint: {"NetworkConnectionError": 1}; reward-1 checkpoints with execution errors: 0 (excluded from completed passes).
+gpt-5.6-terra / No hint: {"AgentTimeoutError": 1}; reward-1 checkpoints with execution errors: 0 (excluded from completed passes).
+gpt-5.6-terra / General hint: {"AgentTimeoutError": 5, "VerifierTimeoutError": 1}; reward-1 checkpoints with execution errors: 2 (excluded from completed passes).
+gpt-5.6-terra / Physics hint: {"AgentTimeoutError": 1}; reward-1 checkpoints with execution errors: 1 (excluded from completed passes).
+deepseek/deepseek-v4.1-flash / No hint: {"AgentTimeoutError": 35, "NonZeroAgentExitCodeError": 2}; reward-1 checkpoints with execution errors: 0 (excluded from completed passes).
+deepseek/deepseek-v4.1-flash / General hint: {"AgentTimeoutError": 36, "NonZeroAgentExitCodeError": 2, "RunnerInterruptedError": 1}; reward-1 checkpoints with execution errors: 0 (excluded from completed passes).
+deepseek/deepseek-v4.1-flash / Physics hint: {"AgentTimeoutError": 35, "NonZeroAgentExitCodeError": 2, "RunnerInterruptedError": 1}; reward-1 checkpoints with execution errors: 0 (excluded from completed passes).
+
+Per-task results (passes / 3; execution errors in parentheses)
+
+entropy-anomaly
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 3/3 (0 errors), Physics hint 2/3 (0 errors)
+gpt-5.6-terra: No hint 1/3 (0 errors), General hint 2/3 (1 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+finite-layer-phoresis
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 1/3 (0 errors), Physics hint 2/3 (0 errors)
+gpt-5.6-terra: No hint 0/3 (0 errors), General hint 2/3 (0 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+hierarchical-glass-overlaps
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 1/3 (0 errors)
+gpt-5.6-terra: No hint 0/3 (0 errors), General hint 1/3 (0 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+insulating-mhd-duct
+gpt-5.6-luna: No hint 1/3 (0 errors), General hint 2/3 (0 errors), Physics hint 3/3 (0 errors)
+gpt-5.6-terra: No hint 2/3 (0 errors), General hint 3/3 (0 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+magnetic-tracer
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 3/3 (0 errors)
+gpt-5.6-terra: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+reaction-diffusion
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 2/3 (0 errors)
+gpt-5.6-terra: No hint 0/3 (0 errors), General hint 0/3 (2 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+ring-current-fluctuations
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 3/3 (0 errors)
+gpt-5.6-terra: No hint 1/3 (0 errors), General hint 2/3 (1 errors), Physics hint 2/3 (1 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (2 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+rotating-reservoir
+gpt-5.6-luna: No hint 0/3 (1 errors), General hint 0/3 (0 errors), Physics hint 3/3 (0 errors)
+gpt-5.6-terra: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 2/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+single-file-memory
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 3/3 (0 errors)
+gpt-5.6-terra: No hint 1/3 (0 errors), General hint 1/3 (0 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 1/3 (2 errors)
+
+superconducting-heat
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 2/3 (0 errors)
+gpt-5.6-terra: No hint 0/3 (1 errors), General hint 0/3 (1 errors), Physics hint 2/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+swirling-heat-tails
+gpt-5.6-luna: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 2/3 (1 errors)
+gpt-5.6-terra: No hint 2/3 (0 errors), General hint 2/3 (0 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+hard-rod-current
+gpt-5.6-luna: No hint 1/3 (0 errors), General hint 0/3 (0 errors), Physics hint 3/3 (0 errors)
+gpt-5.6-terra: No hint 0/3 (0 errors), General hint 0/3 (1 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (3 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+finite-ion-cloud
+gpt-5.6-luna: No hint 2/3 (0 errors), General hint 1/3 (0 errors), Physics hint 3/3 (0 errors)
+gpt-5.6-terra: No hint 0/3 (0 errors), General hint 0/3 (0 errors), Physics hint 3/3 (0 errors)
+deepseek/deepseek-v4.1-flash: No hint 0/3 (2 errors), General hint 0/3 (3 errors), Physics hint 0/3 (3 errors)
+
+Sources
+/Users/yp9846/Desktop/PhysLiteBench/results/hint-comparison-20261014/results.json
+/Users/yp9846/Desktop/PhysLiteBench/results/hint-comparison-20261014/plan.json
+/Users/yp9846/Desktop/PhysLiteBench/results/hint-comparison-20261014/reused-baselines-20261015.json
+/Users/yp9846/Desktop/PhysLiteBench/results/hint-comparison-20261014/administrative-observations-20261015.json
+Operational review records remain in /Users/yp9846/Desktop/PhysLiteBench/results/hint-comparison-20261014/reviews
+Pricing metadata: /Users/yp9846/Desktop/PhysLiteBench/results/hint-comparison-20261014/pricing.json
+Results SHA256: 7b78c37b2be7aed3a3c327b6987c3252d3b016d5707a2ec2f0e5cfe8bb980589

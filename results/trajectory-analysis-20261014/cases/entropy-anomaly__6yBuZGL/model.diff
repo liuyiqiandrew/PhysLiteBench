@@ -1,0 +1,30 @@
+--- frozen-starter/model.py
++++ submitted/model.py
+@@ -93,5 +93,26 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Fit the shared friction by weighted least squares on calibration data."""
++        from scipy.optimize import minimize_scalar
++
++        if not records:
++            raise ValueError("Calibration records must not be empty.")
++        experiments=[record['input'] for record in records]
++        values=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if np.any(~np.isfinite(values)) or np.any(~np.isfinite(sigma)) or np.any(sigma<=0):
++            raise ValueError("Calibration values must be finite and uncertainties positive.")
++
++        def objective(friction):
++            residual=(coefficients(experiments,float(friction))-values)/sigma
++            return float(residual@residual)
++
++        result=minimize_scalar(objective,bounds=(0.7,1.6),method='bounded',
++                               options={'xatol':1e-9})
++        # Include the bounds explicitly in case the constrained minimum is at an edge.
++        candidates=[(objective(0.7),0.7),(float(result.fun),float(result.x)),
++                    (objective(1.6),1.6)]
++        self.friction=min(candidates)[1]
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

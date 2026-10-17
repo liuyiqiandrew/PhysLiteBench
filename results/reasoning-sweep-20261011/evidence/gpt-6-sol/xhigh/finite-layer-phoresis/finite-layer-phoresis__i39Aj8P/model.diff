@@ -1,0 +1,152 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,38 +1,95 @@
++"""Linear diffusiophoretic response of a sphere with Navier slip."""
++
+ from functools import lru_cache
++
+ import numpy as np
+ from scipy.integrate import quad, solve_bvp
+ 
+ 
+-@lru_cache(256)
+-def response(radius, width, strength, slip):
+-    if strength == 0:
+-        return 0.
+-    end = radius+width
++@lru_cache(maxsize=512)
++def _concentration_solution(radius, width, strength):
++    """Return the radial l=1 field divided by the imposed gradient.
++
++    The concentration perturbation is G exp(-U) f(r) cos(theta). Outside
++    the potential, f(r) = r + constant/r**2. The outer boundary condition
++    matches that solution exactly at r = radius + width.
++    """
++    outer_radius = radius + width
++
+     def equations(x, y):
+-        r = radius+width*x
+-        return np.array([y[1], -(2*width/r+2*strength*(1-x))*y[1]+2*width**2*y[0]/r**2])
++        r = radius + width * x
++        return np.array((
++            y[1],
++            -(2 * width / r + 2 * strength * (1 - x)) * y[1]
++            + 2 * width**2 * y[0] / r**2,
++        ))
++
+     def boundary(left, right):
+-        return np.array([left[1], end*right[1]/width+2*right[0]-3*end])
+-    grid = np.linspace(0., 1., 129)
+-    r = radius+width*grid
+-    initial = np.array([r+radius**3/(2*r**2), width*(1-radius**3/r**3)])
+-    solution = solve_bvp(equations, boundary, grid, initial, tol=2e-10, max_nodes=10000)
++        return np.array((
++            left[1],
++            outer_radius * right[1] / width + 2 * right[0]
++            - 3 * outer_radius,
++        ))
++
++    grid = np.linspace(0.0, 1.0, 129)
++    r = radius + width * grid
++    initial = np.array((
++        r + radius**3 / (2 * r**2),
++        width * (1 - radius**3 / r**3),
++    ))
++    solution = solve_bvp(equations, boundary, grid, initial,
++                         tol=2e-10, max_nodes=10000)
+     if not solution.success:
+         raise RuntimeError(solution.message)
+-    beta = slip/radius
+-    drag = (1+2*beta)/(1+3*beta)
+-    def integrand(r):
+-        x = (r-radius)/width
+-        concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+-        derivative = -2*strength*(1-x)/width
+-        weight = (r-radius)**2*(2*r+radius)/(2*r)
+-        return weight*concentration*derivative
+-    return 2/(9*radius*drag)*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
++    return solution.sol
++
++
++@lru_cache(maxsize=512)
++def _response_integrals(radius, width, strength):
++    """Integrals for the no-slip kernel and its slip correction.
++
++    The reciprocal translating-sphere flow has radial velocity
++    (A*radius/r + B*radius**3/r**3)*cos(theta), where
++    A = 3*(1 + 2*beta)/(2*(1 + 3*beta)) and B = -1/(2*(1 + 3*beta)).
++    The force-free response uses r**2 times one minus that velocity.
++    """
++    field = _concentration_solution(radius, width, strength)
++    outer_radius = radius + width
++
++    def integrands(r):
++        x = (r - radius) / width
++        concentration = np.exp(-strength * (1 - x)**2) * field(x)[0]
++        potential_derivative = -2 * strength * (1 - x) / width
++        no_slip = (r - radius)**2 * (2 * r + radius) / (2 * r)
++        slip_correction = radius * (r - radius) * (r + radius) / r
++        common = concentration * potential_derivative
++        return no_slip * common, slip_correction * common
++
++    no_slip = quad(lambda r: integrands(r)[0], radius, outer_radius,
++                   epsabs=2e-11, epsrel=2e-11)[0]
++    slip_correction = quad(lambda r: integrands(r)[1], radius, outer_radius,
++                           epsabs=2e-11, epsrel=2e-11)[0]
++    return no_slip, slip_correction
++
++
++@lru_cache(maxsize=1024)
++def response(radius, width, strength, slip):
++    """Velocity per gradient, multiplied by viscosity."""
++    if strength == 0:
++        return 0.0
++
++    no_slip, slip_correction = _response_integrals(radius, width, strength)
++    beta = slip / radius
++    drag_factor = (1 + 2 * beta) / (1 + 3 * beta)
++    kernel_integral = no_slip + 3 * beta / (2 * (1 + 3 * beta)) * slip_correction
++    return 2 * kernel_integral / (9 * radius * drag_factor)
+ 
+ 
+ def predict_at(experiments, viscosity):
+-    return np.array([response(e['radius'], e['width'], e['strength'], e['slip'])
+-                     for e in experiments])/viscosity
++    return np.array([
++        response(e['radius'], e['width'], e['strength'], e['slip'])
++        for e in experiments
++    ], dtype=float) / viscosity
+ 
+ 
+ class Model:
+@@ -40,7 +97,29 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        records = list(records)
++        coefficients = np.array([
++            response(r['input']['radius'], r['input']['width'],
++                     r['input']['strength'], r['input']['slip'])
++            for r in records
++        ], dtype=float)
++        values = np.array([r['value'] for r in records], dtype=float)
++        sigmas = np.array([r['sigma'] for r in records], dtype=float)
++
++        weighted_coefficients = coefficients / sigmas
++        weighted_values = values / sigmas
++        information = np.dot(weighted_coefficients, weighted_coefficients)
++        if information == 0:
++            raise ValueError('Calibration records do not identify viscosity')
++
++        # The response is linear in inverse viscosity, so this is the
++        # Gaussian maximum-likelihood estimate with its physical bounds.
++        inverse_viscosity = np.dot(weighted_coefficients, weighted_values) / information
++        inverse_viscosity = np.clip(inverse_viscosity, 1 / 1.6, 1 / 0.8)
++        self.viscosity = float(1 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError('Fit the model before predicting')
+         return predict_at(experiments, self.viscosity)

@@ -1,0 +1,90 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,15 @@
++"""Transient duct flow using a sine Galerkin discretization.
++
++The velocity basis enforces no slip. A Dirichlet current streamfunction
++ensures insulating walls and charge conservation. Its elimination produces
++symmetric magnetic damping, including the mixed term for oblique fields.
++Only modes invariant under a half-turn of the cross section are forced.
++"""
++
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -35,20 +44,29 @@
+         k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+         qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+ 
+-    return m, n, wave2, mean, qx, qy
++    # The insulating boundary makes the current streamfunction constant
++    # on the connected wall; choose that constant to be zero. Eliminating
++    # it gives (B.grad)^* (-laplacian_D)^-1 (B.grad).
++    # Mixed derivatives couple odd/odd and even/even velocity modes.
++    dx = derivative_overlap(m, m)/WIDTH
++    dy = derivative_overlap(n, n)/HEIGHT
++    mixed = dx.T * dy / ((m[None, :]*np.pi/WIDTH)**2
++                            + (n[:, None]*np.pi/HEIGHT)**2)
++    cross = mixed + mixed.T
++    return m, n, wave2, mean, qx, qy, cross
+ 
+ 
+ @lru_cache(64)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    m, n, wave2, mean, qx, qy, cross = operators(nx, ny)
++    magnetic = bx*bx*qx+by*by*qy+bx*by*cross
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,12 +79,36 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate viscosity by bounded Gaussian maximum likelihood."""
++        records = list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required")
++        experiments = [r['input'] for r in records]
++        measured = np.asarray([r['value'] for r in records], dtype=float)
++        uncertainty = np.asarray([r['sigma'] for r in records], dtype=float)
++        if np.any(uncertainty <= 0) or not np.all(np.isfinite(uncertainty)):
++            raise ValueError("Measurement uncertainties must be finite and positive")
++
++        def objective(eta):
++            self.viscosity = float(eta)
++            residual = (self.predict(experiments) - measured)/uncertainty
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018),
++                                 method='bounded', options={'xatol': 1e-10})
++        candidates = [float(result.x), 0.006, 0.018]
++        self.viscosity = min(candidates, key=objective)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise ValueError("Call fit before predict")
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:
++            if e['time'] == 0 or e['pressure_gradient'] == 0:
++                output.append(0.)
++                continue
+             bx, by = e['magnetic_x'], e['magnetic_y']
+             observation = mean if e['observable'] == 'mean' else 2*np.sin(m*np.pi*e['x'])*np.sin(n*np.pi*e['y'])
+             value = 0.

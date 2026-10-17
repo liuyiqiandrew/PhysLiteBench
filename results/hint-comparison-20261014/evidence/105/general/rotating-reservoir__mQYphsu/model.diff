@@ -1,0 +1,28 @@
+--- starter/model.py
++++ submission/model.py
+@@ -207,6 +207,22 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        """Fit the common laboratory drag from the calibration records.
++
++        For the calibration preparation the stationary mean has the exact
++        form ``C * (temperature_a - temperature_b)``.  The records carry
++        independent Gaussian uncertainties, so ``fit_drag`` performs the
++        corresponding inverse-variance weighted fit for that coefficient and
++        converts it to the drag.  Keep the fitted value on the model, as
++        required by the prediction interface, and return ``self`` for the
++        usual estimator-style API.
++        """
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        self.drag=fit_drag(records)
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise RuntimeError('fit must be called before predict')
++        return predict_at(experiments,self.drag)

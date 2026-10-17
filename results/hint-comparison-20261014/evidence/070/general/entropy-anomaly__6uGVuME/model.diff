@@ -1,0 +1,311 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,97 +1,216 @@
+-"""Stationary small-mass calorimetry of switched anisotropic thermal contacts."""
++"""Stationary small-mass calorimetry for fast switched thermal contacts.
++
++The valve and velocity both evolve on the mass time scale.  We solve their
++coupled stationary moment equations at several small masses, perform the
++required finite-mass background subtraction, and extrapolate to zero mass.
++"""
+ from functools import lru_cache
++
+ import numpy as np
+-
+-INPUT_FIELDS=('force_x','force_y','drag_ratio','magnetic','temperature','contrast','wavenumber','bath_contrast','switch_rate')
+-
+-@lru_cache(None)
+-def spatial_grid(points):
+-    phase=np.arange(points)*2*np.pi/points
+-    modes=np.fft.fftfreq(points,1/points)
+-    derivative=np.fft.ifft(1j*modes[:,None]*np.fft.fft(np.eye(points),axis=0),axis=0).real
+-    return phase,derivative
+-
+-def contact_parameters(e,friction):
+-    rate=e['switch_rate']
+-    if 'valve_cycle' not in e:
+-        labels=np.array([1.,-1.]);q=np.array([[-rate,rate],[rate,-rate]])
+-        drag_scale=np.ones(2)
++from scipy import optimize, sparse
++from scipy.sparse.linalg import spsolve
++
++INPUT_FIELDS = (
++    "force_x", "force_y", "drag_ratio", "magnetic", "temperature",
++    "contrast", "wavenumber", "bath_contrast", "switch_rate",
++)
++
++
++def _contacts(e, friction):
++    """Temperature factors, drags, and column-stochastic valve generator."""
++    rate = float(e["switch_rate"])
++    if "valve_cycle" not in e:
++        labels = np.array((1.0, -1.0))
++        q = np.array(((-rate, rate), (rate, -rate)))
++        scale = np.ones(2)
+     else:
+-        labels=np.array([-1.,0.,1.]);bias=e['valve_cycle'];q=np.zeros((3,3))
+-        for s in range(3):
+-            q[(s+1)%3,s]=rate*(1+bias)
+-            q[(s-1)%3,s]=rate*(1-bias)
+-            q[s,s]=-2*rate
+-        drag_scale=1+e.get('contact_drag_contrast',0.)*labels
+-    return 1+e['bath_contrast']*labels,friction*drag_scale,friction*drag_scale*e['drag_ratio'],q
+-
+-def moment_operator(degree,gx,gy,magnetic,q):
+-    count=len(gx);basis=[(p,degree-p) for p in range(degree,-1,-1)];lookup={pair:i for i,pair in enumerate(basis)}
+-    a=np.kron(q,np.eye(degree+1))
+-    for s in range(count):
+-        for i,(p,n) in enumerate(basis):
+-            row=s*(degree+1)+i;a[row,row]-=p*gx[s]+n*gy[s]
+-            if p:a[row,s*(degree+1)+lookup[p-1,n+1]]+=p*magnetic
+-            if n:a[row,s*(degree+1)+lookup[p+1,n-1]]-=n*magnetic
+-    return basis,a
+-
+-def solve_moments(degree,lower,temperature,gx,gy,magnetic,q,derivative=None,force=(0.,0.),prior=None,higher=None):
+-    count,points=temperature.shape;basis,a=moment_operator(degree,gx,gy,magnetic,q)
+-    source=np.zeros((count,degree+1,points))
+-    for s in range(count):
+-        for i,(p,n) in enumerate(basis):
+-            if p>=2:source[s,i]+=p*(p-1)*gx[s]*temperature[s]*lower[p-2,n][s]
+-            if n>=2:source[s,i]+=n*(n-1)*gy[s]*temperature[s]*lower[p,n-2][s]
+-            if prior is not None:
+-                if p:source[s,i]+=p*force[0]*prior[p-1,n][s]
+-                if n:source[s,i]+=n*force[1]*prior[p,n-1][s]
+-            if higher is not None:source[s,i]-=derivative@higher[p+1,n][s]
+-    value=np.linalg.solve(a,-source.reshape(count*(degree+1),points)).reshape(count,degree+1,points)
+-    return {pair:value[:,i] for i,pair in enumerate(basis)}
+-
+-def limiting_state(e,friction,points=129):
+-    phase,d=spatial_grid(points);d=d*e['wavenumber'];dx=2*np.pi/points
+-    factors,gx,gy,q=contact_parameters(e,friction);count=len(gx)
+-    force=(e['force_x'],e['force_y']);magnetic=e['magnetic']
+-    local_t=e['temperature']*(1+e['contrast']*np.cos(phase))
+-    temperatures=factors[:,None]*local_t
+-    # Fast velocity moments per unit positional density and base temperature.
+-    unit0={(0,0):np.ones((count,1))/count}
+-    unit2=solve_moments(2,unit0,factors[:,None],gx,gy,magnetic,q)
+-    _,a1=moment_operator(1,gx,gy,magnetic,q)
+-    force_source=np.tile(np.array(force)/count,count)
+-    diff_source=np.column_stack((unit2[2,0][:,0],unit2[1,1][:,0])).ravel()
+-    velocity=-np.linalg.solve(a1,force_source).reshape(count,2).sum(axis=0)
+-    diffusion=-np.linalg.solve(a1,diff_source).reshape(count,2).sum(axis=0)
+-    operator=-d@(velocity[0]*np.eye(points)-diffusion[0]*d*local_t[None,:])
+-    operator[-1]=dx;rhs=np.zeros(points);rhs[-1]=1.
+-    density=np.linalg.solve(operator,rhs)
+-    zeroth={(0,0):np.tile(density/count,(count,1))}
+-    second=solve_moments(2,zeroth,temperatures,gx,gy,magnetic,q)
+-    fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+-    first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+-    third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
+-    second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+-    local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+-    return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+-
+-@lru_cache(4096)
+-def entropy_rate(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate,friction,detector_phase=None,valve_cycle=None,contact_drag_contrast=0.):
+-    if bath_contrast==0. and magnetic==0. and valve_cycle is None and friction!=1.:
+-        return entropy_rate(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate,1.,detector_phase)/friction
+-    e=dict(zip(INPUT_FIELDS,(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate)))
+-    if valve_cycle is not None:e.update(valve_cycle=valve_cycle,contact_drag_contrast=contact_drag_contrast)
+-    state=limiting_state(e,friction)
+-    weight=1. if detector_phase is None else (1+np.cos(state['phase']-detector_phase))/2
+-    return float(state['dx']*np.sum(weight*state['local']))
+-
+-def coefficients(experiments,friction=1.):
+-    return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
++        labels = np.array((-1.0, 0.0, 1.0))
++        bias = float(e["valve_cycle"])
++        q = np.zeros((3, 3))
++        for source in range(3):
++            q[(source + 1) % 3, source] = rate * (1.0 + bias)
++            q[(source - 1) % 3, source] = rate * (1.0 - bias)
++            q[source, source] = -2.0 * rate
++        scale = 1.0 + float(e.get("contact_drag_contrast", 0.0)) * labels
++    gx = friction * scale
++    return 1.0 + float(e["bath_contrast"]) * labels, gx, gx * float(e["drag_ratio"]), q
++
++
++@lru_cache(maxsize=None)
++def _derivative(n):
++    """Sixth-order centred periodic first derivative on [0, 2*pi)."""
++    h = 2.0 * np.pi / n
++    offsets = (-3, -2, -1, 1, 2, 3)
++    coeffs = (-1, 9, -45, 45, -9, 1)
++    rows = np.repeat(np.arange(n), len(offsets))
++    cols = np.asarray([[(row + offset) % n for offset in offsets]
++                       for row in range(n)]).ravel()
++    data = np.tile(np.asarray(coeffs, dtype=float) / (60.0 * h), n)
++    return sparse.csr_matrix((data, (rows, cols)), shape=(n, n))
++
++
++def _basis(max_degree):
++    return [(p, total - p) for total in range(max_degree + 1) for p in range(total, -1, -1)]
++
++
++def _background_coefficient(e, friction):
++    """The 1/m coefficient of the matched uniform background entropy rate."""
++    factors, gx, gy, q = _contacts(e, friction)
++    contacts = len(gx)
++    p0 = np.full(contacts, 1.0 / contacts)
++    temp = float(e["temperature"]) * factors
++    # Per-state components are xx, xy, yy.  This is the exact fast degree-2
++    # system in the spatially uniform force-free background.
++    matrix = np.zeros((3 * contacts, 3 * contacts))
++    rhs = np.zeros(3 * contacts)
++    magnetic = float(e["magnetic"])
++    for s in range(contacts):
++        for sp in range(contacts):
++            for component in range(3):
++                matrix[3 * s + component, 3 * sp + component] += q[s, sp]
++        matrix[3 * s, 3 * s] -= 2.0 * gx[s]
++        matrix[3 * s, 3 * s + 1] += 2.0 * magnetic
++        rhs[3 * s] = -2.0 * gx[s] * temp[s] * p0[s]
++        matrix[3 * s + 1, 3 * s + 1] -= gx[s] + gy[s]
++        matrix[3 * s + 1, 3 * s + 2] += magnetic
++        matrix[3 * s + 1, 3 * s] -= magnetic
++        matrix[3 * s + 2, 3 * s + 2] -= 2.0 * gy[s]
++        matrix[3 * s + 2, 3 * s + 1] -= 2.0 * magnetic
++        rhs[3 * s + 2] = -2.0 * gy[s] * temp[s] * p0[s]
++    moment = np.linalg.solve(matrix, rhs).reshape(contacts, 3)
++    return float(np.sum(gx * (moment[:, 0] / temp - p0) + gy * (moment[:, 2] / temp - p0)))
++
++
++def _stationary_moments(e, friction, epsilon, points=48, max_degree=6):
++    """Stationary moments of u=sqrt(m)v, normalized as x densities."""
++    factors, gx, gy, q = _contacts(e, friction)
++    contacts = len(gx)
++    pairs = _basis(max_degree)
++    index = {pair: i for i, pair in enumerate(pairs)}
++    degree_count = len(pairs)
++    size = contacts * degree_count * points
++    dx = 2.0 * np.pi / points
++    phase = np.arange(points) * dx
++    temp = float(e["temperature"]) * factors[:, None] * (
++        1.0 + float(e["contrast"]) * np.cos(int(e["wavenumber"]) * phase)
++    )
++    derivative = _derivative(points)
++    mat = sparse.lil_matrix((size, size))
++
++    def sl(state, pair):
++        start = (state * degree_count + index[pair]) * points
++        return slice(start, start + points)
++
++    identity = sparse.eye(points, format="lil")
++    magnetic = float(e["magnetic"])
++    fx, fy = float(e["force_x"]), float(e["force_y"])
++    for s in range(contacts):
++        for p, n in pairs:
++            row = sl(s, (p, n))
++            for source in range(contacts):
++                if q[s, source]:
++                    mat[row, sl(source, (p, n))] += q[s, source] * identity
++            mat[row, sl(s, (p, n))] += (-p * gx[s] - n * gy[s]) * identity
++            if p:
++                mat[row, sl(s, (p - 1, n + 1))] += p * magnetic * identity
++            if n:
++                mat[row, sl(s, (p + 1, n - 1))] += -n * magnetic * identity
++            if p >= 2:
++                mat[row, sl(s, (p - 2, n))] += p * (p - 1) * gx[s] * sparse.diags(temp[s])
++            if n >= 2:
++                mat[row, sl(s, (p, n - 2))] += n * (n - 1) * gy[s] * sparse.diags(temp[s])
++            if p + n < max_degree:
++                mat[row, sl(s, (p + 1, n))] += -epsilon * derivative
++            if p:
++                mat[row, sl(s, (p - 1, n))] += epsilon * p * fx * identity
++            if n:
++                mat[row, sl(s, (p, n - 1))] += epsilon * n * fy * identity
++
++    # One zeroth-moment equation is redundant because probability is conserved.
++    anchor = (contacts - 1) * degree_count * points + points - 1
++    mat[anchor, :] = 0.0
++    for s in range(contacts):
++        mat[anchor, sl(s, (0, 0))] = dx
++    rhs = np.zeros(size)
++    rhs[anchor] = 1.0
++    solution = spsolve(mat.tocsc(), rhs)
++    if not np.isfinite(solution).all():
++        raise FloatingPointError("stationary moment solve failed")
++    result = {pair: np.empty((contacts, points)) for pair in pairs}
++    for s in range(contacts):
++        for pair in pairs:
++            result[pair][s] = solution[sl(s, pair)]
++    return phase, dx, temp, result
++
++
++def _one_mass_excess(e, friction, epsilon):
++    phase, dx, temp, moment = _stationary_moments(e, friction, epsilon)
++    _, gx, gy, _ = _contacts(e, friction)
++    if "detector_phase" in e:
++        weight = (1.0 + np.cos(phase - float(e["detector_phase"]))) / 2.0
++    else:
++        weight = np.ones_like(phase)
++    local = gx[:, None] * (moment[(2, 0)] / temp - moment[(0, 0)])
++    local += gy[:, None] * (moment[(0, 2)] / temp - moment[(0, 0)])
++    rate_coefficient = dx * np.sum(weight * np.sum(local, axis=0))
++    residence = dx * np.sum(weight * np.sum(moment[(0, 0)], axis=0))
++    return (rate_coefficient - _background_coefficient(e, friction) * residence) / epsilon ** 2
++
++
++@lru_cache(maxsize=4096)
++def _entropy_cached(args):
++    e = dict(zip(INPUT_FIELDS, args[:len(INPUT_FIELDS)]))
++    friction = args[len(INPUT_FIELDS)]
++    detector_phase, valve_cycle, drag_contrast = args[len(INPUT_FIELDS) + 1:]
++    if detector_phase is not None:
++        e["detector_phase"] = detector_phase
++    if valve_cycle is not None:
++        e["valve_cycle"] = valve_cycle
++        e["contact_drag_contrast"] = drag_contrast
++    # This stationary observable is even in epsilon=sqrt(m).  Extrapolating
++    # after background subtraction avoids ever interpreting its divergent terms.
++    epsilons = np.array((0.018, 0.030, 0.050))
++    finite_mass = np.array([_one_mass_excess(e, friction, eps) for eps in epsilons])
++    return float(np.polynomial.polynomial.polyfit(epsilons ** 2, finite_mass, 2)[0])
++
++
++def entropy_rate(*args):
++    return _entropy_cached(tuple(args))
++
++
++def coefficients(experiments, friction=1.0):
++    return np.asarray([
++        entropy_rate(*(e[key] for key in INPUT_FIELDS), float(friction),
++                     e.get("detector_phase"), e.get("valve_cycle"),
++                     e.get("contact_drag_contrast", 0.0))
++        for e in experiments
++    ], dtype=float)
++
+ 
+ class Model:
+-    def __init__(self):self.friction=None
+-    def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++    def __init__(self):
++        self.friction = None
++
++    def fit(self, records):
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        experiments = [record["input"] for record in records]
++        observed = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        if not np.isfinite(observed).all() or not np.isfinite(sigma).all() or np.any(sigma <= 0):
++            raise ValueError("calibration values and sigmas must be finite and positive")
++
++        def objective(friction):
++            residual = (coefficients(experiments, float(friction)) - observed) / sigma
++            return float(residual @ residual)
++
++        result = optimize.minimize_scalar(objective, bounds=(0.7, 1.6), method="bounded",
++                                          options={"xatol": 2e-5})
++        self.friction = float(result.x)
++        return self
++
++    def predict(self, experiments):
++        if self.friction is None:
++            raise RuntimeError("fit must be called before predict")
++        return coefficients(experiments, self.friction)

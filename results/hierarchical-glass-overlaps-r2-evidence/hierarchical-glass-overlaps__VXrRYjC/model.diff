@@ -1,0 +1,59 @@
+--- before/model.py
++++ after/model.py
+@@ -54,11 +54,54 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit the material scale from equilibrium mean-energy readings.
++
++        Throughout the calibration range both levels are in their
++        high-temperature phase, so the limiting disorder-averaged energy
++        density is ``-beta * width**2``.  The readings have known, possibly
++        unequal, standard deviations; minimizing their weighted squared
++        residuals gives the unconstrained estimate of ``width**2`` directly.
++        """
++        rows = list(records)
++        if not rows:
++            raise ValueError('Calibration records are required to fit width.')
++
++        beta = []
++        measured = []
++        sigma = []
++        for row in rows:
++            try:
++                b = float(row['input']['beta'])
++                y = float(row['value'])
++                s = float(row['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError('Malformed calibration record.') from exc
++            if (not math.isfinite(b) or not .2 <= b <= .6
++                    or not math.isfinite(y) or not math.isfinite(s) or s <= 0):
++                raise ValueError('Calibration records are outside the stated ranges.')
++            beta.append(b)
++            measured.append(y)
++            sigma.append(s)
++
++        beta = np.asarray(beta, dtype=float)
++        measured = np.asarray(measured, dtype=float)
++        sigma = np.asarray(sigma, dtype=float)
++        weights = 1.0 / np.square(sigma)
++        width_squared = -np.sum(weights * beta * measured) / np.sum(weights * beta * beta)
++        width_squared = float(np.clip(width_squared, WIDTH_INTERVAL[0] ** 2,
++                                      WIDTH_INTERVAL[1] ** 2))
++        self.width = math.sqrt(width_squared)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        result = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Outside the stated calibration inverse-temperature range.')
++            result.append(-beta * value * value)
++        return np.asarray(result, dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

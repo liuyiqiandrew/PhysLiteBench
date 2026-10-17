@@ -1,0 +1,13 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,9 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        # The calibration protocol is deliberately simple (zero field and no
++        # retained contact), so fitting all records together gives a stable
++        # weighted estimate of the one common unknown parameter.
++        self.friction = fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

@@ -1,0 +1,63 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,10 +1,12 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+ X_MODES, Y_MODES = 40, 56
++VISCOSITY_BOUNDS = (0.006, 0.018)
+ 
+ 
+ def derivative_overlap(target, source):
+@@ -61,9 +63,46 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate the shared viscosity by weighted least squares.
++
++        Each calibration measurement is an independent Gaussian observation,
++        so its known standard deviation supplies the natural residual weight.
++        The only unknown model parameter is viscosity; all experiment settings
++        are supplied exactly in each record.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(sigmas)) or np.any(sigmas <= 0)):
++            raise ValueError("calibration values must be finite and sigmas positive")
++
++        lower, upper = VISCOSITY_BOUNDS
++
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - values) / sigmas
++            return float(residual @ residual)
++
++        result = minimize_scalar(
++            objective,
++            bounds=(lower, upper),
++            method='bounded',
++            options={'xatol': 1e-12, 'maxiter': 200},
++        )
++        # Bounded minimization does not evaluate the endpoints, which are
++        # valid viscosity values in the documented parameter interval.
++        candidates = (lower, float(result.x), upper)
++        self.viscosity = min(candidates, key=objective)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit the model before requesting predictions")
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:

@@ -1,0 +1,62 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,16 +71,26 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At the next even order the contact populations are not, in general,
++    # equal at a fixed position.  The n=0 forward equation is
++    #
++    #       q rho_2 = d_x M_{1,x}^{(1)}.
++    #
++    # In particular, q must be used as a forward generator here.  This is
++    # important for a directed three-contact cycle; its stationary weights
++    # being equal is not enough to set rho_2 to zero.
++    rhs=first[(1,0)]@d.T
++    bordered=np.zeros((count+1,count+1));bordered[:count,:count]=q
++    bordered[:count,count]=1.
++    bordered[count,:count]=1.
++    density_state=np.linalg.solve(bordered,np.vstack((rhs,np.zeros(points))))[:count]
++    density_correction={(0,0):density_state}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+ 
+ @lru_cache(4096)
+ def entropy_rate(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate,friction,detector_phase=None,valve_cycle=None,contact_drag_contrast=0.):
+-    if bath_contrast==0. and magnetic==0. and valve_cycle is None and friction!=1.:
+-        return entropy_rate(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate,1.,detector_phase)/friction
+     e=dict(zip(INPUT_FIELDS,(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate)))
+     if valve_cycle is not None:e.update(valve_cycle=valve_cycle,contact_drag_contrast=contact_drag_contrast)
+     state=limiting_state(e,friction)
+@@ -93,5 +103,27 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        inputs=[r['input'] for r in records]
++        observed=np.asarray([r['value'] for r in records],float)
++        sigma=np.asarray([r.get('sigma',1.) for r in records],float)
++
++        # The calibration is one-dimensional.  A bounded scalar search is
++        # deliberately used instead of fitting any of the apparatus
++        # parameters: the common friction is the only unknown.
++        def objective(f):
++            residual=(coefficients(inputs,float(f))-observed)/sigma
++            return float(residual@residual)
++        lo,hi=.7,1.6
++        # Golden-section minimization is sufficient here and avoids making
++        # scipy part of the prediction interface.
++        phi=(1+np.sqrt(5.))/2
++        x1=hi-(hi-lo)/phi;x2=lo+(hi-lo)/phi
++        y1=objective(x1);y2=objective(x2)
++        for _ in range(36):
++            if y1>y2:
++                lo=x1;x1=x2;y1=y2;x2=lo+(hi-lo)/phi;y2=objective(x2)
++            else:
++                hi=x2;x2=x1;y2=y1;x1=hi-(hi-lo)/phi;y1=objective(x1)
++        self.friction=float((lo+hi)/2)
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

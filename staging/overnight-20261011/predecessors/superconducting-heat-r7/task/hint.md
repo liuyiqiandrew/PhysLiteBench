@@ -1,0 +1,1 @@
+Resolve the joint oscillator transitions before summing over unobserved oscillator states. Electronic particle-hole interference uses anomalous displacement covariances, which need not follow the parity of the total energy exchanged when two commensurate modes are present. Recompute stationary spin populations for each phase preparation.

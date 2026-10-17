@@ -1,0 +1,84 @@
+"""Response functions for the ballistic hard-rod current experiment."""
+
+import math
+
+import numpy as np
+from scipy.optimize import brentq
+
+
+def _log_cosh(x):
+    """A log(cosh(x)) which remains well behaved for large ``x``."""
+    x = abs(x)
+    return x + math.log1p(math.exp(-2.0 * x)) - math.log(2.0)
+
+
+def response(e):
+    """Return the response per unit rod speed for one experiment.
+
+    In free-length coordinates the particle density is ``c`` below.  For a
+    current fluctuation parametrised by ``s``, a block of net-crossed rods
+    has to supply its total length.  Optimising over its two possible rod
+    lengths *with its binomial probability cost included* gives
+
+        theta = s + c*l*sinh(s) - log(cosh(c*l*contrast*sinh(s))).
+
+    The last term lets a high-current fluctuation favour an unusually short
+    crossed block.  It vanishes for equal rods.
+    """
+    rho = float(e['density'])
+    length = float(e['length'])
+    contrast = float(e['contrast'])
+    statistic = e['statistic']
+
+    if statistic == 'mean':
+        return 0.0
+
+    free_fraction = 1.0 - rho * length
+    c = rho / free_fraction
+    if statistic == 'variance':
+        # Composition fluctuations first enter beyond the quadratic term.
+        return rho * free_fraction
+
+    theta = abs(float(e['counting_field']))
+    if theta == 0.0:
+        return 0.0
+    half_separation = length * contrast
+
+    def equation(s):
+        a = c * math.sinh(s)
+        return s + length * a - _log_cosh(half_separation * a) - theta
+
+    # The physical root is unique and non-negative.  An expanding bracket
+    # keeps this stable at the edge of the advertised input range.
+    upper = max(1.0, theta)
+    while equation(upper) < 0.0:
+        upper *= 2.0
+    s = brentq(equation, 0.0, upper, xtol=1e-13)
+    return c * (math.cosh(s) - 1.0)
+
+
+def predict_at(experiments, speed):
+    return float(speed) * np.asarray([response(e) for e in experiments], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.speed = None
+
+    def fit(self, records):
+        """Fit the shared speed by the Gaussian weighted least-squares MLE."""
+        unit_response = np.asarray([response(record['input']) for record in records])
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
+        weights = 1.0 / np.square(sigmas)
+        denominator = np.sum(weights * np.square(unit_response))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError('calibration records contain no informative response')
+        estimate = np.sum(weights * unit_response * values) / denominator
+        self.speed = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        if self.speed is None:
+            raise ValueError('fit must be called before predict')
+        return predict_at(experiments, self.speed)

@@ -1,0 +1,69 @@
+--- before/model.py
++++ after/model.py
+@@ -125,6 +125,64 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Infer the common drag from the calibration records.')
++        """Estimate the (common) laboratory drag from calibration records.
+ 
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        For the calibration protocol the collision rate is constant, the
++        motor has zero mean flow, and the stationary mean heat is linear in
++        ``temperature_a - temperature_b``.  Writing its slope as ``c`` gives
++
++            c = gamma * lam * RATE / (2*gamma*lam + RATE*(gamma + lam)).
++
++        The records contain repeated measurements with known, equal (but not
++        necessarily assumed equal by callers) Gaussian uncertainties, so the
++        slope is obtained by weighted least squares through the origin and
++        then inverted analytically.
++        """
++        if not records:
++            raise ValueError('records must contain at least one calibration record')
++
++        # Keep the calibration assumptions explicit.  They are part of the
++        # documented data contract and checking them here makes a malformed
++        # calibration fail clearly instead of producing a plausible drag.
++        first = records[0]['input']
++        lam = float(first['relaxation_rate'])
++        if lam <= 0:
++            raise ValueError('relaxation_rate must be positive')
++
++        contrasts = []
++        values = []
++        weights = []
++        for record in records:
++            inp = record['input']
++            if (float(inp['angular_speed']) != 0.0 or
++                    float(inp['flux_fraction']) != 0.0 or
++                    float(inp['relaxation_rate']) != lam):
++                raise ValueError('records do not match the documented calibration protocol')
++            sigma = float(record['sigma'])
++            if not np.isfinite(sigma) or sigma <= 0:
++                raise ValueError('record sigma must be positive and finite')
++            contrasts.append(float(inp['temperature_a']) - float(inp['temperature_b']))
++            values.append(float(record['value']))
++            weights.append(1.0 / sigma**2)
++
++        contrasts = np.asarray(contrasts, dtype=float)
++        values = np.asarray(values, dtype=float)
++        weights = np.asarray(weights, dtype=float)
++        denominator = float(np.sum(weights * contrasts**2))
++        if denominator == 0.0:
++            raise ValueError('calibration records contain no temperature contrast')
++        conductance = float(np.sum(weights * contrasts * values) / denominator)
++
++        denominator = lam * RATE - conductance * (2.0 * lam + RATE)
++        if denominator == 0.0:
++            raise ValueError('calibration data do not identify a finite drag')
++        drag = conductance * lam * RATE / denominator
++        # The apparatus specification supplies the admissible interval.  The
++        # clipping also makes the fit robust to the stated measurement noise.
++        self.drag = float(np.clip(drag, 0.4, 1.1))
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise RuntimeError('fit must be called before predict')
++        return predict_at(experiments,self.drag)

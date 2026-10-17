@@ -1,0 +1,62 @@
+--- starter/model.py
++++ submission/model.py
+@@ -207,6 +207,58 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        """Fit the common laboratory drag from the calibration records.
++
++        For the calibration preparation the collision clock is constant and
++        the flow target is zero.  The stationary mean therefore has the
++        closed form
++
++            mean = C(drag) * (temperature_a - temperature_b),
++
++        where ``C`` is ``calibration_mean`` with the temperature difference
++        removed.  The supplied uncertainties are independent Gaussian
++        standard deviations, so the weighted least-squares estimate of C is
++        the slope through the origin.  Inverting that monotone relation gives
++        the drag.  Keeping this fit separate from the high-order moment
++        approximation is important: the calibration is deliberately exact
++        and is also the only unknown parameter in the model.
++        """
++        if not records:
++            raise ValueError('records must contain at least one calibration record')
++
++        first = records[0]['input']
++        lam = float(first['relaxation_rate'])
++        if lam <= 0:
++            raise ValueError('relaxation_rate must be positive')
++
++        x = []
++        y = []
++        for record in records:
++            inp = record['input']
++            if float(inp['angular_speed']) != 0.0 or float(inp['flux_fraction']) != 0.0:
++                raise ValueError('fit expects the documented calibration records')
++            if float(inp['relaxation_rate']) != lam:
++                raise ValueError('all calibration records must share relaxation_rate')
++            sigma = float(record['sigma'])
++            if not np.isfinite(sigma) or sigma <= 0:
++                raise ValueError('record sigma must be positive and finite')
++            delta = float(inp['temperature_a']) - float(inp['temperature_b'])
++            x.append(delta / sigma)
++            y.append(float(record['value']) / sigma)
++
++        x = np.asarray(x, dtype=float)
++        y = np.asarray(y, dtype=float)
++        denominator = float(x @ x)
++        if denominator == 0.0:
++            raise ValueError('calibration records must vary temperature_a-temperature_b')
++        conductance = float((x @ y) / denominator)
++        denominator = lam * RATE - conductance * (2.0 * lam + RATE)
++        if denominator == 0.0:
++            raise ValueError('calibration data imply a singular drag estimate')
++        self.drag = float(np.clip(
++            conductance * lam * RATE / denominator,
++            0.4, 1.1,
++        ))
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

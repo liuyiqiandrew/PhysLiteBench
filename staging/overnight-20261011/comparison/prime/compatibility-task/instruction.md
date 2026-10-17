@@ -1,0 +1,1 @@
+Use your shell tool to run Python and calculate 2 + 2. Then use apply_patch to create /app/answer.txt containing the result, followed by a newline. Finally read the file using the shell tool and report it.

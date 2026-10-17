@@ -1,0 +1,57 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -61,13 +62,44 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Fit the (common) dynamic viscosity by weighted least squares.
++
++        The calibration uncertainty is supplied per reading, so fitting the
++        unweighted velocities would give the wrong relative importance when a
++        calibration set contains several precision levels.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        measured = np.asarray([record['value'] for record in records], dtype=float)
++        uncertainty = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(measured).all() or not np.isfinite(uncertainty).all()
++                or np.any(uncertainty <= 0)):
++            raise ValueError("calibration values must be finite and sigma must be positive")
++
++        def objective(viscosity):
++            # predict uses self.viscosity, while the optimizer supplies trial
++            # values.  Assigning it here avoids duplicating the forward model.
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - measured) / uncertainty
++            return float(residual @ residual)
++
++        result = minimize_scalar(
++            objective, bounds=(0.006, 0.018), method='bounded',
++            options={'xatol': 1.e-10},
++        )
++        self.viscosity = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:
+-            bx, by = e['magnetic_x'], e['magnetic_y']
++            bx, by = float(e['magnetic_x']), float(e['magnetic_y'])
+             observation = mean if e['observable'] == 'mean' else 2*np.sin(m*np.pi*e['x'])*np.sin(n*np.pi*e['y'])
+             value = 0.
+             for ids, rates, vectors, forcing in spectrum(self.viscosity, bx, by):

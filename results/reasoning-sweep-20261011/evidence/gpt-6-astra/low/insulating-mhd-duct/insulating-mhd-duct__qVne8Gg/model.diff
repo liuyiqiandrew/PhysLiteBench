@@ -1,0 +1,86 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,16 @@
++"""Sine-Galerkin solution of transient, inductionless duct flow.
++
++Insulation makes the transverse-current stream function constant on the
++boundary (chosen as zero). Eliminating it gives magnetic dissipation
++sigma * (B dot grad).T * (-Laplacian)^{-1} * (B dot grad).
++Central inversion symmetry permits retaining only m+n even velocity modes;
++an oblique field still couples the odd-odd and even-even sectors.
++"""
++
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -35,20 +45,29 @@
+         k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+         qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+ 
+-    return m, n, wave2, mean, qx, qy
++    # The transverse current has a stream function that vanishes on the
++    # insulating boundary.  With L = -Laplacian and D = B dot grad,
++    # the positive magnetic drag operator is D.T L^{-1} D.
++    # In the mixed product only electric mode (m_j, n_i) contributes.
++    mixed = (derivative_overlap(m, m).T * derivative_overlap(n, n)
++             / (WIDTH * HEIGHT)
++             / ((m[None, :]*np.pi/WIDTH)**2
++                + (n[:, None]*np.pi/HEIGHT)**2))
++    qxy = mixed + mixed.T
++    return m, n, wave2, mean, qx, qy, qxy
+ 
+ 
+-@lru_cache(64)
++@lru_cache(16)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    m, n, wave2, mean, qx, qy, qxy = operators(nx, ny)
++    magnetic = bx*bx*qx+by*by*qy+bx*by*qxy
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,9 +80,30 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        records = list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required")
++        experiments = [r['input'] for r in records]
++        measured = np.array([r['value'] for r in records], dtype=float)
++        sigma = np.array([r['sigma'] for r in records], dtype=float)
++        if not np.all(np.isfinite(sigma) & (sigma > 0)):
++            raise ValueError("Measurement uncertainties must be finite and positive")
++
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - measured) / sigma
++            return float(residual @ residual)
++
++        optimum = minimize_scalar(objective, bounds=(.006, .018),
++                                  method='bounded', options={'xatol': 1e-10})
++        # A constrained optimum can also lie exactly at an endpoint.
++        candidates = [float(optimum.x), .006, .018]
++        self.viscosity = min(candidates, key=objective)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise ValueError("Fit the model before predicting")
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:

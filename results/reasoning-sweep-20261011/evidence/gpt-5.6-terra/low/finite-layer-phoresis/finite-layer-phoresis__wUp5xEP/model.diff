@@ -1,0 +1,56 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,52 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Estimate the (common) solvent viscosity from calibration records.
++
++        For fixed apparatus settings the hydrodynamic/solute calculation is a
++        response coefficient ``a`` and the measured velocity coefficient is
++        ``a / viscosity``.  Thus fitting inverse viscosity is a one-parameter
++        weighted linear least-squares problem.  This is also the Gaussian
++        maximum-likelihood estimate for the uncertainties supplied with the
++        calibration records.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        coefficients = []
++        observations = []
++        weights = []
++        for record in records:
++            try:
++                experiment = record['input']
++                value = float(record['value'])
++                sigma = float(record['sigma'])
++                args = tuple(float(experiment[name])
++                             for name in ('radius', 'width', 'strength', 'slip'))
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("invalid calibration record") from exc
++            if not (np.isfinite(value) and np.isfinite(sigma) and sigma > 0):
++                raise ValueError("calibration values and sigmas must be finite, with sigma > 0")
++            coefficients.append(response(*args))
++            observations.append(value)
++            weights.append(1.0 / sigma**2)
++
++        coefficients = np.asarray(coefficients)
++        observations = np.asarray(observations)
++        weights = np.asarray(weights)
++        denominator = np.sum(weights * coefficients**2)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError("calibration records contain no viscosity information")
++
++        inverse_viscosity = np.sum(weights * coefficients * observations) / denominator
++        # The stated physical domain is part of the model, so constrain the
++        # one-dimensional MLE to it (equivalently constrain inverse viscosity).
++        inverse_viscosity = np.clip(inverse_viscosity, 1.0 / 1.6, 1.0 / .8)
++        self.viscosity = float(1.0 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.viscosity)

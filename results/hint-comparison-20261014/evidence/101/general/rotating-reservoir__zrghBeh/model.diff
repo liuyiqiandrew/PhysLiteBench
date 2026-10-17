@@ -1,0 +1,111 @@
+--- starter/model.py
++++ submission/model.py
+@@ -169,34 +169,52 @@
+     constant=np.zeros(size);constant[0]=1.
+     return L,V,A1,A2,p,constant
+ 
+-def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
+-    L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+-    eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+-    w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
+-    def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+-    c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+-    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+-    return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
++def angular_hermite(e,gamma=.67,degree=34):
++    """Cumulants for the supplied rapidly-mixed detector-phase limit.
++
++    In that limit the detector phase is independent on the time scale on
++    which the velocity state evolves.  Thus ``w`` averages to one in the
++    drift/correlation operator and ``w**2`` averages to
++    ``1 + contrast**2 / 2`` in the quadratic (shared-Wiener) operator.  The
++    calculation below is the usual tilted-generator calculation with those
++    two averaged operators.  Keeping it in this form also makes the
++    contrast=0 result exactly the ungated calculation (up to truncation).
++    """
++    L,_,A1,A2,p,constant=hermite_operators(e,gamma,degree)
++    # Tilted-generator derivatives for exp(-k Y).  Only its second
++    # derivative changes under rapid phase mixing.
++    A2=(1.0 + e.get('detector_contrast',0.)**2/2.0)*A2
++    lam1=float(p@A1@constant)
++    system=L.copy()
++    system[0]=p
++
++    rhs=lam1*constant-A1@constant
++    rhs[0]=0.
++    r1=solve(system,rhs,check_finite=False)
++    lam2=float(p@(A2@constant+2*A1@r1))
++
++    rhs=lam2*constant+2*lam1*r1-2*A1@r1-A2@constant
++    rhs[0]=0.
++    r2=solve(system,rhs,check_finite=False)
++    lam3=float(3*p@(A1@r2+A2@r1))
++    return dict(mean=-lam1,noise=lam2,third_cumulant=-lam3)
+ 
+ 
+ @lru_cache(512)
+-def angular_readouts(temperature_a,temperature_b,relaxation_rate,flux_fraction,contrast,harmonic,drag):
++def angular_readouts(flip_rate,temperature_a,temperature_b,relaxation_rate,flux_fraction,contrast,harmonic,drag):
+     e=dict(temperature_a=temperature_a,temperature_b=temperature_b,relaxation_rate=relaxation_rate,
+-           flux_fraction=flux_fraction,angular_speed=0.,detector_contrast=contrast,detector_harmonic=harmonic)
+-    return angular_hermite(e,drag)
++           flux_fraction=flux_fraction,angular_speed=0.,flip_rate=flip_rate,
++           detector_contrast=contrast,detector_harmonic=harmonic)
++    # With only the constant collision clock this is a linear Gaussian jump
++    # process, and degree six is already exact through the third cumulant.
++    return angular_hermite(e,drag,degree=6 if flux_fraction == 0. else 34)
+ 
+ def predict_at(experiments,drag):
+     result=[]
+     for e in experiments:
+         if e.get('detector_contrast',0.)!=0.:
+             if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
+-            values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
++            values=angular_readouts(float(e['flip_rate']),float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
+                 float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+             result.append(values[e.get('statistic','mean')])
+         else:result.append(readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)))
+@@ -207,6 +225,34 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        """Fit the common drag by the Gaussian weighted calibration MLE."""
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        # For the calibration preparation the exact stationary heat current
++        # is C(Ta-Tb); estimating C is consequently a one-parameter weighted
++        # linear regression.  Inverting its analytic relation to drag is
++        # both more accurate and much faster than fitting a truncated basis.
++        lam=float(records[0]['input']['relaxation_rate'])
++        if lam <= 0 or any(float(r['input']['relaxation_rate']) != lam for r in records):
++            raise ValueError('calibration records must share a positive relaxation_rate')
++        x=np.asarray([(float(r['input']['temperature_a'])-float(r['input']['temperature_b'])) / float(r['sigma'])
++                      for r in records])
++        y=np.asarray([float(r['value']) / float(r['sigma']) for r in records])
++        denom=float(x@x)
++        if denom == 0:
++            raise ValueError('calibration temperatures do not identify drag')
++        conductance=float(x@y/denom)
++        inverse_denom=lam*RATE-conductance*(2*lam+RATE)
++        if inverse_denom <= 0:
++            # The specified experiment range cannot produce this for a
++            # physical calibration.  Clipping remains preferable to exposing
++            # an unusable model when records have been rounded aggressively.
++            self.drag=1.1
++        else:
++            self.drag=float(np.clip(conductance*lam*RATE/inverse_denom,.4,1.1))
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise RuntimeError('fit must be called before predict')
++        return predict_at(experiments,self.drag)

@@ -1,0 +1,126 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,7 +3,7 @@
+ import numpy as np
+ from numpy.polynomial.hermite import hermgauss
+ from numpy.polynomial.laguerre import laggauss
+-from scipy.linalg import solve
++from scipy.linalg import solve, lu_factor, lu_solve
+ 
+ RATE=3.6
+ 
+@@ -112,11 +112,11 @@
+     return result
+ 
+ 
+-def kinetic_statistics(e,drag,degree=34,variance=None):
++def kinetic_statistics(e,drag,degree=34,variance=None,noise=True):
+     variance=max(e['temperature_a'],e['temperature_b']) if variance is None else float(variance)
+     if e['flux_fraction']==0.:
+-        return hermite(e,drag,degree=6,variance=variance,total_degree=True,noise=True)
+-    return hermite(e,drag,degree=degree,variance=variance,noise=True)
++        return hermite(e,drag,degree=6,variance=variance,total_degree=True,noise=noise)
++    return hermite(e,drag,degree=degree,variance=variance,noise=noise)
+ 
+ 
+ @lru_cache(4096)
+@@ -125,7 +125,7 @@
+     if statistic not in ['mean','noise','third_cumulant']:raise ValueError('unknown calorimeter statistic')
+     if statistic=='mean' and flux_fraction==0. and angular_speed==0.:
+         return float(calibration_mean(e,drag))
+-    return kinetic_statistics(e,drag)[statistic]
++    return kinetic_statistics(e,drag,noise=statistic!='mean')[statistic]
+ 
+ 
+ RATE=3.6
+@@ -170,19 +170,50 @@
+     return L,V,A1,A2,p,constant
+ 
+ def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
++    """Cumulant rates of the angle-weighted heat from Fourier tilted generators.
++
++    A1 and A2 are the first two derivatives of the generator tilted by
++    exp(-k Y).  The first three cumulants need only the zero and first
++    angular harmonics of the response.  Negative harmonics are conjugates.
++    """
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+-    eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+-    w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
+-    def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+-    c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+-    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+-    return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
++    eps=float(e.get('detector_contrast',0.))
++    harmonic=int(e.get('detector_harmonic',1))
++    w={0:1.,-1:eps/2,1:eps/2}
++    w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
++    a10=A1@constant
++    a20=A2@constant
++    lambda1=float(p@a10)
++
++    # The zero mode has a constant null vector; the stationary mean fixes
++    # the normalization of each response.  The first mode is invertible.
++    zero=L.copy()
++    zero[0]=p
++    zero_lu=lu_factor(zero,check_finite=False)
++    one=L.astype(complex)+1j*harmonic*V
++    if phase_mixing_rate:
++        one-=phase_mixing_rate*harmonic**2*np.eye(len(p))
++    one_lu=lu_factor(one,check_finite=False)
++
++    def solve_zero(rhs):
++        rhs=np.asarray(rhs,dtype=float).copy()
++        rhs[0]=0.
++        return lu_solve(zero_lu,rhs,check_finite=False)
++
++    r10=solve_zero(lambda1*constant-a10)
++    r11=lu_solve(one_lu,-w[1]*a10,check_finite=False)
++    a1r10=A1@r10
++    a1r11=A1@r11
++    lambda2=float(np.real(p@(w2[0]*a20+2*(a1r10+2*w[1]*a1r11.real))))
++
++    r20=solve_zero(lambda2*constant+2*lambda1*r10
++                   -2*(a1r10+2*w[1]*a1r11.real)-w2[0]*a20)
++    r21=lu_solve(one_lu,2*lambda1*r11
++                 -2*(a1r11+w[1]*a1r10)-w2[1]*a20,
++                 check_finite=False)
++    lambda3=float(np.real(3*p@(A1@r20+2*w[1]*(A1@r21).real
++                                +w2[0]*(A2@r10)+2*w2[1]*(A2@r11).real)))
++    return dict(mean=-lambda1,noise=lambda2,third_cumulant=-lambda3)
+ 
+ 
+ @lru_cache(512)
+@@ -196,9 +227,15 @@
+     for e in experiments:
+         if e.get('detector_contrast',0.)!=0.:
+             if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
+-            values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
+-                float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+-            result.append(values[e.get('statistic','mean')])
++            statistic=e.get('statistic','mean')
++            if statistic=='mean':
++                # Uniform initial angle stays uniform and independent of the
++                # autonomous velocity process in the stationary ensemble.
++                result.append(readout(*(float(e[f]) for f in FIELDS),'mean',float(drag)))
++            else:
++                values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
++                    float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
++                result.append(values[statistic])
+         else:result.append(readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)))
+     return np.array(result)
+ 
+@@ -207,6 +244,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

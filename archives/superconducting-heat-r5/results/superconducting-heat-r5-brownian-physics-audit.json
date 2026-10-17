@@ -1,0 +1,79 @@
+{
+  "task": "superconducting-heat",
+  "revision_proposed": 5,
+  "reviewer": "brownian_physics_review",
+  "scope": "Independent read-only physics audit of proposal sources; no task mutations, paid jobs or resampling.",
+  "issues": [],
+  "proposal_physics_approved": true,
+  "direct_matrix_exponential": {
+    "fock_states": 100,
+    "sideband_count": 24,
+    "probability_error": 6.106226635438361e-16,
+    "parity_error": 5.551115123125783e-17,
+    "sum_mean_variance_dephasing_error": 7.077671781985373e-16,
+    "detailed_balance_error": 4.163336342344337e-17,
+    "minimum_probability": 0.0
+  },
+  "singlet_spin_branch_check": {
+    "random_cases": 128,
+    "max_error": 8.326672684688674e-17,
+    "channel_rule": "Static transfer equal-spin; static creation opposite-spin; driven transfer (-n,n); driven creation (n,n), including n=-1 when oscillator absorption opens it."
+  },
+  "independent_closed_anchors": {
+    "static_phase_cosine_error": 1.2212453270876722e-15,
+    "static_zero_spin_error": 0.0,
+    "common_temperature_normal_equilibrium_error": 5.513501158053945e-16,
+    "literal_signed_energy_phase_space_error": 3.552713678800501e-15,
+    "normal_scalar_spin_error": 6.106226635438361e-15
+  },
+  "phase_re_equilibration": {
+    "input": [
+      0.6,
+      0.8,
+      0.0,
+      1.0,
+      11.0,
+      0.7,
+      24.0
+    ],
+    "first_mu": [
+      2.7626542849422324,
+      3.6635360152883525
+    ],
+    "opposite_mu": [
+      3.0735216626160136,
+      3.8300029077526823
+    ],
+    "correct_contrast_pW": 0.779524902194467,
+    "frozen_opposite_spin_contrast_pW": 1.1460866066844062,
+    "omission_difference_pW": 0.3665617044899392,
+    "multiple_initial_root_error": 4.440892098500626e-16
+  },
+  "derivation": {
+    "displacement": "D=exp(i*sqrt(rho)*(b+b\u2020)); oscillator number parity Pi sends D to D\u2020. Thus <m+ell|D\u2020|m>=(\u22121)^ell<m+ell|D|m>, giving conditional cross covariance (\u22121)^ell*Pell. Thermal reversal weights are P\u2212ell=exp(\u2212ell*w0/Tph)*Pell.",
+    "reverse_and_pair_channels": "Define delta=n*w\u2212ell*w0. Transfer ER=EL+delta; creation EL+ER=delta>gapL+gapR. Negative ell opens static opposite-spin and n=\u22121 down/down creation. Hermitian reverse annihilation is included once through net occupations with P\u2212ell, rather than counted as a separate positive-energy creation channel.",
+    "spin_uniqueness": "Each transfer contributes columns (\u2212AL,sL*sR*AL) and (sL*sR*AR,\u2212AR); each creation changes off-diagonal signs but keeps negative diagonal and equal magnitude. AL,AR>=0 for both forward/reverse weights. Positive finite-temperature local relaxation adds strictly negative diagonals. The integrated Jacobian between two candidate roots is strictly column diagonally dominant, hence nonsingular, proving uniqueness. At large polarization the normal-state linear part plus relaxation is positive definite; bounded recoil moments and finite gaps give sublinear corrections, establishing existence/coercivity.",
+    "many_weak_cells": "For N independent noninterfering contact cells take conductance per cell G/N and bath linewidth/restoring rate proportional to N^(\u22121/2). Then tunnel/bath rate ratio\u21920 and linewidth/oscillator frequency\u21920, while total G stays fixed. Backaction and any dissipative coherent-pair terms vanish; static phase-controlled coherent Josephson current supplies no dc power. This ordering must be public, not an instantaneous reset of one cell carrying full G.",
+    "factorized_source": "Conditional covariance matrix Pell*[[1,DW],[DW,1]] is positive semidefinite, retains detailed balance and correct oscillator probabilities, but drops charge-displacement/energy correlation. It is a coherent complete approximation, exact at rho0 and in the normal state, not an omitted channel or negative-rate model.",
+    "phase_protocol": "Stationary spin populations must be solved separately at phi and phi+pi; holding the first populations in the second device changes the observable. Proposal code uses two independent stationary solves.",
+    "conservation": "Each transfer or creation satisfies QL+QR+n*w\u2212ell*w0=0. Every driven event injects total spin2n; static creation injects zero total spin, so stationary gate work equals kB*w*(IL+IR)/2. Forward-minus-reverse times log-forward-over-reverse is nonnegative. Adding local flip entropy and spin balance leaves \u2212QL/TL\u2212QR/TR+Qenv/Tph."
+  },
+  "limitations": [
+    "This approves the proposal physics, not a paid-model difficulty claim. Final actual task/public/source/reference/calibration consistency still requires a frozen-source review.",
+    "Sharp oscillator lines and equilibrium populations require the stated many-weak-cell ordering. A single oscillator carrying all conductance with zero linewidth would not justify this equilibrium bath approximation.",
+    "The reference uses independent Fock and 2x2 spin matrices but the same positive-energy integration changes as the prototype; direct exponentiation, closed signed-energy and thermodynamic anchors provide additional independent checks.",
+    "Production reference must be self-contained instead of importing immutable r4 prototype dependencies; phase-contrast groups must use nonzero RMS signals and individually re-equilibrated devices."
+  ],
+  "sources": {
+    "superconducting-heat/phase-oscillator-prototype/README.md": "46ecf1ed93ff351a51bedb1b543d9bec49f5669c3005f2b1e0ca4ea89785e201",
+    "superconducting-heat/phase-oscillator-prototype/prototype.py": "92a9113419cf3e826d243cf2980fde1c0634ef40142421e8f3236d7ae0a65b73",
+    "superconducting-heat/phase-oscillator-prototype/reference.py": "53c83057804b860d303f7889b0c215c1171f8e17222b0fbd77ac6a6e80347568",
+    "superconducting-heat/phase-oscillator-prototype/screen.py": "67d6160bcc7c91e0ae6bff445b8bb383c1d45fc788cd83a0a0317697c6b09389"
+  },
+  "primary_sources": [
+    "https://web.physics.ucsb.edu/~martinisgroup/papers/Martinis2009supp.pdf",
+    "https://arxiv.org/pdf/cond-mat/0508728",
+    "https://arxiv.org/pdf/1211.4745"
+  ],
+  "seconds": 1.8378696669824421
+}

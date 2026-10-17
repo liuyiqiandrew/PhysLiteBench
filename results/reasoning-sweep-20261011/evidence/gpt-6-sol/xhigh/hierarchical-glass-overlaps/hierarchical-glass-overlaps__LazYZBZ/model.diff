@@ -1,0 +1,85 @@
+--- starter/model.py
++++ submission/model.py
+@@ -20,25 +20,38 @@
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def leaf_partition(parent_alpha, leaf_alpha, blocks):
++    """Probability of one labelled leaf partition with a common parent.
++
++    The leaf weights within a sampled parent have a PD(leaf_alpha,
++    -parent_alpha) law.  Multiplying its sampling formula by the
++    probability of a common parent cancels the parent denominators.
++    """
+     n = sum(blocks)
+-    k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0/math.factorial(n-1)
++    for j in range(1, len(blocks)):
++        result *= j*leaf_alpha-parent_alpha
+     for size in blocks:
+-        for j in range(1,size):
+-            result *= j-alpha
++        for j in range(1, size):
++            result *= j-leaf_alpha
+     return result
+ 
+ 
+ def coincidence(beta, replicas, observable, width, blocks=None):
+     q = level_parameter(beta,width,0)
+     alpha = level_parameter(beta,width,1)
+-    parent = participation(q,replicas)
+     if observable == 'parent_collision':
+-        return parent
++        return participation(q,replicas)
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        return participation(alpha,replicas)
++    return leaf_partition(q,alpha,blocks)
++
++
++def calibration_beta(row):
++    beta = float(row['input']['beta'])
++    if not math.isfinite(beta) or not .2 <= beta <= .6:
++        raise ValueError('Outside the stated calibration inverse-temperature range.')
++    return beta
+ 
+ 
+ class Model:
+@@ -54,11 +67,32 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        observations = []
++        for row in records:
++            beta = calibration_beta(row)
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if not math.isfinite(measured) or not math.isfinite(sigma) or sigma <= 0:
++                raise ValueError('Calibration values must be finite and sigma positive.')
++            observations.append((beta, measured, sigma))
++        if not observations:
++            raise ValueError('At least one calibration record is required to fit width.')
++
++        # In the calibration range both levels are unfrozen, so E/N=-beta*width^2.
++        # Gaussian maximum likelihood is weighted least squares in width^2.
++        sigma_scale = min(sigma for _, _, sigma in observations)
++        numerator = math.fsum(-beta*measured*(sigma_scale/sigma)**2
++                              for beta, measured, sigma in observations)
++        denominator = math.fsum(beta*beta*(sigma_scale/sigma)**2
++                                for beta, _, sigma in observations)
++        width_squared = min(max(numerator/denominator, WIDTH_INTERVAL[0]**2),
++                            WIDTH_INTERVAL[1]**2)
++        self.width = math.sqrt(width_squared)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        return np.asarray([-calibration_beta(row)*value*value for row in records],dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

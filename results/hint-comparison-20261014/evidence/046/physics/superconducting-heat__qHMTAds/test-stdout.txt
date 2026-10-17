@@ -1,0 +1,950 @@
+..EEEEEEEEEEE                                                            [100%]
+==================================== ERRORS ====================================
+__________________ ERROR at setup of test_private_calibration __________________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+__________________ ERROR at setup of test_parameter_recovery ___________________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+______________ ERROR at setup of test_prediction[ordered_static] _______________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+_____________ ERROR at setup of test_prediction[ordered_low_drive] _____________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+____________ ERROR at setup of test_prediction[ordered_pair_drive] _____________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+_________ ERROR at setup of test_prediction[gate_low_frequency_noise] __________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+___________ ERROR at setup of test_prediction[gate_pair_drive_noise] ___________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+_________ ERROR at setup of test_prediction[gate_no_oscillator_noise] __________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+_________ ERROR at setup of test_prediction[gate_low_frequency_third] __________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+___________ ERROR at setup of test_prediction[gate_pair_drive_third] ___________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+_________ ERROR at setup of test_prediction[gate_no_oscillator_third] __________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+        assert model.fit(records) is model
+        parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
+        y = model.predict([r['input'] for r in records])
+        assert isinstance(y, np.ndarray) and y.shape == (len(records),)
+        assert np.isfinite(y).all()
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+        result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
+                  'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
+                  'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+        for name, experiments in reference.hidden_inputs().items():
+            assert same_inputs(FROZEN[name]['inputs'], canonical(experiments))
+            truth = np.array(FROZEN[name]['truth'])
+>           actual = model.predict(experiments)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:49: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:252: in predict
+    return predict_at(experiments, self.conductance)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:726: in predict_at
+    values.append(gate_statistics(experiment, conductance)['noise'])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:698: in gate_statistics
+    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+e = {'amplitude': 0.8, 'drive_energy': 0.3, 'left_temperature': 0.5, 'momentum_coupling': 0.0, ...}
+conductance = 44.983532502254995, nodes = 192, count = 64
+
+    def _gate_events(e, conductance, nodes=192, count=64):
+        """Build conditional event rates and their first two state derivatives.
+    
+        The state coordinate here is the spin excess S in one macroscopic-size
+        copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
+        jump q, which is the convenient coordinate for the large-size tilted
+        generator.
+        """
+        args = oscillator_arguments(e)
+        kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
+                      quadratic_coupling=e.get('quadratic_coupling', 0.),
+                      momentum_coupling=e.get('momentum_coupling', 0.))
+        state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
+        left, right, phase, amplitude, drive = args[:5]
+        dl, dr, channels = prepare(*args, nodes=nodes, count=count,
+                                   window=state['search_bound'], **kwargs)
+        energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
+        pair = pair[:, 0].astype(bool)
+        sl, sr = sl[:, 0], sr[:, 0]
+        nchan, nquad = energy.shape
+        mu = state['mu']
+        f = expit((sl[:, None] * mu[0] - energy) / left)
+        g = expit((sr[:, None] * mu[1] - other) / right)
+        f1 = sl[:, None] * f * (1. - f) / left
+        g1 = sr[:, None] * g * (1. - g) / right
+        f2 = f * (1. - f) * (1. - 2. * f) / left**2
+        g2 = g * (1. - g) * (1. - 2. * g) / right**2
+    
+        # Forward and reverse occupation factors and their mu derivatives.
+        if np.any(pair):
+            forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
+            backward = np.where(pair[:, None], f * g, g * (1. - f))
+            forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
+            forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
+            backward_l = np.where(pair[:, None], f1 * g, -g * f1)
+            backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
+            forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
+            forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
+            forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+            backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
+            backward_rr = np.where(pair[:, None], f * g2, -f * g2)
+            backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
+        # The expressions above are written for both channel families at once;
+        # the pair mask selects the pair-creation or quasiparticle-transfer form.
+>       rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
+                                                    ^^^^^^^
+E       UnboundLocalError: cannot access local variable 'forward' where it is not associated with a value
+
+model.py:547: UnboundLocalError
+=========================== short test summary info ============================
+ERROR ../tests/test_hidden.py::test_private_calibration - UnboundLocalError: ...
+ERROR ../tests/test_hidden.py::test_parameter_recovery - UnboundLocalError: c...
+ERROR ../tests/test_hidden.py::test_prediction[ordered_static] - UnboundLocal...
+ERROR ../tests/test_hidden.py::test_prediction[ordered_low_drive] - UnboundLo...
+ERROR ../tests/test_hidden.py::test_prediction[ordered_pair_drive] - UnboundL...
+ERROR ../tests/test_hidden.py::test_prediction[gate_low_frequency_noise] - Un...
+ERROR ../tests/test_hidden.py::test_prediction[gate_pair_drive_noise] - Unbou...
+ERROR ../tests/test_hidden.py::test_prediction[gate_no_oscillator_noise] - Un...
+ERROR ../tests/test_hidden.py::test_prediction[gate_low_frequency_third] - Un...
+ERROR ../tests/test_hidden.py::test_prediction[gate_pair_drive_third] - Unbou...
+ERROR ../tests/test_hidden.py::test_prediction[gate_no_oscillator_third] - Un...
+2 passed, 11 errors in 12.89s

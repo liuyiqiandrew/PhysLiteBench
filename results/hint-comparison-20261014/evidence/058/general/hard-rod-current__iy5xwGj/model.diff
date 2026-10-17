@@ -1,0 +1,46 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,6 +3,15 @@
+ 
+ 
+ def response(e):
++    """Current cumulants per unit speed for the hard-rod preparation.
++
++    Mapping the ordered rods to point particles leaves a free length fraction
++    ``a = 1 - rho * length``.  The two possible rod lengths do not enter this
++    thermodynamic current observable separately: a current of order ``t``
++    samples their total length, whose extensive part is ``length`` times the
++    number of rods.  Fluctuations of the balanced length sequence are
++    subextensive.  Thus contrast is deliberately absent here.
++    """
+     rho, mean = e['density'], e['length']
+     if e['statistic'] == 'mean':
+         return 0.
+@@ -23,7 +32,26 @@
+         self.speed = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the common speed from calibration records.')
++        """Fit the shared speed by inverse-variance weighted least squares.
++
++        Every readout is linear in the common speed, so this has a closed
++        form and uses the supplied Gaussian standard deviations directly.
++        """
++        unit_response = np.asarray([response(record['input']) for record in records],
++                                   dtype=float)
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        weights = 1.0 / np.square(sigmas)
++        denominator = np.sum(weights * np.square(unit_response))
++        if not np.isfinite(denominator) or denominator <= 0.0:
++            raise ValueError('Calibration records contain no informative finite readout.')
++
++        speed = np.sum(weights * unit_response * values) / denominator
++        if not np.isfinite(speed):
++            raise ValueError('Calibration fit did not produce a finite speed.')
++        self.speed = float(speed)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.speed)

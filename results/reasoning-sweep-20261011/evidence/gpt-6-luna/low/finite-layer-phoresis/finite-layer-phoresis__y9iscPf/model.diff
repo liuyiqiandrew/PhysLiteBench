@@ -1,0 +1,44 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,40 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the common viscosity from independently measured responses.
++
++        For each preparation the response is ``a_i / viscosity``, where
++        ``a_i`` is fixed by its geometry and potential.  With independent
++        Gaussian measurement errors, the maximum-likelihood estimate is the
++        weighted least-squares fit of this one-parameter model.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        coefficients = np.asarray([
++            response(r['input']['radius'], r['input']['width'],
++                     r['input']['strength'], r['input']['slip'])
++            for r in records
++        ], dtype=float)
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if (not np.all(np.isfinite(coefficients)) or
++                not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(sigma)) or np.any(sigma <= 0)):
++            raise ValueError('Calibration values and uncertainties must be finite, with positive uncertainties.')
++
++        # Set q = 1 / viscosity.  The weighted linear fit through the origin
++        # has q = sum(w*a*y) / sum(w*a*a).
++        weights = 1.0 / sigma**2
++        denominator = np.sum(weights * coefficients**2)
++        if denominator <= 0:
++            raise ValueError('Calibration records do not identify viscosity.')
++        inverse_viscosity = np.sum(weights * coefficients * values) / denominator
++        if not np.isfinite(inverse_viscosity) or inverse_viscosity <= 0:
++            raise ValueError('Calibration records imply an invalid viscosity.')
++        self.viscosity = float(1.0 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

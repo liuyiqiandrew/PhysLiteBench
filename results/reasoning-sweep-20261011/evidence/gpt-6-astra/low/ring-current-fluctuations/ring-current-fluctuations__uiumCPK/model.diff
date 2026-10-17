@@ -1,0 +1,108 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,97 @@
+-"""Current SCGF model and calibration interface."""
++"""Large-ring current SCGF for the half-filled weakly asymmetric ring.
++
++Time is microscopic: changing D multiplies the entire SCGF.  In units D=1,
++macroscopic diffusion is 1 and mobility is 2*rho*(1-rho).
++"""
++from functools import lru_cache
++
+ import numpy as np
++from scipy.optimize import minimize
++
++
++# At half filling the optimal low-current wave has zero velocity and obeys
++# rho(x+1/2)=1-rho(x). Write 2*rho-1=sin(theta), with theta an odd-harmonic
++# cosine series. This enforces both the mass constraint and periodicity.
++_MODES = 24
++_GRID = 512
++_WAVE = 2 * np.pi * np.arange(1, 2 * _MODES, 2)
++_COS = np.cos(np.outer((np.arange(_GRID) + 0.5) / _GRID, _WAVE))
++
++
++@lru_cache(maxsize=4096)
++def _unit_scgf(field, shifted_bias):
++    """SCGF at D=1; shifted_bias is abs(lambda+E)."""
++    e2, s2 = field * field, shifted_bias * shifted_bias
++    flat = (s2 - e2) / 4
++    if e2 - s2 <= 4 * np.pi**2:
++        return flat
++
++    # Eliminate the constant current from the stationary MFT action:
++    # psi = max_theta [s^2/<sec^2 theta> - E^2<cos^2 theta>
++    #                  - <theta_x^2>]/4.
++    # The uniform branch loses stability at E^2-s^2 = (2*pi)^2.
++    def objective(coeff):
++        theta = np.einsum('ij,j->i', _COS, coeff)
++        excess = np.maximum(np.abs(theta) - (np.pi / 2 - 1e-9), 0)
++        if np.any(excess):
++            # Keep the density parametrization within its principal branch.
++            value = 1e6 * (1 + np.dot(excess, excess))
++            grad = 2e6 * np.einsum('i,ij->j', excess * np.sign(theta), _COS)
++            return value, grad
++        sec2 = 1 / np.cos(theta)**2
++        a = np.mean(sec2)
++        b = np.mean(1 / sec2)
++        kinetic = np.dot(_WAVE**2, coeff**2) / 2
++        value = (e2 * b + kinetic - s2 / a) / 4
++        local_grad = -e2 * np.sin(2 * theta) + (2 * s2 / a**2) * sec2 * np.tan(theta)
++        grad = (np.einsum('i,ij->j', local_grad, _COS) / _GRID
++                + _WAVE**2 * coeff) / 4
++        return value, grad
++
++    initial = np.zeros(_MODES)
++    initial[0] = min(1.2, np.sqrt(2 * (e2 - s2 - 4*np.pi**2) / e2))
++    result = minimize(objective, initial, jac=True, method='L-BFGS-B',
++                      options={'ftol': 2e-14, 'gtol': 2e-8,
++                               'maxiter': 2000, 'maxls': 50, 'maxcor': 30})
++    return max(flat, -float(result.fun))
++
+ 
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    """Return raw asymptotic SCGFs in inverse microscopic time units."""
++    values = np.empty(len(experiments), dtype=float)
++    for i, experiment in enumerate(experiments):
++        field = float(experiment['field'])
++        bias = float(experiment['bias'])
++        if -bias * (bias + 2 * field) <= 4 * np.pi**2:
++            # This form also makes both fluctuation-theorem zeros exact.
++            values[i] = bias * (bias + 2 * field) / 4
++        else:
++            values[i] = _unit_scgf(field, abs(field + bias))
++    return float(diffusivity) * values
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Bounded Gaussian maximum-likelihood fit of the common clock rate."""
++        records = list(records)
++        if not records:
++            return self
++        basis = predict_at([r['input'] for r in records], 1.0)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        observed = np.asarray([r['value'] for r in records], dtype=float)
++        if np.any(~np.isfinite(sigma)) or np.any(sigma <= 0):
++            raise ValueError('Measurement standard deviations must be positive and finite.')
++        if np.any(~np.isfinite(observed)):
++            raise ValueError('Measurements must be finite.')
++        weighted_basis = basis / sigma
++        denominator = np.dot(weighted_basis, weighted_basis)
++        if denominator > 0:
++            estimate = np.dot(weighted_basis, observed / sigma) / denominator
++            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
++        return self
+ 
+-    def predict(self, experiments):
+-        return predict_at(experiments, self.diffusivity)
++    def predict(self, inputs):
++        return predict_at(inputs, self.diffusivity)

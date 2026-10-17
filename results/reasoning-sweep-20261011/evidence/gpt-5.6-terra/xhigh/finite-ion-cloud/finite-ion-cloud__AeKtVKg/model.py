@@ -1,0 +1,121 @@
+import numpy as np
+from scipy.integrate import quad
+from scipy.optimize import minimize_scalar
+from scipy.special import exprel, hyp2f1, roots_legendre
+from functools import lru_cache
+
+
+@lru_cache(maxsize=None)
+def coefficient(gamma,count,ratio):
+    if count == 3:
+        return three_ion_coefficient(gamma,ratio)
+    length = np.log(ratio)
+    if count == 1:
+        slope = 2-gamma
+        return -np.expm1(-2*length)*np.exp(slope*length)/(2*length*exprel(slope*length))
+    a,b = 4-3*gamma,2-gamma
+    def angular(gap):
+        return hyp2f1(-gamma/2,-gamma/2,1,np.exp(-2*gap))
+    partition = quad(lambda d: angular(d)*np.exp(b*d)*(length-d)*exprel(a*(length-d)),
+                     0,length,epsabs=1e-11,epsrel=1e-11)[0]
+    boundary = quad(lambda d: angular(d)*np.exp(b*d+a*(length-d)),
+                    0,length,epsabs=1e-11,epsrel=1e-11)[0]
+    return -np.expm1(-2*length)*boundary/(4*partition)
+
+
+def predict_at(experiments,coupling):
+    return np.asarray([coefficient(e['temperature_multiplier']*coupling,
+                                  e['ion_count'],e['radius_ratio']) for e in experiments])
+
+
+class Model:
+    def __init__(self):
+        self.coupling = None
+
+    def fit(self,records):
+        """Fit the common reference coupling by Gaussian maximum likelihood."""
+        records = list(records)
+        inputs = [record['input'] for record in records]
+        observed = np.asarray([record['value'] for record in records], dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
+
+        def chi_squared(gamma_ref):
+            residual = (predict_at(inputs, float(gamma_ref)) - observed) / sigma
+            return np.dot(residual, residual)
+
+        result = minimize_scalar(
+            chi_squared,
+            bounds=(0.7, 1.4),
+            method='bounded',
+            options={'xatol': 1.e-11},
+        )
+        self.coupling = float(result.x)
+        return self
+
+    def predict(self,experiments):
+        return predict_at(experiments,self.coupling)
+
+
+@lru_cache(maxsize=None)
+def nodes(order):
+    x,w = roots_legendre(order)
+    return (x+1)/2,w/2
+
+
+def three_ion_coefficient(gamma,ratio,order=32):
+    """Return the finite-cell coefficient for three ions.
+
+    Sorting the three logarithmic radii leaves two radial gaps and a common
+    radial coordinate.  The latter can be integrated analytically.  The
+    remaining angular average does *not* factor into three pair averages:
+    the three pair angles are correlated.  If c_n(d) is the nth Fourier
+    coefficient of ``|1 - exp(-d+i theta)|**gamma``, that average is
+
+        sum_n c_n(d1) c_n(d2) c_n(d1+d2).
+
+    The rapidly convergent, symmetric Fourier sum below evaluates it
+    directly.  Thirty-two radial and angular-mode nodes give substantially
+    better precision than is needed for the supplied noisy calibration, even
+    at the edges of the stated input domain.
+    """
+    length = np.log(ratio)
+    x,w = nodes(order)
+    d1 = np.broadcast_to((length*x)[:,None],(order,order)).ravel()
+    d2 = ((length-length*x)[:,None]*x[None,:]).ravel()
+    weights = (length*(length-length*x)[:,None]*w[:,None]*w[None,:]).ravel()
+
+    angular = three_ion_angular_average(gamma, d1, d2)
+    span = length-d1-d2
+    slope = 6-6*gamma
+    weight = weights*angular*np.exp((4-3*gamma)*d1+(2-gamma)*d2)
+    partition = np.dot(weight,span*exprel(slope*span))
+    boundary = np.dot(weight,np.exp(slope*span))
+    return -np.expm1(-2*length)*boundary/(6*partition)
+
+
+def three_ion_angular_average(gamma, lower_gap, upper_gap, modes=32):
+    """Angular Boltzmann factor after removing the overall rotation.
+
+    ``lower_gap`` and ``upper_gap`` may be arrays.  For a non-negative mode,
+    the Fourier coefficient of a single pair factor is
+
+    c_n(d) = (-p)_n/n! exp(-n d)
+             2F1(n-p, -p; n+1; exp(-2 d)),  p=gamma/2.
+    """
+    p = gamma / 2
+    gaps = (lower_gap, upper_gap, lower_gap + upper_gap)
+    q = tuple(np.exp(-gap) for gap in gaps)
+
+    coefficients = [hyp2f1(-p, -p, 1, value * value) for value in q]
+    angular = coefficients[0] * coefficients[1] * coefficients[2]
+
+    pochhammer_over_factorial = 1.0
+    for mode in range(1, modes + 1):
+        pochhammer_over_factorial *= (mode - 1 - p) / mode
+        coefficients = [
+            pochhammer_over_factorial * value**mode
+            * hyp2f1(mode - p, -p, mode + 1, value * value)
+            for value in q
+        ]
+        angular += 2 * coefficients[0] * coefficients[1] * coefficients[2]
+    return angular

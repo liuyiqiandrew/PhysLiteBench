@@ -1,0 +1,40 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,15 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At order m, transport changes the local contact populations:
++    # Q rho_2 = d_x j_1.  Only their sum is undetermined here.  Its
++    # contribution is exactly the matched background times residence,
++    # so choose the gauge sum_s rho_2,s = 0.
++    population_operator=q.copy()
++    population_source=first[1,0]@d.T
++    population_operator[-1]=1.
++    population_source[-1]=0.
++    density_correction={(0,0):np.linalg.solve(population_operator,population_source)}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +100,18 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        records=list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++        # For the documented calibration (identical baths, B=0), both
++        # mobility and anomalous heat scale as 1/friction, while the
++        # stationary position density is independent of friction.
++        reference=coefficients([r['input'] for r in records],1.)
++        sigma=np.asarray([r['sigma'] for r in records],dtype=float)
++        observed=np.asarray([r['value'] for r in records],dtype=float)
++        a=reference/sigma
++        b=observed/sigma
++        inverse_friction=np.clip(np.dot(a,b)/np.dot(a,a),1/1.6,1/.7)
++        self.friction=float(1/inverse_friction)
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

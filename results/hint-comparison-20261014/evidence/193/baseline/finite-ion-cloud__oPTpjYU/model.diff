@@ -1,0 +1,47 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,9 +33,43 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        """Fit the common reference coupling by Gaussian maximum likelihood.
++
++        The calibration observations have independent, known standard
++        deviations, so minimizing the sum of squared standardized residuals
++        is the likelihood fit.  ``disk_radius`` deliberately does not enter
++        the calculation: after scaling coordinates by the disk radius the
++        canonical partition function, and hence the osmotic coefficient,
++        depends only on ``R/a``.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record["input"] for record in records]
++        values = np.asarray([record["value"] for record in records],
++                            dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records],
++                           dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values must be finite and sigma positive")
++
++        def objective(g):
++            residual = (predict_at(experiments, float(g)) - values) / sigma
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(objective, bounds=(0.7, 1.4),
++                                 method="bounded",
++                                 options={"xatol": 1e-10})
++        if not result.success or not np.isfinite(result.fun):
++            raise RuntimeError("unable to fit electrostatic coupling")
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
++        if self.coupling is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments,self.coupling)
+ 
+ 

@@ -1,0 +1,220 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, root
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,10 +191,53 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one (linear) apparatus parameter by weighted least squares.
++
++        At the order retained in the model every predicted mean is proportional
++        to the normal-state conductance.  It is tempting to use an unweighted
++        average of ``value/prediction`` here; that is noticeably biased by the
++        very small low-temperature calibration signals, so use the reported
++        independent errors instead.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        inputs = [r['input'] for r in records]
++        observed = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values and sigmas must be finite, with sigma > 0")
++
++        # The supplied calibration is unmodulated and hence exactly linear in
++        # conductance.  Keeping the general one-dimensional fit is important
++        # nonetheless: driven records are allowed by the interface and their
++        # stationary spin potentials make their response nonlinear in G.
++        unit = np.asarray(predict_at(inputs, 1.0), dtype=float)
++        denominator = np.sum((unit / sigma) ** 2)
++        if not np.isfinite(denominator) or denominator == 0:
++            initial = 50.
++        else:
++            initial = float(np.clip(np.sum(unit * observed / sigma**2) / denominator,
++                                    20., 80.))
++
++        def residual(g):
++            return (np.asarray(predict_at(inputs, float(g[0])), dtype=float) - observed) / sigma
++
++        answer = least_squares(residual, [initial], bounds=([20.], [80.]),
++                               xtol=1.e-12, ftol=1.e-12, gtol=1.e-12)
++        if not answer.success or not np.isfinite(answer.x[0]):
++            raise RuntimeError("conductance calibration did not converge")
++        self.conductance = float(answer.x[0])
++        return self
+ 
+     def predict(self, experiments):
+-        return predict_at(experiments, self.conductance)
++        if self.conductance is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        result = np.asarray(predict_at(list(experiments), self.conductance), dtype=float)
++        if result.ndim != 1 or not np.isfinite(result).all():
++            raise RuntimeError("model prediction did not produce finite values")
++        return result
+ 
+ 
+ from scipy.special import gammaln, logsumexp
+@@ -421,6 +464,12 @@
+ FACTORIZED = False
+ 
+ def gate_statistics(e,conductance,nodes=192,count=64):
++    if e.get('amplitude', 0.) == 0.:
++        # No rotating Fourier component means every event has zero gate-work
++        # mark, independently of the oscillator and of spin fluctuations.
++        return dict(noise=0., shot=0., response=[0., 0.], mu=[0., 0.],
++                    heat_derivative=[0., 0.], spin_jacobian=[[0., 0.], [0., 0.]],
++                    flip_noise=[0., 0.], work_spin_identity_error=0.)
+     work_noise=True
+     args=oscillator_arguments(e);kwargs=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+     state=stationary(*args,conductance,nodes=nodes,count=count,**kwargs);mu=state['mu'];left,right=args[:2]
+@@ -451,32 +500,113 @@
+                      else mean_predict([e],conductance)[0] for e in experiments])
+ 
+ def gate_third(e,conductance,nodes=192,count=64):
+-    args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+-    state=stationary(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+-    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+-    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+-    f=expit((sl*mu[0]-energy)/tl);g=expit((sr*mu[1]-other)/tr)
+-    rp=measure*np.where(pair,pf*(1-f)*(1-g),pf*f*(1-g));rm=measure*np.where(pair,pb*f*g,pb*g*(1-f))
+-    
+-    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+-    flipdata=[]
+-    for j,(temp,delta,pol) in enumerate(zip([tl,tr],[dl,dr],mu)):
+-        x,w=leggauss(160);upper=delta+max(80*temp,6*abs(pol));ee=delta+(x+1)*(upper-delta)/2;mm=w*(upper-delta)/2*ratio/2
+-        u=expit((pol-ee)/temp);d=expit((-pol-ee)/temp);ap=mm*u*(1-d);am=mm*d*(1-u)
+-        flipdata.append((temp,u,d,mm,ap,am))
+-    # Differentiate the actual work-marked rates directly. This avoids
+-    # subtracting spin-loss Jacobians and is exactly zero for a static gate.
+-    df=f*(1-f)/tl;dg=g*(1-g)/tr
+-    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-g)+pb*g)
+-    dright=-sr*dg*np.where(pair,pf*(1-f)+pb*f,pf*f+pb*(1-f))
+-    hp=np.array([np.sum(measure*work[:,None]*dleft),np.sum(measure*work[:,None]*dright)])
+-    p1=-np.linalg.solve(state['jacobian'].T,hp)
+-    mark=work+injection@p1;mark=mark[:,None]
+-    bare=float(np.sum((rp-rm)*mark**3))
+-    for j,(temp,u,d,mm,ap,am) in enumerate(flipdata):
+-        ell=-2*p1[j];bare+=float(np.sum(ap-am))*ell**3
+-    scale=RATE_CONVERSION*conductance*KB**3*1e36
+-    return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
++    """Third gate-work cumulant from the macroscopic tilted generator.
++
++    Conditional Poisson shot noise alone is insufficient at third order:
++    changing the spin population changes all subsequent tunnelling rates.  In
++    the large-island limit the scaled cumulant generating function is the
++    stationary value of the jump-process Hamiltonian.  Solving its two saddle
++    equations at small counting fields includes that feedback (and the spin
++    flip jumps) to all orders needed here.
++    """
++    if e.get('amplitude', 0.) == 0.:
++        return dict(third=0., screened_poisson=0., count_response=[0., 0.])
++
++    args = oscillator_arguments(e)
++    kw = dict(secondary_coupling=e.get('secondary_coupling', 0.),
++              quadratic_coupling=e.get('quadratic_coupling', 0.),
++              momentum_coupling=e.get('momentum_coupling', 0.))
++    state = stationary(*args, conductance, nodes=nodes, count=count, **kw)
++    mu0 = np.asarray(state['mu'], dtype=float)
++    tl, tr = args[:2]
++    dl, dr, ch = prepare(*args, nodes=nodes, count=count,
++                         window=state['search_bound'], **kw)
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = ch
++    quadrature_count = energy.shape[1]
++
++    # One row per elementary jump.  The forward and backward tunnel events
++    # carry opposite spin and gate-work increments.  Rates below omit the
++    # common RATE_CONVERSION*conductance factor until the final conversion.
++    tunnel_q = np.repeat(injection, quadrature_count, axis=0)
++    tunnel_w = np.repeat(work, quadrature_count)
++    ratio = QUASIPARTICLE_DENSITY / (NORMAL_POLARIZATION_TIME * RATE_CONVERSION * conductance)
++    flip_specs = []
++    flip_q = []
++    for j, (temperature, delta, pol) in enumerate(zip((tl, tr), (dl, dr), mu0)):
++        x, weights = leggauss(224)
++        upper = delta + max(100. * temperature, 10. * abs(pol))
++        energies = delta + (x + 1.) * (upper - delta) / 2.
++        # DOS/tau is exactly 1/tau_n, so the gap-edge singularity cancels.
++        weights = weights * (upper - delta) / 2. * ratio / 2.
++        flip_specs.append((j, temperature, energies, weights))
++        q = np.zeros((len(energies), 2))
++        q[:, j] = -2.
++        flip_q.extend((q, -q))
++    q = np.concatenate((tunnel_q, -tunnel_q, *flip_q))
++    w = np.concatenate((tunnel_w, -tunnel_w, np.zeros(sum(len(s[2]) * 2 for s in flip_specs))))
++
++    def rates_at(mu):
++        f = expit((sl * mu[0] - energy) / tl)
++        g = expit((sr * mu[1] - other) / tr)
++        forward = measure * np.where(pair, pf * (1-f) * (1-g), pf * f * (1-g))
++        backward = measure * np.where(pair, pb * f * g, pb * g * (1-f))
++        rates = [forward.ravel(), backward.ravel()]
++        for j, temperature, energies, weights in flip_specs:
++            up = expit((mu[j] - energies) / temperature)
++            down = expit((-mu[j] - energies) / temperature)
++            rates.extend((weights * up * (1-down), weights * down * (1-up)))
++        return np.concatenate(rates)
++
++    # The zero-field conjugate momentum, used only as a well-conditioned
++    # starting point for the nearby saddle solves.
++    f0 = expit((sl * mu0[0] - energy) / tl)
++    g0 = expit((sr * mu0[1] - other) / tr)
++    df, dg = f0*(1-f0)/tl, g0*(1-g0)/tr
++    dleft = np.where(pair, -sl*df, sl*df) * (pf*(1-g0) + pb*g0)
++    dright = -sr*dg * np.where(pair, pf*(1-f0) + pb*f0,
++                                pf*f0 + pb*(1-f0))
++    work_gradient = np.array([np.sum(measure*work[:, None]*dleft),
++                              np.sum(measure*work[:, None]*dright)])
++    response = -np.linalg.solve(state['jacobian'].T, work_gradient)
++
++    def tilted_value(z):
++        # p=z*r makes the z->0 saddle regular.  The rate derivative is a
++        # symmetric difference on a scale far below every thermal input.
++        def equations(v):
++            mu, conjugate = v[:2], v[2:]
++            rates = rates_at(mu)
++            marks = q @ conjugate + w
++            exponent = np.exp(z * marks)
++            population = q.T @ (rates * exponent)
++            step = 2.e-5
++            derivatives = np.column_stack([
++                (rates_at(mu + np.eye(2)[i]*step) - rates_at(mu - np.eye(2)[i]*step)) / (2.*step)
++                for i in range(2)
++            ])
++            # (dH/dmu)/z; expm1 avoids cancellation at the counting fields
++            # used for the finite-difference cumulant.
++            conjugate_equation = derivatives.T @ np.expm1(z * marks) / z
++            return np.concatenate((population, conjugate_equation))
++
++        solution = root(equations, np.concatenate((mu0, response)), tol=2.e-10)
++        if not solution.success or np.max(np.abs(equations(solution.x))) > 2.e-7:
++            raise RuntimeError("gate-work tilted stationary state did not converge")
++        mu, conjugate = solution.x[:2], solution.x[2:]
++        return float(np.sum(rates_at(mu) * np.expm1(z * (q @ conjugate + w))))
++
++    # A fourth-order central stencil has O(h^2) error for the third derivative.
++    # Richardson extrapolation cancels that term.  Keeping |z*w| below .03 is
++    # useful in the high-frequency drive band without magnifying roundoff.
++    max_work = max(float(np.max(np.abs(w))), 1.)
++    h = min(5.e-3, 3.e-2 / max_work)
++    def third_at(step):
++        values = [tilted_value(z) for z in (-2.*step, -step, step, 2.*step)]
++        return -(values[0] - 2.*values[1] + 2.*values[2] - values[3]) / (2.*step**3)
++    coarse, fine = third_at(h), third_at(h/2.)
++    third = (4.*fine - coarse) / 3.
++    scale = RATE_CONVERSION * conductance * KB**3 * 1.e36
++    value = float(third * scale)
++    return dict(third=value, screened_poisson=value, count_response=response.tolist())
+ 
+ 
+ noise_predict=predict_at

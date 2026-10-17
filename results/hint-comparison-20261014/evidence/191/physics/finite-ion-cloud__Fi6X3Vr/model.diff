@@ -1,0 +1,107 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,8 +1,9 @@
+ import numpy as np
+ from scipy.integrate import quad
+ from scipy.optimize import minimize_scalar
+-from scipy.special import exprel, hyp2f1, roots_legendre
++from scipy.special import exprel, hyp2f1, roots_legendre, poch, gammaln
+ from functools import lru_cache
++from math import comb
+ 
+ 
+ @lru_cache(maxsize=None)
+@@ -33,7 +34,19 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        records = list(records)
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        def objective(g):
++            residual = (predict_at(inputs, g) - values) / sigmas
++            return np.dot(residual, residual)
++
++        result = minimize_scalar(objective, bounds=(0.7, 1.4), method='bounded',
++                                 options={'xatol': 1e-11})
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.coupling)
+@@ -51,12 +64,69 @@
+     d1 = np.broadcast_to((length*x)[:,None],(order,order)).ravel()
+     d2 = ((length-length*x)[:,None]*x[None,:]).ravel()
+     weights = (length*(length-length*x)[:,None]*w[:,None]*w[None,:]).ravel()
+-    angular = np.ones(len(d1))
+-    for gap in [d1,d2,d1+d2]:
+-        angular *= hyp2f1(-gamma/2,-gamma/2,1,np.exp(-2*gap))
++    # The three pair angles are differences of the same three azimuths.
++    # Consequently they cannot be averaged independently.  If
++    #
++    #   f_d(theta) = (1 + exp(-2d) - 2 exp(-d) cos(theta))**(gamma/2)
++    #
++    # and c_n(d) are its Fourier coefficients, the common-angle average is
++    #
++    #   <f_d1(alpha) f_d2(beta) f_d12(alpha+beta)>
++    #       = c_0(d1)c_0(d2)c_0(d12)
++    #         + 2 sum(n>=1) c_n(d1)c_n(d2)c_n(d12).
++    gaps = np.concatenate((d1,d2,d1+d2))
++    unique_gaps, inverse = np.unique(gaps, return_inverse=True)
++    fourier = np.asarray([pair_fourier_coefficients(gamma, gap)
++                          for gap in unique_gaps])
++    c1 = fourier[inverse[:len(d1)]]
++    c2 = fourier[inverse[len(d1):2*len(d1)]]
++    c12 = fourier[inverse[2*len(d1):]]
++    angular = c1[:, 0]*c2[:, 0]*c12[:, 0]
++    angular += 2*np.sum(c1[:, 1:]*c2[:, 1:]*c12[:, 1:], axis=1)
+     span = length-d1-d2
+     slope = 6-6*gamma
+     weight = weights*angular*np.exp((4-3*gamma)*d1+(2-gamma)*d2)
+     partition = np.dot(weight,span*exprel(slope*span))
+     boundary = np.dot(weight,np.exp(slope*span))
+     return -np.expm1(-2*length)*boundary/(6*partition)
++
++
++@lru_cache(maxsize=None)
++def pair_fourier_coefficients(gamma, gap, modes=128):
++    """Fourier coefficients of one normalized pair-distance factor.
++
++    The direct hypergeometric expression is well behaved except very close to
++    a zero radial gap, where the three-term recurrence is more stable.  Only
++    the first 128 modes are needed: the angular result contains a product of
++    three coefficients, so its omitted tail is rapidly convergent even at
++    the smallest allowed coupling.
++    """
++    p = gamma/2
++    q = np.exp(-gap)
++    k = np.arange(modes + 1)
++
++    # For integral p the pair factor is a finite Laurent polynomial.  This
++    # also avoids 0*inf in the hypergeometric representation.
++    if p.is_integer():
++        degree = int(p)
++        coefficients = np.zeros(modes + 1)
++        expansion = np.asarray([comb(degree, j)*(-q)**j
++                                for j in range(degree + 1)])
++        for n in range(min(degree, modes) + 1):
++            coefficients[n] = np.dot(expansion[n:], expansion[:degree + 1 - n])
++        return coefficients
++
++    if gap < 0.02:
++        coefficients = np.empty(modes + 1)
++        coefficients[0] = hyp2f1(-p, -p, 1, q*q)
++        coefficients[1] = -p*q*hyp2f1(1-p, -p, 2, q*q)
++        for n in range(2, modes + 1):
++            coefficients[n] = ((1 + q*q)*(n-1)*coefficients[n-1]
++                               + q*(p-n+2)*coefficients[n-2]) / (q*(n+p))
++        return coefficients
++
++    # c_n = q^n (-p)_n/n! * 2F1(n-p,-p;n+1;q^2).
++    coefficients = (q**k * poch(-p, k) * np.exp(-gammaln(k + 1))
++                    * hyp2f1(k-p, -p, k+1, q*q))
++    coefficients[~np.isfinite(coefficients)] = 0.0
++    return coefficients

@@ -1,0 +1,1 @@
+The measured channels are conserved total constituents. Recover local free-ion and neutral-cluster concentrations from mass action before computing zero-current electrodiffusion. Add the neutral cluster flux to both total cation fluxes; the field couples only charged fluxes.

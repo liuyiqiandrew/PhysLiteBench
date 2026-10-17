@@ -1,0 +1,109 @@
+--- starter/model.py
++++ submission/model.py
+@@ -5,6 +5,17 @@
+ 
+ @lru_cache(256)
+ def response(radius, width, strength, slip):
++    """Return the viscosity-independent mobility for one experiment.
++
++    The concentration dipole is obtained from the steady Smoluchowski
++    equation.  The remaining one-dimensional integral is the reciprocal
++    theorem result for a force-free sphere.  It is deliberately kept
++    separate from viscosity: all of the concentration physics is independent
++    of viscosity in the rapid-diffusion limit described in the problem.
++    """
++    radius, width, strength, slip = map(float, (radius, width, strength, slip))
++    if radius <= 0 or width <= 0 or slip < 0:
++        raise ValueError("radius and width must be positive and slip non-negative")
+     if strength == 0:
+         return 0.
+     end = radius+width
+@@ -21,18 +32,37 @@
+         raise RuntimeError(solution.message)
+     beta = slip/radius
+     drag = (1+2*beta)/(1+3*beta)
++    # For a translating Navier sphere, the radial part of the auxiliary flow
++    # relative to the solid is -h(r) cos(theta), where
++    #
++    # h(r) = 1 - A/r + B/r**3.
++    #
++    # The coefficients below reduce to the familiar no-slip expression at
++    # beta=0.  Retaining their beta dependence is important when the
++    # interaction layer is not infinitesimally thin.
++    A = 1.5*radius*drag
++    B = radius**3/(2*(1+3*beta))
+     def integrand(r):
+         x = (r-radius)/width
+         concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+         derivative = -2*strength*(1-x)/width
+-        weight = (r-radius)**2*(2*r+radius)/(2*r)
++        weight = r**2-A*r+B/r
+         return weight*concentration*derivative
+     return 2/(9*radius*drag)*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
+ 
+ 
+ def predict_at(experiments, viscosity):
+-    return np.array([response(e['radius'], e['width'], e['strength'], e['slip'])
+-                     for e in experiments])/viscosity
++    if viscosity is None or not np.isfinite(viscosity) or viscosity <= 0:
++        raise ValueError("viscosity must be a finite positive value")
++    # Materializing supports any iterable and ensures an empty input has the
++    # documented one-dimensional shape, (0,).
++    experiments = list(experiments)
++    mobility = np.array(
++        [response(e['radius'], e['width'], e['strength'], e['slip'])
++         for e in experiments],
++        dtype=float,
++    )
++    return mobility / float(viscosity)
+ 
+ 
+ class Model:
+@@ -40,7 +70,46 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Fit the sole unknown, uniform dynamic viscosity.
++
++        With ``m_i`` the viscosity-independent response calculated above,
++        the observations obey ``value_i = m_i / viscosity + noise``.  Thus
++        fitting inverse viscosity is a weighted linear least-squares problem;
++        the supplied Gaussian standard deviations give the weights.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        try:
++            experiments = [record['input'] for record in records]
++            values = np.asarray([record['value'] for record in records], dtype=float)
++            sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        except (KeyError, TypeError, ValueError) as exc:
++            raise ValueError("each calibration record needs input, value, and sigma") from exc
++
++        if (not np.isfinite(values).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values must be finite and sigma must be positive")
++
++        mobility = predict_at(experiments, viscosity=1.0)
++        weights = 1.0 / sigma**2
++        denominator = np.dot(weights, mobility**2)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError("calibration data do not identify viscosity")
++
++        inverse_viscosity = np.dot(weights, mobility*values) / denominator
++        if not np.isfinite(inverse_viscosity) or inverse_viscosity <= 0:
++            raise ValueError("calibration data imply a non-positive viscosity")
++
++        # Viscosity is specified to lie in [0.8, 1.6].  Constraining the
++        # maximum-likelihood estimate to that physical interval is only
++        # consequential for pathological/noisy calibration inputs.
++        inverse_viscosity = np.clip(inverse_viscosity, 1/1.6, 1/0.8)
++        self.viscosity = float(1.0/inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.viscosity)

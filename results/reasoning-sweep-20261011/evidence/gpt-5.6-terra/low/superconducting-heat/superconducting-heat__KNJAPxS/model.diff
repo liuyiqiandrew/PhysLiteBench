@@ -1,0 +1,69 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,9 +191,65 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Estimate the (only) apparatus parameter from Gaussian records.
++
++        The calibration set is deliberately taken with the gate and oscillator
++        coupling off, for which the prediction is exactly proportional to the
++        normal-state conductance.  Using the weighted linear least-squares
++        solution is both more accurate and substantially less expensive than
++        repeatedly solving the spin kinetic equations.  Keeping the general
++        fallback makes ``fit`` well behaved for an otherwise valid custom
++        record set containing driven measurements.
++        """
++        if not records:
++            raise ValueError("fit requires at least one calibration record")
++
++        inputs = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values and sigmas must be finite, with sigma > 0")
++
++        # This is the documented calibration configuration.  Avoid a numerical
++        # optimizer in the common case, where it would merely rediscover this
++        # one-parameter weighted regression.
++        original = all(
++            item.get('statistic', 'mean') == 'mean'
++            and item.get('amplitude', 0.) == 0.
++            and item.get('oscillator_coupling', 0.) == 0.
++            and item.get('secondary_coupling', 0.) == 0.
++            and item.get('quadratic_coupling', 0.) == 0.
++            and item.get('momentum_coupling', 0.) == 0.
++            for item in inputs
++        )
++        if original:
++            unit = np.asarray([power_per_conductance(
++                item['left_temperature'], item['right_temperature'], item['phase'],
++                0., item.get('drive_energy', .3)) for item in inputs])
++            denominator = np.sum((unit / sigma) ** 2)
++            if denominator <= 0 or not np.isfinite(denominator):
++                raise ValueError("calibration does not identify conductance")
++            estimate = np.sum(unit * observed / sigma**2) / denominator
++            self.conductance = float(np.clip(estimate, 20., 80.))
++        else:
++            # A custom record set can involve spin accumulation, so its model
++            # is not linear in conductance.  Minimize the stated independent
++            # Gaussian chi-square over the allowed apparatus range.
++            from scipy.optimize import minimize_scalar
++            def objective(conductance):
++                residual = (predict_at(inputs, float(conductance)) - observed) / sigma
++                return float(residual @ residual)
++            answer = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                     options={'xatol': 1e-9})
++            if not answer.success or not np.isfinite(answer.fun):
++                raise RuntimeError("conductance calibration failed")
++            self.conductance = float(answer.x)
++        return self
+ 
+     def predict(self, experiments):
++        if self.conductance is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
+         return predict_at(experiments, self.conductance)
+ 
+ 

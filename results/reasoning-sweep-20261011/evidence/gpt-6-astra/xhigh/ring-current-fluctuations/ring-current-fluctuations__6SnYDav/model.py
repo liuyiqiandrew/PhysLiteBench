@@ -1,0 +1,118 @@
+"""Large-ring current SCGF for the half-filled weakly asymmetric exclusion process.
+
+The uniform profile gives lambda * (lambda + 2 E) / 4 at unit diffusivity.
+When E > 2 pi and |lambda + E| < sqrt(E**2 - 4 pi**2), the optimal
+profile is nonuniform. At half filling this profile is stationary, and its
+macroscopic fluctuation theory equations reduce to complete elliptic integrals.
+Diffusivity multiplies the entire SCGF because it multiplies every jump rate.
+"""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.optimize import brentq
+from scipy.special import ellipe, ellipk, elliprj
+
+
+_CRITICAL_FIELD = 2.0 * np.pi
+_ROOT_TOL = 5e-15
+
+
+@lru_cache(maxsize=256)
+def _zero_current_modulus(field):
+    """Elliptic parameter at lambda = -E, where K(m) = E / 4."""
+    return brentq(
+        lambda m: ellipk(m) - field / 4.0,
+        0.0,
+        np.nextafter(1.0, 0.0),
+        xtol=_ROOT_TOL,
+    )
+
+
+@lru_cache(maxsize=4096)
+def _nonuniform_scgf(field, shift):
+    """Unit-diffusivity SCGF in the nonuniform phase; shift = |lambda + E|.
+
+    Write u = 2 rho - 1 = a sn(4 K(m) x | m). The first integral is
+    u'**2 = E**2 (a**2 - u**2) (b**2 - u**2), with b = 4 K(m) / E
+    and a**2 = m b**2. Optimizing the current imposes
+
+        shift = E sqrt((1-a**2)(1-b**2)) Pi(a**2 | m) / K(m).
+
+    This decreases from sqrt(E**2 - 4 pi**2) to zero as m increases
+    from zero to the zero-current modulus, so a bracketed scalar solve
+    selects the nonuniform branch without spatial discretization.
+    """
+    maximum = _zero_current_modulus(field)
+    if maximum == 0.0:
+        # Within root tolerance of E = 2 pi, the branches coincide to
+        # floating-point precision and the root interval can collapse.
+        return (shift - field) * (shift + field) / 4.0
+
+    def residual(m):
+        if m == 0.0:
+            return np.sqrt(field**2 - _CRITICAL_FIELD**2) - shift
+        # Enforce the exact endpoint despite rounding in K(maximum).
+        if m == maximum:
+            return -shift
+        k = ellipk(m)
+        b_squared = (4.0 * k / field) ** 2
+        a_squared = m * b_squared
+        # Pi(n | m) = K(m) + n RJ(0, 1-m, 1, 1-n) / 3.
+        inverse_mobility = 1.0 + a_squared * elliprj(
+            0.0, 1.0 - m, 1.0, 1.0 - a_squared
+        ) / (3.0 * k)
+        current_factor = np.sqrt(
+            max(0.0, (1.0 - a_squared) * (1.0 - b_squared))
+        )
+        return field * current_factor * inverse_mobility - shift
+
+    m = (
+        maximum
+        if shift == 0.0
+        else brentq(residual, 0.0, maximum, xtol=_ROOT_TOL)
+    )
+    k = ellipk(m)
+    return float(4.0 * k * ((1.0 - m) * k - 2.0 * ellipe(m)))
+
+
+def predict_at(experiments, diffusivity):
+    """Return raw asymptotic SCGFs, including the density-profile transition."""
+    field = np.asarray([e["field"] for e in experiments], dtype=float)
+    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+    values = bias * (bias + 2.0 * field) / 4.0
+    shift = np.abs(bias + field)
+    critical_shift = np.sqrt(np.maximum(0.0, field**2 - _CRITICAL_FIELD**2))
+    nonuniform = (field > _CRITICAL_FIELD) & (shift < critical_shift)
+    for index in np.flatnonzero(nonuniform):
+        values[index] = _nonuniform_scgf(float(field[index]), float(shift[index]))
+    return float(diffusivity) * values
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Fit the common rate prefactor by bounded Gaussian maximum likelihood."""
+        records = list(records)
+        if not records:
+            return self
+        basis = predict_at([record["input"] for record in records], 1.0)
+        values = np.asarray([record["value"] for record in records], dtype=float)
+        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
+        if np.any(~np.isfinite(sigma)) or np.any(sigma <= 0.0):
+            raise ValueError("Measurement standard deviations must be finite and positive.")
+        if np.any(~np.isfinite(values)):
+            raise ValueError("Calibration values must be finite.")
+
+        weighted_basis = basis / sigma
+        information = float(weighted_basis @ weighted_basis)
+        if information > 0.0:
+            estimate = float(weighted_basis @ (values / sigma)) / information
+            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
+        # Zero-current identities alone contain no information about D.
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

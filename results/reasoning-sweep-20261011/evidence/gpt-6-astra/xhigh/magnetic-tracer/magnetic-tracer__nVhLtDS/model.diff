@@ -1,0 +1,138 @@
+--- starter/model.py
++++ submission/model.py
+@@ -89,6 +89,7 @@
+ 
+ 
+ def fit_friction(records):
++    """Maximum-likelihood fit for the independent calibration uncertainties."""
+     inputs=[r['input'] for r in records]
+     assert all(e['field']==0 and e.get('memory_drag',0)==0 for e in inputs)
+     values=np.array([r['value'] for r in records]);sigma=np.array([r['sigma'] for r in records])
+@@ -96,7 +97,8 @@
+         residual=(zero_field_calibration(inputs,friction)-values)/sigma
+         return residual@residual
+     result=minimize_scalar(objective,bounds=(.5,1.5),method='bounded',options={'xatol':1e-12})
+-    return float(result.x)
++    # The physical interval is closed, so allow a boundary optimum as well.
++    return float(min((.5, result.x, 1.5), key=objective))
+ 
+ @lru_cache(512)
+ def channel_density(gamma=.8,zeta=1.,kappa=.7,T=.5,Tb=1.4,B0=.8,B1=.9,phase=.7,V=.8,Fy=0.,n=65):
+@@ -128,6 +130,15 @@
+ 
+ P=np.c_[np.eye(2),np.zeros((2,2))]
+ def valve_cell(gamma,zeta,kappa,T,Tb,field,rate,drag_contrast,temperature_contrast,fluid_anisotropy=0.,fluid_axis=0.):
++    """Homogenized response, diffusion, and ordered velocity correlations.
++
++    The fast coordinates are sqrt(m)*v and sqrt(m*kappa/zeta)*f.
++    C_s solves the linear Poisson equation for displacement, including valve
++    switches. S_s is a probability-weighted conditional covariance (each valve
++    state has mass 1/2). K_ij = sum_s E[(C_s u)_i u_j; s] is ordered: its
++    symmetric part is diffusion, while its antisymmetric part matters for
++    mechanical trajectory integrals.
++    """
+     matrices=[];noises=[];gammas=[];temperatures=[]
+     a=fluid_anisotropy;phi=fluid_axis;theta=np.array([[1+a*np.cos(2*phi),a*np.sin(2*phi)],[a*np.sin(2*phi),1-a*np.cos(2*phi)]])
+     for sign in [-1,1]:
+@@ -158,19 +169,69 @@
+ 
+ @lru_cache(512)
+ def circulation(gamma,zeta=1.,kappa=.7,T=.5,Tb=1.4,B0=.6,B1=.9,phase=.8,V=.8,rate=.7,drag_contrast=.6,temperature_contrast=.5,n=65,harmonic=1,quadrature='cos',transverse_drive=0.,drive_phase=0.,fluid_anisotropy=0.,fluid_axis=0.):
+-    x=np.arange(n)*2*np.pi/n;B=B0+B1*np.cos(x+phase);Bp=-B1*np.sin(x+phase);drift=[];diff=[];g=[];h=[]
+-    weight=np.cos(harmonic*x) if quadrature=='cos' else np.sin(harmonic*x)
+-    derivative=-harmonic*np.sin(harmonic*x) if quadrature=='cos' else harmonic*np.cos(harmonic*x)
+-    for j,(b,bp,angle) in enumerate(zip(B,Bp,x)):
+-        M,D,c,S,K=valve_cell(gamma,zeta,kappa,T,Tb,b,rate,drag_contrast,temperature_contrast,fluid_anisotropy,fluid_axis)
+-        velocity=M@np.array([V*np.sin(angle),transverse_drive*np.cos(angle+drive_phase)])+bp*c
+-        drift.append(velocity[0]);diff.append(D[0,0]);g.append(weight[j]*velocity[1]+derivative[j]*K[1,0]);h.append(weight[j]**2*D[1,1])
+-    wave=np.fft.fftfreq(n,1/n);dx=np.fft.ifft(1j*wave[:,None]*np.fft.fft(np.eye(n),axis=0),axis=0).real;dxx=np.fft.ifft(-wave[:,None]**2*np.fft.fft(np.eye(n),axis=0),axis=0).real
+-    L=-dx@np.diag(drift)+dxx@np.diag(diff);system=L.copy();system[0]=1;rhs=np.zeros(n);rhs[0]=1;p=np.linalg.solve(system,rhs)
+-    A1=np.diag(g);A2=2*np.diag(h);c1=float(np.sum(A1@p))
+-    rhs=(c1*np.eye(n)-A1)@p;rhs[0]=0.;r1=np.linalg.solve(system,rhs);c2=float(np.sum(A2@p+2*A1@r1))
+-    rhs=c2*p+2*c1*r1-2*A1@r1-A2@p;rhs[0]=0.;r2=np.linalg.solve(system,rhs);c3=float(np.sum(3*A1@r2+3*A2@r1))
+-    return np.array([c1,c2,c3])
++    """First three eigenvalue derivatives of the tilted forward generator.
++
++    For the slow position X and the finite-mass detector limit Y, the joint
++    backward generator is
++
++        b*d_x + D_xx*d_xx + g*d_Y + 2*a*D_xy*d_xY + a**2*D_yy*d_YY,
++
++    with g = a*b_y + a'*K_yx. The ordered correlation in g retains the
++    mechanical-integral correction. The mixed derivative retains the common
++    Brownian noise of X and Y, including the directional fluid reservoirs.
++    """
++    x = np.arange(n)*2*np.pi/n
++    field = B0+B1*np.cos(x+phase)
++    field_prime = -B1*np.sin(x+phase)
++    drift, diff, g, h, cross = (np.empty(n) for _ in range(5))
++    if quadrature == 'cos':
++        weight = np.cos(harmonic*x)
++        derivative = -harmonic*np.sin(harmonic*x)
++    else:
++        weight = np.sin(harmonic*x)
++        derivative = harmonic*np.cos(harmonic*x)
++    for j, (b, bp, angle) in enumerate(zip(field, field_prime, x)):
++        M, D, c, _, K = valve_cell(
++            gamma, zeta, kappa, T, Tb, b, rate, drag_contrast,
++            temperature_contrast, fluid_anisotropy, fluid_axis,
++        )
++        force = np.array([V*np.sin(angle),
++                          transverse_drive*np.cos(angle+drive_phase)])
++        velocity = M@force+bp*c
++        drift[j] = velocity[0]
++        diff[j] = D[0, 0]
++        g[j] = weight[j]*velocity[1]+derivative[j]*K[1, 0]
++        h[j] = weight[j]**2*D[1, 1]
++        cross[j] = 2*weight[j]*D[0, 1]
++
++    wave = np.fft.fftfreq(n, 1/n)[:, None]
++    basis = np.fft.fft(np.eye(n), axis=0)
++    dx = np.fft.ifft(1j*wave*basis, axis=0).real
++    dxx = np.fft.ifft(-wave**2*basis, axis=0).real
++    L = -dx@np.diag(drift)+dxx@np.diag(diff)
++    system = L.copy()
++    system[0] = 1
++    rhs = np.zeros(n)
++    rhs[0] = 1
++    p = np.linalg.solve(system, rhs)
++
++    # L(k) = L + k*A1 + k**2*A2/2 acts on periodic densities. The
++    # cross derivative becomes -k*d_x(2*a*D_xy*p), not a scalar tilt.
++    A1 = np.diag(g)-dx@np.diag(cross)
++    A2 = 2*np.diag(h)
++    c1 = float(np.sum(A1@p))
++
++    # Normalize the tilted eigenvector to unit mass for all k, so its
++    # derivatives r1 and r2 have zero mass. Differentiate L(k)r(k)=c(k)r(k).
++    rhs = c1*p-A1@p
++    rhs[0] = 0
++    r1 = np.linalg.solve(system, rhs)
++    c2 = float(np.sum(A2@p+2*A1@r1))
++    rhs = c2*p+2*c1*r1-2*A1@r1-A2@p
++    rhs[0] = 0
++    r2 = np.linalg.solve(system, rhs)
++    c3 = float(np.sum(3*A1@r2+3*A2@r1))
++    return np.array([c1, c2, c3])
+ 
+ def channel_prediction(e,friction):
+     observable=e.get('observable','density')
+@@ -206,7 +267,14 @@
+ 
+ 
+ class Model:
+-    def __init__(self):self.friction=None
+-    def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
+-    def predict(self,experiments):return predict_at(experiments,self.friction)
++    """Calibrate the common fluid friction and predict apparatus readouts."""
++
++    def __init__(self):
++        self.friction = None
++
++    def fit(self, records):
++        self.friction = fit_friction(records)
++        return self
++
++    def predict(self, experiments):
++        return predict_at(experiments, self.friction)

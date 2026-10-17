@@ -1,0 +1,68 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,7 +191,34 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one (normal-state) contact conductance.
++
++        The spin accumulation makes the response nonlinear in conductance for
++        driven records, so this deliberately fits the documented prediction
++        rather than assuming that every calibration record scales linearly.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('at least one calibration record is required')
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError('calibration values must be finite and sigma must be positive')
++
++        def chi_square(conductance):
++            predicted = predict_at(experiments, float(conductance))
++            residual = (predicted-observed)/sigma
++            return float(residual @ residual)
++
++        answer = minimize_scalar(chi_square, bounds=(20., 80.), method='bounded',
++                                 options={'xatol': 1e-10})
++        if not answer.success or not np.isfinite(answer.fun):
++            raise RuntimeError('conductance fit did not converge')
++        self.conductance = float(answer.x)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -481,5 +508,18 @@
+ 
+ noise_predict=predict_at
+ def predict_at(experiments,conductance):
+-    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+-                     else noise_predict([e],conductance)[0] for e in experiments])
++    values = []
++    for e in experiments:
++        statistic = e.get('statistic', 'mean')
++        # The gate has no time-dependent Fourier component in this case, so
++        # its work is identically zero (also avoiding unnecessary solves).
++        if statistic in ('gate_noise', 'gate_third') and e.get('amplitude', 0.) == 0:
++            values.append(0.)
++        elif statistic == 'gate_third':
++            values.append(gate_third(e, conductance)['third'])
++        else:
++            values.append(noise_predict([e], conductance)[0])
++    result = np.asarray(values, dtype=float)
++    if not np.isfinite(result).all():
++        raise RuntimeError('prediction produced a non-finite value')
++    return result

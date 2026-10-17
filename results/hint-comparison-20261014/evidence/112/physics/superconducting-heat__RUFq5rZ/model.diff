@@ -1,0 +1,208 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,24 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one (and only) apparatus parameter by weighted least squares."""
++        records = list(records)
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        inputs = [r['input'] for r in records]
++        observed = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError('calibration values and sigmas must be finite, with sigma > 0')
++
++        def residual(value):
++            return (predict_at(inputs, float(value[0])) - observed) / sigma
++
++        result = least_squares(residual, np.array([50.0]), bounds=(20., 80.),
++                               xtol=1e-12, ftol=1e-12, gtol=1e-12)
++        self.conductance = float(result.x[0])
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -450,33 +467,153 @@
+     return np.array([gate_statistics(e,conductance)['noise'] if e.get('statistic','mean')=='gate_noise'
+                      else mean_predict([e],conductance)[0] for e in experiments])
+ 
++def _counting_terms(e, conductance, nodes=192, count=64):
++    """Return the elementary jump processes for the macroscopic generator.
++
++    Rates here are rates for one member of the Lambda-scaled family.  The
++    spin increments are integers (rather than their vanishing intensive
++    increments); this is the convenient WKB/counting-field normalization.
++    """
++    args = oscillator_arguments(e)
++    kw = dict(secondary_coupling=e.get('secondary_coupling', 0.),
++              quadratic_coupling=e.get('quadratic_coupling', 0.),
++              momentum_coupling=e.get('momentum_coupling', 0.))
++    state = stationary(*args, conductance, nodes=nodes, count=count, **kw)
++    tl, tr = args[:2]
++    dl, dr, ch = prepare(*args, nodes=nodes, count=count,
++                         window=state['search_bound'], **kw)
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = ch
++
++    # Keep rates rather than net currents.  The two rows of each elementary
++    # tunnelling channel are its forward and reverse Poisson processes.
++    def tunnel_rates(mu):
++        f = expit((sl*mu[0]-energy)/tl)
++        g = expit((sr*mu[1]-other)/tr)
++        forward = np.where(pair, pf*(1-f)*(1-g), pf*f*(1-g))
++        backward = np.where(pair, pb*f*g, pb*g*(1-f))
++        unit = RATE_CONVERSION*conductance*measure
++        return unit*forward, unit*backward
++
++    # In a spin flip the BCS density of states cancels the coherence-factor
++    # enhancement of tau(E), leaving this particularly simple energy rate.
++    flip_grids = []
++    x, w = leggauss(176)
++    for index, (temp, delta) in enumerate(((tl, dl), (tr, dr))):
++        upper = np.sqrt(90.*temp + 6.*state['search_bound'])
++        z = (x+1.)*upper/2.
++        ee = delta + z*z
++        weight = w*upper*z                         # dE quadrature weight
++        flip_grids.append((index, temp, ee,
++                           weight*QUASIPARTICLE_DENSITY/(2.*NORMAL_POLARIZATION_TIME)))
++
++    return dict(mu=np.array(state['mu'], dtype=float), jacobian=state['jacobian'],
++                tunnel_rates=tunnel_rates, injection=injection, work=work,
++                flip_grids=flip_grids,
++                rate_scale=RATE_CONVERSION*conductance)
++
++
++def _counting_hamiltonian(terms, mu, q, theta):
++    """Large-deviation Hamiltonian for spin and gate-work jumps (K/s)."""
++    forward, backward = terms['tunnel_rates'](mu)
++    injection = terms['injection']
++    argument = (injection @ q)[:, None] + theta*terms['work'][:, None]
++    value = np.sum(forward*np.expm1(argument) + backward*np.expm1(-argument))
++    for index, temp, energy, weight in terms['flip_grids']:
++        up = expit((mu[index]-energy)/temp)
++        down = expit((-mu[index]-energy)/temp)
++        # up -> down has Delta S=-2, and down -> up has Delta S=+2.
++        down_rate = weight*up*(1-down)
++        up_rate = weight*down*(1-up)
++        a = 2*q[index]
++        value += np.sum(down_rate*np.expm1(-a) + up_rate*np.expm1(a))
++    return float(value)
++
++
++def _counting_stationary_point(terms, theta, initial):
++    """Solve H_q=H_mu=0 for the tilted stationary saddle point.
++
++    This is the leading extensive eigenvalue construction.  Crucially, H_mu
++    uses the *conditional* rates at the displaced spin state, which supplies
++    the state-dependent pieces of the third cumulant missing from a screened
++    independent-Poisson calculation.
++    """
++    from scipy.optimize import root
++    scale = terms['rate_scale']
++
++    def equations(v):
++        mu, q = v[:2], v[2:]
++        # Derivative w.r.t. q: intensive spin drift (an overall nu is immaterial).
++        forward, backward = terms['tunnel_rates'](mu)
++        inc = terms['injection']
++        arg = (inc @ q)[:, None] + theta*terms['work'][:, None]
++        net = np.sum(forward*np.exp(arg) - backward*np.exp(-arg), axis=1)
++        drift = np.sum(inc*net[:, None], axis=0)
++        for index, temp, energy, weight in terms['flip_grids']:
++            up = expit((mu[index]-energy)/temp)
++            down = expit((-mu[index]-energy)/temp)
++            rd = weight*up*(1-down)
++            ru = weight*down*(1-up)
++            drift[index] += 2.*np.sum(ru*np.exp(2*q[index]) - rd*np.exp(-2*q[index]))
++
++        # H_mu at fixed q.  Centered finite differences are stable here: all
++        # rate functions are smooth on the K scale and this avoids dropping
++        # nonlinear Pauli-blocking terms from either tunnelling or flips.
++        gradient = np.empty(2)
++        for j in range(2):
++            step = 2.e-5*max(1., abs(mu[j]))
++            plus, minus = mu.copy(), mu.copy()
++            plus[j] += step
++            minus[j] -= step
++            gradient[j] = (_counting_hamiltonian(terms, plus, q, theta)
++                           - _counting_hamiltonian(terms, minus, q, theta))/(2.*step)
++        return np.r_[drift/scale, gradient/scale]
++
++    answer = root(equations, initial, method='hybr', options={'xtol': 2.e-10, 'maxfev': 300})
++    if not answer.success or np.max(np.abs(equations(answer.x))) > 2.e-7:
++        # least_squares is slower but more forgiving near an extremely cold gap.
++        answer2 = least_squares(equations, answer.x, xtol=1e-12, ftol=1e-12,
++                                gtol=1e-12, max_nfev=600)
++        if not answer2.success or np.max(np.abs(equations(answer2.x))) > 2.e-6:
++            raise RuntimeError('counting-field stationary point did not converge')
++        point = answer2.x
++    else:
++        point = answer.x
++    return point, _counting_hamiltonian(terms, point[:2], point[2:], theta)
++
++
+ def gate_third(e,conductance,nodes=192,count=64):
+-    args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+-    state=stationary(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+-    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+-    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+-    f=expit((sl*mu[0]-energy)/tl);g=expit((sr*mu[1]-other)/tr)
+-    rp=measure*np.where(pair,pf*(1-f)*(1-g),pf*f*(1-g));rm=measure*np.where(pair,pb*f*g,pb*g*(1-f))
+-    
+-    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+-    flipdata=[]
+-    for j,(temp,delta,pol) in enumerate(zip([tl,tr],[dl,dr],mu)):
+-        x,w=leggauss(160);upper=delta+max(80*temp,6*abs(pol));ee=delta+(x+1)*(upper-delta)/2;mm=w*(upper-delta)/2*ratio/2
+-        u=expit((pol-ee)/temp);d=expit((-pol-ee)/temp);ap=mm*u*(1-d);am=mm*d*(1-u)
+-        flipdata.append((temp,u,d,mm,ap,am))
+-    # Differentiate the actual work-marked rates directly. This avoids
+-    # subtracting spin-loss Jacobians and is exactly zero for a static gate.
+-    df=f*(1-f)/tl;dg=g*(1-g)/tr
+-    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-g)+pb*g)
+-    dright=-sr*dg*np.where(pair,pf*(1-f)+pb*f,pf*f+pb*(1-f))
+-    hp=np.array([np.sum(measure*work[:,None]*dleft),np.sum(measure*work[:,None]*dright)])
+-    p1=-np.linalg.solve(state['jacobian'].T,hp)
+-    mark=work+injection@p1;mark=mark[:,None]
+-    bare=float(np.sum((rp-rm)*mark**3))
+-    for j,(temp,u,d,mm,ap,am) in enumerate(flipdata):
+-        ell=-2*p1[j];bare+=float(np.sum(ap-am))*ell**3
+-    scale=RATE_CONVERSION*conductance*KB**3*1e36
+-    return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
++    if e.get('amplitude', 0.) == 0.:
++        return dict(third=0., screened_poisson=0., count_response=[0., 0.])
++    terms = _counting_terms(e, conductance, nodes, count)
++    # First tilted displacement, obtained analytically, is an excellent seed
++    # for all small counting fields and fixes the otherwise flat theta=0 root.
++    args = oscillator_arguments(e)
++    mu = terms['mu']
++    h = 2.e-5
++    hp = np.empty(2)
++    for j in range(2):
++        plus, minus = mu.copy(), mu.copy()
++        plus[j] += h
++        minus[j] -= h
++        hp[j] = (_counting_hamiltonian(terms, plus, np.zeros(2), h)
++                 - _counting_hamiltonian(terms, minus, np.zeros(2), h)
++                 - _counting_hamiltonian(terms, plus, np.zeros(2), -h)
++                 + _counting_hamiltonian(terms, minus, np.zeros(2), -h))/(4*h*h)
++    q1 = -np.linalg.solve(terms['jacobian'].T, hp/terms['rate_scale'])
++
++    # Symmetric five-point third derivative of the scaled CGF.  h is in
++    # inverse kelvin because work marks in the Hamiltonian are in kelvin.
++    field = 1.25e-3
++    values = {}
++    for multiple in (-2, -1, 1, 2):
++        theta = multiple*field
++        point, value = _counting_stationary_point(terms, theta,
++                                                   np.r_[mu, theta*q1])
++        values[multiple] = value
++    third_kelvin = (values[2] - 2*values[1] + 2*values[-1] - values[-2])/(2*field**3)
++    scale = KB**3*1e36
++    return dict(third=float(third_kelvin*scale), screened_poisson=float(third_kelvin*scale),
++                count_response=q1.tolist())
+ 
+ 
+ noise_predict=predict_at

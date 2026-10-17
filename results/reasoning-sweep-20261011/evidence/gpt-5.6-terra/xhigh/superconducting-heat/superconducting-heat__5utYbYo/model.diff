@@ -1,0 +1,72 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,9 +191,68 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Estimate the (only) unknown normal-state conductance.
++
++        The supplied calibration set is deliberately taken with a static,
++        oscillator-decoupled barrier.  In that case every predicted heat
++        readout is proportional to conductance, so weighted least squares has
++        a closed form.  Keeping that path analytic is both more accurate and
++        considerably faster than repeatedly solving the spin-balance problem.
++        The numerical one-dimensional fit is retained for callers that supply
++        valid, but more general, records (for example driven records).
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("fit requires at least one calibration record")
++
++        try:
++            experiments = [record['input'] for record in records]
++            observed = np.asarray([record['value'] for record in records], dtype=float)
++            sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        except (KeyError, TypeError, ValueError) as exc:
++            raise ValueError("each record must contain input, value, and positive sigma") from exc
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values must be finite and sigma must be positive")
++
++        # A static, decoupled contact has no driven spin accumulation and its
++        # mean (or phase-contrast) output is exactly linear in G.
++        linear = all(
++            record['input'].get('statistic', 'mean') in ('mean', 'phase_contrast')
++            and record['input'].get('amplitude', 0.) == 0.
++            and record['input'].get('oscillator_coupling', 0.) == 0.
++            and record['input'].get('secondary_coupling', 0.) == 0.
++            and record['input'].get('quadratic_coupling', 0.) == 0.
++            and record['input'].get('momentum_coupling', 0.) == 0.
++            for record in records
++        )
++        if linear:
++            per_microsiemens = predict_at(experiments, 1.)
++            denominator = float(np.sum((per_microsiemens / sigma) ** 2))
++            if not np.isfinite(denominator) or denominator <= 0.:
++                raise ValueError("calibration records do not constrain conductance")
++            estimate = float(np.sum(per_microsiemens * observed / sigma**2) / denominator)
++            self.conductance = float(np.clip(estimate, 20., 80.))
++            return self
++
++        # General records can have a conductance-dependent stationary spin
++        # potential.  There is still only one bounded parameter.
++        from scipy.optimize import minimize_scalar
++
++        def objective(conductance):
++            residual = (predict_at(experiments, float(conductance)) - observed) / sigma
++            return float(residual @ residual)
++
++        solution = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                   options={'xatol': 1e-8})
++        if not solution.success or not np.isfinite(solution.fun):
++            raise RuntimeError("conductance fit did not converge")
++        self.conductance = float(solution.x)
++        return self
+ 
+     def predict(self, experiments):
++        if self.conductance is None:
++            raise RuntimeError("call fit before predict")
+         return predict_at(experiments, self.conductance)
+ 
+ 

@@ -1,0 +1,133 @@
+--- starter/model.py
++++ submission/model.py
+@@ -49,43 +49,84 @@
+     value=np.linalg.solve(a,-source.reshape(count*(degree+1),points)).reshape(count,degree+1,points)
+     return {pair:value[:,i] for i,pair in enumerate(basis)}
+ 
++def _forward_poisson(q, rhs):
++    """Solve q z = rhs with the zero-sum gauge, column-vector convention."""
++    count, points = rhs.shape
++    a = np.array(q, copy=True)
++    a[-1] = 1.
++    b = np.array(rhs, copy=True)
++    b[-1] = 0.
++    return np.linalg.solve(a, b)
++
++
+ def limiting_state(e,friction,points=129):
+     phase,d=spatial_grid(points);d=d*e['wavenumber'];dx=2*np.pi/points
+     factors,gx,gy,q=contact_parameters(e,friction);count=len(gx)
++    pi=np.ones(count)/count
+     force=(e['force_x'],e['force_y']);magnetic=e['magnetic']
+     local_t=e['temperature']*(1+e['contrast']*np.cos(phase))
+     temperatures=factors[:,None]*local_t
+-    # Fast velocity moments per unit positional density and base temperature.
+-    unit0={(0,0):np.ones((count,1))/count}
++
++    # The leading velocity cell problem, for unit positional density.  The
++    # contact generator is retained in these solves; it cannot in general be
++    # replaced by the stationary contact probabilities.
++    unit0={(0,0):pi[:,None]}
+     unit2=solve_moments(2,unit0,factors[:,None],gx,gy,magnetic,q)
+     _,a1=moment_operator(1,gx,gy,magnetic,q)
+-    force_source=np.tile(np.array(force)/count,count)
++    force_source=(pi[:,None]*np.asarray(force)).ravel()
+     diff_source=np.column_stack((unit2[2,0][:,0],unit2[1,1][:,0])).ravel()
+     velocity=-np.linalg.solve(a1,force_source).reshape(count,2).sum(axis=0)
+     diffusion=-np.linalg.solve(a1,diff_source).reshape(count,2).sum(axis=0)
+     operator=-d@(velocity[0]*np.eye(points)-diffusion[0]*d*local_t[None,:])
+     operator[-1]=dx;rhs=np.zeros(points);rhs[-1]=1.
+     density=np.linalg.solve(operator,rhs)
+-    zeroth={(0,0):np.tile(density/count,(count,1))}
++
++    zeroth={(0,0):pi[:,None]*density[None,:]}
+     second=solve_moments(2,zeroth,temperatures,gx,gy,magnetic,q)
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++
++    # At first order the forward equation is
++    #       q rho_1 = d_x j_0 .
++    # Solve this conditional-population Poisson equation with the complete
++    # forward generator, then determine its null-space component from the
++    # next-order zero-flux condition.
++    rhs_population=(d@first[1,0].T).T
++    density_correction=_forward_poisson(q,rhs_population)
++    second_part=solve_moments(2,{(0,0):density_correction},temperatures,gx,gy,magnetic,q,d,force,first,third)
++    first_part=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,{(0,0):density_correction},second_part)
++    j1_part=first_part
++    j1_flux=np.sum(j1_part[1,0],axis=0)
++
++    # A null-space contribution is pi_s*h(x).  Its flux uses precisely the
++    # same effective mobility and diffusion obtained from the velocity cell
++    # equations, including state-dependent drag.
++    h_operator=-d@(velocity[0]*np.eye(points)-diffusion[0]*d*local_t[None,:])
++    h_rhs=d@j1_flux
++    h_operator[-1]=dx
++    h_rhs[-1]=0.
++    h=np.linalg.solve(h_operator,h_rhs)
++    density_correction={(0,0):density_correction+pi[:,None]*h[None,:]}
++
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+-    return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
++
++    # The O(m^-1) entropy term is C*rho(x).  The matched uniform background
++    # has the same C; multiplying its divergent rate by the measured
++    # residence leaves the finite correction -C*R_1.
++    base_c=np.sum(gx*(unit2[2,0][:,0]/factors-pi)+gy*(unit2[0,2][:,0]/factors-pi))
++    weight=1. if e.get('detector_phase') is None else (1+np.cos(phase-e['detector_phase']))/2
++    residence_correction=dx*np.sum(weight*h)
++    value=dx*np.sum(weight*local)-base_c*residence_correction
++    return dict(value=float(value),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures,leading_background=float(base_c),residence_correction=float(residence_correction))
+ 
+ @lru_cache(4096)
+ def entropy_rate(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate,friction,detector_phase=None,valve_cycle=None,contact_drag_contrast=0.):
+-    if bath_contrast==0. and magnetic==0. and valve_cycle is None and friction!=1.:
+-        return entropy_rate(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate,1.,detector_phase)/friction
+     e=dict(zip(INPUT_FIELDS,(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate)))
+     if valve_cycle is not None:e.update(valve_cycle=valve_cycle,contact_drag_contrast=contact_drag_contrast)
+     state=limiting_state(e,friction)
+-    weight=1. if detector_phase is None else (1+np.cos(state['phase']-detector_phase))/2
+-    return float(state['dx']*np.sum(weight*state['local']))
++    return state['value']
+ 
+ def coefficients(experiments,friction=1.):
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+@@ -93,5 +134,33 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        if not records:
++            raise ValueError('calibration records must not be empty')
++
++        inputs=[r['input'] for r in records]
++        observed=np.asarray([r['value'] for r in records],float)
++        sigma=np.asarray([r.get('sigma',1.) for r in records],float)
++        if not np.isfinite(observed).all() or not np.isfinite(sigma).all() or np.any(sigma<=0):
++            raise ValueError('calibration values and uncertainties must be finite')
++
++        def objective(friction):
++            residual=(coefficients(inputs,friction)-observed)/sigma
++            return float(residual@residual)
++
++        # A bounded golden-section search is sufficient for the one shared
++        # calibration parameter and avoids making scipy part of the model's
++        # runtime requirements.
++        left,right=.7,1.6
++        phi=(1+np.sqrt(5.))/2
++        x1=right-(right-left)/phi
++        x2=left+(right-left)/phi
++        f1,f2=objective(x1),objective(x2)
++        for _ in range(32):
++            if f1>f2:
++                left=x1;x1=x2;f1=f2;x2=left+(right-left)/phi;f2=objective(x2)
++            else:
++                right=x2;x2=x1;f2=f1;x1=right-(right-left)/phi;f1=objective(x1)
++        candidates=[(.7,objective(.7)),(1.6,objective(1.6)),(x1,f1),(x2,f2)]
++        self.friction=float(min(candidates,key=lambda item:item[1])[0])
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

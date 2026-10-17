@@ -1,0 +1,65 @@
+--- starter/model.py
++++ submission/model.py
+@@ -20,10 +20,19 @@
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def leaf_partition(alpha, blocks, q=0.0):
++    """Joint probability of one parent and the specified labelled leaf blocks.
++
++    Frozen family masses have PD(q, 0) weights. Their internal weights
++    have the total-mass tilted law PD(alpha, -q), not PD(alpha, 0).
++    Multiplying that EPPF by parent participation cancels (1-q)_(n-1).
++    The formula also covers diffuse leaves (alpha=1).
++    """
+     n = sum(blocks)
+     k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0/math.factorial(n-1)
++    for j in range(1, k):
++        result *= j*alpha-q
+     for size in blocks:
+         for j in range(1,size):
+             result *= j-alpha
+@@ -37,8 +46,11 @@
+     if observable == 'parent_collision':
+         return parent
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        # All leaf masses together have PD(alpha, 0) weights.
++        return participation(alpha,replicas)
++    if q == 1.0:
++        return 0.0
++    return leaf_partition(alpha,blocks,q)
+ 
+ 
+ class Model:
+@@ -54,7 +66,25 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Constrained Gaussian maximum likelihood, linear in width squared."""
++        data = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(measured)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Use finite calibration data and positive sigma.')
++            data.append((beta, measured, sigma))
++        if not data:
++            raise ValueError('Supply at least one calibration record.')
++        beta, measured, sigma = np.asarray(data, dtype=float).T
++        weights = (sigma.min()/sigma)**2
++        squared = -np.dot(weights*beta, measured)/np.dot(weights, beta*beta)
++        self.width = math.sqrt(float(np.clip(
++            squared, WIDTH_INTERVAL[0]**2, WIDTH_INTERVAL[1]**2)))
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

@@ -1,0 +1,164 @@
+"""Prediction model for solute-driven motion of a spherical particle.
+
+The concentration problem is independent of viscosity.  For a unit imposed
+far-field concentration gradient its l=1 amplitude is ``h(r) cos(theta)``.
+Writing concentration as ``exp(-U) h(r) cos(theta)`` gives a well-conditioned
+two point boundary-value problem inside the interaction layer.  The response
+then follows from the reciprocal theorem for Stokes flow.
+"""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.integrate import quad
+from scipy.integrate import solve_bvp
+
+
+def _as_finite_float(value, name):
+    """Convert a scalar model input while rejecting values that poison a fit."""
+    value = float(value)
+    if not np.isfinite(value):
+        raise ValueError(f"{name} must be finite")
+    return value
+
+
+@lru_cache(maxsize=512)
+def response(radius, width, strength, slip):
+    """Return the viscosity-independent velocity response.
+
+    The returned value is ``viscosity * (V/G)``.  All arguments are floats so
+    that repeated calibration and prediction points share the BVP solution.
+    """
+    radius = _as_finite_float(radius, "radius")
+    width = _as_finite_float(width, "width")
+    strength = _as_finite_float(strength, "strength")
+    slip = _as_finite_float(slip, "slip")
+    if radius <= 0 or width <= 0 or slip < 0:
+        raise ValueError("radius and width must be positive and slip non-negative")
+    if strength == 0.0:
+        return 0.0
+
+    outer_radius = radius + width
+
+    # h obeys (r^2 exp(-U) h')' - 2 exp(-U) h = 0.  The first
+    # condition is no normal solute flux at the sphere.  The second matches
+    # h to r + A/r^2 beyond the finite-ranged potential.
+    def equations(x, y):
+        r = radius + width * x
+        return np.vstack((
+            y[1],
+            -(2.0 * width / r + 2.0 * strength * (1.0 - x)) * y[1]
+            + 2.0 * width**2 * y[0] / r**2,
+        ))
+
+    def boundary(left, right):
+        return np.array((
+            left[1],
+            outer_radius * right[1] / width + 2.0 * right[0] - 3.0 * outer_radius,
+        ))
+
+    grid = np.linspace(0.0, 1.0, 129)
+    r_grid = radius + width * grid
+    # Hard-sphere solution, used only as a smooth initial guess for the
+    # linear BVP solver.
+    initial = np.vstack((
+        r_grid + radius**3 / (2.0 * r_grid**2),
+        width * (1.0 - radius**3 / r_grid**3),
+    ))
+    solution = solve_bvp(
+        equations, boundary, grid, initial, tol=2e-10, max_nodes=10000
+    )
+    if not solution.success:
+        raise RuntimeError(f"concentration boundary-value solve failed: {solution.message}")
+
+    # For a Navier-slip sphere, D is the drag divided by the no-slip drag.
+    # The radial component of the unit uniform-flow auxiliary solution is
+    # g_r = 1 - A a/r + B a^3/r^3, where A=3D/2 and B=A-1.  Using g_r is
+    # essential: merely changing the drag misses the slip-induced change in
+    # the reciprocal-theorem kernel.
+    beta = slip / radius
+    drag_ratio = (1.0 + 2.0 * beta) / (1.0 + 3.0 * beta)
+    a_coefficient = 1.5 * drag_ratio
+    b_coefficient = a_coefficient - 1.0
+
+    def integrand(r):
+        x = (r - radius) / width
+        h = solution.sol(x)[0]
+        boltzmann_concentration = np.exp(-strength * (1.0 - x) ** 2) * h
+        potential_derivative = -2.0 * strength * (1.0 - x) / width
+        radial_kernel = r**2 - a_coefficient * radius * r + b_coefficient * radius**3 / r
+        return radial_kernel * boltzmann_concentration * potential_derivative
+
+    integral, _ = quad(
+        integrand, radius, outer_radius, epsabs=2e-11, epsrel=2e-11, limit=100
+    )
+    return 2.0 * integral / (9.0 * radius * drag_ratio)
+
+
+def _coefficient(experiment):
+    try:
+        return response(
+            _as_finite_float(experiment["radius"], "radius"),
+            _as_finite_float(experiment["width"], "width"),
+            _as_finite_float(experiment["strength"], "strength"),
+            _as_finite_float(experiment["slip"], "slip"),
+        )
+    except (KeyError, TypeError) as exc:
+        raise ValueError("each experiment needs radius, width, strength, and slip") from exc
+
+
+def predict_at(experiments, viscosity):
+    """Predict responses for ``experiments`` at a specified viscosity."""
+    viscosity = _as_finite_float(viscosity, "viscosity")
+    if viscosity <= 0:
+        raise ValueError("viscosity must be positive")
+    return np.asarray([_coefficient(experiment) for experiment in experiments], dtype=float) / viscosity
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        """Fit viscosity by weighted least squares in inverse viscosity.
+
+        For a preparation i, ``value_i = coefficient_i / viscosity + noise``.
+        Thus inverse viscosity has a one-parameter Gaussian linear fit, whose
+        closed form solution uses every record and its stated uncertainty.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        coefficients = []
+        values = []
+        sigmas = []
+        for record in records:
+            try:
+                experiment = record["input"]
+                value = _as_finite_float(record["value"], "record value")
+                sigma = _as_finite_float(record["sigma"], "record sigma")
+            except (KeyError, TypeError) as exc:
+                raise ValueError("each record needs input, value, and sigma") from exc
+            if sigma <= 0:
+                raise ValueError("record sigma must be positive")
+            coefficients.append(_coefficient(experiment))
+            values.append(value)
+            sigmas.append(sigma)
+
+        coefficients = np.asarray(coefficients, dtype=float)
+        values = np.asarray(values, dtype=float)
+        weights = 1.0 / np.square(np.asarray(sigmas, dtype=float))
+        denominator = np.dot(weights, np.square(coefficients))
+        if not np.isfinite(denominator) or denominator <= 0:
+            raise ValueError("calibration records contain no viscosity information")
+        inverse_viscosity = np.dot(weights * coefficients, values) / denominator
+        if not np.isfinite(inverse_viscosity) or inverse_viscosity <= 0:
+            raise ValueError("calibration data imply a non-positive viscosity")
+        self.viscosity = float(1.0 / inverse_viscosity)
+        return self
+
+    def predict(self, experiments):
+        if self.viscosity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.viscosity)

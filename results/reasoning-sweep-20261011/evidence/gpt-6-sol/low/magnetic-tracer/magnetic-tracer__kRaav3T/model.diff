@@ -1,0 +1,28 @@
+--- starter/model.py
++++ submission/model.py
+@@ -167,7 +167,16 @@
+         drift.append(velocity[0]);diff.append(D[0,0]);g.append(weight[j]*velocity[1]+derivative[j]*K[1,0]);h.append(weight[j]**2*D[1,1])
+     wave=np.fft.fftfreq(n,1/n);dx=np.fft.ifft(1j*wave[:,None]*np.fft.fft(np.eye(n),axis=0),axis=0).real;dxx=np.fft.ifft(-wave[:,None]**2*np.fft.fft(np.eye(n),axis=0),axis=0).real
+     L=-dx@np.diag(drift)+dxx@np.diag(diff);system=L.copy();system[0]=1;rhs=np.zeros(n);rhs[0]=1;p=np.linalg.solve(system,rhs)
+-    A1=np.diag(g);A2=2*np.diag(h);c1=float(np.sum(A1@p))
++    # The detector and longitudinal coordinate see the same fast fluctuations.
++    # In the forward tilted generator this produces a flux proportional to
++    # their cross diffusion, in addition to the local detector drift.
++    cross=[]
++    for b in B:
++        _,D,_,_,_=valve_cell(gamma,zeta,kappa,T,Tb,b,rate,drag_contrast,
++                            temperature_contrast,fluid_anisotropy,fluid_axis)
++        cross.append(D[0,1])
++    A1=np.diag(g)-2*dx@np.diag(weight*np.asarray(cross))
++    A2=2*np.diag(h);c1=float(np.sum(A1@p))
+     rhs=(c1*np.eye(n)-A1)@p;rhs[0]=0.;r1=np.linalg.solve(system,rhs);c2=float(np.sum(A2@p+2*A1@r1))
+     rhs=c2*p+2*c1*r1-2*A1@r1-A2@p;rhs[0]=0.;r2=np.linalg.solve(system,rhs);c3=float(np.sum(3*A1@r2+3*A2@r1))
+     return np.array([c1,c2,c3])
+@@ -208,5 +217,6 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        self.friction=fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

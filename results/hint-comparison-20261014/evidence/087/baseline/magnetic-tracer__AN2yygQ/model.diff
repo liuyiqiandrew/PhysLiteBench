@@ -1,0 +1,16 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,12 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        inputs=[r['input'] for r in records]
++        values=np.array([float(r['value']) for r in records]);sigma=np.array([float(r['sigma']) for r in records])
++        def objective(log_friction):
++            residual=(zero_field_calibration(inputs,float(np.exp(log_friction)))-values)/sigma
++            return float(residual@residual)
++        result=minimize_scalar(objective,bounds=(np.log(.5),np.log(1.5)),method='bounded',options={'xatol':1e-13})
++        self.friction=float(np.clip(np.exp(result.x),.5,1.5))
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

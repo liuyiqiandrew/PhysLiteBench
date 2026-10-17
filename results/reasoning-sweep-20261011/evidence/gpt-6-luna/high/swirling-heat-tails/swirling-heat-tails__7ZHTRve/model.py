@@ -1,0 +1,49 @@
+import numpy as np
+
+
+def response(e):
+    r, z = e['drive_ratio'], e['relative_heat']
+    # This is algebraically the heat rate function, written in a form that
+    # avoids subtracting nearly equal numbers around its minimum at z=1.
+    a = np.sqrt((1+r*r)*(1+(r*z)**2))
+    rate = (r*r*(z-1)**2)/(a+1+r*r*z)
+    return e['stiffness']*rate
+
+
+def predict_at(experiments, mobility):
+    return mobility*np.asarray([response(e) for e in experiments])
+
+
+class Model:
+    def __init__(self):
+        self.mobility = None
+
+    def fit(self, records):
+        """Fit the common mobility by weighted least squares.
+
+        The response is linear in mobility, while the calibration readings
+        have known (and potentially unequal) Gaussian standard deviations.
+        """
+        if not records:
+            raise ValueError('At least one calibration record is required.')
+
+        unit_response = np.asarray(
+            [response(record['input']) for record in records], dtype=float
+        )
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
+        if (not np.all(np.isfinite(unit_response)) or
+                not np.all(np.isfinite(values)) or
+                not np.all(np.isfinite(sigma)) or np.any(sigma <= 0)):
+            raise ValueError('Calibration values and positive sigmas must be finite.')
+
+        weights = 1.0 / sigma**2
+        denominator = np.sum(weights * unit_response**2)
+        if denominator <= 0:
+            raise ValueError('Calibration records do not identify mobility.')
+        estimate = np.sum(weights * unit_response * values) / denominator
+        self.mobility = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.mobility)

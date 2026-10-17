@@ -1,0 +1,1 @@
+Treat the D and D-dagger amplitudes coherently for every joint final oscillator state before summing probabilities. For the nonlinear phase operator the energy-resolved cross covariance can be complex; an averaged dephasing factor or a phonon parity alone need not describe the heat interference.

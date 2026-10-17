@@ -1,0 +1,28 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,24 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        if not records:
++            self.viscosity = 1.0
++            return self
++        r = np.array([response(rec['input']['radius'], rec['input']['width'],
++                               rec['input']['strength'], rec['input']['slip'])
++                      for rec in records], dtype=float)
++        values = np.array([rec['value'] for rec in records], dtype=float)
++        sigmas = np.array([rec.get('sigma', 1.0) for rec in records], dtype=float)
++        weights = 1.0 / sigmas**2
++        # predicted value = r / viscosity; least-squares estimate of 1/viscosity:
++        #   minimize sum w (r*a - values)^2  =>  a = sum(w r values)/sum(w r^2)
++        denom = np.sum(weights * r * r)
++        if denom <= 0 or not np.isfinite(denom):
++            self.viscosity = 1.0
++        else:
++            a = np.sum(weights * r * values) / denom
++            self.viscosity = 1.0 / a if a != 0 else 1.0
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

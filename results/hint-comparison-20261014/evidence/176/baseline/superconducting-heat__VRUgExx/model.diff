@@ -1,0 +1,90 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,9 +191,59 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one extensive contact parameter.
++
++        ``conductance`` is expressed in micro-siemens throughout this module.
++        It is tempting to fit the zero-drive records with a simple linear
++        regression, but using the public predictor here is important: driven
++        records acquire a (small but real) conductance dependence through the
++        stationary spin accumulation.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        inputs = []
++        values = []
++        sigmas = []
++        for record in records:
++            try:
++                experiment = record['input']
++                value = float(record['value'])
++                sigma = float(record['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("each record needs input, value, and positive sigma") from exc
++            if not isinstance(experiment, dict) or not np.isfinite(value) or not np.isfinite(sigma) or sigma <= 0:
++                raise ValueError("each record needs a finite value and positive sigma")
++            inputs.append(experiment)
++            values.append(value)
++            sigmas.append(sigma)
++
++        values = np.asarray(values)
++        sigmas = np.asarray(sigmas)
++
++        # A bounded scalar minimization is robust for both the original
++        # linear calibration set and optional driven calibration records.
++        from scipy.optimize import minimize_scalar
++
++        def objective(conductance):
++            try:
++                prediction = predict_at(inputs, float(conductance))
++            except (ArithmeticError, FloatingPointError, RuntimeError, ValueError):
++                return np.inf
++            residual = (prediction - values) / sigmas
++            score = float(residual @ residual)
++            return score if np.isfinite(score) else np.inf
++
++        solution = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                   options={'xatol': 1e-10, 'maxiter': 200})
++        if not solution.success or not np.isfinite(solution.fun):
++            raise RuntimeError("conductance calibration did not converge")
++        self.conductance = float(solution.x)
++        return self
+ 
+     def predict(self, experiments):
++        if self.conductance is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
+         return predict_at(experiments, self.conductance)
+ 
+ 
+@@ -481,5 +531,24 @@
+ 
+ noise_predict=predict_at
+ def predict_at(experiments,conductance):
+-    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+-                     else noise_predict([e],conductance)[0] for e in experiments])
++    """Evaluate the documented detector readouts in their stated units."""
++    output = []
++    for experiment in experiments:
++        statistic = experiment.get('statistic', 'mean')
++        if statistic == 'mean':
++            value = mean_heat(experiment, conductance)
++        elif statistic == 'phase_contrast':
++            # Put the second preparation in the conventional principal phase
++            # interval.  This is exactly phi + pi modulo 2*pi.
++            opposite = dict(experiment)
++            opposite['phase'] = (experiment['phase'] + 2*np.pi) % (2*np.pi) - np.pi
++            value = (mean_heat(experiment, conductance) -
++                     mean_heat(opposite, conductance)) / 2
++        elif statistic == 'gate_noise':
++            value = gate_statistics(experiment, conductance)['noise']
++        elif statistic == 'gate_third':
++            value = gate_third(experiment, conductance)['third']
++        else:
++            raise ValueError("statistic must be mean, phase_contrast, gate_noise, or gate_third")
++        output.append(value)
++    return np.asarray(output, dtype=float)

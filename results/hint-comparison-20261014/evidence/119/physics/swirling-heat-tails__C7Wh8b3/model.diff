@@ -1,0 +1,66 @@
+--- starter/model.py
++++ submission/model.py
+@@ -2,10 +2,38 @@
+ 
+ 
+ def response(e):
+-    r, z = e['drive_ratio'], e['relative_heat']
+-    q = 2*r*r*z
+-    rate = np.sqrt((1+r*r)*(q*q+4*r*r)/(4*r*r))-q/2-1
+-    return e['stiffness']*rate
++    """Rate per unit ``mobility * stiffness`` for the heat observable.
++
++    In units where time is scaled by ``mobility * stiffness``, the mean
++    heat rate is ``2*r**2``.  The tilted heat generator has eigenvalue
++
++        1 - sqrt(1 + 4*r**2*s*(1-s)).
++
++    Its eigenfunctions must also be integrable against both stationary
++    endpoint distributions.  Those endpoint conditions, which are absent
++    for circulating work, give the two linear pieces below.
++    """
++    r = float(e['drive_ratio'])
++    z = float(e['relative_heat'])
++    a = r * r
++
++    # Interior Legendre transform.  This is also the work rate function.
++    rate = np.sqrt((1.0 + a) * (1.0 + a * z * z)) - a * z - 1.0
++
++    # The final-energy factor restricts the counting field to s < 1.
++    # Its Legendre transform controls heat rates below minus the mean.
++    if z < -1.0:
++        rate = -2.0 * a * z
++
++    # The initial-energy factor provides an additional lower counting-field
++    # boundary when r**2 < 1/3.  Above the corresponding heat rate the
++    # transform is linear rather than the circulating-work expression.
++    if a < 1.0 / 3.0:
++        z_corner = (3.0 - a) / (1.0 - 3.0 * a)
++        if z > z_corner:
++            rate = (2.0 * a * (1.0 - a) * z - 4.0 * a) / (1.0 + a)
++
++    return float(e['stiffness']) * rate
+ 
+ 
+ def predict_at(experiments, mobility):
+@@ -17,7 +45,19 @@
+         self.mobility = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the common mobility from calibration records.')
++        # I_i = mobility * response(input_i), with independently reported
++        # Gaussian standard deviations.  The weighted least-squares estimate
++        # is the maximum-likelihood estimate for the common mobility.
++        design = np.asarray([response(record['input']) for record in records],
++                            dtype=float)
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        weights = 1.0 / np.square(sigma)
++        estimate = np.sum(weights * design * values) / np.sum(weights * design * design)
++
++        # The apparatus specification supplies a physical admissible range.
++        self.mobility = float(np.clip(estimate, 0.8, 1.3))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.mobility)

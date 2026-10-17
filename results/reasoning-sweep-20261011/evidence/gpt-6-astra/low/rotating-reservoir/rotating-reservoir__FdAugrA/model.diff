@@ -1,0 +1,34 @@
+--- starter/model.py
++++ submission/model.py
+@@ -170,10 +170,21 @@
+     return L,V,A1,A2,p,constant
+ 
+ def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
++    """Cumulants from the tilted generator for exp(-k Y).
++
++    On Fourier mode n the physical angular transport is i*n*h*v.
++    The tilt derivatives are w*A1 and w**2*A2, including the
++    cross derivative from the shared gas/calorimeter Wiener increment.
++    Uniform initial phase selects mode zero when taking expectations.
++    """
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+     w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
++    # The first eigenvector response has Fourier modes 0 and +/-h.
++    # These same modes of the second response suffice for the third
++    # cumulant: multiplication by w can bring only these back to mode 0.
++    # Keeping just mode 0 would incorrectly assume an instantly mixed angle.
++    ns=[-1,0,1] if eps and not averaged else [0];mean=p@A1@constant
+     def invert(n,rhs):
+         if n:
+             return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+@@ -207,6 +218,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

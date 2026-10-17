@@ -1,0 +1,68 @@
+"""Long-time heat fluctuations for the stationary circulating trap.
+
+In time units s = mobility * stiffness * t, the mean heat rate is 2*r**2
+and Q = W - (U_final - U_initial). For the Laplace transform E[exp(-eta*Q)],
+the interior scaled cumulant generator is 1 - Omega, where
+Omega = sqrt(1 + 4*r**2*eta*(1-eta)). Integrating both stationary endpoints
+requires Omega > 2*abs(eta) - 1 as well as a real Omega.
+
+The rate is the supremum of Omega - 1 - eta*(2*r**2*z) on that domain.
+The endpoint restriction gives a linear negative-heat tail at z <= -1,
+and, when r**2 < 1/3, a linear positive tail starting at
+z = (3-r**2)/(1-3*r**2). Ignoring these restrictions gives the work rate
+instead of the heat rate. Physical inverse-time rates acquire the factor
+mobility * stiffness.
+"""
+
+import numpy as np
+
+
+def response(e):
+    """Return the heat rate for unit mobility."""
+    r, z = e['drive_ratio'], e['relative_heat']
+    a = r * r
+    if z <= -1.0:
+        rate = -2.0 * a * z
+    elif a < 1.0 / 3.0 and (1.0 - 3.0 * a) * z >= 3.0 - a:
+        rate = 2.0 * a * ((1.0 - a) * z - 2.0) / (1.0 + a)
+    else:
+        # Rationalize sqrt((1+a)*(1+a*z*z)) - 1 - a*z to avoid
+        # cancellation near the zero at the stationary mean z=1.
+        root = np.sqrt((1.0 + a) * (1.0 + a * z * z))
+        rate = a * (z - 1.0)**2 / (root + 1.0 + a * z)
+    return e['stiffness'] * rate
+
+
+def predict_at(experiments, mobility):
+    return mobility * np.asarray([response(e) for e in experiments], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.mobility = None
+
+    def fit(self, records):
+        """Fit the shared mobility by bounded Gaussian maximum likelihood."""
+        records = list(records)
+        if not records:
+            raise ValueError('At least one calibration record is required.')
+
+        rates = predict_at([record['input'] for record in records], 1.0)
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
+        if (not np.isfinite(rates).all() or not np.isfinite(values).all()
+                or not np.isfinite(sigma).all() or np.any(sigma <= 0.0)):
+            raise ValueError('Calibration values must be finite with positive sigma.')
+
+        weighted_rates = rates / sigma
+        information = np.dot(weighted_rates, weighted_rates)
+        if information <= 0.0:
+            raise ValueError('Calibration records do not identify mobility.')
+        estimate = np.dot(weighted_rates, values / sigma) / information
+        self.mobility = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        if self.mobility is None:
+            raise ValueError('Fit the model before predicting.')
+        return predict_at(experiments, self.mobility)

@@ -1,0 +1,83 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,14 @@
++"""Transient duct flow with quasi-static, electrically insulating MHD.
++
++Velocity uses orthonormal double sine modes (area-average inner product).
++Central inversion symmetry retains odd/odd and even/even modes. A Dirichlet
++current streamfunction eliminates the electrical problem without imposing
++an unphysical zero electric potential on the insulating walls.
++"""
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -35,20 +43,29 @@
+         k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+         qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+ 
+-    return m, n, wave2, mean, qx, qy
++    # Insulating walls imply a constant current streamfunction on the
++    # boundary, chosen to be zero. Eliminating it gives the positive operator
++    # (B dot grad)^* (-Laplacian_D)^-1 (B dot grad).
++    # Mixed products have electric indices (source x mode, target y mode).
++    dx = derivative_overlap(m, m).T/WIDTH
++    dy = derivative_overlap(n, n)/HEIGHT
++    mixed = dx*dy/((m[None, :]*np.pi/WIDTH)**2
++                   +(n[:, None]*np.pi/HEIGHT)**2)
++    qxy = mixed+mixed.T
++    return m, n, wave2, mean, qx, qy, qxy
+ 
+ 
+-@lru_cache(64)
++@lru_cache(16)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    m, n, wave2, mean, qx, qy, qxy = operators(nx, ny)
++    magnetic = bx*bx*qx+by*by*qy+bx*by*qxy
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,9 +78,29 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        records = list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required")
++        experiments = [r['input'] for r in records]
++        measured = np.asarray([r['value'] for r in records], dtype=float)
++        errors = np.asarray([r['sigma'] for r in records], dtype=float)
++        if np.any(errors <= 0) or not np.all(np.isfinite(errors)):
++            raise ValueError("Measurement standard deviations must be positive and finite")
++
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments)-measured)/errors
++            return float(residual@residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018),
++                                 method='bounded', options={'xatol': 1e-10})
++        candidates = [float(result.x), 0.006, 0.018]
++        self.viscosity = min(candidates, key=objective)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise ValueError("Fit the model before predicting")
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:

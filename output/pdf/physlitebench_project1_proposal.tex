@@ -1,0 +1,90 @@
+% Self-contained Overleaf source: paste into main.tex and use pdfLaTeX.
+% Evidence: results/thermal-hint-pilot-20260918-005438.md and .json.
+% Task/grader revision: 9cef935a7250fa8a5a90b4a05b45d5e796f4dfa2.
+% Pilot: 15 trials across three conditions, with five trials per condition.
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=0.6in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,urlcolor=blue!45!black,linkcolor=blue!45!black]{hyperref}
+\hypersetup{pdftitle={Beyond Calibration: Physics Guidance for Scientific Coding Agents},
+  pdfauthor={Yue Pan and Andrew Liu}}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\emergencystretch}{1em}
+\newcommand{\topic}[1]{\textbf{#1}\enspace}
+
+\begin{document}
+\begin{center}
+  {\fontsize{16}{18}\selectfont\bfseries Beyond Calibration:\\Physics Guidance for Scientific Coding Agents}\par
+  \vspace{2pt}
+  {\small Project 1 Proposal \enspace$\cdot$\enspace September 18, 2026}\par
+  \vspace{1pt}
+  \textbf{Team members:} Yue Pan and Andrew Liu
+\end{center}
+\vspace{-5pt}
+
+\topic{Evaluation goal and claim.}
+A recurring failure in our scientific-agent evaluations is getting the physics wrong despite fitting calibration data well and passing public tests.
+We will develop PhysLiteBench to test whether physics hints help agents correct these errors more effectively than generic correctness reminders.
+Existing evaluations study scientific task success and expert guidance~[1,2]; we isolate \emph{physical model selection} using correct and shortcut models that agree on calibration but diverge on automatically scored, unseen preparations.
+The October 16 deliverable is a reproducible benchmark and results for three Luna configurations: no hint, a generic reminder, and physics guidance.
+
+\topic{Task and episode.}
+We start with three \href{https://github.com/liuyiqiandrew/PhysLiteBench}{PhysLiteBench} systems: piston-coupled gases, spins in a shared fluctuating field, and coupled salt diffusion.
+In a fresh Docker container, Luna (\texttt{gpt-5.6-luna}, high reasoning effort) receives apparatus documentation, noisy calibration data, public tests, and a Python starter.
+It has shell/Python tools and 10 minutes to edit \texttt{model.py}, fit one parameter, and predict new preparations. Reference solutions and hidden tests remain unavailable until verification.
+
+\topic{Automatic metric.}
+An episode scores 1 only if every public and private test passes; otherwise it scores 0.
+Current tasks require reduced calibration $\chi^2<1.5$, relative parameter error below 5\%, and hidden prediction errors below fixed thresholds: probability RMSE $<0.03$ (spin) or normalized RMSE $<5\%$ (thermal/diffusion).
+New tasks will have thresholds validated against independent references and completed shortcuts before agent runs.
+Report per-task pass rates, differences between configurations, and binomial confidence intervals. Scoring is automatic; trajectory review diagnoses failures without changing scores.
+
+\topic{Baselines and preliminary evidence.}
+Compare identical agents with no added hint, a generic correctness reminder, or a physics hint; hold data, tools, grading, and limits fixed.
+The 15-trial thermal pilot, with five trials per condition, found:
+\vspace{-3pt}
+\begin{center}
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Instruction & No hint & Generic reminder & Physics hint \\
+\midrule
+Full passes & 0/5 & 1/5 & 5/5 \\
+Calibration and parameter checks & 5/5 & 5/5 & 5/5 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-7pt}
+The physics hint asks the agent to apply the first law of thermodynamics separately to each gas, accounting for heat flow and work exchanged as the piston moves.
+Mechanical equilibrium makes the chamber pressures equal at each instant, but their common pressure can still change as the gases exchange heat with the bath.
+The starter incorrectly extends a constant-pressure approximation beyond the calibration conditions, where it happens to agree with the correct model.
+The hint therefore targets an error in the governing equations that calibration fit alone cannot reveal.
+These preliminary results motivate testing the same comparison across the expanded task suite.
+
+\topic{By October 2.}
+Design and implement \textbf{ten tasks in total}, including the existing three, with independent physical references, calibration-fitting shortcuts, and automatic hidden tests.
+Complete initial runs of all three configurations and \textbf{trajectory analysis}: inspect recorded explanations, tool calls, code revisions, and test results to locate where agents misinterpret physical assumptions, derive incorrect equations, or abandon a correct candidate.
+Distinguish these failures from mathematical, numerical, coding, and infrastructure errors.
+Deliver the runnable suite, archived trajectories, and initial analysis. Freeze prompts and graders before each batch, match reminder lengths, randomize execution order, and keep the pilot separate.
+
+\topic{Main risk.}
+Hints may supply the decisive task-specific insight without improving general reasoning.
+Use guidance on physical principles, evaluate across ten tasks, and limit conclusions to the tested systems and model. Repeated runs measure sampling variability, not physical diversity.
+
+\topic{Compute and access.}
+Available resources are personal ChatGPT/Codex subscription access and local CPU/Docker; no API credits or institutional compute are committed.
+The October 16 target is 10 tasks $\times$ 3 configurations $\times$ 10 fresh trials: 300 episodes (at most 50 agent-hours), plus CPU verification. No GPU or training is needed; if quotas bind, reduce repeats uniformly and report actual counts.
+
+\vspace{2pt}
+{\fontsize{9}{10.2}\selectfont
+\textbf{References.}
+[1] Chen et al., \href{https://arxiv.org/abs/2410.05080}{\emph{ScienceAgentBench}}, ICLR 2025.
+[2] Xu et al., \href{https://arxiv.org/abs/2608.19799}{\emph{SWE-bench Science}}, arXiv, 2026.
+\par}
+\end{document}

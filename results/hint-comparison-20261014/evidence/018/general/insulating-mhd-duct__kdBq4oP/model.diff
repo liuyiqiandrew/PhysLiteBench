@@ -1,0 +1,94 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -35,20 +36,42 @@
+         k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+         qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+ 
+-    return m, n, wave2, mean, qx, qy
++    # The two components of B do not merely add when both are nonzero.
++    # Eliminating the electric potential gives
++    #
++    #   (B_x D_x + B_y D_y)^T (-laplacian)^-1 (B_x D_x + B_y D_y).
++    #
++    # qx and qy above are the two square terms.  The mixed term couples the
++    # odd-odd velocity modes (which pressure directly drives) to even-even
++    # modes.  It is therefore invisible in one-component-field calibration
++    # runs, but is important for a general applied field.
++    qxy = np.zeros_like(qx)
++    for i, (mi, ni) in enumerate(zip(m, n)):
++        ids = np.flatnonzero(((m + mi) % 2 == 1) & ((n + ni) % 2 == 1))
++        if not len(ids):
++            continue
++        mj, nj = m[ids], n[ids]
++        dx = derivative_overlap(mj, np.array([mi])).ravel() / WIDTH
++        dy = derivative_overlap(np.array([ni]), nj).ravel() / HEIGHT
++        k2 = (mj*np.pi/WIDTH)**2 + (ni*np.pi/HEIGHT)**2
++        qxy[i, ids] = dx * dy / k2
++
++    return m, n, wave2, mean, qx, qy, qxy
+ 
+ 
+ @lru_cache(64)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    m, n, wave2, mean, qx, qy, qxy = operators(nx, ny)
++    magnetic = bx*bx*qx + by*by*qy + bx*by*(qxy + qxy.T)
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        # With both components present, the mixed term connects odd-odd and
++        # even-even modes, so this whole parity sector must be retained.
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,9 +84,35 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        errors = np.asarray([record['sigma'] for record in records], dtype=float)
++        if not (np.isfinite(values).all() and np.isfinite(errors).all()
++                and np.all(errors > 0)):
++            raise ValueError("calibration values must be finite and sigmas positive")
++
++        # The readings have independently supplied Gaussian uncertainties, so
++        # maximum likelihood is weighted least squares.  Keeping the trial
++        # viscosity on self lets predict use the same numerical path as users.
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - values) / errors
++            return float(residual @ residual)
++
++        result = minimize_scalar(
++            objective, bounds=(0.006, 0.018), method='bounded',
++            options={'xatol': 1e-11},
++        )
++        self.viscosity = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise ValueError("fit must be called before predict")
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:

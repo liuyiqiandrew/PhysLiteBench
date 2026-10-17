@@ -1,0 +1,55 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,9 +33,42 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        """Fit the shared reference coupling by weighted least squares.
++
++        The reported calibration errors are independent Gaussian standard
++        deviations, so minimizing the usual chi-square is the maximum
++        likelihood estimate of the single parameter ``g``.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(sigmas)) or np.any(sigmas <= 0)):
++            raise ValueError('Calibration values and sigmas must be finite; sigmas must be positive.')
++
++        def chi_square(g):
++            residual = (predict_at(inputs, float(g)) - values) / sigmas
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(
++            chi_square, bounds=(0.7, 1.4), method='bounded',
++            options={'xatol': 1e-12, 'maxiter': 200})
++        # Include the bounds explicitly: bounded minimization does not test
++        # them, and the physical parameter interval is closed.
++        candidates = [(result.fun, float(result.x)),
++                      (chi_square(0.7), 0.7),
++                      (chi_square(1.4), 1.4)]
++        _, fitted = min(candidates, key=lambda item: item[0])
++        self.coupling = fitted
++        return self
+ 
+     def predict(self,experiments):
++        if self.coupling is None:
++            raise ValueError('Call fit before predict.')
+         return predict_at(experiments,self.coupling)
+ 
+ 
+@@ -45,7 +78,7 @@
+     return (x+1)/2,w/2
+ 
+ 
+-def three_ion_coefficient(gamma,ratio,order=32):
++def three_ion_coefficient(gamma,ratio,order=64):
+     length = np.log(ratio)
+     x,w = nodes(order)
+     d1 = np.broadcast_to((length*x)[:,None],(order,order)).ravel()

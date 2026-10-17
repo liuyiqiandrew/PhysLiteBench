@@ -1,0 +1,46 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,42 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the viscosity from independent calibration measurements.
++
++        The hydrodynamic response is linear in inverse viscosity, so each
++        record has the form ``value = response(input) / viscosity``.  The
++        reported instrument uncertainties are independent Gaussian standard
++        deviations; use them as weights in the least-squares estimate.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        responses = np.asarray(
++            [response(**record['input']) for record in records], dtype=float
++        )
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if (not np.all(np.isfinite(responses))
++                or not np.all(np.isfinite(values))
++                or not np.all(np.isfinite(sigmas))
++                or np.any(sigmas <= 0)):
++            raise ValueError('Calibration values, responses, and uncertainties must be finite; uncertainties must be positive.')
++
++        # Fit q = 1 / viscosity in the linear model value = q * response.
++        weights = 1.0 / sigmas**2
++        denominator = np.sum(weights * responses**2)
++        if denominator == 0:
++            raise ValueError('Calibration records do not identify the viscosity.')
++        inverse_viscosity = np.sum(weights * responses * values) / denominator
++        if not np.isfinite(inverse_viscosity):
++            raise ValueError('Calibration records imply an invalid viscosity.')
++
++        # Constrain the fit to the stated viscosity interval [.8, 1.6].
++        inverse_viscosity = np.clip(inverse_viscosity, 1.0 / 1.6, 1.0 / 0.8)
++        self.viscosity = float(1.0 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

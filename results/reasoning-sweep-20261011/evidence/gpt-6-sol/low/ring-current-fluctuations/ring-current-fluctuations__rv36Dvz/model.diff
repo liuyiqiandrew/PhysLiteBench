@@ -1,0 +1,93 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,84 @@
+-"""Current SCGF model and calibration interface."""
++"""Large-ring current SCGF for the half-filled weakly asymmetric exclusion process."""
++
++from functools import lru_cache
++
+ import numpy as np
++from scipy.optimize import minimize
++
++
++@lru_cache(maxsize=1)
++def _basis():
++    """Odd cosine modes enforce half filling and one particle-rich domain."""
++    x = (np.arange(512) + 0.5) / 512
++    wave = 2 * np.pi * (2 * np.arange(32) + 1)
++    return np.cos(x[:, None] * wave), -np.sin(x[:, None] * wave) * wave
++
++
++@lru_cache(maxsize=2048)
++def _unit_scgf(field, bias):
++    field = float(field)
++    bias = float(bias)
++    k = field + bias
++    flat = (k * k - field * field) / 4
++
++    # Stability of the uniform saddle against the first Fourier mode.
++    if flat >= -np.pi**2:
++        return flat
++
++    modes, derivatives = _basis()
++
++    def objective(a):
++        theta = modes @ a
++        theta_prime = derivatives @ a
++        cosine = np.cos(theta)
++        sec2 = 1 / np.maximum(cosine * cosine, 1e-16)
++        tangent = np.tan(theta)
++        inv_mobility = 4 * np.mean(sec2)
++        mobility = np.mean(cosine * cosine) / 4
++        gradient_cost = np.mean(theta_prime * theta_prime) / 4
++        value = -(k * k / inv_mobility - field * field * mobility - gradient_cost)
++
++        da = 8 * np.mean((sec2 * tangent)[:, None] * modes, axis=0)
++        db = -np.mean(np.sin(2 * theta)[:, None] * modes, axis=0) / 4
++        dg = np.mean(theta_prime[:, None] * derivatives, axis=0) / 2
++        jac = k * k * da / inv_mobility**2 + field * field * db + dg
++        return value, jac
++
++    # The first mode becomes unstable continuously at the transition.
++    best = flat
++    for amplitude in (0.3, 1.0, 1.5):
++        start = np.zeros(modes.shape[1])
++        start[0] = amplitude
++        result = minimize(objective, start, jac=True, method="L-BFGS-B",
++                          options={"maxiter": 600, "ftol": 1e-12, "gtol": 1e-9})
++        if np.isfinite(result.fun):
++            best = max(best, -float(result.fun))
++    return best
++
+ 
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    return np.asarray(
++        [diffusivity * _unit_scgf(item["field"], item["bias"])
++         for item in experiments], dtype=float
++    )
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        if not records:
++            return self
++        x = predict_at([record["input"] for record in records], 1.0)
++        y = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        weight = 1 / sigma**2
++        denominator = np.dot(weight * x, x)
++        if denominator > 0:
++            self.diffusivity = float(np.clip(np.dot(weight * x, y) / denominator,
++                                               0.8, 1.2))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

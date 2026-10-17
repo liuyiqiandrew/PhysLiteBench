@@ -1,0 +1,123 @@
+"""Retained-contact thermal kinetics and calorimeter response."""
+from functools import lru_cache
+from math import erf
+import numpy as np
+from scipy.linalg import solve
+from scipy.optimize import brentq
+
+def averaged_clock(e,gamma):
+    ta=e['temperature_a'];tb=e['temperature_b'];omega=e['angular_speed'];lam=e['relaxation_rate'];eta=e['flux_fraction'];flip=e['flip_rate']
+    def mean_flux(rate):
+        mean=np.linalg.solve([[gamma+rate+2*flip,-rate],[-rate,lam+rate+2*flip]],[0.,lam*omega]);mv,mg=mean
+        v2,g2=np.linalg.solve([[2*gamma+rate,-rate],[-rate,2*lam+rate]],[2*gamma*ta,2*lam*(tb+omega*mg)])
+        vg=lam*omega*mv/(gamma+lam);mu=mv-mg;var=v2+g2-2*vg-mu*mu;sigma=np.sqrt(var)
+        return sigma*np.sqrt(2/np.pi)*np.exp(-mu*mu/(2*var))+mu*erf(mu/(np.sqrt(2)*sigma))
+    return brentq(lambda rate:rate-3.6*((1-eta)+eta*mean_flux(rate)),0.,100.,xtol=1e-13)
+def hermite(e, gamma=.67, degree=12, variance=1.6, quadrature=None, total_degree=False, noise=False,collision_rate=3.6):
+    """Polynomial response for the retained rotor, gas contact and motor."""
+    ta=e['temperature_a'];tb=e['temperature_b'];omega=e['angular_speed']
+    lam=e['relaxation_rate'];eta=e['flux_fraction'];flip=e['flip_rate']
+    width=degree+1;size=width**2;matrix=np.zeros((size,size))
+    index=lambda n,m:n*width+m
+    for n in range(width):
+        for m in range(width):
+            j=index(n,m)
+            matrix[j,j]-=gamma*n+lam*m+flip*(1-(-1)**(n+m))+collision_rate
+            matrix[index(m,n),j]+=collision_rate
+            if n>=2:matrix[index(n-2,m),j]+=gamma*(ta/variance-1)*np.sqrt(n*(n-1))
+            if m>=2:matrix[index(n,m-2),j]+=lam*(tb/variance-1)*np.sqrt(m*(m-1))
+            if m>=1:matrix[index(n,m-1),j]+=lam*omega/np.sqrt(variance)*np.sqrt(m)
+    retained=np.array([index(n,m) for n in range(width) for m in range(width) if not total_degree or n+m<=degree])
+    lookup={j:i for i,j in enumerate(retained)}
+    matrix=matrix[np.ix_(retained,retained)];size=len(retained)
+    index_full=index
+    index=lambda n,m:lookup[index_full(n,m)]
+    forward=matrix.T.copy();forward[0]=0.;forward[0,0]=1.;rhs=np.zeros(size);rhs[0]=1.
+    moments=solve(forward,rhs,check_finite=False)
+    mv=np.sqrt(variance)*moments[index(1,0)];mg=np.sqrt(variance)*moments[index(0,1)]
+    v2=variance*(1+np.sqrt(2)*moments[index(2,0)]);g2=variance*(1+np.sqrt(2)*moments[index(0,2)])
+    vg=variance*moments[index(1,1)]
+    mean=lam*(g2-2*omega*mg+omega*omega-tb)
+    v2g2=variance**2*(1+np.sqrt(2)*(moments[index(2,0)]+moments[index(0,2)])+2*moments[index(2,2)])
+    result=dict(mean=float(mean),vmean=float(mv),gmean=float(mg),v2=float(v2),g2=float(g2),vg=float(vg),
+                energy_covariance=float(.25*(v2g2-v2*g2)),
+                bath_a=float(gamma*(v2-ta)),motor=float(lam*(omega*omega-omega*mg)),
+                first_law_residual=float(abs(gamma*(v2-ta)+mean-lam*(omega*omega-omega*mg))),
+                stationary_residual=float(max(abs(matrix.T@moments))))
+    if noise:
+        # Independent continuous diffusion Feynman--Kac derivatives. No
+        # finite-volume heat marks, stochastic paths or shot-noise closure.
+        # dQ=lam[(g-u)^2-Tb]dt-sqrt(2lamTb)(g-u)dW_b.
+        derivative=np.zeros((width**2,width**2));multiply=np.zeros_like(derivative);square=np.zeros_like(derivative)
+        for n in range(width):
+            for m in range(width):
+                j=index_full(n,m)
+                square[j,j]=variance*(2*m+1)
+                if m>=1:
+                    derivative[index_full(n,m-1),j]=np.sqrt(m/variance)
+                    multiply[index_full(n,m-1),j]=np.sqrt(variance*m)
+                if m+1<width:multiply[index_full(n,m+1),j]=np.sqrt(variance*(m+1))
+                if m>=2:square[index_full(n,m-2),j]=variance*np.sqrt(m*(m-1))
+                if m+2<width:square[index_full(n,m+2),j]=variance*np.sqrt((m+1)*(m+2))
+        identity=np.eye(width**2);relative_square=square-2*omega*multiply+omega**2*identity
+        first=2*lam*tb*(multiply-omega*identity)@derivative-lam*(relative_square-tb*identity)
+        second=2*lam*tb*relative_square
+        first=first[np.ix_(retained,retained)];second=second[np.ix_(retained,retained)]
+        drift=-first[:,0];constant=np.zeros(size);constant[0]=1.
+        tilted_mean=float(moments@first[:,0]);system=matrix.copy();system[0]=moments
+        rhs=tilted_mean*constant-first[:,0];rhs[0]=0.
+        r1=solve(system,rhs,check_finite=False)
+        shot=float(moments@second[:,0]);correlation=float(2*moments@first@r1)
+        result.update(noise=shot+correlation,noise_shot=shot,noise_correlation=correlation,
+                      noise_poisson_residual=float(max(abs(matrix@r1-(tilted_mean*constant-first[:,0])))))
+        # Third derivative of the principal eigenvalue of L(k) for exp(-k Q).
+        # p r1 = p r2 = 0 fixes the response normalization.
+        cumulant2=shot+correlation
+        rhs2=cumulant2*constant+2*tilted_mean*r1-2*first@r1-second[:,0]
+        rhs2[0]=0.
+        r2=solve(system,rhs2,check_finite=False)
+        cumulant3_minus=float(moments@(3*first@r2+3*second@r1))
+        result.update(third_cumulant=-cumulant3_minus,
+                      third_poisson_residual=float(max(abs(matrix@r2-(cumulant2*constant+2*tilted_mean*r1-2*first@r1-second[:,0])))))
+    return result
+
+
+@lru_cache(4096)
+def readout(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate,statistic,drag):
+    e=dict(zip(FIELDS,(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate)))
+    if statistic not in ['mean','noise','third_cumulant']:raise ValueError('unknown calorimeter statistic')
+    if statistic=='mean' and flux_fraction==0. and angular_speed==0.:
+        return float(calibration_mean(e,drag))
+    rate=averaged_clock(e,drag)
+    return hermite(e,drag,degree=6,variance=max(temperature_a,temperature_b),
+                   total_degree=True,noise=True,collision_rate=rate)[statistic]
+
+RATE=3.6
+FIELDS=('angular_speed','flip_rate','temperature_a','temperature_b','flux_fraction','relaxation_rate')
+
+
+def calibration_mean(e,drag):
+    lam=e['relaxation_rate']
+    return drag*lam*RATE/(2*drag*lam+RATE*(drag+lam))*(e['temperature_a']-e['temperature_b'])
+
+
+def fit_drag(records):
+    lam=float(records[0]['input']['relaxation_rate'])
+    assert all(r['input']['relaxation_rate']==lam for r in records)
+    contrast=np.array([(r['input']['temperature_a']-r['input']['temperature_b'])/r['sigma'] for r in records])
+    measured=np.array([r['value']/r['sigma'] for r in records])
+    conductance=float(contrast@measured/(contrast@contrast))
+    return float(np.clip(conductance*lam*RATE/(lam*RATE-conductance*(2*lam+RATE)),.4,1.1))
+
+
+def predict_at(experiments,drag):
+    return np.array([readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)) for e in experiments])
+
+
+class Model:
+    def __init__(self):self.drag=None
+
+    def fit(self,records):
+        raise NotImplementedError('Infer the common drag from the calibration records.')
+
+    def predict(self,experiments):return predict_at(experiments,self.drag)

@@ -1,0 +1,91 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,9 +191,42 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one extensive apparatus parameter.
++
++        Conductance is quoted in micro-siemens throughout this module.  It is
++        linear for the supplied, unmodulated calibration set, but need not be
++        linear once the driven contact creates a stationary spin imbalance.
++        A bounded one-dimensional likelihood fit consequently also does the
++        right thing for a valid extended calibration set.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values and sigmas must be finite, with sigma > 0")
++
++        def chi_squared(conductance):
++            predicted = predict_at(experiments, float(conductance))
++            residual = (predicted - observed) / sigma
++            return float(residual @ residual)
++
++        solution = minimize_scalar(
++            chi_squared, bounds=(20., 80.), method='bounded',
++            options={'xatol': 1.e-9},
++        )
++        if not solution.success or not np.isfinite(solution.fun):
++            raise RuntimeError("conductance fit did not converge")
++        self.conductance = float(solution.x)
++        return self
+ 
+     def predict(self, experiments):
++        if self.conductance is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
+         return predict_at(experiments, self.conductance)
+ 
+ 
+@@ -481,5 +514,33 @@
+ 
+ noise_predict=predict_at
+ def predict_at(experiments,conductance):
+-    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+-                     else noise_predict([e],conductance)[0] for e in experiments])
++    """Evaluate the documented detector readouts in their reported units."""
++    conductance = float(conductance)
++    if not np.isfinite(conductance) or conductance <= 0:
++        raise ValueError("conductance must be a finite positive value in micro-siemens")
++
++    values = []
++    for experiment in experiments:
++        statistic = experiment.get('statistic', 'mean')
++        if statistic == 'mean':
++            value = mean_heat(experiment, conductance)
++        elif statistic == 'phase_contrast':
++            # wrap(phi + pi) into the documented [-pi, pi] convention.  This
++            # is deliberately a fresh call: its spin state is re-equilibrated.
++            opposite = dict(
++                experiment,
++                phase=(experiment['phase'] + 2*np.pi) % (2*np.pi) - np.pi,
++            )
++            value = (mean_heat(experiment, conductance)
++                     - mean_heat(opposite, conductance)) / 2
++        elif statistic == 'gate_noise':
++            value = gate_statistics(experiment, conductance)['noise']
++        elif statistic == 'gate_third':
++            value = gate_third(experiment, conductance)['third']
++        else:
++            raise ValueError(
++                "statistic must be 'mean', 'phase_contrast', 'gate_noise', "
++                "or 'gate_third'"
++            )
++        values.append(value)
++    return np.asarray(values, dtype=float)

@@ -1,0 +1,7 @@
+# Entropy anomaly R8
+
+Add a three-contact cyclic valve with state-dependent drag, retaining the complete finite-mass calorimeter definition and original calibration. The stationary valve probabilities are uniform, but conditional particle residence at first order in mass is not. The effective positional mobility and diffusion require solving the first- and second-velocity cell equations because the drag depends on the connected contact.
+
+The oracle solves raw-moment cell hierarchies through degree four and a periodic positional Fokker-Planck equation. The density correction obeys Q n1=partial_x j1 with sum(n1)=0. A common positional-density correction cancels from the observable against the matched background times the actually measured residence. This cancellation still holds because all temperature profiles share one scalar spatial factor, so the leading fast entropy leak per unit residence is spatially constant. The independent reference solves the full finite-mass Hermite/Fourier generator and performs the defined subtraction before mass extrapolation.
+
+The completed shortcut includes the correct effective positional coefficients and moment equations but imposes equal conditional residence beyond leading order. It fits the unchanged calibration; only the new calorimeter prediction cases distinguish the missing conditional population response. No qualification is claimed until scientific validation, controls, and three fresh unhinted trials are complete.

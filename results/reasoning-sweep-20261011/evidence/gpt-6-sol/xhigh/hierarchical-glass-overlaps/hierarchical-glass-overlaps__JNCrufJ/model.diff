@@ -1,0 +1,98 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,4 +1,4 @@
+-"""Equilibrium calibration and configuration coincidences."""
++"""Thermodynamic calibration and replica events for the two-level GREM."""
+ import math
+ from numbers import Real, Integral
+ import numpy as np
+@@ -9,6 +9,7 @@
+ 
+ 
+ def level_parameter(beta, width, level):
++    """Poisson-Dirichlet parameter of a frozen level (one if unfrozen)."""
+     critical = math.sqrt(2*ENTROPIES[level]/VARIANCES[level])/width
+     return min(1.0, critical/beta)
+ 
+@@ -20,25 +21,33 @@
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def leaf_partition(parent_parameter, leaf_parameter, blocks):
++    """Joint probability of a specified leaf partition and one shared parent.
++
++    In the frozen cascade a parent selected by replicas has a tilted leaf
++    law, PD(leaf_parameter, -parent_parameter). Multiplying its EPPF by
++    the parent coincidence cancels the denominator of that tilt.
++    The same expression extends continuously to either critical point.
++    """
+     n = sum(blocks)
+     k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0/math.factorial(n-1)
++    for j in range(1, k):
++        result *= j*leaf_parameter-parent_parameter
+     for size in blocks:
+         for j in range(1,size):
+-            result *= j-alpha
++            result *= j-leaf_parameter
+     return result
+ 
+ 
+ def coincidence(beta, replicas, observable, width, blocks=None):
+     q = level_parameter(beta,width,0)
+     alpha = level_parameter(beta,width,1)
+-    parent = participation(q,replicas)
+     if observable == 'parent_collision':
+-        return parent
++        return participation(q,replicas)
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        return participation(alpha,replicas)
++    return leaf_partition(q,alpha,blocks)
+ 
+ 
+ class Model:
+@@ -54,11 +63,38 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        # Every calibration beta is below the first freezing transition, so
++        # the limiting energy density is -beta * width**2. Gaussian errors
++        # make weighted least squares the maximum-likelihood fit in width**2.
++        numerator = []
++        denominator = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(measured)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Invalid calibration record.')
++            weight = 1.0/(sigma*sigma)
++            numerator.append(-beta*measured*weight)
++            denominator.append(beta*beta*weight)
++        if not denominator:
++            raise ValueError('At least one calibration record is required.')
++        squared = math.fsum(numerator)/math.fsum(denominator)
++        squared = min(max(squared, WIDTH_INTERVAL[0]**2), WIDTH_INTERVAL[1]**2)
++        self.width = math.sqrt(squared)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        result = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Outside the stated calibration range.')
++            result.append(-beta*value*value)
++        return np.asarray(result,dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

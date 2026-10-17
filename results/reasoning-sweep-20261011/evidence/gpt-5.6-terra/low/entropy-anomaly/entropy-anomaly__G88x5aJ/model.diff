@@ -1,0 +1,78 @@
+--- starter/model.py
++++ submission/model.py
+@@ -91,7 +91,72 @@
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        self.friction=None
++
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Estimate the one common drag coefficient by weighted least squares.
++
++        The supplied calibration experiments use the two-contact, zero-field
++        setup.  In that setup all rates scale exactly as ``1 / friction``;
++        nevertheless the small bounded one-dimensional minimisation below is
++        also valid if callers provide a less specialised set of records.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments=[]
++        observed=[]
++        sigma=[]
++        for record in records:
++            try:
++                experiment=record['input']
++                value=float(record['value'])
++                uncertainty=float(record['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("each record needs input, value, and positive sigma") from exc
++            if not np.isfinite(value) or not np.isfinite(uncertainty) or uncertainty <= 0:
++                raise ValueError("calibration values must be finite and sigma must be positive")
++            experiments.append(experiment)
++            observed.append(value)
++            sigma.append(uncertainty)
++
++        observed=np.asarray(observed)
++        sigma=np.asarray(sigma)
++
++        # The advertised calibration design has an exact scale dependence.
++        # Using it avoids repeatedly solving the spectral system for hundreds
++        # of records while retaining the statistically correct WLS estimate.
++        standard=coefficients(experiments,1.)
++        weights=1./sigma**2
++        denominator=float(np.sum(weights*standard*observed))
++        numerator=float(np.sum(weights*standard**2))
++        if denominator > 0 and all(e.get('bath_contrast', 0.) == 0.
++                               and e.get('magnetic', 0.) == 0.
++                               and 'valve_cycle' not in e for e in experiments):
++            fitted=numerator/denominator
++        else:
++            # Golden-section search is dependency-free and makes fit robust to
++            # valid non-calibration records as well.
++            def loss(f):
++                residual=(coefficients(experiments,f)-observed)/sigma
++                return float(residual@residual)
++            lo,hi=0.7,1.6
++            ratio=(np.sqrt(5.)-1.)/2.
++            left=hi-ratio*(hi-lo); right=lo+ratio*(hi-lo)
++            fleft=loss(left); fright=loss(right)
++            for _ in range(36):
++                if fleft <= fright:
++                    hi,right,fright=right,left,fleft
++                    left=hi-ratio*(hi-lo); fleft=loss(left)
++                else:
++                    lo,left,fleft=left,right,fright
++                    right=lo+ratio*(hi-lo); fright=loss(right)
++            fitted=(lo+hi)/2.
++        self.friction=float(np.clip(fitted,0.7,1.6))
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        return np.asarray(coefficients(experiments,self.friction),dtype=float)

@@ -1,0 +1,86 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+________________________ test_interface_and_calibration ________________________
+
+    def test_interface_and_calibration():
+        records=json.loads((Path(__file__).parent/'data/calibration.json').read_text())
+        model=Model();assert model.fit(records) is model
+        predicted=model.predict([r['input'] for r in records]);assert isinstance(predicted,np.ndarray) and predicted.shape==(len(records),) and np.isfinite(predicted).all()
+        residual=(predicted-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+>       assert np.mean(residual**2)<1.5
+E       assert np.float64(12510185.989270458) < 1.5
+E        +  where np.float64(12510185.989270458) = <function mean at 0xffffa9b23030>((array([  212.75856304,    77.96604734,   -68.97767077,  -154.77596503,\n        1805.36655013,   705.29011842,  -654.97...  655.25247478,  -596.26916589, -1368.13830728,\n        7627.04130465,  2991.18342808, -2801.65614838, -6555.20577931]) ** 2))
+E        +    where <function mean at 0xffffa9b23030> = np.mean
+
+test_public.py:11: AssertionError
+___________________________ test_private_calibration ___________________________
+
+evaluated = {'calibration_chi2': 12597669.807377243, 'hidden': {'attractive_layers': 0.12114751725985276, 'geometry_sweep': 0.1222...1883021849030895}, 'parameter_relative_error_max': 0.3055551905926329, 'parameters': {'viscosity': 0.8333337712888405}}
+
+    def test_private_calibration(evaluated):
+>       assert evaluated['calibration_chi2'] < 1.5
+E       assert 12597669.807377243 < 1.5
+
+/tests/test_hidden.py:41: AssertionError
+___________________________ test_parameter_recovery ____________________________
+
+evaluated = {'calibration_chi2': 12597669.807377243, 'hidden': {'attractive_layers': 0.12114751725985276, 'geometry_sweep': 0.1222...1883021849030895}, 'parameter_relative_error_max': 0.3055551905926329, 'parameters': {'viscosity': 0.8333337712888405}}
+
+    def test_parameter_recovery(evaluated):
+>       assert evaluated['parameter_relative_error_max'] < .03
+E       assert 0.3055551905926329 < 0.03
+
+/tests/test_hidden.py:45: AssertionError
+______________________ test_prediction[repulsive_layers] _______________________
+
+evaluated = {'calibration_chi2': 12597669.807377243, 'hidden': {'attractive_layers': 0.12114751725985276, 'geometry_sweep': 0.1222...1883021849030895}, 'parameter_relative_error_max': 0.3055551905926329, 'parameters': {'viscosity': 0.8333337712888405}}
+case = 'repulsive_layers'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.11883021849030895 < 0.04
+
+/tests/test_hidden.py:50: AssertionError
+______________________ test_prediction[attractive_layers] ______________________
+
+evaluated = {'calibration_chi2': 12597669.807377243, 'hidden': {'attractive_layers': 0.12114751725985276, 'geometry_sweep': 0.1222...1883021849030895}, 'parameter_relative_error_max': 0.3055551905926329, 'parameters': {'viscosity': 0.8333337712888405}}
+case = 'attractive_layers'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.12114751725985276 < 0.04
+
+/tests/test_hidden.py:50: AssertionError
+_______________________ test_prediction[geometry_sweep] ________________________
+
+evaluated = {'calibration_chi2': 12597669.807377243, 'hidden': {'attractive_layers': 0.12114751725985276, 'geometry_sweep': 0.1222...1883021849030895}, 'parameter_relative_error_max': 0.3055551905926329, 'parameters': {'viscosity': 0.8333337712888405}}
+case = 'geometry_sweep'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.12226547703840682 < 0.04
+
+/tests/test_hidden.py:50: AssertionError
+_______________________ test_prediction[no_slip_anchors] _______________________
+
+evaluated = {'calibration_chi2': 12597669.807377243, 'hidden': {'attractive_layers': 0.12114751725985276, 'geometry_sweep': 0.1222...1883021849030895}, 'parameter_relative_error_max': 0.3055551905926329, 'parameters': {'viscosity': 0.8333337712888405}}
+case = 'no_slip_anchors'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.4399992432235781 < 0.04
+
+/tests/test_hidden.py:50: AssertionError
+=========================== short test summary info ============================
+FAILED test_public.py::test_interface_and_calibration - assert np.float64(125...
+FAILED ../tests/test_hidden.py::test_private_calibration - assert 12597669.80...
+FAILED ../tests/test_hidden.py::test_parameter_recovery - assert 0.3055551905...
+FAILED ../tests/test_hidden.py::test_prediction[repulsive_layers] - assert 0....
+FAILED ../tests/test_hidden.py::test_prediction[attractive_layers] - assert 0...
+FAILED ../tests/test_hidden.py::test_prediction[geometry_sweep] - assert 0.12...
+FAILED ../tests/test_hidden.py::test_prediction[no_slip_anchors] - assert 0.4...
+7 failed in 0.75s

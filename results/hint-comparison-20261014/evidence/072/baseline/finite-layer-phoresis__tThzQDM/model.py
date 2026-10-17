@@ -1,0 +1,124 @@
+from functools import lru_cache
+import numpy as np
+from scipy.integrate import quad, solve_bvp
+
+
+@lru_cache(maxsize=512)
+def response(radius, width, strength, slip):
+    """Return the viscosity-independent diffusiophoretic response.
+
+    ``response / viscosity`` is the velocity divided by the imposed bulk
+    concentration gradient.  The concentration dipole is obtained from the
+    no-flux Smoluchowski equation, and the final integral is the reciprocal-
+    theorem force balance for a Navier-slip sphere.
+
+    The arguments are deliberately scalar floats: besides making the cache
+    useful, this keeps scipy's boundary-value problem free of array-shaped
+    values supplied by a caller.
+    """
+    radius = float(radius)
+    width = float(width)
+    strength = float(strength)
+    slip = float(slip)
+    if not all(np.isfinite((radius, width, strength, slip))):
+        raise ValueError("radius, width, strength, and slip must be finite")
+    if radius <= 0 or width <= 0 or slip < 0:
+        raise ValueError("radius and width must be positive and slip non-negative")
+    if strength == 0:
+        return 0.0
+    end = radius+width
+    def equations(x, y):
+        r = radius+width*x
+        return np.array([y[1], -(2*width/r+2*strength*(1-x))*y[1]+2*width**2*y[0]/r**2])
+    def boundary(left, right):
+        return np.array([left[1], end*right[1]/width+2*right[0]-3*end])
+    grid = np.linspace(0., 1., 129)
+    r = radius+width*grid
+    initial = np.array([r+radius**3/(2*r**2), width*(1-radius**3/r**3)])
+    solution = solve_bvp(equations, boundary, grid, initial,
+                         tol=2e-10, max_nodes=10000)
+    if not solution.success:
+        raise RuntimeError(solution.message)
+    beta = slip/radius
+    drag = (1+2*beta)/(1+3*beta)
+    def integrand(r):
+        x = (r-radius)/width
+        concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+        derivative = -2*strength*(1-x)/width
+        weight = (r-radius)**2*(2*r+radius)/(2*r)
+        return weight*concentration*derivative
+    value = 2/(9*radius*drag) * quad(
+        integrand, radius, end, epsabs=2e-11, epsrel=2e-11, limit=200
+    )[0]
+    if not np.isfinite(value):
+        raise RuntimeError("non-finite response from solute-flow calculation")
+    return float(value)
+
+
+def predict_at(experiments, viscosity):
+    """Evaluate a sequence of documented experiment dictionaries."""
+    viscosity = float(viscosity)
+    if not np.isfinite(viscosity) or viscosity <= 0:
+        raise ValueError("viscosity must be a finite positive number")
+    return np.asarray([
+        response(float(e['radius']), float(e['width']), float(e['strength']),
+                 float(e['slip']))
+        for e in experiments
+    ], dtype=float) / viscosity
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        """Fit the single unknown viscosity from independent calibrations.
+
+        For each record the model is ``value = response / viscosity + noise``.
+        Fitting the reciprocal viscosity therefore makes this an exactly
+        weighted linear least-squares problem, with weights ``1 / sigma**2``.
+        The documented [0.8, 1.6] prior range is enforced on the resulting
+        maximum-likelihood estimate.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        coefficients = []
+        values = []
+        weights = []
+        for record in records:
+            try:
+                experiment = record['input']
+                value = float(record['value'])
+                sigma = float(record['sigma'])
+                coefficient = response(
+                    float(experiment['radius']), float(experiment['width']),
+                    float(experiment['strength']), float(experiment['slip'])
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("each record needs finite input, value, and sigma fields") from exc
+            if not np.isfinite(value) or not np.isfinite(sigma) or sigma <= 0:
+                raise ValueError("calibration value must be finite and sigma positive")
+            coefficients.append(coefficient)
+            values.append(value)
+            weights.append(1.0 / sigma**2)
+
+        coefficients = np.asarray(coefficients)
+        values = np.asarray(values)
+        weights = np.asarray(weights)
+        denominator = np.dot(weights, coefficients * coefficients)
+        if not np.isfinite(denominator) or denominator <= 0:
+            raise ValueError("calibration experiments contain no viscosity information")
+
+        inverse_viscosity = np.dot(weights * coefficients, values) / denominator
+        # Since viscosity is known to lie in this interval, clipping its
+        # reciprocal is the constrained Gaussian maximum-likelihood estimate.
+        inverse_viscosity = np.clip(inverse_viscosity, 1.0 / 1.6, 1.0 / 0.8)
+        self.viscosity = float(1.0 / inverse_viscosity)
+        return self
+
+    def predict(self, experiments):
+        if self.viscosity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.viscosity)

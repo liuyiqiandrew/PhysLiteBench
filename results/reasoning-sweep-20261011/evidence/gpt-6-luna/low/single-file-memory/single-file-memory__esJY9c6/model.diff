@@ -1,0 +1,41 @@
+--- starter/model.py
++++ submission/model.py
+@@ -18,7 +18,37 @@
+         self.diffusivity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common diffusivity from the calibration records.")
++        """Infer the shared diffusivity from Gaussian calibration errors.
++
++        The covariance law is linear in ``sqrt(diffusivity)``.  Fitting in
++        that parameter therefore gives the exact weighted least-squares
++        solution without a numerical optimizer.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++
++        # For each record, covariance = coefficient * sqrt(D).
++        coefficients = np.asarray([
++            covariance(1.0, float(r["input"]["density"]),
++                       float(r["input"]["time_a"]),
++                       float(r["input"]["time_b"]))
++            for r in records
++        ], dtype=float)
++        values = np.asarray([float(r["value"]) for r in records], dtype=float)
++        sigmas = np.asarray([float(r["sigma"]) for r in records], dtype=float)
++        if (not np.isfinite(coefficients).all() or
++                not np.isfinite(values).all() or
++                not np.isfinite(sigmas).all() or np.any(sigmas <= 0)):
++            raise ValueError("Calibration values and positive sigmas must be finite.")
++
++        weights = 1.0 / sigmas**2
++        root_diffusivity = np.sum(weights * coefficients * values) / np.sum(
++            weights * coefficients**2
++        )
++        # The physical parameter is constrained to the documented range.
++        self.diffusivity = float(np.clip(root_diffusivity, np.sqrt(0.8), np.sqrt(1.2))**2)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

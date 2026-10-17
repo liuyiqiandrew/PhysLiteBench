@@ -1,0 +1,43 @@
+--- before/model.py
++++ after/model.py
+@@ -108,7 +108,39 @@
+         self.friction = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Estimate the common friction coefficient from calibration records.
++
++        The calibration protocol fixes ``bath_contrast`` and ``magnetic`` to
++        zero.  In that case the limiting entropy rate is inversely
++        proportional to the common friction coefficient (the stationary
++        position density is independent of it).  Writing the prediction at
++        unit friction as ``a`` and the measured value as ``y`` therefore
++        gives the weighted linear model ``y = a / friction``.  The weighted
++        least-squares estimate can be obtained directly, without repeatedly
++        solving the spatial/moment problem during fitting.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        inputs = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or
++                not np.isfinite(sigma).all() or np.any(sigma <= 0)):
++            raise ValueError("calibration values and uncertainties must be finite, with sigma > 0")
++
++        unit_friction = coefficients(inputs, 1.0)
++        weights = 1.0 / (sigma * sigma)
++        inverse_friction = np.sum(weights * unit_friction * observed) / np.sum(
++            weights * unit_friction * unit_friction)
++        if not np.isfinite(inverse_friction) or inverse_friction <= 0:
++            raise ValueError("calibration records do not identify a positive friction")
++
++        # The apparatus specifies the admissible friction interval.  Clipping
++        # also keeps predictions well-defined for unusually noisy calibration
++        # data at the edge of that interval.
++        self.friction = float(np.clip(1.0 / inverse_friction, 0.7, 1.6))
++        return self
+ 
+     def predict(self, experiments):
+         return coefficients(experiments, self.friction)

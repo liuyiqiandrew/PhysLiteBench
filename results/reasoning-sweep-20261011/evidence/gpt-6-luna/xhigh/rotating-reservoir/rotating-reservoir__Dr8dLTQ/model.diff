@@ -1,0 +1,78 @@
+--- starter/model.py
++++ submission/model.py
+@@ -4,6 +4,7 @@
+ from numpy.polynomial.hermite import hermgauss
+ from numpy.polynomial.laguerre import laggauss
+ from scipy.linalg import solve
++from scipy.optimize import minimize_scalar
+ 
+ RATE=3.6
+ 
+@@ -138,12 +139,47 @@
+ 
+ 
+ def fit_drag(records):
+-    lam=float(records[0]['input']['relaxation_rate'])
+-    assert all(r['input']['relaxation_rate']==lam for r in records)
+-    contrast=np.array([(r['input']['temperature_a']-r['input']['temperature_b'])/r['sigma'] for r in records])
+-    measured=np.array([r['value']/r['sigma'] for r in records])
+-    conductance=float(contrast@measured/(contrast@contrast))
+-    return float(np.clip(conductance*lam*RATE/(lam*RATE-conductance*(2*lam+RATE)),.4,1.1))
++    """Fit the common drag by weighted least squares to calibration means."""
++    if not records:
++        raise ValueError('At least one calibration record is required.')
++
++    inputs=[]
++    values=[]
++    sigmas=[]
++    for record in records:
++        try:
++            e=record['input']
++            value=float(record['value'])
++            sigma=float(record['sigma'])
++            ta=float(e['temperature_a'])
++            tb=float(e['temperature_b'])
++            lam=float(e['relaxation_rate'])
++            omega=float(e['angular_speed'])
++            eta=float(e['flux_fraction'])
++        except (KeyError, TypeError, ValueError) as exc:
++            raise ValueError('Malformed calibration record.') from exc
++        if not np.all(np.isfinite([value,sigma,ta,tb,lam,omega,eta])) or sigma<=0. or lam<=0.:
++            raise ValueError('Calibration values, temperatures, and rates must be finite; sigma and relaxation_rate must be positive.')
++        if omega!=0. or eta!=0.:
++            raise ValueError('Calibration records must have angular_speed=0 and flux_fraction=0.')
++        inputs.append(dict(temperature_a=ta,temperature_b=tb,relaxation_rate=lam))
++        values.append(value)
++        sigmas.append(sigma)
++
++    values=np.asarray(values,dtype=float)
++    sigmas=np.asarray(sigmas,dtype=float)
++
++    def weighted_error(drag):
++        predictions=np.fromiter((calibration_mean(e,drag) for e in inputs),dtype=float,count=len(inputs))
++        residual=(predictions-values)/sigmas
++        return float(residual@residual)
++
++    # Compare the interval endpoints as well as the bounded optimum so that a
++    # data set whose best fit lies at a physical drag limit is handled exactly.
++    optimum=minimize_scalar(weighted_error,bounds=(.4,1.1),method='bounded',
++                            options={'xatol':1.e-12})
++    candidates=(.4,float(optimum.x),1.1)
++    return float(min(candidates,key=weighted_error))
+ 
+ 
+ def hermite_operators(e,gamma,degree=32):
+@@ -207,6 +243,10 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        self.drag=fit_drag(records)
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise RuntimeError('Call fit(records) before predict(experiments).')
++        return predict_at(experiments,self.drag)

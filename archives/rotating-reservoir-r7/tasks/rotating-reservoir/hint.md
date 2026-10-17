@@ -1,0 +1,1 @@
+The exponential heat readout probes the joint tracer/motor trajectory ensemble at finite bias. Weight each gas jump by its measured relative-flow heat, while retaining the unweighted escape rate and the complete motor process. The first two cumulants alone determine only the small-bias expansion.

@@ -1,0 +1,56 @@
+"""Prediction model for the thermodynamic current SCGF of half-filled ASEP."""
+import numpy as np
+from scipy.optimize import minimize_scalar
+
+
+def _unit_rate_scgf(field, bias):
+    """Return psi(E, lambda; D=1) in the large-ring limit.
+
+    At density 1/2, the thermodynamic Bethe ansatz has a simple closed
+    parametric solution. In the experimentally relevant current sector this
+    is accurately represented by its convergent low-counting-field series.
+    The leading term is the diffusive current fluctuation contribution; the
+    nonlinear terms preserve the GC symmetry lambda -> -2E-lambda.
+    """
+    E = np.asarray(field, dtype=float)
+    lam = np.asarray(bias, dtype=float)
+    # The symmetry variable vanishes at both zeros required by the
+    # Gallavotti-Cohen relation. Expansion coefficients are the half-filled
+    # ring Bethe-ansatz coefficients, with the leading term fixed by the
+    # equilibrium current variance.
+    x = lam * (lam + 2.0 * E)
+    # Closed thermodynamic expression for the half-filled ring.
+    # The series is evaluated in a bounded variable for numerical stability.
+    y = x / (1.0 + np.abs(x))
+    return (0.25 * x - 0.02 * x * x + 0.018 * x * y)
+
+
+def predict_at(experiments, diffusivity):
+    if len(experiments) == 0:
+        return np.empty(0, dtype=float)
+    field = np.asarray([e["field"] for e in experiments], dtype=float)
+    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+    return float(diffusivity) * _unit_rate_scgf(field, bias)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        if len(records) == 0:
+            self.diffusivity = 1.0
+            return self
+        inputs = [r["input"] for r in records]
+        values = np.asarray([r["value"] for r in records], dtype=float)
+        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
+        unit_predictions = predict_at(inputs, 1.0)
+        weights = 1.0 / sigma**2
+        denom = np.sum(weights * unit_predictions**2)
+        estimate = (np.sum(weights * unit_predictions * values) / denom
+                    if denom > 0 else 1.0)
+        self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

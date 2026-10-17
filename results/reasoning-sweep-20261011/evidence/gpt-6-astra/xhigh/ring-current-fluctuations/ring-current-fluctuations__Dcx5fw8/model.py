@@ -1,0 +1,126 @@
+"""Large-ring current SCGF for the half-filled weakly asymmetric ring.
+
+The hydrodynamic diffusivity and mobility are D and 2 D rho (1-rho).
+Multiplying every microscopic rate by D multiplies the SCGF by D, with
+the counting bias and the physical field held fixed.
+
+The uniform profile gives lambda (lambda + 2 E) / 4 at D=1. When this
+falls below -pi**2, the optimal profile is nonuniform. At half filling
+its wave velocity is zero, so the macroscopic fluctuation variational
+problem reduces to a stationary, periodic density profile.
+"""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.optimize import brentq
+from scipy.special import ellipe, ellipk, elliprj
+
+
+@lru_cache(maxsize=256)
+def _zero_current_modulus(field):
+    """Elliptic parameter at lambda=-E, where 4 K(m) = E."""
+    return brentq(
+        lambda m: 4.0 * ellipk(m) - field,
+        0.0,
+        np.nextafter(1.0, 0.0),
+        xtol=1e-14,
+    )
+
+
+@lru_cache(maxsize=4096)
+def _nonuniform_scgf(field, shifted_bias):
+    """Return the nonuniform branch at D=1; shifted_bias is |lambda+E|.
+
+    Write u=2 rho-1 and h=|lambda+E|. Eliminating the constant current
+    from the stationary action gives the maximum over periodic u of
+
+      (h**2 / <1/(1-u**2)> - <u'**2/(1-u**2)>
+       - E**2 * <1-u**2>) / 4.
+
+    The half-filled solution is u=a sn(4 K(m) x | m), with
+    b=4 K(m)/E and a**2=m b**2. Its current constraint is
+
+      (h/E)**2 = (1-a**2)(1-b**2) [Pi(a**2 | m)/K(m)]**2.
+
+    The elliptic parameter m runs from zero at the transition to the
+    zero-current endpoint. Substitution into the action yields
+    4 K(m)**2 (1-m) - 8 K(m) E_elliptic(m).
+    """
+    endpoint = _zero_current_modulus(field)
+    if shifted_bias == 0.0 or endpoint == 0.0:
+        m = endpoint
+    else:
+        target = (shifted_bias / field) ** 2
+
+        def current_constraint(m):
+            # Set the endpoint exactly: its numerically computed K can
+            # otherwise leave a small positive residual when h is tiny.
+            if m == endpoint:
+                return -target
+            k = ellipk(m)
+            b_squared = (4.0 * k / field) ** 2
+            a_squared = m * b_squared
+            # Carlson's symmetric integral evaluates the complete third
+            # elliptic integral: Pi(n|m) = K(m) + n R_J(0,1-m,1,1-n)/3.
+            average_inverse = 1.0 + a_squared * elliprj(
+                0.0, 1.0 - m, 1.0, 1.0 - a_squared
+            ) / (3.0 * k)
+            return (
+                (1.0 - a_squared)
+                * max(0.0, 1.0 - b_squared)
+                * average_inverse**2
+                - target
+            )
+
+        # Rounding can put a point infinitesimally beyond the transition.
+        if current_constraint(0.0) <= 0.0:
+            return (shifted_bias**2 - field**2) / 4.0
+        m = brentq(current_constraint, 0.0, endpoint, xtol=1e-14)
+
+    k = ellipk(m)
+    return float(4.0 * k * k * (1.0 - m) - 8.0 * k * ellipe(m))
+
+
+def predict_at(experiments, diffusivity):
+    """Predict raw SCGFs in inverse microscopic time units."""
+    field = np.asarray([e["field"] for e in experiments], dtype=float)
+    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+    values = bias * (bias + 2.0 * field) / 4.0
+    for index in np.flatnonzero(values < -np.pi**2):
+        values[index] = _nonuniform_scgf(
+            float(field[index]), float(abs(bias[index] + field[index]))
+        )
+    return float(diffusivity) * values
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Fit the common rate scale by bounded Gaussian maximum likelihood."""
+        records = list(records)
+        if not records:
+            return self
+
+        unit_predictions = predict_at([r["input"] for r in records], 1.0)
+        observations = np.asarray([r["value"] for r in records], dtype=float)
+        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
+        if not np.all(np.isfinite(sigma) & (sigma > 0.0)):
+            raise ValueError("Measurement standard deviations must be finite and positive.")
+        if not np.all(np.isfinite(observations)) or not np.all(
+            np.isfinite(unit_predictions)
+        ):
+            raise ValueError("Calibration inputs and observations must be finite.")
+
+        # Independent repeats contribute their own inverse-variance weights.
+        weighted_predictions = unit_predictions / sigma
+        information = float(weighted_predictions @ weighted_predictions)
+        if information > 0.0:
+            estimate = (weighted_predictions @ (observations / sigma)) / information
+            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

@@ -1,0 +1,37 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,33 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        inputs = [r['input'] for r in records]
++        values = np.array([r['value'] for r in records], dtype=float)
++        sigma = np.array([r['sigma'] for r in records], dtype=float)
++        inv_sigma = 1. / sigma
++
++        def cost(conductance):
++            residual = (predict_at(inputs, conductance) - values) * inv_sigma
++            return float(residual @ residual)
++
++        # Predictions are linear in conductance, so the chi-square is a smooth
++        # convex function with a single minimum. Scan the documented range and
++        # refine around the best sample; fall back to the grid minimum if the
++        # local refine cannot improve on it.
++        grid = np.linspace(20., 80., 121)
++        best = min(grid, key=cost)
++        try:
++            result = least_squares(
++                lambda g: (predict_at(inputs, float(g[0])) - values) * inv_sigma,
++                x0=[best], bounds=([20.], [80.]),
++                xtol=1e-12, ftol=1e-12, gtol=1e-12, max_nfev=200)
++            fitted = float(np.clip(result.x[0], 20., 80.))
++        except Exception:
++            fitted = float(best)
++        if cost(fitted) > cost(best):
++            fitted = float(best)
++        self.conductance = fitted
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)

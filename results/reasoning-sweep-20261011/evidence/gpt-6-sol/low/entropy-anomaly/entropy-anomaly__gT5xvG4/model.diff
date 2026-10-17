@@ -1,0 +1,44 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,15 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # The order-one contact imbalance follows from the contact continuity
++    # equations. Its common component is immaterial after residence-weighted
++    # subtraction of the uniform background.
++    contact_flux=first[1,0]
++    contact_rhs=d@contact_flux.T
++    contact_rhs=contact_rhs.T
++    contact_matrix=q.copy();contact_matrix[-1]=1.
++    contact_rhs[-1]=0.
++    density_correction={(0,0):np.linalg.solve(contact_matrix,contact_rhs)}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -85,6 +92,8 @@
+     if valve_cycle is not None:e.update(valve_cycle=valve_cycle,contact_drag_contrast=contact_drag_contrast)
+     state=limiting_state(e,friction)
+     weight=1. if detector_phase is None else (1+np.cos(state['phase']-detector_phase))/2
++    # The uniform force-free background has no finite order entropy term;
++    # its leading 1/m term is removed with the actual weighted residence.
+     return float(state['dx']*np.sum(weight*state['local']))
+ 
+ def coefficients(experiments,friction=1.):
+@@ -93,5 +102,13 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        records=list(records)
++        if not records:raise ValueError('At least one calibration record is required')
++        base=coefficients([r['input'] for r in records],1.)
++        values=np.array([r['value'] for r in records],dtype=float)
++        sigma=np.array([r['sigma'] for r in records],dtype=float)
++        weights=1/sigma**2
++        inverse_friction=np.sum(weights*base*values)/np.sum(weights*base**2)
++        self.friction=float(np.clip(1/inverse_friction,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

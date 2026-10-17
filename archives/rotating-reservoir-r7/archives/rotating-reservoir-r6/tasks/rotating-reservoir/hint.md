@@ -1,0 +1,1 @@
+The incoming Maxwell density is a spatial gas density. The specified contact selects collisions by relative-speed flux, so it is not generally the velocity distribution of particles that actually collide. Track that selection in the velocity-dependent event generator while retaining the calorimeter's temporal correlations.

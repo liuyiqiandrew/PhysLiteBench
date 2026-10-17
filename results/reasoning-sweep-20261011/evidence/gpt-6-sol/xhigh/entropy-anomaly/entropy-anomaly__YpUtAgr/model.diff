@@ -1,0 +1,68 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,15 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # The contact-resolved stationary position densities have an O(m)
++    # correction.  Only its zero-sum part is needed: a common correction to
++    # the position density cancels against the measured background residence.
++    contact_flux=np.stack([first[1,0][s] for s in range(count)])
++    contact_source=contact_flux@d.T
++    contact_source-=contact_source.mean(axis=0,keepdims=True)
++    projector=np.ones((count,count))/count
++    contact_density=np.linalg.solve(q-projector,contact_source)
++    density_correction={(0,0):contact_density}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +100,45 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        records=list(records)
++        if not records:
++            raise ValueError('Calibration records are required')
++        observed=np.array([r['value'] for r in records],dtype=float)
++        sigma=np.array([r['sigma'] for r in records],dtype=float)
++        experiments=[r['input'] for r in records]
++        if np.any(~np.isfinite(observed)) or np.any(~np.isfinite(sigma)) or np.any(sigma<=0):
++            raise ValueError('Calibration values and uncertainties must be finite, with positive uncertainties')
++        # In the documented calibration the contacts are dynamically identical.
++        # The entire excess rate therefore scales as inverse friction.
++        if all(e['bath_contrast']==0 and e['magnetic']==0 and 'valve_cycle' not in e for e in experiments):
++            unit=coefficients(experiments,1.)
++            inverse_friction=np.sum(unit*observed/sigma**2)/np.sum((unit/sigma)**2)
++            self.friction=float(np.clip(1./inverse_friction,.7,1.6))
++        else:
++            # Keep fit usable for records outside the documented calibration.
++            objective=lambda f: float(np.sum(((coefficients(experiments,f)-observed)/sigma)**2))
++            grid=np.linspace(.7,1.6,17)
++            scores=np.array([objective(f) for f in grid])
++            best=int(np.argmin(scores))
++            left=grid[max(0,best-1)]
++            right=grid[min(16,best+1)]
++            ratio=(np.sqrt(5.)-1.)/2.
++            a=right-ratio*(right-left)
++            b=left+ratio*(right-left)
++            fa,fb=objective(a),objective(b)
++            for _ in range(45):
++                if fa<fb:
++                    right,b,fb=b,a,fa
++                    a=right-ratio*(right-left)
++                    fa=objective(a)
++                else:
++                    left,a,fa=a,b,fb
++                    b=left+ratio*(right-left)
++                    fb=objective(b)
++            candidates=np.array([.7,1.6,grid[best],(left+right)/2.])
++            self.friction=float(candidates[np.argmin([objective(f) for f in candidates])])
++        return self
++    def predict(self,experiments):
++        if self.friction is None:
++            raise ValueError('Fit the model before predicting')
++        return coefficients(experiments,self.friction)

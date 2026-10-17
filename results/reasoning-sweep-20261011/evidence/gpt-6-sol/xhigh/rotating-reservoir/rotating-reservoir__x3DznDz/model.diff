@@ -1,0 +1,128 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,7 +3,7 @@
+ import numpy as np
+ from numpy.polynomial.hermite import hermgauss
+ from numpy.polynomial.laguerre import laggauss
+-from scipy.linalg import solve
++from scipy.linalg import lu_factor, lu_solve, solve
+ 
+ RATE=3.6
+ 
+@@ -112,11 +112,11 @@
+     return result
+ 
+ 
+-def kinetic_statistics(e,drag,degree=34,variance=None):
++def kinetic_statistics(e,drag,degree=34,variance=None,noise=True):
+     variance=max(e['temperature_a'],e['temperature_b']) if variance is None else float(variance)
+     if e['flux_fraction']==0.:
+-        return hermite(e,drag,degree=6,variance=variance,total_degree=True,noise=True)
+-    return hermite(e,drag,degree=degree,variance=variance,noise=True)
++        return hermite(e,drag,degree=6,variance=variance,total_degree=True,noise=noise)
++    return hermite(e,drag,degree=degree,variance=variance,noise=noise)
+ 
+ 
+ @lru_cache(4096)
+@@ -125,10 +125,9 @@
+     if statistic not in ['mean','noise','third_cumulant']:raise ValueError('unknown calorimeter statistic')
+     if statistic=='mean' and flux_fraction==0. and angular_speed==0.:
+         return float(calibration_mean(e,drag))
+-    return kinetic_statistics(e,drag)[statistic]
+-
+-
+-RATE=3.6
++    return kinetic_statistics(e,drag,noise=statistic!='mean')[statistic]
++
++
+ FIELDS=('angular_speed','flip_rate','temperature_a','temperature_b','flux_fraction','relaxation_rate')
+ 
+ 
+@@ -169,20 +168,47 @@
+     constant=np.zeros(size);constant[0]=1.
+     return L,V,A1,A2,p,constant
+ 
+-def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
++def angular_hermite(e,gamma=.67,degree=32):
++    """Cumulant rates of the heat weighted by the *physical* rotor angle.
++
++    The first two responses of the tilted generator only need angle Fourier
++    modes 0 and +/-1.  Negative modes are conjugates of positive modes, so
++    each response requires one real and one complex linear solve.
++    """
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+-    eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+-    w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
+-    def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+-    c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+-    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+-    return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
++    eps=float(e.get('detector_contrast',0.));harmonic=int(e.get('detector_harmonic',1))
++    # The existing A1 is the first derivative of the generator tilted by
++    # exp(-k Q).  Use the positive-heat convention for all three cumulants.
++    B1=-A1
++    B2=A2
++    b1=B1[:,0]
++    b2=B2[:,0]
++    mean=float(p@b1)
++
++    zero=L.copy()
++    zero[0]=p
++    zero_lu=lu_factor(zero,check_finite=False)
++    first=L.astype(complex)+1j*harmonic*V
++    first_lu=lu_factor(first,check_finite=False)
++
++    def solve_zero(rhs):
++        rhs=rhs.copy()
++        rhs[0]=0.
++        return lu_solve(zero_lu,rhs,check_finite=False)
++
++    def solve_first(rhs):
++        return lu_solve(first_lu,rhs,check_finite=False)
++
++    r10=solve_zero(mean*constant-b1)
++    r11=solve_first(-eps/2*b1)
++    weighted_r1=r10+eps*r11.real
++    noise=float(p@((1+eps**2/2)*b2+2*B1@weighted_r1))
++
++    r20=solve_zero(noise*constant+2*mean*r10-2*B1@weighted_r1-(1+eps**2/2)*b2)
++    r21=solve_first(2*mean*r11-2*B1@(r11+eps/2*r10)-eps*b2)
++    weighted_r2=r20+eps*r21.real
++    third=float(3*p@(B1@weighted_r2+B2@((1+eps**2/2)*r10+2*eps*r11.real)))
++    return dict(mean=mean,noise=noise,third_cumulant=third)
+ 
+ 
+ @lru_cache(512)
+@@ -196,9 +222,14 @@
+     for e in experiments:
+         if e.get('detector_contrast',0.)!=0.:
+             if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
+-            values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
+-                float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+-            result.append(values[e.get('statistic','mean')])
++            statistic=e.get('statistic','mean')
++            if statistic=='mean':
++                # Uniform initial phase makes the cosine term average to zero.
++                result.append(readout(*(float(e[f]) for f in FIELDS),statistic,float(drag)))
++            else:
++                values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
++                    float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
++                result.append(values[statistic])
+         else:result.append(readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)))
+     return np.array(result)
+ 
+@@ -207,6 +238,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

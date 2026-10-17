@@ -1,0 +1,94 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,4 +1,4 @@
+-"""Equilibrium calibration and configuration coincidences."""
++"""Infinite-size equilibrium observables of the two-level Gaussian system."""
+ import math
+ from numbers import Real, Integral
+ import numpy as np
+@@ -20,25 +20,34 @@
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def leaf_partition(q, alpha, blocks):
++    """Joint probability for one specified partition within a shared family.
++
++    The family weights have Poisson-Dirichlet parameter q.  Selecting a
++    family tilts its leaf partition function by its q-th power, so its
++    normalized leaf weights have parameters (alpha, -q).  Multiplying their
++    partition probability by the family collision probability cancels the
++    (1-q) factors and gives the expression below.  It also holds at the
++    critical boundaries q=1 and alpha=1 by continuity.
++    """
+     n = sum(blocks)
+-    k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0 / math.factorial(n - 1)
++    for i in range(1, len(blocks)):
++        result *= i * alpha - q
+     for size in blocks:
+-        for j in range(1,size):
+-            result *= j-alpha
++        for j in range(1, size):
++            result *= j - alpha
+     return result
+ 
+ 
+ def coincidence(beta, replicas, observable, width, blocks=None):
+     q = level_parameter(beta,width,0)
+     alpha = level_parameter(beta,width,1)
+-    parent = participation(q,replicas)
+     if observable == 'parent_collision':
+-        return parent
++        return participation(q,replicas)
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        return participation(alpha,replicas)
++    return leaf_partition(q,alpha,blocks)
+ 
+ 
+ class Model:
+@@ -54,11 +63,39 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        # All stated calibration temperatures are in the annealed phase:
++        # the limiting energy per size is -beta * width**2.  The errors are
++        # independent Gaussians, so fit width**2 by weighted least squares.
++        numerator = []
++        denominator = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Outside the stated calibration range.')
++            if not math.isfinite(measured) or not math.isfinite(sigma) or sigma <= 0:
++                raise ValueError('Calibration values must be finite and sigma positive.')
++            weight = 1.0 / (sigma * sigma)
++            numerator.append(-beta * measured * weight)
++            denominator.append(beta * beta * weight)
++        if not denominator:
++            raise ValueError('At least one calibration record is required.')
++        squared_width = math.fsum(numerator) / math.fsum(denominator)
++        squared_width = min(WIDTH_INTERVAL[1]**2,
++                            max(WIDTH_INTERVAL[0]**2, squared_width))
++        self.width = math.sqrt(squared_width)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        result = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Outside the stated calibration range.')
++            result.append(-beta * value * value)
++        return np.asarray(result,dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

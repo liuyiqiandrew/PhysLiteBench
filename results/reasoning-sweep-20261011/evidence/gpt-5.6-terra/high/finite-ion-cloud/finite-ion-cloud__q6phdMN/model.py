@@ -1,0 +1,134 @@
+"""Finite-cell osmotic coefficient for the two-dimensional ionic cell."""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.integrate import quad
+from scipy.optimize import minimize_scalar
+from scipy.special import exprel, hyp2f1, roots_legendre
+
+
+@lru_cache(maxsize=None)
+def coefficient(gamma, count, ratio):
+    """Return P/(kT N/A) at fixed dimensionless coupling and R/a."""
+    gamma = float(gamma)
+    ratio = float(ratio)
+    length = np.log(ratio)
+
+    if count == 1:
+        slope = 2.0 - gamma
+        return -np.expm1(-2.0 * length) * np.exp(slope * length) / (
+            2.0 * length * exprel(slope * length)
+        )
+    if count == 2:
+        radial_slope, gap_slope = 4.0 - 3.0 * gamma, 2.0 - gamma
+
+        def angular(gap):
+            return hyp2f1(-gamma / 2.0, -gamma / 2.0, 1.0, np.exp(-2.0 * gap))
+
+        partition = quad(
+            lambda d: angular(d) * np.exp(gap_slope * d) * (length - d)
+            * exprel(radial_slope * (length - d)),
+            0.0, length, epsabs=1e-11, epsrel=1e-11,
+        )[0]
+        boundary = quad(
+            lambda d: angular(d) * np.exp(gap_slope * d + radial_slope * (length - d)),
+            0.0, length, epsabs=1e-11, epsrel=1e-11,
+        )[0]
+        return -np.expm1(-2.0 * length) * boundary / (4.0 * partition)
+    if count == 3:
+        return three_ion_coefficient(gamma, ratio)
+    raise ValueError("ion_count must be 1, 2, or 3")
+
+
+def predict_at(experiments, coupling):
+    return np.asarray([
+        coefficient(experiment["temperature_multiplier"] * coupling,
+                    experiment["ion_count"], experiment["radius_ratio"])
+        for experiment in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.coupling = None
+
+    def fit(self, records):
+        """Fit the shared reference coupling by Gaussian weighted least squares."""
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+        experiments = [record["input"] for record in records]
+        observed = np.asarray([record["value"] for record in records], dtype=float)
+        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
+        if not np.isfinite(observed).all() or not np.isfinite(sigma).all() or np.any(sigma <= 0):
+            raise ValueError("calibration values must be finite and sigma must be positive")
+
+        def objective(coupling):
+            residual = (predict_at(experiments, coupling) - observed) / sigma
+            return float(np.dot(residual, residual))
+
+        result = minimize_scalar(
+            objective, bounds=(0.7, 1.4), method="bounded", options={"xatol": 1e-10}
+        )
+        if not result.success or not np.isfinite(result.fun):
+            raise RuntimeError("coupling fit did not converge")
+        self.coupling = float(result.x)
+        return self
+
+    def predict(self, experiments):
+        if self.coupling is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.coupling)
+
+
+@lru_cache(maxsize=None)
+def nodes(order):
+    x, w = roots_legendre(order)
+    return (x + 1.0) / 2.0, w / 2.0
+
+
+def _angular_fourier_coefficients(gamma, gaps, modes):
+    """Fourier coefficients of |1-exp(-d+i theta)|**gamma."""
+    half_gamma = gamma / 2.0
+    q = np.exp(-gaps)
+    q_squared = q * q
+    result = np.empty((modes + 1, q.size), dtype=float)
+    result[0] = hyp2f1(-half_gamma, -half_gamma, 1.0, q_squared)
+
+    # (-gamma/2)_m / m!, updated without factorial overflows.
+    prefactor = 1.0
+    for mode in range(1, modes + 1):
+        prefactor *= (mode - 1.0 - half_gamma) / mode
+        result[mode] = (
+            prefactor * q**mode
+            * hyp2f1(mode - half_gamma, -half_gamma, mode + 1.0, q_squared)
+        )
+    return result
+
+
+def three_ion_coefficient(gamma, ratio, order=32, angular_modes=64):
+    """Three-ion coefficient with the correlated three-pair angular average."""
+    length = np.log(ratio)
+    x, w = nodes(order)
+
+    # Log-radius gaps, ordered from the lowest ion upward.  The lowest
+    # log-radius itself is integrated analytically.
+    d_low_2d = (length * x)[:, None]
+    d_high_2d = (length * (1.0 - x))[:, None] * x[None, :]
+    d_low = np.broadcast_to(d_low_2d, (order, order)).ravel()
+    d_high = d_high_2d.ravel()
+    weights = (length * length * (1.0 - x)[:, None] * w[:, None] * w[None, :]).ravel()
+    span = length - d_low - d_high
+
+    c_low = _angular_fourier_coefficients(gamma, d_low, angular_modes)
+    c_high = _angular_fourier_coefficients(gamma, d_high, angular_modes)
+    c_total = _angular_fourier_coefficients(gamma, d_low + d_high, angular_modes)
+    angular = c_low[0] * c_high[0] * c_total[0]
+    angular += 2.0 * np.sum(c_low[1:] * c_high[1:] * c_total[1:], axis=0)
+
+    radial_slope = 6.0 - 6.0 * gamma
+    weight = weights * angular * np.exp((4.0 - 3.0 * gamma) * d_low + (2.0 - gamma) * d_high)
+    partition = np.dot(weight, span * exprel(radial_slope * span))
+    boundary = np.dot(weight, np.exp(radial_slope * span))
+    return -np.expm1(-2.0 * length) * boundary / (6.0 * partition)

@@ -1,0 +1,18 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,14 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Estimate the common fluid drag from the zero-field calibration.
++
++        The calibration protocol deliberately has no retained contact and no
++        magnetic field.  In that case the position covariance (and the area
++        readout) have a closed form, so fitting the sole unknown is a small,
++        well-conditioned weighted least-squares problem; ``fit_friction``
++        implements that likelihood using the reported independent errors.
++        """
++        self.friction = fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

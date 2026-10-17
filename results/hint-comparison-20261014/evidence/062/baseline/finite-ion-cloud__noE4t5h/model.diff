@@ -1,0 +1,31 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,7 +33,27 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        inputs = [r["input"] for r in records]
++        values = np.asarray([float(r["value"]) for r in records])
++        sigmas = np.asarray([float(r["sigma"]) for r in records])
++        weights = 1.0 / np.where(sigmas > 0, sigmas, 1.0)
++
++        def objective(gamma):
++            residual = (predict_at(inputs, gamma) - values) * weights
++            return float(np.dot(residual, residual))
++
++        grid = np.linspace(0.7, 1.4, 141)
++        scores = np.array([objective(g) for g in grid])
++        best = grid[int(np.argmin(scores))]
++        step = grid[1] - grid[0]
++        result = minimize_scalar(
++            objective,
++            bounds=(max(0.7, best - step), min(1.4, best + step)),
++            method="bounded",
++            options={"xatol": 1e-12},
++        )
++        self.coupling = 0.7 if result.x < 0.7 else 1.4 if result.x > 1.4 else float(result.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.coupling)

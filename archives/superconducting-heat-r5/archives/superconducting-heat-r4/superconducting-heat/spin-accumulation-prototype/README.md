@@ -1,0 +1,3 @@
+# Superconducting spin-population prototypes
+
+These raw bounded prototypes and results precede revision 4 packaging. The fast 100ns case was rejected as weak separation before any model run. The 10microsecond case, matrix checks and full-domain controls led to the packaged apparatus. Prototype imports refer to the preserved revision 3 archive. The raw screen script references its original /private/tmp prototype path; for current reproducible full validation use scripts/validate_superconducting_heat.py from the staged root, which includes all controls and 256 noise realizations. No prototype is an agent difficulty result.

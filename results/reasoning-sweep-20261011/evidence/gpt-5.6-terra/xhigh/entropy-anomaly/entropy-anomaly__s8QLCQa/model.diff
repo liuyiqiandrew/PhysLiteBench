@@ -1,0 +1,97 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,4 +1,12 @@
+-"""Stationary small-mass calorimetry of switched anisotropic thermal contacts."""
++"""Stationary small-mass calorimetry of switched anisotropic thermal contacts.
++
++The velocity moments are expanded in powers of the mass.  The zeroth-order
++position equation is solved spectrally on the periodic x coordinate and the
++next non-vanishing moment supplies the finite part of the bath entropy rate.
++This is useful here because the un-subtracted entropy current contains a
++``1 / m`` heat-exchange contribution when the contacts have unequal
++temperatures.
++"""
+ from functools import lru_cache
+ import numpy as np
+ 
+@@ -85,13 +93,77 @@
+     if valve_cycle is not None:e.update(valve_cycle=valve_cycle,contact_drag_contrast=contact_drag_contrast)
+     state=limiting_state(e,friction)
+     weight=1. if detector_phase is None else (1+np.cos(state['phase']-detector_phase))/2
+-    return float(state['dx']*np.sum(weight*state['local']))
++    measured=float(state['dx']*np.sum(weight*state['local']))
++
++    # ``local`` is the finite part after the leading, position-independent
++    # switching heat has cancelled against the measured residence.  Retain an
++    # explicit matched-background term as well: it is identically zero for a
++    # spatially uniform force-free apparatus in exact arithmetic, but makes
++    # the definition clear and avoids relying on that cancellation numerically
++    # when a new contact configuration is used.
++    background=e.copy()
++    background['force_x']=0.
++    background['force_y']=0.
++    background['contrast']=0.
++    background_state=limiting_state(background,friction)
++    background_rate=float(background_state['dx']*background_state['local'].sum())
++    residence=float(state['dx']*np.sum(weight*state['density']))
++    return measured-background_rate*residence
+ 
+ def coefficients(experiments,friction=1.):
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+ 
+ class Model:
+     def __init__(self):self.friction=None
++
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Fit the common drag coefficient by weighted least squares.
++
++        Calibration uses the original two-contact, zero-field preparation.
++        In that preparation the limiting excess rate is exactly inversely
++        proportional to the common friction.  Writing the prediction as
++        ``a * rate_at_unit_friction`` leaves a one-parameter weighted linear
++        least-squares fit, with ``friction = 1/a``.  This both uses the stated
++        independent Gaussian uncertainties and avoids an unnecessarily noisy
++        numerical search.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments=[]
++        values=[]
++        sigmas=[]
++        for record in records:
++            try:
++                experiment=record['input']
++                value=float(record['value'])
++                sigma=float(record['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("each record must contain input, value, and sigma") from exc
++            if not np.isfinite(value) or not np.isfinite(sigma) or sigma <= 0.:
++                raise ValueError("calibration values must be finite and sigma must be positive")
++            if any(field not in experiment for field in INPUT_FIELDS):
++                raise ValueError("calibration input is missing a required field")
++            experiments.append(experiment)
++            values.append(value)
++            sigmas.append(sigma)
++
++        unit_rate=coefficients(experiments,1.)
++        values=np.asarray(values)
++        inv_variance=1./np.square(sigmas)
++        denominator=float(np.sum(inv_variance*np.square(unit_rate)))
++        if not np.isfinite(denominator) or denominator <= 0.:
++            raise ValueError("calibration data do not identify friction")
++        scale=float(np.sum(inv_variance*unit_rate*values)/denominator)
++        if not np.isfinite(scale) or scale <= 0.:
++            raise ValueError("calibration data imply a non-positive friction")
++
++        # The documented parameter domain is part of the experimental model.
++        self.friction=float(np.clip(1./scale,.7,1.6))
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        return coefficients(experiments,self.friction)

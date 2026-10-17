@@ -1,0 +1,331 @@
+{
+  "task": "superconducting-heat",
+  "revision": 5,
+  "job": "superconducting-heat-r5-plain-20261006-035908",
+  "reviewer": "root",
+  "trials": {
+    "superconducting-heat__7Ns7Zs3": {
+      "reward": 1.0,
+      "exception": null,
+      "classification": "pending_root_actual_source_review",
+      "native_conductance": 44.98353250232806,
+      "uses_supplied_exact_branch": true,
+      "independent_maximum_error_pW": 1.7074341940315207e-11,
+      "same_parameter_hidden_relative_errors": {
+        "oscillator_static": 1.1131294101201681e-13,
+        "oscillator_low_drive": 1.59405634410585e-13,
+        "oscillator_pair_drive": 6.900585091127026e-13
+      },
+      "trajectory_evidence": [
+        "I\u2019ll inspect the apparatus description, calibration data, and existing interface, then implement and test the model against the documented behavior.",
+        "The existing code contains the main transport machinery but is incomplete and has two interface-level issues: fitting is unimplemented, and phase contrast is using a \\(2\\pi\\) shift instead of the required \\(\\pi\\) shift. I\u2019m also tightening the oscillator path so it retains the specified coherent sideband contributions.",
+        "The calibration fit now recovers about 44.98 \u00b5S and passes the public calibration residual test. I\u2019ve also verified finite predictions across representative temperatures, drive bands, amplitudes, oscillator couplings, and phase-contrast requests; I\u2019m doing a final correctness pass on edge cases and the required defaults.",
+        "Implemented `/app/model.py` with:\n\n- Weighted conductance fitting from calibration records\n- Full documented prediction interface and defaults\n- Correct `phase_contrast` handling using a \u03c0 phase shift\n- Coherent oscillator sideband treatment\n- Driven spin-balance predictions\n\nValidation: `python -m pytest -q test_public.py` passes, with fitted conductance \u2248 `44.98 \u00b5S`."
+      ],
+      "sha256": {
+        "artifacts/app/model.py": "df881a76b5d741750064d8ddae59149d16bd116ade3661f7098bc07b1701c294",
+        "agent/trajectory.json": "3cf47870a52917fda00654ecacb3d248b6cc6d96d6af58046fe900748887c17e",
+        "result.json": "d1f884faa08b8a38684f8bd31499184f40af144f2baed5613c47e912443f4339"
+      }
+    },
+    "superconducting-heat__A4CRALo": {
+      "reward": 0.0,
+      "exception": null,
+      "classification": "pending_root_actual_source_review",
+      "native_conductance": 44.983532502254995,
+      "uses_supplied_exact_branch": true,
+      "independent_maximum_error_pW": 1.672955085106107,
+      "same_parameter_hidden_relative_errors": {
+        "oscillator_static": 1.967976812943092,
+        "oscillator_low_drive": 3.8902717301192262,
+        "oscillator_pair_drive": 1.3492064916429043
+      },
+      "trajectory_evidence": [
+        "I\u2019ll inspect the apparatus description, calibration data, and existing interface first, then implement and run the available tests or representative checks against the documented outputs.",
+        "The file contains a substantial but unfinished numerical model: fitting is unimplemented, the phase-contrast phase shift is incorrect, and the oscillator/spin-balance path needs auditing against the stated transition bookkeeping. I\u2019m now checking the calibration record mix and exercising the current kernels to identify the minimum correct implementation and any numerical failures.",
+        "The public calibration now fits at about 44.98 \u00b5S and passes. I also found and corrected the phase-contrast implementation to use an actual \u03c0-shifted preparation; next I\u2019m validating the less common drive, oscillator, and spin-polarization branches for finite outputs, periodicity, and equilibrium limits.",
+        "The advanced-path sweep is finite across random points in both drive bands, oscillator couplings, temperatures, and phases. I also aligned the oscillator branch with the sharp-line coherent sideband limit: anomalous coherence keeps the sideband parity factor, and the phase contrast now changes sign under a \u03c0 phase shift as required. I\u2019m doing a final consistency pass and test run.",
+        "Implemented `/app/model.py` with:\n\n- Weighted conductance fitting and validation\n- Complete documented prediction interface/defaults\n- Correct \u03c0-shifted phase-contrast readout\n- Coherent oscillator sideband handling\n- Driven spin-balance support\n- Robust advanced-path numerical behavior\n\nVerification: `2 passed`; fitted conductance \u2248 `44.9835 \u00b5S`; calibration reduced \u03c7\u00b2 \u2248 `1.10`."
+      ],
+      "sha256": {
+        "artifacts/app/model.py": "cea1a63fc31d2b6e542f603f654b17def0f39868fb41b7fdc59f8668efb6db2b",
+        "agent/trajectory.json": "865b5b5cef8ba6025738c742bb6c5575491abee9864ec0f46ac8d60324faf0f5",
+        "result.json": "bf35c4abc4d501d9cba602b95068d13ef7f66627db6d81c44a6e671e9a73a23d"
+      }
+    },
+    "superconducting-heat__AwyUzAB": {
+      "reward": 1.0,
+      "exception": null,
+      "classification": "pending_root_actual_source_review",
+      "native_conductance": 44.983532502254995,
+      "uses_supplied_exact_branch": true,
+      "independent_maximum_error_pW": 1.7067236512957606e-11,
+      "same_parameter_hidden_relative_errors": {
+        "oscillator_static": 1.1147245435323755e-13,
+        "oscillator_low_drive": 1.5610500324879658e-13,
+        "oscillator_pair_drive": 6.935185392614037e-13
+      },
+      "trajectory_evidence": [
+        "I\u2019ll inspect the README, current model, and calibration data first, then implement the documented interface and run the available checks.",
+        "The public calibration contains only default, unmodulated mean measurements, so I\u2019m validating the existing static tunneling integral against those records first. I\u2019ll then repair the driven, oscillator, spin-balance, fitting, and phase-contrast paths so the full documented interface is consistent.",
+        "The static integral reproduces the calibration with conductance about 45 \u00b5S, so the core energy kernel is on the right scale. I found three implementation gaps that matter for hidden cases: fitting is unimplemented, phase contrast was comparing the same phase instead of a \u03c0-shifted phase, and the oscillator path was suppressing coherent singlet interference. I\u2019m patching those and using the full sideband kernel for driven predictions.",
+        "The public tests now pass, and phase-contrast checks produce nonzero values with a true \u03c0-shift. I\u2019m doing a boundary/fuzz pass over the documented temperature, drive, amplitude, and oscillator ranges now, because the main remaining risks are numerical edge behavior at gap thresholds and convergence of the internal spin balance.",
+        "The boundary sweep completed with finite outputs across both drive bands and the full oscillator range, and a synthetic mixed-record fit recovers the injected conductance exactly. I\u2019m doing one final source check and test run before handing it back.",
+        "Implemented `/app/model.py` with:\n\n- Conductance fitting from calibration records\n- Full documented prediction defaults\n- Driven spin-balance calculations\n- Oscillator sidebands and coherent pairing interference\n- Correct \u03c0-shifted phase contrast\n- Robust bounded fitting for extended records\n\nValidation: `python -m pytest -q test_public.py` passes all tests."
+      ],
+      "sha256": {
+        "artifacts/app/model.py": "227533198c2da8f3f4b0f51e75fd16d11e0afe8d60eaf2d46ffbbed9d6fa2a29",
+        "agent/trajectory.json": "6cefa264ac87b8355f574f1e4a6b67adc5b1907d81c118c55f8003972c37ead2",
+        "result.json": "b2ad259496bf808778092fcf8cfd51a2a9829d54e633660cbf8c19cd6448e843"
+      }
+    }
+  },
+  "passes": 2,
+  "trial_count": 3,
+  "clean_physical_failures": 0,
+  "random_seed": 716105,
+  "offgrid_inputs": [
+    {
+      "left_temperature": 0.7381326439942498,
+      "right_temperature": 0.745208508686323,
+      "phase": 1.4530216006054153,
+      "amplitude": 0.28386179649588883,
+      "drive_energy": 9.935715832595353,
+      "oscillator_coupling": 0.16998047124831794,
+      "oscillator_temperature": 13.377549694151355,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.7511759287527519,
+      "right_temperature": 0.6149739112849938,
+      "phase": 1.89917052333792,
+      "amplitude": 0.8375667340772943,
+      "drive_energy": 0.1128369594786022,
+      "oscillator_coupling": 0.6486761820013045,
+      "oscillator_temperature": 12.95768686410035,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.5548033395138469,
+      "right_temperature": 0.6567509631879812,
+      "phase": 2.359172047017305,
+      "amplitude": 0.04775118541619228,
+      "drive_energy": 9.416681120600016,
+      "oscillator_coupling": 0.32872756716617757,
+      "oscillator_temperature": 21.479621506610442,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.36576917223488925,
+      "right_temperature": 0.3700842432888141,
+      "phase": -2.2455368329503416,
+      "amplitude": 0.783408598771501,
+      "drive_energy": 0.4528134296234281,
+      "oscillator_coupling": 0.5980332052089483,
+      "oscillator_temperature": 13.527750089142552,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 1.021072549432393,
+      "right_temperature": 0.40007547902016816,
+      "phase": -0.7148604007199285,
+      "amplitude": 0.7763979334014122,
+      "drive_energy": 10.421984718535608,
+      "oscillator_coupling": 0.971236443373215,
+      "oscillator_temperature": 16.56057161883993,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.4238272617195566,
+      "right_temperature": 0.38664159410907434,
+      "phase": 2.1614770628725157,
+      "amplitude": 0.5147720238640496,
+      "drive_energy": 0.11205930855019837,
+      "oscillator_coupling": 0.1718884177520601,
+      "oscillator_temperature": 12.74100478120887,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.9054834514165202,
+      "right_temperature": 0.783505817307439,
+      "phase": -1.710260602580088,
+      "amplitude": 0.1751079546452886,
+      "drive_energy": 7.572693375954794,
+      "oscillator_coupling": 0.19737345865810385,
+      "oscillator_temperature": 19.510233295281154,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.44065142375553396,
+      "right_temperature": 0.705462159638521,
+      "phase": -1.0092583530974768,
+      "amplitude": 0.5047373204691716,
+      "drive_energy": 0.2722365070071773,
+      "oscillator_coupling": 0.5749674148683143,
+      "oscillator_temperature": 23.403395325704967,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.5877644910599084,
+      "right_temperature": 0.962933711564282,
+      "phase": 2.9523081531331297,
+      "amplitude": 0.7324361963190006,
+      "drive_energy": 9.770231557102097,
+      "oscillator_coupling": 0.06220230636637081,
+      "oscillator_temperature": 15.309627391928075,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.7341521210646124,
+      "right_temperature": 0.8234526958995653,
+      "phase": -2.974413129624282,
+      "amplitude": 0.8111896380520579,
+      "drive_energy": 0.3127419866581045,
+      "oscillator_coupling": 0.6814453651753797,
+      "oscillator_temperature": 19.470552296252777,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.5531577764829116,
+      "right_temperature": 0.5726206576328671,
+      "phase": -1.88168973030035,
+      "amplitude": 0.8383066828002033,
+      "drive_energy": 8.127619970826853,
+      "oscillator_coupling": 0.5633847547397881,
+      "oscillator_temperature": 13.884067222255064,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.3299941671612897,
+      "right_temperature": 0.6271500123455336,
+      "phase": 2.2937509162567493,
+      "amplitude": 0.8207199207862789,
+      "drive_energy": 0.3947399889771286,
+      "oscillator_coupling": 0.7116573440267897,
+      "oscillator_temperature": 15.492019993878223,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.5828657004766432,
+      "right_temperature": 0.3689366125229821,
+      "phase": 2.843070430638961,
+      "amplitude": 0.822376446319714,
+      "drive_energy": 9.454388810231514,
+      "oscillator_coupling": 0.5548272768767483,
+      "oscillator_temperature": 14.348723958429751,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.8229875790512143,
+      "right_temperature": 0.9002568814514315,
+      "phase": -1.9953489635831543,
+      "amplitude": 0.7432775552686106,
+      "drive_energy": 0.13937487134937543,
+      "oscillator_coupling": 0.48223676510099,
+      "oscillator_temperature": 21.278572652216905,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.42181418968619333,
+      "right_temperature": 0.6966767727300045,
+      "phase": -0.3576312647521338,
+      "amplitude": 0.560816090853879,
+      "drive_energy": 9.221725898791135,
+      "oscillator_coupling": 0.5801555459210688,
+      "oscillator_temperature": 12.161400709709625,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.5770508873463512,
+      "right_temperature": 0.5560730227553273,
+      "phase": 1.6983195849374044,
+      "amplitude": 0.8215401555064398,
+      "drive_energy": 0.4796228823987787,
+      "oscillator_coupling": 0.26145649743223454,
+      "oscillator_temperature": 16.866718036286596,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.8649006549373909,
+      "right_temperature": 0.6107292004817922,
+      "phase": 2.8092388920265288,
+      "amplitude": 0.5643494593320653,
+      "drive_energy": 8.328172134388964,
+      "oscillator_coupling": 0.009045201563214533,
+      "oscillator_temperature": 14.000164883876685,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.8196873276204869,
+      "right_temperature": 0.30528716069922046,
+      "phase": 1.3200875202711122,
+      "amplitude": 0.877075390585728,
+      "drive_energy": 0.39395188208369875,
+      "oscillator_coupling": 0.09144196086409873,
+      "oscillator_temperature": 21.314255847844965,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.5408646325476267,
+      "right_temperature": 0.6330404258491192,
+      "phase": 0.10496512817376627,
+      "amplitude": 0.22387030482477288,
+      "drive_energy": 11.579096763388776,
+      "oscillator_coupling": 0.5406042227521342,
+      "oscillator_temperature": 13.41882454719132,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.9640570362836232,
+      "right_temperature": 0.416009503036374,
+      "phase": -0.6168524817521617,
+      "amplitude": 0.5274934329820542,
+      "drive_energy": 0.37108181692925846,
+      "oscillator_coupling": 0.8802049069572638,
+      "oscillator_temperature": 15.969375175301996,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.9240895444790076,
+      "right_temperature": 0.9733558091221366,
+      "phase": 1.9974016885329398,
+      "amplitude": 0.22549064715128642,
+      "drive_energy": 8.269882775752354,
+      "oscillator_coupling": 0.41619524921701123,
+      "oscillator_temperature": 21.989758120994807,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.5562871082310247,
+      "right_temperature": 0.5347100479612744,
+      "phase": -2.2804796775756557,
+      "amplitude": 0.12640244819774327,
+      "drive_energy": 0.218275707992575,
+      "oscillator_coupling": 0.2452169549467026,
+      "oscillator_temperature": 19.692003877974916,
+      "statistic": "phase_contrast"
+    },
+    {
+      "left_temperature": 0.706483574675919,
+      "right_temperature": 0.9961479358365631,
+      "phase": 2.7922614011188145,
+      "amplitude": 0.19141587630447432,
+      "drive_energy": 11.680991469362787,
+      "oscillator_coupling": 0.2183474655187152,
+      "oscillator_temperature": 23.794931899937783,
+      "statistic": "mean"
+    },
+    {
+      "left_temperature": 0.44942891049758976,
+      "right_temperature": 0.5082319335364714,
+      "phase": -0.3855349998849269,
+      "amplitude": 0.7176800718834464,
+      "drive_energy": 0.18502217691111197,
+      "oscillator_coupling": 0.7098263824180556,
+      "oscillator_temperature": 15.695700127784084,
+      "statistic": "phase_contrast"
+    }
+  ],
+  "public_information_issue": "The public scaffold accidentally included an unused exact sideband-coherence branch. Every outcome is preserved; revision6 removing it was predeclared before any outcomes. This batch cannot qualify the corrected public package.",
+  "source_public_correction": "results/superconducting-heat-r5-public-source-review-addendum.json"
+}

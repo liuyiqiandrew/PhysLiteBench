@@ -1,0 +1,532 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,212 +1,337 @@
+-"""Finite-contact kinetic moments and continuous calorimeter statistics."""
++"""Stationary calorimeter statistics for the finite-contact rotor model.
++
++The implementation uses a Galerkin representation of the backward generator.
++Hermite modes describe ``v`` and ``g`` and a two-state mode describes the
++motor label.  For a gated detector, Fourier modes in the physical angle are
++kept; a uniform initial angle is therefore not treated as a sequence of
++independent angles.
++"""
++
+ from functools import lru_cache
++
+ import numpy as np
+ from numpy.polynomial.hermite import hermgauss
+ from numpy.polynomial.laguerre import laggauss
+ from scipy.linalg import solve
+-
+-RATE=3.6
++from scipy.optimize import minimize_scalar
++
++
++RATE = 3.6
++FIELDS = (
++    "angular_speed", "flip_rate", "temperature_a", "temperature_b",
++    "flux_fraction", "relaxation_rate",
++)
++STATISTICS = ("mean", "noise", "third_cumulant")
++
+ 
+ def normalized_hermites(z, degree):
+-    z=np.asarray(z);h=np.zeros((z.size,degree+1));h[:,0]=1.
+-    if degree:h[:,1]=z
+-    for n in range(1,degree):h[:,n+1]=(z*h[:,n]-np.sqrt(n)*h[:,n-1])/np.sqrt(n+1)
++    """Normalized probabilists' Hermite polynomials, evaluated row-wise."""
++    z = np.asarray(z)
++    h = np.zeros((z.size, degree + 1))
++    h[:, 0] = 1.0
++    if degree:
++        h[:, 1] = z
++    for n in range(1, degree):
++        h[:, n + 1] = (z * h[:, n] - np.sqrt(n) * h[:, n - 1]) / np.sqrt(n + 1)
+     return h
+ 
+ 
+-@lru_cache(16)
++@lru_cache(maxsize=128)
+ def collision_weak_matrix(degree, variance=1.6, quadrature=None):
+-    """Exact Gaussian polynomial integral for the nonsmooth collision rate.
+-
+-    Rotate to z=(v-g)/sqrt(2),t=(v+g)/sqrt(2). Gauss-Laguerre integrates
+-    |z| times its Gaussian exactly after z=+/-sqrt(2*variance*y).
+-    Summing both signs cancels odd z powers; Hermite integrates the t part.
+-    """
+-    q=quadrature or (2*degree+4)
+-    th,tw=hermgauss(q);yl,yw=laggauss(q)
+-    t=np.sqrt(2*variance)*th[None,:]
+-    blocks=[];swapped=[];weights=[]
+-    for sign in [-1.,1.]:
+-        z=sign*np.sqrt(2*variance*yl[:,None])
+-        v=(t+z)/np.sqrt(2);g=(t-z)/np.sqrt(2)
+-        hv=normalized_hermites(v.ravel()/np.sqrt(variance),degree)
+-        hg=normalized_hermites(g.ravel()/np.sqrt(variance),degree)
+-        blocks.append((hv[:,:,None]*hg[:,None,:]).reshape(q*q,-1))
+-        swapped.append((hg[:,:,None]*hv[:,None,:]).reshape(q*q,-1))
+-        weights.append((np.sqrt(variance)/np.pi*yw[:,None]*tw[None,:]).ravel())
+-    b=np.concatenate(blocks);jump=np.concatenate(swapped)-b;w=np.concatenate(weights)
+-    matrix=b.T@(w[:,None]*jump)
+-    # The reversible swap generator is symmetric and dissipative under the
+-    # isotropic Gaussian integration weight, including its |v-g| rate.
+-    assert np.max(abs(matrix-matrix.T))<1e-9
+-    return matrix
+-
+-
+-def hermite(e, gamma=.67, degree=12, variance=1.6, quadrature=None, total_degree=False, noise=False):
+-    """Independent polynomial weak generator; no FV or Gaussian closure calls."""
+-    ta=e['temperature_a'];tb=e['temperature_b'];omega=e['angular_speed']
+-    lam=e['relaxation_rate'];eta=e['flux_fraction'];flip=e['flip_rate']
+-    width=degree+1;size=width**2;matrix=np.zeros((size,size))
+-    index=lambda n,m:n*width+m
++    """Galerkin matrix of ``|v-g| (f(g,v)-f(v,g))``."""
++    degree = int(degree)
++    variance = float(variance)
++    q = int(quadrature or (2 * degree + 4))
++    tx, tw = hermgauss(q)
++    yy, yw = laggauss(q)
++
++    t = np.sqrt(2.0 * variance) * tx[None, :]
++    blocks = []
++    swaps = []
++    weights = []
++    for sign in (-1.0, 1.0):
++        z = sign * np.sqrt(2.0 * variance * yy[:, None])
++        v = (t + z) / np.sqrt(2.0)
++        g = (t - z) / np.sqrt(2.0)
++        hv = normalized_hermites(v.ravel() / np.sqrt(variance), degree)
++        hg = normalized_hermites(g.ravel() / np.sqrt(variance), degree)
++        blocks.append((hv[:, :, None] * hg[:, None, :]).reshape(q * q, -1))
++        swaps.append((hg[:, :, None] * hv[:, None, :]).reshape(q * q, -1))
++        weights.append((np.sqrt(variance) / np.pi * yw[:, None] * tw[None, :]).ravel())
++
++    basis = np.concatenate(blocks)
++    jump = np.concatenate(swaps) - basis
++    weights = np.concatenate(weights)
++    result = basis.T @ (weights[:, None] * jump)
++    return (result + result.T) * 0.5
++
++
++def _multiplication(degree, variance):
++    """Return matrices for multiplication by v, g, v^2 and g^2."""
++    width = degree + 1
++    size = width * width
++    V = np.zeros((size, size))
++    G = np.zeros_like(V)
+     for n in range(width):
+         for m in range(width):
+-            j=index(n,m)
+-            matrix[j,j]-=gamma*n+lam*m+flip*(1-(-1)**(n+m))+RATE*(1-eta)
+-            matrix[index(m,n),j]+=RATE*(1-eta)
+-            if n>=2:matrix[index(n-2,m),j]+=gamma*(ta/variance-1)*np.sqrt(n*(n-1))
+-            if m>=2:matrix[index(n,m-2),j]+=lam*(tb/variance-1)*np.sqrt(m*(m-1))
+-            if m>=1:matrix[index(n,m-1),j]+=lam*omega/np.sqrt(variance)*np.sqrt(m)
+-    matrix+=RATE*eta*collision_weak_matrix(degree,variance,quadrature)
+-    retained=np.array([index(n,m) for n in range(width) for m in range(width) if not total_degree or n+m<=degree])
+-    lookup={j:i for i,j in enumerate(retained)}
+-    matrix=matrix[np.ix_(retained,retained)];size=len(retained)
+-    index_full=index
+-    index=lambda n,m:lookup[index_full(n,m)]
+-    forward=matrix.T.copy();forward[0]=0.;forward[0,0]=1.;rhs=np.zeros(size);rhs[0]=1.
+-    moments=solve(forward,rhs,check_finite=False)
+-    mv=np.sqrt(variance)*moments[index(1,0)];mg=np.sqrt(variance)*moments[index(0,1)]
+-    v2=variance*(1+np.sqrt(2)*moments[index(2,0)]);g2=variance*(1+np.sqrt(2)*moments[index(0,2)])
+-    vg=variance*moments[index(1,1)]
+-    mean=lam*(g2-2*omega*mg+omega*omega-tb)
+-    v2g2=variance**2*(1+np.sqrt(2)*(moments[index(2,0)]+moments[index(0,2)])+2*moments[index(2,2)])
+-    result=dict(mean=float(mean),vmean=float(mv),gmean=float(mg),v2=float(v2),g2=float(g2),vg=float(vg),
+-                energy_covariance=float(.25*(v2g2-v2*g2)),
+-                bath_a=float(gamma*(v2-ta)),motor=float(lam*(omega*omega-omega*mg)),
+-                first_law_residual=float(abs(gamma*(v2-ta)+mean-lam*(omega*omega-omega*mg))),
+-                stationary_residual=float(max(abs(matrix.T@moments))))
+-    if noise:
+-        # Independent continuous diffusion Feynman--Kac derivatives. No
+-        # finite-volume heat marks, stochastic paths or shot-noise closure.
+-        # dQ=lam[(g-u)^2-Tb]dt-sqrt(2lamTb)(g-u)dW_b.
+-        derivative=np.zeros((width**2,width**2));multiply=np.zeros_like(derivative);square=np.zeros_like(derivative)
++            j = n * width + m
++            if n:
++                V[(n - 1) * width + m, j] = np.sqrt(variance * n)
++            if n + 1 < width:
++                V[(n + 1) * width + m, j] = np.sqrt(variance * (n + 1))
++            if m:
++                G[n * width + m - 1, j] = np.sqrt(variance * m)
++            if m + 1 < width:
++                G[n * width + m + 1, j] = np.sqrt(variance * (m + 1))
++    return V, G, V @ V, G @ G
++
++
++def _derivative_g(degree, variance):
++    width = degree + 1
++    D = np.zeros((width * width, width * width))
++    for n in range(width):
++        for m in range(1, width):
++            D[n * width + m - 1, n * width + m] = np.sqrt(m / variance)
++    return D
++
++
++def _state_operators(e, drag, degree):
++    """Build the velocity/motor generator and heat tilt operators."""
++    ta = float(e["temperature_a"])
++    tb = float(e["temperature_b"])
++    omega = float(e["angular_speed"])
++    lam = float(e["relaxation_rate"])
++    eta = float(e["flux_fraction"])
++    flip = float(e["flip_rate"])
++
++    variance = max(1.0, ta, tb, tb + omega * omega)
++    width = degree + 1
++    base_size = width * width
++    size = 2 * base_size
++
++    V0, G0, V20, G20 = _multiplication(degree, variance)
++    D0 = _derivative_g(degree, variance)
++
++    # Multiplication by the motor label s toggles the two s-parity blocks.
++    S = np.zeros((size, size))
++    for n in range(width):
++        for m in range(width):
++            q = n * width + m
++            S[q + base_size, q] = 1.0
++            S[q, q + base_size] = 1.0
++    V = np.kron(np.eye(2), V0)
++    G = np.kron(np.eye(2), G0)
++    G2 = np.kron(np.eye(2), G20)
++    D = np.kron(np.eye(2), D0)
++    I = np.eye(size)
++
++    L = np.zeros((size, size))
++    for r in (0, 1):
++        off = r * base_size
+         for n in range(width):
+             for m in range(width):
+-                j=index_full(n,m)
+-                square[j,j]=variance*(2*m+1)
+-                if m>=1:
+-                    derivative[index_full(n,m-1),j]=np.sqrt(m/variance)
+-                    multiply[index_full(n,m-1),j]=np.sqrt(variance*m)
+-                if m+1<width:multiply[index_full(n,m+1),j]=np.sqrt(variance*(m+1))
+-                if m>=2:square[index_full(n,m-2),j]=variance*np.sqrt(m*(m-1))
+-                if m+2<width:square[index_full(n,m+2),j]=variance*np.sqrt((m+1)*(m+2))
+-        identity=np.eye(width**2);relative_square=square-2*omega*multiply+omega**2*identity
+-        first=2*lam*tb*(multiply-omega*identity)@derivative-lam*(relative_square-tb*identity)
+-        second=2*lam*tb*relative_square
+-        first=first[np.ix_(retained,retained)];second=second[np.ix_(retained,retained)]
+-        drift=-first[:,0];constant=np.zeros(size);constant[0]=1.
+-        tilted_mean=float(moments@first[:,0]);system=matrix.copy();system[0]=moments
+-        rhs=tilted_mean*constant-first[:,0];rhs[0]=0.
+-        r1=solve(system,rhs,check_finite=False)
+-        shot=float(moments@second[:,0]);correlation=float(2*moments@first@r1)
+-        result.update(noise=shot+correlation,noise_shot=shot,noise_correlation=correlation,
+-                      noise_poisson_residual=float(max(abs(matrix@r1-(tilted_mean*constant-first[:,0])))))
+-        # Third derivative of the principal eigenvalue of L(k) for exp(-k Q).
+-        # p r1 = p r2 = 0 fixes the response normalization.
+-        cumulant2=shot+correlation
+-        rhs2=cumulant2*constant+2*tilted_mean*r1-2*first@r1-second[:,0]
+-        rhs2[0]=0.
+-        r2=solve(system,rhs2,check_finite=False)
+-        cumulant3_minus=float(moments@(3*first@r2+3*second@r1))
+-        result.update(third_cumulant=-cumulant3_minus,
+-                      third_poisson_residual=float(max(abs(matrix@r2-(cumulant2*constant+2*tilted_mean*r1-2*first@r1-second[:,0])))))
+-    return result
+-
+-
+-def kinetic_statistics(e,drag,degree=34,variance=None):
+-    variance=max(e['temperature_a'],e['temperature_b']) if variance is None else float(variance)
+-    if e['flux_fraction']==0.:
+-        return hermite(e,drag,degree=6,variance=variance,total_degree=True,noise=True)
+-    return hermite(e,drag,degree=degree,variance=variance,noise=True)
+-
+-
+-@lru_cache(4096)
+-def readout(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate,statistic,drag):
+-    e=dict(zip(FIELDS,(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate)))
+-    if statistic not in ['mean','noise','third_cumulant']:raise ValueError('unknown calorimeter statistic')
+-    if statistic=='mean' and flux_fraction==0. and angular_speed==0.:
+-        return float(calibration_mean(e,drag))
+-    return kinetic_statistics(e,drag)[statistic]
+-
+-
+-RATE=3.6
+-FIELDS=('angular_speed','flip_rate','temperature_a','temperature_b','flux_fraction','relaxation_rate')
+-
+-
+-def calibration_mean(e,drag):
+-    lam=e['relaxation_rate']
+-    return drag*lam*RATE/(2*drag*lam+RATE*(drag+lam))*(e['temperature_a']-e['temperature_b'])
+-
+-
+-def fit_drag(records):
+-    lam=float(records[0]['input']['relaxation_rate'])
+-    assert all(r['input']['relaxation_rate']==lam for r in records)
+-    contrast=np.array([(r['input']['temperature_a']-r['input']['temperature_b'])/r['sigma'] for r in records])
+-    measured=np.array([r['value']/r['sigma'] for r in records])
+-    conductance=float(contrast@measured/(contrast@contrast))
+-    return float(np.clip(conductance*lam*RATE/(lam*RATE-conductance*(2*lam+RATE)),.4,1.1))
+-
+-
+-def hermite_operators(e,gamma,degree=32):
+-    ta=e['temperature_a'];tb=e['temperature_b'];lam=e['relaxation_rate'];eta=e['flux_fraction'];variance=max(ta,tb)
+-    width=degree+1;size=width**2;index=lambda n,m:n*width+m;L=np.zeros((size,size));V=np.zeros_like(L);G=np.zeros_like(L);dg=np.zeros_like(L);G2=np.zeros_like(L)
+-    assert e['angular_speed']==0.
++                j = off + n * width + m
++                L[j, j] -= drag * n + lam * m
++                if n >= 2:
++                    L[off + (n - 2) * width + m, j] += (
++                        drag * (ta / variance - 1.0) * np.sqrt(n * (n - 1))
++                    )
++                if m >= 2:
++                    L[off + n * width + m - 2, j] += (
++                        lam * (tb / variance - 1.0) * np.sqrt(m * (m - 1))
++                    )
++
++    Cabs = collision_weak_matrix(degree, variance)
++    Cswap = np.zeros((base_size, base_size))
+     for n in range(width):
+         for m in range(width):
+-            j=index(n,m);L[j,j]-=gamma*n+lam*m+3.6*(1-eta);L[index(m,n),j]+=3.6*(1-eta)
+-            if n>=2:L[index(n-2,m),j]+=gamma*(ta/variance-1)*np.sqrt(n*(n-1))
+-            if m>=2:L[index(n,m-2),j]+=lam*(tb/variance-1)*np.sqrt(m*(m-1))
+-            if n>=1:V[index(n-1,m),j]=np.sqrt(variance*n)
+-            if n<degree:V[index(n+1,m),j]=np.sqrt(variance*(n+1))
+-            if m>=1:
+-                G[index(n,m-1),j]=np.sqrt(variance*m);dg[index(n,m-1),j]=np.sqrt(m/variance)
+-            if m<degree:G[index(n,m+1),j]=np.sqrt(variance*(m+1))
+-            G2[j,j]=variance*(2*m+1)
+-            if m>=2:G2[index(n,m-2),j]=variance*np.sqrt(m*(m-1))
+-            if m+2<width:G2[index(n,m+2),j]=variance*np.sqrt((m+1)*(m+2))
+-    L+=3.6*eta*collision_weak_matrix(degree,variance)
+-    A1=2*lam*tb*G@dg-lam*(G2-tb*np.eye(size));A2=2*lam*tb*G2
+-    system=L.T.copy();system[0]=0.;system[0,0]=1.;target=np.zeros(size);target[0]=1.;p=solve(system,target,check_finite=False)
+-    constant=np.zeros(size);constant[0]=1.
+-    return L,V,A1,A2,p,constant
+-
+-def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
+-    L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+-    eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+-    w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
+-    def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+-    c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+-    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+-    return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
+-
+-
+-@lru_cache(512)
+-def angular_readouts(temperature_a,temperature_b,relaxation_rate,flux_fraction,contrast,harmonic,drag):
+-    e=dict(temperature_a=temperature_a,temperature_b=temperature_b,relaxation_rate=relaxation_rate,
+-           flux_fraction=flux_fraction,angular_speed=0.,detector_contrast=contrast,detector_harmonic=harmonic)
+-    return angular_hermite(e,drag)
+-
+-def predict_at(experiments,drag):
+-    result=[]
+-    for e in experiments:
+-        if e.get('detector_contrast',0.)!=0.:
+-            if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
+-            values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
+-                float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+-            result.append(values[e.get('statistic','mean')])
+-        else:result.append(readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)))
+-    return np.array(result)
++            j = n * width + m
++            Cswap[m * width + n, j] += 1.0
++            Cswap[j, j] -= 1.0
++    C = (1.0 - eta) * Cswap + eta * Cabs
++    L += RATE * np.kron(np.eye(2), C)
++
++    # Flip generator: 0 on s-even functions and -2*flip on s-odd ones.
++    # This is reflection of the label, not multiplication by the label
++    # (the latter is S and is used by the flow-target terms below).
++    F = np.kron(np.diag([1.0, -1.0]), np.eye(base_size))
++    L += flip * (F - I)
++    L += lam * omega * S @ D
++
++    # For dQ=a dt+b dW, B1=a+sigma*b*d/dg and B2=b^2, with the
++    # same W driving g.  This is the shared-Wiener correction.
++    B1 = lam * (G2 - 2.0 * omega * S @ G + (omega * omega - tb) * I)
++    B1 += -2.0 * lam * tb * G @ D + 2.0 * lam * tb * omega * S @ D
++    B2 = 2.0 * lam * tb * (G2 - 2.0 * omega * S @ G + omega * omega * I)
++
++    return L, V, B1, B2
++
++
++def _stationary(L):
++    """Stationary expectation functional p, with p[constant]=1."""
++    n = L.shape[0]
++    system = L.T.copy()
++    rhs = np.zeros(n)
++    system[0, :] = 0.0
++    system[0, 0] = 1.0
++    rhs[0] = 1.0
++    return solve(system, rhs, check_finite=False)
++
++
++def _solve_response(L, p, rhs):
++    """Solve L x=rhs in the zero-mode subspace p*x=0."""
++    system = L.copy()
++    target = np.asarray(rhs, dtype=np.result_type(rhs, float)).copy()
++    system[0, :] = p
++    target[0] = 0.0
++    return solve(system, target, check_finite=False)
++
++
++def _cumulants(e, drag, degree=18, gated=False):
++    """Return mean, variance-rate and third-cumulant-rate."""
++    L, V, B1, B2 = _state_operators(e, drag, degree)
++    p = _stationary(L)
++    size = L.shape[0]
++    one = np.zeros(size)
++    one[0] = 1.0
++
++    contrast = float(e.get("detector_contrast", 0.0)) if gated else 0.0
++    harmonic = int(e.get("detector_harmonic", 1)) if gated else 1
++    if not contrast:
++        w = {0: 1.0}
++        w2 = {0: 1.0}
++    else:
++        # Keys are Fourier indices in units of the detector harmonic.
++        w = {0: 1.0, 1: contrast / 2.0, -1: contrast / 2.0}
++        w2 = {
++            0: 1.0 + contrast * contrast / 2.0,
++            1: contrast,
++            -1: contrast,
++            2: contrast * contrast / 4.0,
++            -2: contrast * contrast / 4.0,
++        }
++
++    def mode_operator(n):
++        if n == 0:
++            return L
++        return L.astype(complex) + 1j * n * harmonic * V
++
++    def response(n, rhs):
++        if n == 0:
++            return _solve_response(L, p, rhs)
++        return solve(mode_operator(n), rhs, check_finite=False)
++
++    def apply_fourier(coeffs, vectors, output_mode, operator):
++        ans = np.zeros(size, dtype=complex)
++        for mode, vec in vectors.items():
++            ans += coeffs.get(output_mode - mode, 0.0) * (operator @ vec)
++        return ans
++
++    mean = float(np.real(p @ (w[0] * (B1 @ one))))
++
++    # First response: (L_theta)r1 = mu1 - B1^w*1.
++    r1 = {}
++    for n in w:
++        rhs = (mean * one if n == 0 else np.zeros(size)) - w[n] * (B1 @ one)
++        r1[n] = response(n, rhs)
++
++    term1 = np.zeros(size, dtype=complex)
++    for m, vec in r1.items():
++        term1 += w.get(-m, 0.0) * (B1 @ vec)
++    mu2 = float(np.real(p @ (2.0 * term1 + w2[0] * (B2 @ one))))
++
++    # Second response: (L_theta)r2 = mu2 + 2 mu1 r1 - 2 B1 r1 - B2*1.
++    r2 = {}
++    second_modes = set(w2)
++    for m in r1:
++        second_modes.update(m + q for q in w)
++    for n in second_modes:
++        rhs = (mu2 * one if n == 0 else np.zeros(size)).astype(complex)
++        if n in r1:
++            rhs += 2.0 * mean * r1[n]
++        rhs -= 2.0 * apply_fourier(w, r1, n, B1)
++        rhs -= w2.get(n, 0.0) * (B2 @ one)
++        r2[n] = response(n, rhs)
++
++    third_term = np.zeros(size, dtype=complex)
++    for m, vec in r2.items():
++        third_term += w.get(-m, 0.0) * (B1 @ vec)
++    for m, vec in r1.items():
++        third_term += w2.get(-m, 0.0) * (B2 @ vec)
++    mu3 = float(np.real(p @ (3.0 * third_term)))
++    return {"mean": mean, "noise": mu2, "third_cumulant": mu3}
++
++
++def calibration_mean(e, drag):
++    """Exact zero-flow, zero-flux calibration mean."""
++    lam = float(e["relaxation_rate"])
++    return drag * lam * RATE / (2.0 * drag * lam + RATE * (drag + lam)) * (
++        float(e["temperature_a"]) - float(e["temperature_b"])
++    )
++
++
++def fit_drag(records):
++    """Weighted one-parameter fit to the calibration records."""
++    if not records:
++        raise ValueError("at least one calibration record is required")
++
++    def objective(drag):
++        total = 0.0
++        for record in records:
++            e = record["input"]
++            sigma = float(record.get("sigma", 1.0))
++            total += ((calibration_mean(e, drag) - float(record["value"])) / sigma) ** 2
++        return total
++
++    result = minimize_scalar(objective, bounds=(0.4, 1.1), method="bounded",
++                             options={"xatol": 1e-12})
++    return float(np.clip(result.x, 0.4, 1.1))
++
++
++@lru_cache(maxsize=512)
++def _readout_cached(values, statistic, drag):
++    e = dict(zip(FIELDS, values))
++    if statistic not in STATISTICS:
++        raise ValueError("unknown calorimeter statistic")
++    if statistic == "mean" and values[0] == 0.0 and values[4] == 0.0:
++        return float(calibration_mean(e, drag))
++    return _cumulants(e, drag, degree=18)[statistic]
++
++
++def readout(angular_speed, flip_rate, temperature_a, temperature_b,
++            flux_fraction, relaxation_rate, statistic="mean", drag=0.67):
++    values = tuple(float(x) for x in (
++        angular_speed, flip_rate, temperature_a, temperature_b,
++        flux_fraction, relaxation_rate,
++    ))
++    return _readout_cached(values, statistic, float(drag))
++
++
++def predict_at(experiments, drag):
++    result = []
++    for experiment in experiments:
++        statistic = experiment.get("statistic", "mean")
++        contrast = float(experiment.get("detector_contrast", 0.0))
++        if statistic not in STATISTICS:
++            raise ValueError("unknown calorimeter statistic")
++        if contrast:
++            if float(experiment["angular_speed"]) != 0.0:
++                raise ValueError("angularly gated preparations require zero flow target")
++            result.append(_cumulants(experiment, drag, degree=18, gated=True)[statistic])
++        else:
++            result.append(readout(*(experiment[f] for f in FIELDS), statistic, drag))
++    return np.asarray(result, dtype=float)
+ 
+ 
+ class Model:
+-    def __init__(self):self.drag=None
+-
+-    def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++    def __init__(self):
++        self.drag = None
++
++    def fit(self, records):
++        self.drag = fit_drag(records)
++        return self
++
++    def predict(self, experiments):
++        if self.drag is None:
++            raise RuntimeError("Model.fit must be called before predict")
++        return predict_at(experiments, self.drag)

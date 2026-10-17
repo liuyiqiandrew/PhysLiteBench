@@ -1,0 +1,153 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,144 @@
+-"""Current SCGF model and calibration interface."""
++"""SCGF for the half-filled weakly asymmetric exclusion process.
++
++The hydrodynamic mobility is ``2 D rho (1-rho)``.  At half filling the
++homogeneous branch is ``D * lambda * (lambda + 2 E) / 4``.  For fields above
++``2*pi`` there is also a jammed travelling-wave branch for low currents; the
++public domain includes it, so it is evaluated below as a one-dimensional MFT
++variational problem.
++"""
++
++from functools import lru_cache
++
+ import numpy as np
+ 
++
++_TWO_PI = 2.0 * np.pi
++_WAVE_THRESHOLD = -4.0 * np.pi**2
++
++
++def _homogeneous(field, bias):
++    return bias * (bias + 2.0 * field) / 4.0
++
++
++def _wave_objective(parameters, field, bias, cosines, sines, harmonics):
++    """The unit-D functional I-lambda*j for a half-filled density wave."""
++    coefficients = parameters[:-2]
++    current = parameters[-2]
++    speed = parameters[-1]
++
++    base = cosines @ coefficients
++    # Shift z so rho=(1+tanh(z))/2 has exactly half filling.
++    lower, upper = -20.0, 20.0
++    for _ in range(45):
++        shift = (lower + upper) * 0.5
++        if np.mean(np.tanh(base + shift)) > 0.0:
++            upper = shift
++        else:
++            lower = shift
++    z = base + (lower + upper) * 0.5
++
++    tanh_z = np.tanh(z)
++    deviation = 0.5 * tanh_z
++    z_prime = sines @ (-_TWO_PI * harmonics * coefficients)
++    deviation_prime = 0.5 * (1.0 - tanh_z * tanh_z) * z_prime
++
++    # mobility is the physical mobility divided by D.
++    mobility = 0.5 - 2.0 * deviation * deviation
++    residual = (
++        current + speed * deviation + deviation_prime
++        - (field * 0.5 - 2.0 * field * deviation * deviation)
++    )
++    cost = np.mean(residual * residual / (2.0 * mobility))
++    return float(cost - bias * current)
++
++
++@lru_cache(maxsize=2048)
++def _unit_scgf_cached(field, bias):
++    """Return psi/D, including the travelling-wave branch if applicable."""
++    field = float(field)
++    bias = float(bias)
++    homogeneous = _homogeneous(field, bias)
++
++    if field <= _TWO_PI or bias * (bias + 2.0 * field) >= _WAVE_THRESHOLD:
++        return homogeneous
++
++    # Import lazily: calibration normally only visits the analytic branch.
++    from scipy.optimize import minimize
++
++    modes = 10
++    points = 128
++    position = np.arange(points, dtype=float) / points
++    harmonics = np.arange(1, modes + 1, dtype=float)
++    cosines = np.cos(_TWO_PI * np.outer(position, harmonics))
++    sines = np.sin(_TWO_PI * np.outer(position, harmonics))
++    flat_current = 0.5 * (field + bias)
++
++    # A zero start is useful at the continuous transition; finite starts find
++    # the wave well inside the jammed phase.
++    best_value = -homogeneous
++    for amplitude in (0.0, 0.15, 0.5, 1.1, 2.0, 3.5):
++        initial = np.zeros(modes + 2, dtype=float)
++        initial[0] = amplitude
++        initial[-2] = flat_current
++        result = minimize(
++            _wave_objective,
++            initial,
++            args=(field, bias, cosines, sines, harmonics),
++            method="BFGS",
++            options={"gtol": 2e-7, "maxiter": 350},
++        )
++        if np.isfinite(result.fun):
++            best_value = min(best_value, float(result.fun))
++
++    # psi is the negative minimum of I-lambda*j.
++    return float(max(homogeneous, -best_value))
++
++
++def _unit_scgf(field, bias):
++    field = float(field)
++    bias = float(bias)
++    if not (np.isfinite(field) and np.isfinite(bias)):
++        return np.nan
++    return _unit_scgf_cached(field, bias)
++
++
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    """Evaluate raw SCGF values for documented input records."""
++    if not experiments:
++        return np.empty(0, dtype=float)
++    values = np.fromiter(
++        (_unit_scgf(experiment["field"], experiment["bias"])
++         for experiment in experiments),
++        dtype=float,
++        count=len(experiments),
++    )
++    return float(diffusivity) * values
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Fit D by the Gaussian-error weighted least-squares estimate."""
++        if not records:
++            return self
++
++        factors = np.asarray(
++            [_unit_scgf(record["input"]["field"], record["input"]["bias"])
++             for record in records], dtype=float)
++        values = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        valid = (np.isfinite(factors) & np.isfinite(values)
++                 & np.isfinite(sigma) & (sigma > 0.0))
++        if np.any(valid):
++            weights = 1.0 / sigma[valid]**2
++            denominator = np.sum(weights * factors[valid]**2)
++            if denominator > 0.0 and np.isfinite(denominator):
++                estimate = np.sum(weights * factors[valid] * values[valid]) / denominator
++                if np.isfinite(estimate):
++                    self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

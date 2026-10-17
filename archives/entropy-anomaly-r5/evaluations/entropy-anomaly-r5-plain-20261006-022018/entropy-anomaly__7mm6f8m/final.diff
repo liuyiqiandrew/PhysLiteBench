@@ -1,0 +1,66 @@
+--- before/model.py
++++ after/model.py
+@@ -68,7 +68,61 @@
+         self.friction = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Fit the common drag coefficient from the calibration measurements.
++
++        The calibration errors are independent Gaussian errors, so the
++        appropriate objective is the uncertainty-weighted sum of squared
++        residuals.  Friction is the only fitted quantity and the documented
++        calibration range is used as a hard bound.  A small, dependency-free
++        golden-section search is sufficient here because this is a bounded
++        one-dimensional problem.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (values.ndim != 1 or sigma.ndim != 1 or
++                values.shape != sigma.shape or
++                not np.isfinite(values).all() or
++                not np.isfinite(sigma).all() or
++                np.any(sigma <= 0)):
++            raise ValueError("calibration values and sigma must be finite, positive arrays")
++
++        def objective(friction):
++            prediction = coefficients(experiments, float(friction))
++            residual = (prediction - values) / sigma
++            return float(residual @ residual)
++
++        lower, upper = 0.7, 1.6
++        golden = (np.sqrt(5.0) - 1.0) / 2.0
++        left = lower
++        right = upper
++        x1 = right - golden * (right - left)
++        x2 = left + golden * (right - left)
++        y1 = objective(x1)
++        y2 = objective(x2)
++
++        # The forward model is smooth in friction.  This also avoids relying
++        # on scipy being present in the evaluation environment.
++        for _ in range(64):
++            if y1 <= y2:
++                right, x2, y2 = x2, x1, y1
++                x1 = right - golden * (right - left)
++                y1 = objective(x1)
++            else:
++                left, x1, y1 = x1, x2, y2
++                x2 = left + golden * (right - left)
++                y2 = objective(x2)
++
++        candidates = (lower, upper, x1, x2, (left + right) / 2.0)
++        self.friction = float(min(candidates, key=objective))
++        return self
+ 
+     def predict(self, experiments):
+-        return coefficients(experiments, self.friction)
++        if self.friction is None:
++            raise RuntimeError("fit must be called before predict")
++        prediction = coefficients(experiments, float(self.friction))
++        return np.asarray(prediction, dtype=float).reshape(-1)

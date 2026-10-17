@@ -1,0 +1,31 @@
+--- starter/model.py
++++ submission/model.py
+@@ -206,7 +206,25 @@
+ 
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        # ``friction`` is deliberately kept public: it is the one fitted
++        # apparatus parameter and is part of the documented model state.
++        self.friction = None
++
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
+-    def predict(self,experiments):return predict_at(experiments,self.friction)
++        """Fit the common ordinary-fluid friction from calibration records.
++
++        The calibration protocol is the zero-field, no-retained-contact
++        protocol, for which ``zero_field_calibration`` is the exact
++        small-mass result.  Fitting in that reduced form avoids introducing
++        numerical matrix-exponential error into a likelihood whose reported
++        uncertainties can be very small.
++        """
++        self.friction = fit_friction(records)
++        return self
++
++    def predict(self,experiments):
++        """Return predictions in the same order as *experiments*."""
++        if self.friction is None:
++            raise RuntimeError('Call fit(records) before predict(experiments).')
++        return predict_at(experiments,self.friction)

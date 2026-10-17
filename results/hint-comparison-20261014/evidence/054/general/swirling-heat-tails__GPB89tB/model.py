@@ -1,0 +1,81 @@
+"""Large-deviation model for heat in the circulating harmonic trap."""
+
+import numpy as np
+
+
+def response(e):
+    """Return the heat rate function in units of ``mobility * stiffness``.
+
+    In rescaled time the mean heat rate is ``2 * r**2``.  The bulk
+    large-deviation function follows from the tilted Ornstein--Uhlenbeck
+    generator.  Heat is not quite the same as the rotational work: its
+    conservative part is the unbounded endpoint term ``-Delta U``.  With a
+    stationary, unconditioned endpoint this restricts the domain of the heat
+    SCGF and produces the two linear tails below.
+    """
+    r = float(e['drive_ratio'])
+    z = float(e['relative_heat'])
+    a = r * r
+
+    # The upper endpoint of the heat SCGF is lambda=1.  Its Legendre branch
+    # applies below one negative mean heat rate (z = -1).
+    if z < -1.0:
+        dimensionless_rate = -2.0 * a * z
+    else:
+        # This is the Legendre transform in the interior of the SCGF domain.
+        dimensionless_rate = np.sqrt((1.0 + a) * (1.0 + a * z * z)) - a * z - 1.0
+
+        # For weak circulation the stationary initial-energy integral gives
+        # a finite lower SCGF boundary before the spectral one.  Above this
+        # heat rate the corresponding supporting line is the exact LDP.
+        if a < 1.0 / 3.0:
+            z_upper = (3.0 - a) / (1.0 - 3.0 * a)
+            if z > z_upper:
+                dimensionless_rate = (
+                    2.0 * a * ((1.0 - a) * z - 2.0) / (1.0 + a)
+                )
+
+    return float(e['stiffness']) * dimensionless_rate
+
+
+def predict_at(experiments, mobility):
+    """Evaluate rates for an iterable of input dictionaries."""
+    return float(mobility) * np.asarray([response(e) for e in experiments], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.mobility = None
+
+    def fit(self, records):
+        """Fit the common mobility by the Gaussian maximum-likelihood estimate."""
+        records = list(records)
+        if not records:
+            raise ValueError('at least one calibration record is required')
+
+        coefficients = np.asarray([response(record['input']) for record in records], dtype=float)
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
+        if (
+            not np.isfinite(coefficients).all()
+            or not np.isfinite(values).all()
+            or not np.isfinite(sigmas).all()
+            or np.any(sigmas <= 0.0)
+        ):
+            raise ValueError('calibration values and positive standard deviations must be finite')
+
+        weights = 1.0 / np.square(sigmas)
+        denominator = np.sum(weights * np.square(coefficients))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError('calibration records do not identify mobility')
+
+        estimate = np.sum(weights * coefficients * values) / denominator
+        # The stated apparatus prior is a hard physical bound, so its
+        # constrained MLE is the projection of this one-parameter estimate.
+        self.mobility = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        if self.mobility is None:
+            raise RuntimeError('fit must be called before predict')
+        return predict_at(experiments, self.mobility)

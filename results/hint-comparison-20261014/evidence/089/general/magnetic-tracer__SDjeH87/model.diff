@@ -1,0 +1,41 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,37 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Fit the common ordinary-fluid friction and return this model.
++
++        Calibration records are deliberately restricted to the zero-field,
++        no-memory apparatus.  In that case the position covariance and the
++        area readout have closed-form small-mass expressions, so the only
++        fitted quantity is the common friction.  The independent Gaussian
++        uncertainties supplied with the records are used as weights.
++        """
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        inputs = [record['input'] for record in records]
++        if any(input_data.get('field', 0) != 0 or
++               input_data.get('memory_drag', 0) != 0 for input_data in inputs):
++            raise ValueError('calibration records must have zero field and memory drag')
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (values.ndim != 1 or sigma.shape != values.shape or
++                not np.isfinite(values).all() or
++                not np.isfinite(sigma).all() or (sigma <= 0).any()):
++            raise ValueError('calibration values and uncertainties must be finite and valid')
++
++        def objective(friction):
++            residual = (zero_field_calibration(inputs, friction) - values) / sigma
++            return float(residual @ residual)
++
++        result = minimize_scalar(
++            objective, bounds=(0.5, 1.5), method='bounded',
++            options={'xatol': 1e-12},
++        )
++        if not result.success or not np.isfinite(result.x):
++            raise RuntimeError('unable to fit the calibration friction')
++        self.friction = float(result.x)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

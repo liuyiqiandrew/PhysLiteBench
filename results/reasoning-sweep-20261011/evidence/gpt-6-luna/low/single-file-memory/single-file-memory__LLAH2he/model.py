@@ -1,0 +1,64 @@
+import numpy as np
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    return np.sqrt(diffusivity/(2*np.pi))/density * (np.sqrt(time_a)+np.sqrt(time_b)-np.sqrt(abs(time_a-time_b)))
+
+
+def predict_at(experiments, diffusivity):
+    return np.asarray([
+        covariance(float(diffusivity), float(e["density"]),
+                   float(e["time_a"]), float(e["time_b"]))
+        for e in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Infer the shared diffusion constant from noisy calibration values.
+
+        The covariance is linear in sqrt(D), so the Gaussian weighted
+        least-squares problem has a closed-form solution in that parameter.
+        Constraining the result to the stated physical range also makes the
+        fit well-defined for arbitrary (including empty) record collections.
+        """
+        if not records:
+            raise ValueError("At least one calibration record is required.")
+
+        coefficients = []
+        values = []
+        weights = []
+        for record in records:
+            experiment = record["input"]
+            density = float(experiment["density"])
+            time_a = float(experiment["time_a"])
+            time_b = float(experiment["time_b"])
+            sigma = float(record["sigma"])
+            value = float(record["value"])
+            if density <= 0 or time_a < 0 or time_b < 0 or sigma <= 0:
+                raise ValueError("Calibration controls and sigma must be valid positive values.")
+
+            # covariance(D, ...) = coefficient * sqrt(D)
+            coefficient = (np.sqrt(1.0 / (2.0 * np.pi)) / density *
+                           (np.sqrt(time_a) + np.sqrt(time_b) -
+                            np.sqrt(abs(time_a - time_b))))
+            coefficients.append(coefficient)
+            values.append(value)
+            weights.append(1.0 / sigma**2)
+
+        coefficients = np.asarray(coefficients, dtype=float)
+        values = np.asarray(values, dtype=float)
+        weights = np.asarray(weights, dtype=float)
+        denom = np.sum(weights * coefficients**2)
+        if not np.isfinite(denom) or denom <= 0:
+            raise ValueError("Calibration records do not identify a finite diffusivity.")
+        sqrt_d = np.sum(weights * coefficients * values) / denom
+        diffusivity = float(np.clip(sqrt_d**2, 0.8, 1.2))
+        self.diffusivity = diffusivity
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

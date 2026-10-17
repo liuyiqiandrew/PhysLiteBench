@@ -1,0 +1,74 @@
+"""Asymptotic tagged-particle covariance for a quenched single file."""
+
+import numpy as np
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    """Return the long-time covariance coefficient for one experiment.
+
+    The initially equally-spaced file is a *quenched* preparation.  Its
+    two-time covariance differs off the diagonal from the equilibrium
+    (random-initial-density) expression.
+    """
+    diffusivity = float(diffusivity)
+    density = float(density)
+    time_a = float(time_a)
+    time_b = float(time_b)
+    if not (np.isfinite(diffusivity) and diffusivity >= 0.0):
+        raise ValueError("diffusivity must be finite and non-negative")
+    if not (np.isfinite(density) and density > 0.0):
+        raise ValueError("density must be finite and positive")
+    if not (np.isfinite(time_a) and time_a >= 0.0 and
+            np.isfinite(time_b) and time_b >= 0.0):
+        raise ValueError("times must be finite and non-negative")
+
+    return (np.sqrt(diffusivity / np.pi) / density *
+            (np.sqrt(time_a + time_b) - np.sqrt(abs(time_a - time_b))))
+
+
+def predict_at(experiments, diffusivity):
+    """Evaluate experiments in their supplied order."""
+    return np.asarray([
+        covariance(diffusivity, e["density"], e["time_a"], e["time_b"])
+        for e in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Fit the common diffusivity by inverse-variance weighted LS.
+
+        Covariance is linear in ``sqrt(D)``, so the optimum has a closed
+        form and does not require numerical optimization.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        controls = [record["input"] for record in records]
+        values = np.asarray([record["value"] for record in records], dtype=float)
+        sigmas = np.asarray([record["sigma"] for record in records], dtype=float)
+        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all() or
+                np.any(sigmas <= 0.0)):
+            raise ValueError("calibration values must be finite and sigmas positive")
+
+        # x is the prediction for sqrt(D)=1, i.e. D=1.
+        x = predict_at(controls, 1.0)
+        weights = 1.0 / np.square(sigmas)
+        denominator = np.sum(weights * np.square(x))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError("calibration controls do not identify diffusivity")
+
+        sqrt_diffusivity = np.sum(weights * x * values) / denominator
+        if not np.isfinite(sqrt_diffusivity) or sqrt_diffusivity < 0.0:
+            raise ValueError("calibration data imply a negative diffusivity scale")
+        self.diffusivity = float(sqrt_diffusivity * sqrt_diffusivity)
+        return self
+
+    def predict(self, experiments):
+        if self.diffusivity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.diffusivity)

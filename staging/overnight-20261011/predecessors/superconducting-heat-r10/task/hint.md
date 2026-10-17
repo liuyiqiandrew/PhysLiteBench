@@ -1,0 +1,1 @@
+The stationary spin potentials describe internal populations. For zero-frequency work noise, retain their response to tunneling and spin-flip shot noise; independent Poisson events at a frozen spin state can miss their long-time correlations.

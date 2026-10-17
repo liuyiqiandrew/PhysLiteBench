@@ -1,0 +1,117 @@
+--- before/model.py
++++ after/model.py
+@@ -96,6 +96,9 @@
+     if statistic not in ['mean','noise']:raise ValueError('statistic must be mean or noise')
+     if statistic=='mean' and flux_fraction==0. and angular_speed==0.:
+         return float(calibration_mean(e,drag))
++    if statistic=='noise' and flux_fraction==0.:
++        return _constant_flux_noise(angular_speed,flip_rate,temperature_a,
++                                    temperature_b,relaxation_rate,drag)
+     return gaussian_closure(e,drag,noise=statistic=='noise')[statistic]
+ 
+ 
+@@ -106,6 +109,95 @@
+ def calibration_mean(e,drag):
+     lam=e['relaxation_rate']
+     return drag*lam*RATE/(2*drag*lam+RATE*(drag+lam))*(e['temperature_a']-e['temperature_b'])
++
++
++@lru_cache(4096)
++def _constant_flux_noise(angular_speed,flip_rate,temperature_a,temperature_b,
++                         relaxation_rate,drag):
++    """Exact quadratic additive-functional variance for eta == 0.
++
++    With a constant collision clock the generator maps polynomials to
++    polynomials.  The heat drift is quadratic, so its Poisson equation is
++    quadratic and only stationary moments through degree four are needed.
++    The extra binary coordinate is the motor label s (s**2 == 1).
++    """
++    omega=float(angular_speed); flip=float(flip_rate)
++    ta=float(temperature_a); tb=float(temperature_b)
++    lam=float(relaxation_rate); gamma=float(drag)
++
++    def basis(degree):
++        return [(i,j,k) for total in range(degree+1)
++                for i in range(total+1) for j in [total-i]
++                for k in (0,1)]
++
++    def generator(degree):
++        states=basis(degree); index={q:n for n,q in enumerate(states)}
++        matrix=np.zeros((len(states),len(states)))
++        def add(column, q, value):
++            if abs(value): matrix[index[q],column] += value
++        for column,(i,j,k) in enumerate(states):
++            add(column,(i,j,k),-gamma*i-lam*j-2*flip*k)
++            if j:
++                add(column,(i,j-1,(k+1)&1),lam*omega*j)
++            if i >= 2:
++                add(column,(i-2,j,k),gamma*ta*i*(i-1))
++            if j >= 2:
++                add(column,(i,j-2,k),lam*tb*j*(j-1))
++            # A constant-rate collision exchanges v and g.
++            add(column,(j,i,k),RATE)
++            add(column,(i,j,k),-RATE)
++        return states,matrix
++
++    states4,g4=generator(4)
++    equations=g4.T.copy(); equations[0]=0.
++    equations[0,0]=1.; rhs=np.zeros(len(states4)); rhs[0]=1.
++    moments4=solve(equations,rhs)
++    index4={q:n for n,q in enumerate(states4)}
++
++    states2,g2=generator(2); index2={q:n for n,q in enumerate(states2)}
++    heat=np.zeros(len(states2))
++    heat[index2[(0,0,0)]]=lam*(omega*omega-tb)
++    heat[index2[(0,1,1)]]=-2.*lam*omega
++    heat[index2[(0,2,0)]]=lam
++    mean=float(moments4[index4[(0,0,0)]]*heat[index2[(0,0,0)]])
++    mean=sum(float(coef)*moments4[index4[(i,j,k)]]
++             for (i,j,k),coef in zip(states2,heat))
++
++    # L phi = mean - heat, with E[phi] = 0 fixing the nullspace.
++    poisson=-heat.copy(); poisson[0]+=mean; poisson[0]=0.
++    system=g2.copy(); system[0]=0.; system[0]=[
++        moments4[index4[q]] for q in states2]
++    phi=solve(system,poisson)
++
++    def expectation(poly):
++        total=0.
++        for (i,j,k),coef in poly.items():
++            total += coef*moments4[index4[(i,j,k)]]
++        return float(total)
++
++    aphi={}
++    for q,coef in zip(states2,heat):
++        if coef:
++            for r,val in zip(states2,phi):
++                if val:
++                    aphi[(q[0]+r[0],q[1]+r[1],(q[2]+r[2])&1)] = \
++                        aphi.get((q[0]+r[0],q[1]+r[1],(q[2]+r[2])&1),0.) + coef*val
++
++    # (g-s*omega) * d_g(phi), including the common Wiener noise term.
++    cross={}
++    for (i,j,k),coef in zip(states2,phi):
++        if j:
++            q=(i,j-1,k)
++            key=(i,j,(k)&1)
++            cross[key]=cross.get(key,0.)+coef*j
++            key=(i,j-1,(k+1)&1)
++            cross[key]=cross.get(key,0.)-coef*j*omega
++    stationary_heat=float(expectation(aphi))
++    diffusion=expectation({(0,2,0):1.,(0,1,1):-2.*omega,
++                           (0,0,0):omega*omega})
++    shot=2.*lam*tb*diffusion
++    correlation=2.*stationary_heat-4.*lam*tb*expectation(cross)
++    return float(max(shot+correlation,0.))
+ 
+ 
+ def fit_drag(records):
+@@ -125,6 +217,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Infer the common drag from the calibration records.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

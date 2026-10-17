@@ -1,0 +1,35 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,31 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        records=list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++
++        # In the calibration preparation bath_contrast and magnetic are zero.
++        # The limiting excess rate is therefore proportional to inverse common
++        # friction.  Fit that linear scale by weighted least squares, using the
++        # supplied independent Gaussian standard uncertainties.
++        experiments=[record['input'] for record in records]
++        values=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if (not np.all(np.isfinite(values)) or not np.all(np.isfinite(sigma))
++                or np.any(sigma<=0)):
++            raise ValueError("Calibration values and positive uncertainties must be finite.")
++
++        unit_rates=coefficients(experiments,1.)
++        weights=1./sigma**2
++        denom=np.sum(weights*unit_rates**2)
++        if not np.isfinite(denom) or denom<=0:
++            raise ValueError("Calibration records do not identify the friction coefficient.")
++        inverse_friction=np.sum(weights*unit_rates*values)/denom
++
++        # The documented range is friction in [0.7, 1.6].  Clipping the fitted
++        # inverse scale gives the constrained weighted least-squares solution.
++        inverse_friction=np.clip(inverse_friction,1./1.6,1./0.7)
++        self.friction=float(1./inverse_friction)
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

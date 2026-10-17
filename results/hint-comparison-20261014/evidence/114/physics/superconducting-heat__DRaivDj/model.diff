@@ -1,0 +1,230 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, root
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,7 +191,50 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the single normal-state conductance from the calibration set.
++
++        The supplied calibration set contains the original, unmodulated
++        mean readout.  In that limit the stationary spin potentials are zero
++        by spin symmetry, so the prediction is linear in the conductance.
++        Keeping the weighted least-squares fit here also makes ``fit`` work
++        for a subset of calibration records without introducing another
++        fitted state variable.
++        """
++        if not records:
++            raise ValueError('At least one calibration record is required')
++        design = []
++        values = []
++        weights = []
++        for record in records:
++            experiment = record['input']
++            statistic = experiment.get('statistic', 'mean')
++            # Calibration is documented as a mean calibration.  If callers
++            # provide a phase-contrast calibration record, evaluate its unit-
++            # conductance response just as predict() does.
++            if statistic == 'phase_contrast':
++                phase = experiment['phase']
++                first = dict(experiment, phase=phase)
++                second = dict(experiment, phase=phase + np.pi)
++                unit = (mean_heat(first, 1.) - mean_heat(second, 1.)) / 2.
++            elif statistic == 'mean':
++                unit = mean_heat(experiment, 1.)
++            else:
++                raise ValueError(f'Unsupported calibration statistic: {statistic}')
++            sigma = float(record.get('sigma', 1.))
++            if not np.isfinite(unit) or not np.isfinite(record['value']) or sigma <= 0:
++                raise ValueError('Calibration records must contain finite values and positive sigma')
++            design.append(unit)
++            values.append(float(record['value']))
++            weights.append(1. / sigma**2)
++        design = np.asarray(design)
++        values = np.asarray(values)
++        weights = np.asarray(weights)
++        denominator = np.sum(weights * design * design)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records do not constrain conductance')
++        fitted = np.sum(weights * design * values) / denominator
++        self.conductance = float(np.clip(fitted, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -402,9 +445,14 @@
+ 
+ 
+ def mean_heat(e,conductance):
+-    if e.get('oscillator_coupling',0.)==0 and e.get('secondary_coupling',0.)==0 and e.get('quadratic_coupling',0.)==0 and e.get('momentum_coupling',0.)==0:
+-        return float(r4_predict_at([e],conductance)[0])
+-    return float(stationary(*oscillator_arguments(e),conductance,factorized=FACTORIZED,secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))['heat'][0])
++    # Use the same stationary kinetic state for the ordinary and optional
++    # contact readouts.  For the default contact this reduces exactly to the
++    # fast unmodulated integral because spin symmetry gives mu_L=mu_R=0.
++    return float(stationary(*oscillator_arguments(e),conductance,
++                             factorized=FACTORIZED,
++                             secondary_coupling=e.get('secondary_coupling',0.),
++                             quadratic_coupling=e.get('quadratic_coupling',0.),
++                             momentum_coupling=e.get('momentum_coupling',0.))['heat'][0])
+ 
+ 
+ def predict_at(experiments,conductance):
+@@ -412,6 +460,7 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
++            # Normalize phi+pi to the documented [-pi, pi] representative.
+             other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+@@ -450,7 +499,7 @@
+     return np.array([gate_statistics(e,conductance)['noise'] if e.get('statistic','mean')=='gate_noise'
+                      else mean_predict([e],conductance)[0] for e in experiments])
+ 
+-def gate_third(e,conductance,nodes=192,count=64):
++def _screened_gate_third(e,conductance,nodes=192,count=64):
+     args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+     state=stationary(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+     dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+@@ -483,3 +532,131 @@
+ def predict_at(experiments,conductance):
+     return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+                      else noise_predict([e],conductance)[0] for e in experiments])
++
++
++# The original screened-Poisson helper above is retained as a useful
++# diagnostic.  The public third-cumulant path below evaluates the stationary
++# tilted jump process, including the dependence of every conditional rate on
++# the fluctuating spin potentials.
++def _counting_data(e, conductance, nodes=192, count=64):
++    args=oscillator_arguments(e)
++    kw=dict(secondary_coupling=e.get('secondary_coupling',0.),
++            quadratic_coupling=e.get('quadratic_coupling',0.),
++            momentum_coupling=e.get('momentum_coupling',0.))
++    state=stationary(*args, conductance, nodes=nodes, count=count, **kw)
++    tl,tr=args[:2]
++    dl,dr,ch=prepare(*args, nodes=nodes, count=count,
++                      window=state['search_bound'], **kw)
++    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
++    nquad=energy.shape[1]
++    sl=np.asarray(sl[:,0], dtype=float).repeat(nquad)
++    sr=np.asarray(sr[:,0], dtype=float).repeat(nquad)
++    pair=np.asarray(pair[:,0], dtype=bool).repeat(nquad)
++    q=np.repeat(np.asarray(injection, dtype=float), nquad, axis=0)
++    work=np.asarray(work, dtype=float).repeat(nquad)
++    measure=np.asarray(measure, dtype=float).ravel()
++    pf=np.asarray(pf, dtype=float).repeat(nquad)
++    pb=np.asarray(pb, dtype=float).repeat(nquad)
++    energy=np.asarray(energy, dtype=float).ravel()
++    other=np.asarray(other, dtype=float).ravel()
++    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
++    flips=[]
++    for temp,delta in zip((tl,tr),(dl,dr)):
++        x,w=leggauss(192)
++        upper=delta+max(80*temp, 6*state['search_bound'])
++        ee=delta+(x+1)*(upper-delta)/2
++        mm=w*(upper-delta)/2*ratio/2
++        flips.append((temp,ee,mm))
++    return dict(state=state,args=args,
++                channels=(energy,other,measure,sl,sr,pair,work,pf,pb,q),
++                flips=flips)
++
++
++def _counting_rates(data, mu):
++    """Conditional tunnelling and spin-flip rates and their mu gradients."""
++    energy,other,measure,sl,sr,pair,work,pf,pb,q=data['channels']
++    tl,tr=data['args'][:2]
++    f=expit((sl*mu[0]-energy)/tl)
++    g=expit((sr*mu[1]-other)/tr)
++    df=f*(1-f)/tl; dg=g*(1-g)/tr
++    rp=np.where(pair,measure*pf*(1-f)*(1-g),measure*pf*f*(1-g))
++    rm=np.where(pair,measure*pb*f*g,measure*pb*g*(1-f))
++    drp=np.empty((len(rp),2)); drm=np.empty((len(rm),2))
++    drp[:,0]=np.where(pair,measure*pf*(-sl*df)*(1-g),measure*pf*(sl*df)*(1-g))
++    drp[:,1]=np.where(pair,measure*pf*(1-f)*(-sr*dg),measure*pf*f*(-sr*dg))
++    drm[:,0]=np.where(pair,measure*pb*(sl*df)*g,measure*pb*g*(-sl*df))
++    drm[:,1]=np.where(pair,measure*pb*f*(sr*dg),measure*pb*(sr*dg)*(1-f))
++    flip_rates=[]; flip_grads=[]
++    for j,(temp,ee,mm) in enumerate(data['flips']):
++        u=expit((mu[j]-ee)/temp); d=expit((-mu[j]-ee)/temp)
++        du=u*(1-u)/temp; dd=d*(1-d)/temp
++        up=mm*u*(1-d); down=mm*d*(1-u)
++        dup=mm*(du*(1-d)+u*dd)
++        ddown=mm*(-dd*(1-u)-d*du)
++        flip_rates.append((float(np.sum(up)),float(np.sum(down))))
++        flip_grads.append((float(np.sum(dup)),float(np.sum(ddown))))
++    return rp,rm,drp,drm,flip_rates,flip_grads
++
++
++def _tilted_equations(z, data, k):
++    """Hamilton equations of the leading extensive tilted generator."""
++    mu=np.asarray(z[:2]); p=np.asarray(z[2:])
++    rp,rm,drp,drm,flip_rates,flip_grads=_counting_rates(data,mu)
++    _,_,_,_,_,_,work,_,_,q=data['channels']
++    exponent=k*work+q@p
++    plus=np.exp(exponent); minus=np.exp(-exponent)
++    h=float(np.sum(rp*np.expm1(exponent)+rm*np.expm1(-exponent)))
++    hp=np.sum(q*(rp*plus-rm*minus)[:,None],axis=0)
++    hm=np.sum(drp*np.expm1(exponent)[:,None]+drm*np.expm1(-exponent)[:,None],axis=0)
++    for j,((up,down),(dup,ddown)) in enumerate(zip(flip_rates,flip_grads)):
++        ep=np.exp(2*p[j]); em=np.exp(-2*p[j])
++        h += up*np.expm1(-2*p[j])+down*np.expm1(2*p[j])
++        hp[j] += -2*up*em+2*down*ep
++        hm[j] += dup*np.expm1(-2*p[j])+ddown*np.expm1(2*p[j])
++    return h,np.r_[hp,hm]
++
++
++def _exact_third_rate(data):
++    """Third cumulant retaining conditional-rate response to spin noise."""
++    mu0=np.asarray(data['state']['mu'], dtype=float)
++    state_jac=np.asarray(data['state']['jacobian'], dtype=float)
++    _,_,_,_,_,_,work,_,_,q=data['channels']
++    _,_,drp,drm,_,_= _counting_rates(data,mu0)
++    hp_mu=np.sum((drp-drm)*work[:,None],axis=0)
++    p1=-np.linalg.solve(state_jac.T,hp_mu)
++
++    def value(k):
++        if k == 0:
++            return 0.
++        guess=np.r_[mu0,k*p1]
++        scale=abs(k)
++        def equations(z):
++            return _tilted_equations(z,data,k)[1]/scale
++        solved=root(equations,guess,method='hybr',options={'xtol':1e-10})
++        if (not solved.success) or np.max(abs(equations(solved.x)))>2e-7:
++            solved=root(equations,guess,method='lm',options={'ftol':1e-13,'xtol':1e-13,'gtol':1e-13,'maxiter':1000})
++        if np.max(abs(equations(solved.x)))>2e-6:
++            raise RuntimeError('Tilted stationary spin balance did not converge')
++        return _tilted_equations(solved.x,data,k)[0]
++
++    step=1.e-3; previous=None
++    for _ in range(4):
++        grid=np.arange(-4,5,dtype=float)
++        vals=np.array([value(step*u) for u in grid])
++        coeff=np.polynomial.polynomial.polyfit(grid,vals,6)
++        third=6*coeff[3]/step**3
++        if previous is not None and abs(third-previous)<=3.e-5*max(1.,abs(third)):
++            break
++        previous=third; step*=.5
++    return float(third),p1
++
++
++def gate_third(e,conductance,nodes=192,count=64):
++    if not e.get('amplitude',0.):
++        return dict(third=0.,screened_poisson=0.,count_response=[0.,0.])
++    data=_counting_data(e,conductance,nodes,count)
++    third,p1=_exact_third_rate(data)
++    scale=RATE_CONVERSION*conductance*KB**3*1e36
++    screened=_screened_gate_third(e,conductance,nodes,count)['third']
++    return dict(third=third*scale,screened_poisson=screened,
++                count_response=p1.tolist())

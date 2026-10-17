@@ -1,0 +1,23 @@
+--- starter/model.py
++++ submission/model.py
+@@ -206,7 +206,17 @@
+ 
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        # This is deliberately kept as a public attribute: the documented
++        # calibration output is the common ordinary-fluid friction.
++        self.friction = None
++
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
+-    def predict(self,experiments):return predict_at(experiments,self.friction)
++        """Fit the shared fluid friction from independent calibration records."""
++        self.friction = fit_friction(records)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError('Call fit(records) before requesting predictions.')
++        return predict_at(experiments, self.friction)

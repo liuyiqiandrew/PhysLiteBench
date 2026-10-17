@@ -1,0 +1,89 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,6 +3,7 @@
+ from scipy.optimize import minimize_scalar
+ from scipy.integrate import solve_ivp
+ from scipy.sparse import diags
++from scipy.linalg import eigh
+ 
+ # Neutral four-ion association A+ + B+ + 2 C- <-> P.
+ ASSOCIATION=0.5
+@@ -25,7 +26,36 @@
+         self.diffusivity = None
+ 
+     def fit(self,data):
+-        raise NotImplementedError('Fit the common ionic diffusion scale from calibration.')
++        # The single-constituent preparations have no bound clusters. Their
++        # ambipolar diffusivities are 4D/3 (A,C) and 8D/3 (B,C).
++        times = np.asarray(data["t"], dtype=float)
++        x = np.asarray(data["x"], dtype=float)
++        initial = np.asarray(data["initial"], dtype=float)
++        measured = np.asarray(data["concentration"], dtype=float)
++        sigma = np.asarray(data["sigma"], dtype=float)
++        positive_times = times[times > 0]
++        if positive_times.size == 0:
++            raise ValueError("Fitting D requires observations at positive times")
++        scale = (x[-1] - x[0])**2 / positive_times[-1]
++
++        def objective(log_ratio):
++            self.diffusivity = scale * np.exp(log_ratio)
++            predicted = np.array([self.predict(times, x, prep)
++                                  for prep in initial])
++            return np.sum(((predicted - measured) / sigma)**2)
++
++        # Optimize a logarithm so every trial and the fitted value are positive.
++        grid = np.linspace(-18., 18., 73)
++        costs = np.array([objective(value) for value in grid])
++        best = int(np.argmin(costs))
++        result = minimize_scalar(
++            objective, bounds=(grid[max(0, best-1)],
++                               grid[min(len(grid)-1, best+1)]),
++            method="bounded", options={"xatol": 1e-10})
++        if not result.success:
++            raise RuntimeError("Diffusivity fit failed: " + result.message)
++        self.diffusivity = float(scale * np.exp(result.x))
++        return self
+ 
+     def _binary(self,t,x,initial):
+         t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)
+@@ -37,6 +67,8 @@
+ 
+     def predict(self,t,x,initial):
+         t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)
++        if len(t)==0:
++            return np.empty((0,len(x),2))
+         if t[-1]==0:
+             return initial[None,:,:].copy()
+         if np.all(initial[:,0]==0) or np.all(initial[:,1]==0):
+@@ -60,7 +92,6 @@
+             raise RuntimeError(result.message)
+         return result.y.T.reshape(len(t),count,2)
+ 
+-from scipy.linalg import expm
+ 
+ def fluctuation_matrices(totals,diffusivity):
+     concentration=equilibrium(np.asarray(totals)[None,:])[0]
+@@ -76,9 +107,20 @@
+ 
+ def equilibrium_correlations(t,totals,harmonic,diffusivity):
+     covariance,mobility=fluctuation_matrices(totals,diffusivity)
+-    relaxation=(harmonic*np.pi/.001)**2*mobility@np.linalg.inv(covariance)
+-    initial_covariance=np.diag(totals)
+-    return np.array([expm(-float(time)*relaxation)@initial_covariance for time in t])
++    # Charge-conditioned ideal species fluctuations, projected onto conserved
++    # constituents, give the equilibrium susceptibility. Fast reaction noise
++    # has no constituent projection, but binding contributes to susceptibility.
++    # Whiten the susceptibility to use a symmetric relaxation operator; this
++    # preserves detailed balance and symmetry at every lag.
++    values, vectors = eigh(covariance)
++    root = (vectors * np.sqrt(values)) @ vectors.T
++    inverse_root = (vectors / np.sqrt(values)) @ vectors.T
++    rates, modes = eigh(inverse_root @ mobility @ inverse_root)
++    amplitudes = root @ modes
++    decay = np.exp(-np.asarray(t)[:, None] *
++                   (harmonic*np.pi/.001)**2 * rates[None, :])
++    return np.einsum("ik,tk,jk->tij", amplitudes, decay, amplitudes)
++
+ 
+ def correlate(self,t,totals,harmonic=1):
+     return equilibrium_correlations(np.asarray(t),np.asarray(totals),int(harmonic),self.diffusivity)

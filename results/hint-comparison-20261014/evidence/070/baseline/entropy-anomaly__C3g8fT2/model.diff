@@ -1,0 +1,174 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,8 @@
+ """Stationary small-mass calorimetry of switched anisotropic thermal contacts."""
+ from functools import lru_cache
+ import numpy as np
++from scipy import sparse
++from scipy.sparse.linalg import spsolve
+ 
+ INPUT_FIELDS=('force_x','force_y','drag_ratio','magnetic','temperature','contrast','wavenumber','bath_contrast','switch_rate')
+ 
+@@ -93,5 +95,160 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Fit the (single) drag coefficient by weighted least squares.
++
++        All supplied calibration runs use the two-contact, zero-field setup.
++        In that setup the limiting rate is exactly proportional to 1/friction,
++        so fitting its reciprocal is a one-parameter linear regression.  This
++        also makes the fit much less sensitive to the different uncertainties
++        in the calibration file.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        experiments=[r['input'] for r in records]
++        observed=np.asarray([r['value'] for r in records],dtype=float)
++        sigma=np.asarray([r['sigma'] for r in records],dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma<=0)):
++            raise ValueError("calibration values and sigmas must be finite, with positive sigma")
++        unit=coefficients(experiments,1.)
++        inverse=float(np.sum(unit*observed/sigma**2)/np.sum(unit**2/sigma**2))
++        if not np.isfinite(inverse) or inverse<=0:
++            raise ValueError("calibration data do not identify a positive friction")
++        self.friction=float(np.clip(1./inverse,.7,1.6))
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit before predict")
++        return np.asarray([_excess_rate(e,self.friction) for e in experiments],dtype=float)
++
++
++# The calculation below intentionally works at small, nonzero mass before
++# taking the limit.  This matters when bath_contrast is nonzero: the two raw
++# calorimeter rates contain a 1/m switching heat leak.  It cancels only after
++# multiplying the background rate by the *measured* foreground residence.
++
++_MOMENT_POINTS=33
++_MOMENT_ORDER=4
++
++def _finite_mass_state(e,friction,mass):
++    """Return local entropy rate and positional density at finite mass.
++
++    We solve the stationary Kramers equation in scaled velocities u=sqrt(m)v.
++    Its polynomial moment hierarchy is sparse; order four supplies the
++    finite-mass error needed for the linear Richardson limit below.  Fourier
++    collocation in x is spectrally accurate for the smooth periodic profiles.
++    """
++    points=_MOMENT_POINTS
++    order=_MOMENT_ORDER
++    phase,derivative=spatial_grid(points)
++    derivative=derivative*e['wavenumber']
++    dx=2*np.pi/points
++    factors,gx,gy,q=contact_parameters(e,friction)
++    contacts=len(gx)
++    temperature=(e['temperature']*(1+e['contrast']*np.cos(phase))[None,:]
++                 *factors[:,None])
++    epsilon=np.sqrt(mass)
++
++    # offsets for all homogeneous velocity-moment degrees 0,...,order
++    bases=[]
++    offsets=[]
++    size=0
++    for degree in range(order+1):
++        basis=[(p,degree-p) for p in range(degree,-1,-1)]
++        bases.append(basis)
++        offsets.append(size)
++        size+=contacts*(degree+1)*points
++
++    identity=sparse.eye(points,format='csr')
++    blocks=[]
++    def add(row_offset,column_offset,block):
++        blocks.append((row_offset,column_offset,block))
++
++    for degree,basis in enumerate(bases):
++        # Fast Ornstein--Uhlenbeck/contact part for moments of this degree.
++        _,fast=moment_operator(degree,gx,gy,e['magnetic'],q)
++        add(offsets[degree],offsets[degree],
++            sparse.kron(sparse.csr_matrix(fast),identity,format='csr'))
++        lower_lookup={pair:i for i,pair in enumerate(bases[degree-1])} if degree else {}
++        lower2_lookup={pair:i for i,pair in enumerate(bases[degree-2])} if degree>=2 else {}
++        higher_lookup={pair:i for i,pair in enumerate(bases[degree+1])} if degree<order else {}
++        for s in range(contacts):
++            for i,(px,py) in enumerate(basis):
++                row=offsets[degree]+(s*(degree+1)+i)*points
++                if px>=2:
++                    col=offsets[degree-2]+(s*(degree-1)+lower2_lookup[px-2,py])*points
++                    add(row,col,sparse.diags(px*(px-1)*gx[s]*temperature[s]))
++                if py>=2:
++                    col=offsets[degree-2]+(s*(degree-1)+lower2_lookup[px,py-2])*points
++                    add(row,col,sparse.diags(py*(py-1)*gy[s]*temperature[s]))
++                if px:
++                    col=offsets[degree-1]+(s*degree+lower_lookup[px-1,py])*points
++                    add(row,col,epsilon*px*e['force_x']*identity)
++                if py:
++                    col=offsets[degree-1]+(s*degree+lower_lookup[px,py-1])*points
++                    add(row,col,epsilon*py*e['force_y']*identity)
++                if degree<order:
++                    col=offsets[degree+1]+(s*(degree+2)+higher_lookup[px+1,py])*points
++                    add(row,col,-epsilon*sparse.csr_matrix(derivative))
++
++    rows=[]; columns=[]; values=[]
++    for row_offset,column_offset,block in blocks:
++        coo=block.tocoo()
++        rows.extend((coo.row+row_offset).tolist())
++        columns.extend((coo.col+column_offset).tolist())
++        values.extend(coo.data.tolist())
++    system=sparse.coo_matrix((values,(rows,columns)),shape=(size,size)).tolil()
++
++    # The sole null mode is total probability.  Replace one redundant
++    # stationarity equation by the normalization of the x marginal.
++    system[0,:]=0.
++    for s in range(contacts):
++        system[0,offsets[0]+s*points:offsets[0]+(s+1)*points]=dx
++    rhs=np.zeros(size)
++    rhs[0]=1.
++    solution=spsolve(system.tocsc(),rhs)
++    density=solution[offsets[0]:offsets[1]].reshape(contacts,points)
++    second=solution[offsets[2]:offsets[3]].reshape(contacts,3,points)
++
++    # E[dS_bath]/dt = gamma ( <u_i^2>/T - rho ) / m.
++    local=np.sum(gx[:,None]*(second[:,0]/temperature-density)
++                 +gy[:,None]*(second[:,2]/temperature-density),axis=0)/mass
++    return phase,dx,density,local
++
++def _finite_excess(e,friction,mass):
++    phase,dx,density,foreground_local=_finite_mass_state(e,friction,mass)
++    if 'detector_phase' in e:
++        weight=(1+np.cos(phase-e['detector_phase']))/2
++    else:
++        weight=np.ones_like(phase)
++    weighted_foreground=dx*np.sum(weight*foreground_local)
++    residence=dx*np.sum(weight*density)
++
++    background=dict(e)
++    background.update(force_x=0.,force_y=0.,contrast=0.)
++    _,background_dx,_,background_local=_finite_mass_state(background,friction,mass)
++    background_rate=background_dx*np.sum(background_local)
++    return float(weighted_foreground-background_rate*residence)
++
++@lru_cache(4096)
++def _excess_rate_cached(force_x,force_y,drag_ratio,magnetic,temperature,contrast,
++                        wavenumber,bath_contrast,switch_rate,friction,
++                        detector_phase=None,valve_cycle=None,contact_drag_contrast=0.):
++    e=dict(zip(INPUT_FIELDS,(force_x,force_y,drag_ratio,magnetic,temperature,
++                             contrast,wavenumber,bath_contrast,switch_rate)))
++    if detector_phase is not None:
++        e['detector_phase']=detector_phase
++    if valve_cycle is not None:
++        e['valve_cycle']=valve_cycle
++        e['contact_drag_contrast']=contact_drag_contrast
++    # The expansion is even in sqrt(m), hence the subtracted observable is
++    # L+c*m+O(m^2).  Two small masses remove the leading finite-mass term.
++    coarse=_finite_excess(e,friction,.002)
++    fine=_finite_excess(e,friction,.001)
++    return 2*fine-coarse
++
++def _excess_rate(e,friction):
++    return _excess_rate_cached(*(e[name] for name in INPUT_FIELDS),float(friction),
++        e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.))

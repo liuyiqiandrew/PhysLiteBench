@@ -1,0 +1,1 @@
+The two reservoirs need not have the same temperature. In the periodic channel, eliminate the fast joint velocity/contact process locally before deriving the spatial stationary measure; a scalar effective temperature need not give the noise-induced drift.

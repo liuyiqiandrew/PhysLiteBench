@@ -1,0 +1,79 @@
+import numpy as np
+from scipy.optimize import brentq
+
+
+def _log_cosh(x):
+    """A finite, accurate log(cosh(x)) for scalar x."""
+    ax = abs(x)
+    if ax < 20.0:
+        # This branch avoids subtracting two nearly equal logs at zero.
+        return float(np.log(np.cosh(x)))
+    return ax + np.log1p(np.exp(-2.0 * ax)) - np.log(2.0)
+
+
+def response(e):
+    """Response in units where the two velocities are +/- one.
+
+    In free-volume coordinates the gas is a gas of point particles with
+    density ``c = rho / (1-rho*length)``.  If ``s`` is its counting field,
+    its SCGF is ``c * (cosh(s)-1)``.  A physical current displaces the
+    boundary through a block of rods.  Averaging the two possible lengths
+    of that block gives
+
+        field = s - log E[exp(-c * rod_length * sinh(s))].
+
+    The displayed form below evaluates that two-point expectation stably.
+    It also makes clear why the variance only depends on the mean length:
+    the contrast first enters at fourth order in the counting field.
+    """
+    rho, mean = float(e['density']), float(e['length'])
+    if e['statistic'] == 'mean':
+        return 0.0
+    if e['statistic'] == 'variance':
+        return rho * (1.0 - rho * mean)
+
+    field = abs(float(e['counting_field']))
+    if field == 0.0:
+        return 0.0
+
+    contrast = float(e['contrast'])
+    c = rho/(1-rho*mean)
+
+    def field_at(s):
+        displaced_volume = c * mean * np.sinh(s)
+        return s + displaced_volume - _log_cosh(contrast * displaced_volume)
+
+    upper = field + 1.0
+    while field_at(upper) < field:
+        upper *= 2.0
+    s = brentq(lambda s: field_at(s) - field, 0.0, upper, xtol=1e-14)
+    return c * (np.cosh(s) - 1.0)
+
+
+def predict_at(experiments, speed):
+    return speed*np.asarray([response(e) for e in experiments])
+
+
+class Model:
+    def __init__(self):
+        self.speed = None
+
+    def fit(self, records):
+        """Fit the one common multiplicative time scale by weighted LS."""
+        base = np.asarray([response(record['input']) for record in records],
+                          dtype=float)
+        values = np.asarray([record['value'] for record in records],
+                            dtype=float)
+        sigmas = np.asarray([record['sigma'] for record in records],
+                            dtype=float)
+        weights = 1.0 / np.square(sigmas)
+        denominator = np.sum(weights * np.square(base))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError('Calibration records contain no informative observations.')
+        self.speed = float(np.sum(weights * base * values) / denominator)
+        return self
+
+    def predict(self, experiments):
+        if self.speed is None:
+            raise RuntimeError('Call fit(records) before predict(experiments).')
+        return predict_at(experiments, self.speed)

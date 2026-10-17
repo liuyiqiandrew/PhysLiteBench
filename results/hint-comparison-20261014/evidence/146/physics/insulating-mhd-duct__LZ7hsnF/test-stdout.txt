@@ -1,0 +1,75 @@
+.FFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_______________________________ test_calibration _______________________________
+
+fitted = <model.Model object at 0xffffb7cd9010>
+records = [{'input': {'magnetic_x': 0.0, 'magnetic_y': 0.3, 'observable': 'mean', 'pressure_gradient': 0.06, ...}, 'sigma': 2.56...rvable': 'mean', 'pressure_gradient': 0.06, ...}, 'sigma': 2.56841646939444e-07, 'value': 1.2441983639921708e-05}, ...]
+
+    def test_calibration(fitted, records):
+        y = fitted.predict([r['input'] for r in records])
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+>       assert float(residual@residual)/(len(records)-1) < 1.5
+E       AssertionError: assert (12904831303830.385 / (160 - 1)) < 1.5
+E        +  where 12904831303830.385 = float((array([103666.50898585, 129300.48432556, 146258.84567179, 152725.26915008,\n       153768.96794706, 153810.65729735, 15...63332321, 399259.14076855, 399347.51984288,\n       399338.86913445, 399337.21997165, 399334.93812634, 399334.55943147]) @ array([103666.50898585, 129300.48432556, 146258.84567179, 152725.26915008,\n       153768.96794706, 153810.65729735, 15...63332321, 399259.14076855, 399347.51984288,\n       399338.86913445, 399337.21997165, 399334.93812634, 399334.55943147])))
+E        +  and   160 = len([{'input': {'magnetic_x': 0.0, 'magnetic_y': 0.3, 'observable': 'mean', 'pressure_gradient': 0.06, ...}, 'sigma': 2.56...rvable': 'mean', 'pressure_gradient': 0.06, ...}, 'sigma': 2.56841646939444e-07, 'value': 1.2441983639921708e-05}, ...])
+
+test_public.py:31: AssertionError
+___________________________ test_private_calibration ___________________________
+
+evaluated = {'calibration_chi2': 81162461030.37978, 'hidden': {'oblique_negative': 4655.954362419677, 'oblique_positive': 5013.984...ual_components': 4509.648141844371}, 'parameter': 0.017999999999999995, 'parameter_relative_error': 0.7999999999999994}
+
+    def test_private_calibration(evaluated):
+>       assert evaluated['calibration_chi2'] < 1.5
+E       assert 81162461030.37978 < 1.5
+
+/tests/test_hidden.py:57: AssertionError
+___________________________ test_parameter_recovery ____________________________
+
+evaluated = {'calibration_chi2': 81162461030.37978, 'hidden': {'oblique_negative': 4655.954362419677, 'oblique_positive': 5013.984...ual_components': 4509.648141844371}, 'parameter': 0.017999999999999995, 'parameter_relative_error': 0.7999999999999994}
+
+    def test_parameter_recovery(evaluated):
+>       assert evaluated['parameter_relative_error'] < .03
+E       assert 0.7999999999999994 < 0.03
+
+/tests/test_hidden.py:61: AssertionError
+______________________ test_prediction[oblique_positive] _______________________
+
+evaluated = {'calibration_chi2': 81162461030.37978, 'hidden': {'oblique_negative': 4655.954362419677, 'oblique_positive': 5013.984...ual_components': 4509.648141844371}, 'parameter': 0.017999999999999995, 'parameter_relative_error': 0.7999999999999994}
+case = 'oblique_positive'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < 0.04
+E       assert 5013.984454270884 < 0.04
+
+/tests/test_hidden.py:66: AssertionError
+______________________ test_prediction[oblique_negative] _______________________
+
+evaluated = {'calibration_chi2': 81162461030.37978, 'hidden': {'oblique_negative': 4655.954362419677, 'oblique_positive': 5013.984...ual_components': 4509.648141844371}, 'parameter': 0.017999999999999995, 'parameter_relative_error': 0.7999999999999994}
+case = 'oblique_negative'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < 0.04
+E       assert 4655.954362419677 < 0.04
+
+/tests/test_hidden.py:66: AssertionError
+_____________________ test_prediction[unequal_components] ______________________
+
+evaluated = {'calibration_chi2': 81162461030.37978, 'hidden': {'oblique_negative': 4655.954362419677, 'oblique_positive': 5013.984...ual_components': 4509.648141844371}, 'parameter': 0.017999999999999995, 'parameter_relative_error': 0.7999999999999994}
+case = 'unequal_components'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < 0.04
+E       assert 4509.648141844371 < 0.04
+
+/tests/test_hidden.py:66: AssertionError
+=========================== short test summary info ============================
+FAILED test_public.py::test_calibration - AssertionError: assert (12904831303...
+FAILED ../tests/test_hidden.py::test_private_calibration - assert 81162461030...
+FAILED ../tests/test_hidden.py::test_parameter_recovery - assert 0.7999999999...
+FAILED ../tests/test_hidden.py::test_prediction[oblique_positive] - assert 50...
+FAILED ../tests/test_hidden.py::test_prediction[oblique_negative] - assert 46...
+FAILED ../tests/test_hidden.py::test_prediction[unequal_components] - assert ...
+6 failed, 1 passed in 8.58s

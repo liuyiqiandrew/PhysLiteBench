@@ -1,0 +1,60 @@
+import numpy as np
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    """Long-time tagged-particle covariance for a fixed initial lattice.
+
+    The deterministic preparation has no initial density fluctuations. The
+    integrated diffusive current therefore gives the time dependence
+    sqrt(time_a + time_b) - sqrt(abs(time_a - time_b)). At equal times this
+    reduces to the variance sqrt(2 * diffusivity * time_a / pi) / density.
+    """
+    return np.sqrt(diffusivity / np.pi) / density * (
+        np.sqrt(time_a + time_b) - np.sqrt(abs(time_a - time_b))
+    )
+
+
+def predict_at(experiments, diffusivity):
+    return np.asarray([
+        covariance(float(diffusivity), float(e["density"]),
+                   float(e["time_a"]), float(e["time_b"]))
+        for e in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Fit sqrt(D) by Gaussian weighted least squares within D's bounds."""
+        records = list(records)
+        if not records:
+            raise ValueError("At least one calibration record is required.")
+
+        basis = predict_at([record["input"] for record in records], 1.0)
+        values = np.asarray([record["value"] for record in records], dtype=float)
+        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
+        if not (
+            np.isfinite(basis).all()
+            and (basis > 0).all()
+            and np.isfinite(values).all()
+            and np.isfinite(sigma).all()
+            and (sigma > 0).all()
+        ):
+            raise ValueError("Calibration requires finite values and positive sigma and controls.")
+
+        # Covariance is linear in sqrt(D), so the likelihood has an exact
+        # one-parameter solution; clipping enforces the known diffusivity range.
+        weighted_basis = basis / sigma
+        amplitude = np.dot(weighted_basis, values / sigma) / np.dot(
+            weighted_basis, weighted_basis
+        )
+        amplitude = np.clip(amplitude, np.sqrt(0.8), np.sqrt(1.2))
+        self.diffusivity = float(amplitude ** 2)
+        return self
+
+    def predict(self, experiments):
+        if self.diffusivity is None:
+            raise RuntimeError("Fit the model before requesting predictions.")
+        return predict_at(experiments, self.diffusivity)
