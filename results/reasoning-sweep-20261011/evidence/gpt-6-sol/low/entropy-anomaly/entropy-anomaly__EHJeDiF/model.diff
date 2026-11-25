@@ -1,0 +1,32 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,13 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At the next order, local contact populations lag the spatial flux.
++    # Only their zero-sum part is needed: the common part cancels against
++    # the measured residence in the matched-background subtraction.
++    contact_source=d@np.stack([first[1,0][s] for s in range(count)]) .T
++    contact_source=contact_source.T
++    contact_source-=contact_source.mean(axis=0)
++    density_correction={(0,0):np.linalg.lstsq(q+np.ones_like(q)/count,contact_source,rcond=None)[0]}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +98,12 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        # In this calibration regime the overdamped excess scales exactly
++        # as the inverse of the common drag coefficient.
++        predictions=coefficients([r['input'] for r in records],1.)
++        observed=np.array([r['value'] for r in records],dtype=float)
++        weights=1/np.square([r['sigma'] for r in records])
++        inverse_drag=np.sum(weights*predictions*observed)/np.sum(weights*predictions**2)
++        self.friction=float(np.clip(1/inverse_drag,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

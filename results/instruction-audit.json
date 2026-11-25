@@ -1,0 +1,236 @@
+{
+  "date": "2026-10-02",
+  "scope": "All twelve retained tasks: ordinary instruction, README, starter code, public tests and data schema, image boundary, runner, private grader comparison, and 36 selected unhinted native prompts.",
+  "verdict": "No direct disclosure of the missing physical correction or mandatory solver was found. The ordinary wording has a shared soft edit-scope ambiguity, a few optional derivation cues and minor domain ambiguities. Cavity also has a demonstrated calibration-metadata side channel. This is not an unqualified neutrality certification.",
+  "summary": {
+    "tasks_reviewed": 12,
+    "native_plain_prompts_reviewed": 36,
+    "direct_physics_answer_leaks_found": 0,
+    "hard_numerical_or_internal_model_mandates_found": 0,
+    "evaluated_task_files_changed": false,
+    "task_specific_hints_in_plain_native_prompt_found": 0
+  },
+  "main_findings": [
+    {
+      "id": "edit_scope",
+      "priority": "recommended",
+      "category": "soft_solution_space_narrowing",
+      "tasks_without_explicit_whole_implementation_permission": [
+        "thermal-bodies",
+        "reaction-diffusion",
+        "qubit-control",
+        "magnetic-tracer",
+        "capillary-mixture",
+        "nonreciprocal-cavity",
+        "ternary-gas",
+        "thermoelectric-rod",
+        "entropy-anomaly"
+      ],
+      "already_explicit_in_readme": [
+        "hall-bar",
+        "insulating-mhd-duct",
+        "thermoelastic-rod"
+      ],
+      "finding": "All twelve starters leave only fit unfinished. Eight ordinary prompts use Complete without explicit permission to replace existing helpers; entropy says Implement but also lacks explicit replacement permission. This can anchor the solver to filling the fit while preserving the forward model. No literal prohibition on changing prediction code exists. The other three READMEs explicitly permit all implementation edits.",
+      "recommendation": "Use the same neutral instruction for all tasks, granting freedom to modify or replace implementation code while preserving the API. Do not tell the solver that a supplied equation is wrong or name the missing physics.",
+      "evidence_reports": [
+        "results/instruction-audit-brownian.json",
+        "results/instruction-audit-materials.json",
+        "results/instruction-audit-constraints.json"
+      ],
+      "causal_limit": "This wording risk does not establish what caused the observed failures. Existing runs cannot separate physical misunderstanding from deference to supplied code without a new wording ablation."
+    },
+    {
+      "id": "constitutive_guidance",
+      "priority": "optional",
+      "category": "derivation_cues",
+      "tasks": [
+        "capillary-mixture",
+        "thermoelastic-rod"
+      ],
+      "finding": "Capillary README line9 gives a virtual-work route to the reversible stress. Thermoelastic README lines18-19 explicitly repeats reversible thermoelastic coupling. Neither gives the hidden correction formula. The first is also a valid constitutive definition; only its procedural exposition is optional.",
+      "recommendation": "If desired, shorten capillary wording to thermodynamic stress of the specified Helmholtz free energy and remove the redundant coupling reminder in the rod. Preserve the free-energy/stress relationship, fixed-strain heat-capacity convention, clamps and all apparatus conditions."
+    },
+    {
+      "id": "cavity_sigma",
+      "priority": "recommended for a future data revision",
+      "category": "calibration_metadata_side_channel",
+      "tasks": [
+        "nonreciprocal-cavity"
+      ],
+      "finding": "Per-record sigma is proportional to the exact noiseless total output. A fit to public sigmas with an unknown proportionality recovers loss_rate=0.26999999956359855 without using measured values or a private reference.",
+      "impact": "Bypasses intended noisy parameter inference, but does not reveal the outgoing-versus-incoming emission correction. The other reviewed families with a single global sigma do not have demonstrated sigma-only identifiability when the proportionality factor is unknown.",
+      "recommendation": "Use uncertainties determined from known controls and instrument settings, independently of the unknown parameter. Regenerate both calibration copies, validate and evaluate as a new revision.",
+      "evidence_report": "results/instruction-audit-materials.json"
+    }
+  ],
+  "minor_findings": {
+    "signed_direction_wording": [
+      "insulating-mhd-duct: describe B*y_hat and u*z_hat as signed components",
+      "hall-bar: describe B*z_hat as a signed component"
+    ],
+    "thermoelastic_input_clarity": [
+      "Clarify whether the 1 K bound applies to the actual temperature field; existing hidden inputs satisfy the stronger pointwise bound.",
+      "Write contact heat flow as H*(T_body-T_surface)."
+    ],
+    "optional_starter_cleanup": [
+      "reaction-diffusion: _binary is a weak clue to the limited supplied approximation.",
+      "magnetic-tracer: unused least_squares import suggests a fitting method, not a physics correction."
+    ],
+    "details": [
+      "results/instruction-audit-brownian.json",
+      "results/instruction-audit-materials.json",
+      "results/instruction-audit-constraints.json"
+    ]
+  },
+  "facts_to_retain": "Boundary conditions, shared versus independent baths, force laws, material reciprocity, heat-capacity conventions, conserved quantities, observable definitions and orders of limits define the experiment. Removing them would allow physically different answers; their presence is not accidental solution-space narrowing.",
+  "proposed_instruction_patch": {
+    "path": "results/instruction-neutrality-proposed.patch",
+    "applied": false,
+    "git_apply_check_passed": true,
+    "content": "Implement the model in /app/model.py for the apparatus described in /app/README.md, using the calibration data and the documented prediction interface. You may modify or replace any part of the implementation, including existing prediction functions and helpers. Preserve the documented API and required outputs."
+  },
+  "evaluation_consequence": "All current scores remain attached to their unchanged evaluated prompts and sources. Applying the proposed patch or data changes creates new revisions requiring new evaluations; this audit makes no claim about their future pass rates.",
+  "review_reports": [
+    "results/instruction-audit-brownian.json",
+    "results/instruction-audit-materials.json",
+    "results/instruction-audit-constraints.json",
+    "results/instruction-audit-public-boundary.json",
+    "results/instruction-audit-native-inputs.json"
+  ],
+  "evaluated_source_checks": {
+    "capillary-mixture": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "9e8a8f8226899e4034c3259ceb114a8bc1a36444f495dd2a42f64cbbb0f0dfe6",
+      "environment_sha256": "24146494d9f6fd99908c3ff07496352fd7c5c71d2f43845fc372292263c6711c"
+    },
+    "entropy-anomaly": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "83692df23bfcb4f616fa2ca9a540594821e93edf126637ea0f0a46fa1e5a64e1",
+      "environment_sha256": "bc0a478df8a37f5e565b4b0384643d1c2f1c3a8428fe8d74ca59677eebc046a1"
+    },
+    "hall-bar": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+      "environment_sha256": "48d49cf3a259b6a446dfd7964b587907c96b066c6405081c04eafd0f6627d72b"
+    },
+    "insulating-mhd-duct": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+      "environment_sha256": "1f9768fade7b75e8a7cf0899a11dfb5c24acfd6ec395856a65d74eb2c8c7a905"
+    },
+    "magnetic-tracer": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "382554371241822d4f70c5db0e782a33e03cf404a7dce789561e6c7c202c9964",
+      "environment_sha256": "ba0e8cf380ba6e028ccc577b9278412b2b1d20dcebf8ca0786ed559d2d0caff8"
+    },
+    "nonreciprocal-cavity": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "9e8a8f8226899e4034c3259ceb114a8bc1a36444f495dd2a42f64cbbb0f0dfe6",
+      "environment_sha256": "9eeaa4d2800accb1e41207225529652d653b8bab24d23321365f0d832e1fe354"
+    },
+    "qubit-control": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "711d862860c7d7d59174799e9bd7fb6f76b09ae7ef2e5ac281a97b7f5004dbd2",
+      "environment_sha256": "c2ccc3a967e941d9374bcd2a813d3c4ed24dcb0e485f5ea51f488ff258ba44c1"
+    },
+    "reaction-diffusion": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "75def4b30faeb468b3b777f159e87cf6ebc09f1110aaf28da063164debcc8557",
+      "environment_sha256": "32ebf1f631d63d89520d18526ab9799a636294a99b33441b88d25628f07bac99"
+    },
+    "ternary-gas": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+      "environment_sha256": "e38c1547f31a2ce1a092457d8bc608c54cd131d13e8ff07dd8be37a429d50157"
+    },
+    "thermal-bodies": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+      "environment_sha256": "23f18a70ecbdc519ee31f15ad90b6c74e301f851464037cac1cd1cdaa21966f4"
+    },
+    "thermoelastic-rod": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+      "environment_sha256": "784190ff26555265645326c8f71971b58b267a8e27b1186b2273f14d63357aa2"
+    },
+    "thermoelectric-rod": {
+      "matches_evaluated_revision": {
+        "environment": true,
+        "tests": true,
+        "solution": true,
+        "instruction.md": true,
+        "task.toml": true
+      },
+      "instruction_sha256": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+      "environment_sha256": "4be2462767a638561928679d247ee0fba64b722eb8aae6e2618f30d99a26f483"
+    }
+  },
+  "scope_limit": "No new model runs were launched. Container exposure was checked from task/runner/installed Harbor source and native prompts; no adversarial container escape or network-isolation test was performed."
+}

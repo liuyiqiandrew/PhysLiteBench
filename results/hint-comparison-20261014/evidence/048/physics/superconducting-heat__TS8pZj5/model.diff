@@ -1,0 +1,215 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,9 +191,46 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one apparatus parameter using the stated independent errors.
++
++        The calibration is normally the static, unshunted contact, for which
++        the answer is linear in G.  Keeping the general one-dimensional fit
++        here is useful as it also makes ``fit`` obey its contract for a mixed
++        set of documented readouts.
++        """
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        inputs = [r['input'] for r in records]
++        observed = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError('calibration values and sigmas must be finite; sigma must be positive')
++
++        # Avoid an iterative solve for the common, exactly linear calibration
++        # data.  It also avoids a needless dependence on a starting value.
++        simple = all((r['input'].get('statistic', 'mean') == 'mean'
++                      and r['input'].get('amplitude', 0.) == 0.
++                      and r['input'].get('oscillator_coupling', 0.) == 0.
++                      and r['input'].get('secondary_coupling', 0.) == 0.
++                      and r['input'].get('quadratic_coupling', 0.) == 0.
++                      and r['input'].get('momentum_coupling', 0.) == 0.)
++                     for r in records)
++        if simple:
++            unit = r4_predict_at(inputs, 1.)
++            self.conductance = float(np.clip(np.sum(unit*observed/sigma**2)
++                                             / np.sum(unit**2/sigma**2), 20., 80.))
++        else:
++            from scipy.optimize import minimize_scalar
++            objective = lambda g: float(np.sum(((predict_at(inputs, g)-observed)/sigma)**2))
++            result = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                      options={'xatol': 2e-8})
++            self.conductance = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
++        if self.conductance is None:
++            raise RuntimeError('call fit(records) before predict(experiments)')
+         return predict_at(experiments, self.conductance)
+ 
+ 
+@@ -248,15 +285,20 @@
+     states=len(matrix);thermal_states=thermal_states or states
+     data=[]
+     for ell in range(-count,count+1):
+-        m=np.arange(max(0,-ell),min(thermal_states,states-ell));a=matrix[m+ell,m];b=matrix[m,m+ell]
++        m=np.arange(max(0,-ell),min(thermal_states,states-ell));a=matrix[m+ell,m]
+         thermal=(1-np.exp(-24/temperature))*np.exp(-24/temperature*m)
+-        data.append((ell,float(thermal@abs(a)**2),float(thermal@abs(b)**2),complex(thermal@(a*b))))
++        # For the phase-sensitive BCS amplitude the electron and hole paths
++        # contain the same ordered contact matrix element.  The interference
++        # weight is consequently a**2 (not |a|**2).  This reduces to
++        # (-1)**ell P_ell for exp(i sqrt(rho) X), and stays continuous as an
++        # ordered momentum coupling tends to zero.
++        data.append((ell,float(thermal@abs(a)**2),0.,complex(thermal@(a*a))))
+     return data
+ 
+ @lru_cache(256)
+ def ordered_spectrum(rho,eta,chi,temperature,count=64,states=192):
+     rows=spectrum(operator_matrix(rho,eta,chi,states),temperature,count)
+-    return np.array([r[0] for r in rows]),np.array([(r[1]+r[2])/2 for r in rows]),np.array([r[3] for r in rows])
++    return np.array([r[0] for r in rows]),np.array([r[1] for r in rows]),np.array([r[3] for r in rows])
+ 
+ @lru_cache(256)
+ def bath_spectrum(rho, secondary, temperature, count=64, quadratic_coupling=0., momentum_coupling=0.):
+@@ -479,6 +521,140 @@
+     return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
+ 
+ 
++def _gate_counting_saddle(e, conductance, k, initial=None, nodes=192, count=64):
++    """Return the macroscopic tilted-generator saddle for gate work.
++
++    ``k`` counts work in kelvin.  The two canonical momenta count the actual
++    integer spin changes.  This is important: spin flips and tunnel events
++    are separate jump processes, rather than a Gaussian spin-noise surrogate.
++    """
++    args = oscillator_arguments(e)
++    kw = dict(secondary_coupling=e.get('secondary_coupling', 0.),
++              quadratic_coupling=e.get('quadratic_coupling', 0.),
++              momentum_coupling=e.get('momentum_coupling', 0.))
++    state = stationary(*args, conductance, nodes=nodes, count=count, **kw)
++    left, right = args[:2]
++    dl, dr, ch = prepare(*args, nodes=nodes, count=count,
++                         window=state['search_bound'], **kw)
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = ch
++    ratio = QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
++
++    # The numerical flip quadrature is used only for the symmetric rate.  Its
++    # antisymmetric part is set by spin_loss exactly, so q=0 has precisely the
++    # same stationary balance as the mean calculation.
++    x, qw = leggauss(192)
++    flip_grids = []
++    for temp, delta in zip((left, right), (dl, dr)):
++        upper = delta + 80.*temp + 8.*state['search_bound']
++        ee = delta + (x+1.)*(upper-delta)/2.
++        ww = qw*(upper-delta)/2.
++        flip_grids.append((ee, ww, temp, delta))
++
++    def rates(mu, derivatives=False):
++        f = expit((sl*mu[0]-energy)/left)
++        g = expit((sr*mu[1]-other)/right)
++        df, dg = f*(1-f)/left, g*(1-g)/right
++        rp = measure*np.where(pair, pf*(1-f)*(1-g), pf*f*(1-g))
++        rm = measure*np.where(pair, pb*f*g, pb*g*(1-f))
++        rr = np.concatenate((rp.ravel(), rm.ravel()))
++        # Repeat a channel's spin change and mark for every energy quadrature
++        # node.  ravel() is C ordered, hence repeat rather than tile here.
++        nodes_per_channel = energy.shape[1]
++        inc = np.concatenate((np.repeat(injection, nodes_per_channel, axis=0),
++                              -np.repeat(injection, nodes_per_channel, axis=0)), axis=0)
++        mark = np.concatenate((np.repeat(work, nodes_per_channel),
++                               -np.repeat(work, nodes_per_channel)))
++        if derivatives:
++            drp_l = measure*np.where(pair, -pf*sl*df*(1-g), pf*sl*df*(1-g))
++            drp_r = -measure*pf*sr*dg*np.where(pair, 1-f, f)
++            drm_l = measure*np.where(pair, pb*sl*df*g, -pb*sl*df*g)
++            drm_r = measure*pb*sr*dg*np.where(pair, f, 1-f)
++            derivative = np.vstack((np.column_stack((drp_l.ravel(), drp_r.ravel())),
++                                    np.column_stack((drm_l.ravel(), drm_r.ravel()))))
++        else:
++            derivative = None
++
++        # Add individual up->down and down->up lattice jumps.  The DOS and
++        # coherence-factor cancellation makes their energy measure dE.
++        for j, (ee, ww, temp, delta) in enumerate(flip_grids):
++            u = expit((mu[j]-ee)/temp)
++            d = expit((-mu[j]-ee)/temp)
++            du, ddmag = u*(1-u)/temp, d*(1-d)/temp
++            total = float(ww @ (u*(1-d) + d*(1-u)))
++            dtotal = float(ww @ (du*(1-2*d) + ddmag*(2*u-1)))
++            loss, dloss = spin_loss(temp, delta, mu[j])
++            # A is the up->down integral and B the reverse integral.
++            a, b = (total+loss)/2., (total-loss)/2.
++            da, db = (dtotal+dloss)/2., (dtotal-dloss)/2.
++            unit = np.zeros(2); unit[j] = 2.
++            inc = np.vstack((inc, -unit, unit))
++            mark = np.concatenate((mark, (0., 0.)))
++            rr = np.concatenate((rr, (ratio*a/2., ratio*b/2.)))
++            if derivatives:
++                extra = np.zeros((2,2)); extra[:,j] = (ratio*da/2., ratio*db/2.)
++                derivative = np.vstack((derivative, extra))
++        return rr, inc, mark, derivative
++
++    def equations(z):
++        mu, q = z[:2], z[2:]
++        rr, inc, mark, derivative = rates(mu, derivatives=True)
++        exponent = inc @ q + k*mark
++        # The domains in the README make these exponents small around zero;
++        # clipping is solely a guard for unsuccessful trial steps in the
++        # nonlinear solver.
++        ek = np.exp(np.clip(exponent, -600., 600.))
++        fq = (rr*ek) @ inc
++        fmu = derivative.T @ (ek-1.)
++        return np.concatenate((fq, fmu))
++
++    start = np.r_[state['mu'], np.zeros(2)] if initial is None else np.asarray(initial, float)
++    # Scale residuals by their natural event rate.  This lets the same tight
++    # termination criteria work in both drive bands.
++    base_rates = rates(start[:2])[0]
++    scale = max(1., float(np.sum(abs(base_rates))))
++    answer = least_squares(lambda z: equations(z)/scale, start,
++                           xtol=3e-13, ftol=3e-13, gtol=3e-13,
++                           max_nfev=250, x_scale='jac')
++    if not answer.success or np.max(abs(equations(answer.x)/scale)) > 2e-8:
++        raise RuntimeError('tilted spin-counting saddle did not converge')
++    rr, inc, mark, _ = rates(answer.x[:2])
++    exponent = inc @ answer.x[2:] + k*mark
++    ek = np.exp(np.clip(exponent, -600., 600.))
++    # h is the SCGF in the unscaled, dimensionless rate convention used by
++    # transition().  hprime is supplied by the envelope theorem.
++    return answer.x, float(np.sum(rr*(ek-1.))), float(np.sum(rr*mark*ek))
++
++
++def gate_third(e, conductance, nodes=192, count=64):
++    """Third stationary gate-work cumulant including spin-rate feedback.
++
++    The leading large-island SCGF is the fixed point of the tilted jump
++    generator.  Differentiating its envelope once gives h'(k); a symmetric,
++    Richardson-refined derivative of that quantity gives h'''(0).  Unlike
++    screened marks, the saddle retains the first and second changes of every
++    conditional tunnel and flip intensity with spin state.
++    """
++    if e.get('amplitude', 0.) == 0.:
++        return dict(third=0., screened_poisson=0., count_response=[0., 0.])
++    origin, _, g0 = _gate_counting_saddle(e, conductance, 0., nodes=nodes, count=count)
++
++    def curvature(step):
++        # Continuation from the unbiased saddle picks the physical branch.
++        zp, _, gp = _gate_counting_saddle(e, conductance, step, origin, nodes, count)
++        zm, _, gm = _gate_counting_saddle(e, conductance, -step, origin, nodes, count)
++        _, _, gp2 = _gate_counting_saddle(e, conductance, 2*step, zp, nodes, count)
++        _, _, gm2 = _gate_counting_saddle(e, conductance, -2*step, zm, nodes, count)
++        value = (-gp2 + 16*gp - 30*g0 + 16*gm - gm2)/(12*step**2)
++        return value, (zp[2:]-zm[2:])/(2*step)
++
++    coarse, _ = curvature(1.e-2)
++    fine, response = curvature(5.e-3)
++    raw = (16*fine-coarse)/15.
++    scale = RATE_CONVERSION*conductance*KB**3*1e36
++    return dict(third=float(raw*scale), screened_poisson=float(raw*scale),
++                count_response=response.tolist())
++
++
+ noise_predict=predict_at
+ def predict_at(experiments,conductance):
+     return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'

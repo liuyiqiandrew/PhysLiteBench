@@ -1,0 +1,76 @@
+.FFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_______________________________ test_calibration _______________________________
+
+fitted = <model.Model object at 0xffffbd5dfa10>
+records = [{'input': {'bias': -0.75, 'field': 0.0}, 'sigma': 0.005, 'value': 0.12909468486264059}, {'input': {'bias': -0.75, 'fi...ue': 0.13121655008922534}, {'input': {'bias': -0.75, 'field': 0.0}, 'sigma': 0.005, 'value': 0.13738109560605857}, ...]
+
+    def test_calibration(fitted, records):
+        y = fitted.predict([r['input'] for r in records])
+        residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+>       assert float(residual@residual)/(len(records)-len(PARAMETERS)) < 1.5
+E       AssertionError: assert (3994960.644812016 / (192 - 1)) < 1.5
+E        +  where 3994960.644812016 = float((array([  -9.14076623,  -10.8625561 ,   -9.96623653,   -9.63793619,\n         -9.56513928,  -10.79804838,   -9.77343011,...66419, -288.72690988, -289.15970313, -289.84101569,\n       -289.93644943, -289.89301536, -290.18324095, -290.04402284]) @ array([  -9.14076623,  -10.8625561 ,   -9.96623653,   -9.63793619,\n         -9.56513928,  -10.79804838,   -9.77343011,...66419, -288.72690988, -289.15970313, -289.84101569,\n       -289.93644943, -289.89301536, -290.18324095, -290.04402284])))
+E        +  and   192 = len([{'input': {'bias': -0.75, 'field': 0.0}, 'sigma': 0.005, 'value': 0.12909468486264059}, {'input': {'bias': -0.75, 'fi...ue': 0.13121655008922534}, {'input': {'bias': -0.75, 'field': 0.0}, 'sigma': 0.005, 'value': 0.13738109560605857}, ...])
+E        +  and   1 = len(['diffusivity'])
+
+test_public.py:35: AssertionError
+___________________________ test_private_calibration ___________________________
+
+evaluated = {'calibration_chi2': 20916.024318387517, 'hidden': {'exact_limits': 0.6162866609177304, 'field10': 0.7921766248111941, 'field12': 0.8269684104659529}, 'parameter_relative_error_max': 0.2806830309498398, 'parameters': {'diffusivity': 1.2}}
+
+    def test_private_calibration(evaluated):
+>       assert evaluated['calibration_chi2'] < 1.5
+E       assert 20916.024318387517 < 1.5
+
+/tests/test_hidden.py:42: AssertionError
+___________________________ test_parameter_recovery ____________________________
+
+evaluated = {'calibration_chi2': 20916.024318387517, 'hidden': {'exact_limits': 0.6162866609177304, 'field10': 0.7921766248111941, 'field12': 0.8269684104659529}, 'parameter_relative_error_max': 0.2806830309498398, 'parameters': {'diffusivity': 1.2}}
+
+    def test_parameter_recovery(evaluated):
+>       assert evaluated['parameter_relative_error_max'] < .03
+E       assert 0.2806830309498398 < 0.03
+
+/tests/test_hidden.py:46: AssertionError
+___________________________ test_prediction[field10] ___________________________
+
+evaluated = {'calibration_chi2': 20916.024318387517, 'hidden': {'exact_limits': 0.6162866609177304, 'field10': 0.7921766248111941, 'field12': 0.8269684104659529}, 'parameter_relative_error_max': 0.2806830309498398, 'parameters': {'diffusivity': 1.2}}
+case = 'field10'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.7921766248111941 < 0.04
+
+/tests/test_hidden.py:51: AssertionError
+___________________________ test_prediction[field12] ___________________________
+
+evaluated = {'calibration_chi2': 20916.024318387517, 'hidden': {'exact_limits': 0.6162866609177304, 'field10': 0.7921766248111941, 'field12': 0.8269684104659529}, 'parameter_relative_error_max': 0.2806830309498398, 'parameters': {'diffusivity': 1.2}}
+case = 'field12'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.8269684104659529 < 0.04
+
+/tests/test_hidden.py:51: AssertionError
+________________________ test_prediction[exact_limits] _________________________
+
+evaluated = {'calibration_chi2': 20916.024318387517, 'hidden': {'exact_limits': 0.6162866609177304, 'field10': 0.7921766248111941, 'field12': 0.8269684104659529}, 'parameter_relative_error_max': 0.2806830309498398, 'parameters': {'diffusivity': 1.2}}
+case = 'exact_limits'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.6162866609177304 < 0.04
+
+/tests/test_hidden.py:51: AssertionError
+=========================== short test summary info ============================
+FAILED test_public.py::test_calibration - AssertionError: assert (3994960.644...
+FAILED ../tests/test_hidden.py::test_private_calibration - assert 20916.02431...
+FAILED ../tests/test_hidden.py::test_parameter_recovery - assert 0.2806830309...
+FAILED ../tests/test_hidden.py::test_prediction[field10] - assert 0.792176624...
+FAILED ../tests/test_hidden.py::test_prediction[field12] - assert 0.826968410...
+FAILED ../tests/test_hidden.py::test_prediction[exact_limits] - assert 0.6162...
+6 failed, 1 passed in 1.64s

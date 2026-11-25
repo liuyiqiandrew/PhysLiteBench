@@ -1,0 +1,59 @@
+import numpy as np
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    """Long-time tagged-particle covariance for the fixed initial lattice.
+
+    With no initial density fluctuations, only diffusion noise contributes.
+    Its integrated heat-kernel covariance is
+    sqrt(D/pi) / density * (sqrt(time_a + time_b) - sqrt(|time_a - time_b|)).
+    At equal times this gives the variance sqrt(2*D*t/pi) / density.
+    """
+    return np.sqrt(diffusivity / np.pi) / density * (
+        np.sqrt(time_a + time_b) - np.sqrt(abs(time_a - time_b))
+    )
+
+
+def predict_at(experiments, diffusivity):
+    """Return one covariance coefficient per experiment, in input order."""
+    return np.asarray([
+        covariance(float(diffusivity), float(e["density"]),
+                   float(e["time_a"]), float(e["time_b"]))
+        for e in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Fit the Gaussian likelihood, which is quadratic in sqrt(D)."""
+        records = list(records)
+        if not records:
+            raise ValueError("At least one calibration record is required.")
+
+        basis = predict_at((record["input"] for record in records), 1.0)
+        values = np.asarray([record["value"] for record in records], dtype=float)
+        sigmas = np.asarray([record["sigma"] for record in records], dtype=float)
+        if not (np.isfinite(values).all() and np.isfinite(sigmas).all()
+                and (sigmas > 0).all()):
+            raise ValueError("Calibration values must be finite and sigmas positive and finite.")
+        if not (np.isfinite(basis).all() and (basis > 0).all()):
+            raise ValueError("Calibration controls must give finite, positive covariances.")
+
+        # The model is basis * sqrt(D); instrument errors are on covariance,
+        # so fit that amplitude directly instead of squaring observations.
+        weighted_basis = basis / sigmas
+        weighted_values = values / sigmas
+        amplitude = np.dot(weighted_basis, weighted_values) / np.dot(
+            weighted_basis, weighted_basis
+        )
+        amplitude = np.clip(amplitude, np.sqrt(0.8), np.sqrt(1.2))
+        self.diffusivity = float(np.clip(amplitude ** 2, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        if self.diffusivity is None:
+            raise RuntimeError("Fit the model before requesting predictions.")
+        return predict_at(experiments, self.diffusivity)

@@ -1,0 +1,148 @@
+"""Electroneutral transport and equilibrium fluctuations of the associating cell."""
+
+import numpy as np
+from scipy.fft import dct, idct
+from scipy.integrate import solve_ivp
+from scipy.linalg import eigh
+from scipy.optimize import minimize_scalar
+from scipy.sparse import diags
+
+ASSOCIATION = 0.5
+NEUTRAL_MOBILITY = 0.15
+CELL_LENGTH = 0.001
+
+
+def equilibrium(total):
+    """Return (free A, free B, free C, P) for rows of total A and B."""
+    total = np.asarray(total, dtype=float)
+    a, b = total[..., 0], total[..., 1]
+    bound = np.zeros_like(a)
+    upper = np.minimum(a, b)
+    for _ in range(40):
+        free_a = a - bound
+        free_b = b - bound
+        anion = free_a + free_b
+        residual = bound - ASSOCIATION * free_a * free_b * anion**2
+        slope = 1 + ASSOCIATION * (anion**3 + 4 * free_a * free_b * anion)
+        step = residual / slope
+        updated = np.clip(bound - step, 0, upper)
+        if np.max(np.abs(updated - bound)) < 1e-14:
+            bound = updated
+            break
+        bound = updated
+    return np.stack((a - bound, b - bound, a + b - 2 * bound, bound), axis=-1)
+
+
+class TransportModel:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, data):
+        """Weighted least-squares fit of the one shared ionic diffusion scale."""
+        t = np.asarray(data["t"], dtype=float)
+        x = np.asarray(data["x"], dtype=float)
+        initial = np.asarray(data["initial"], dtype=float)
+        observed = np.asarray(data["concentration"], dtype=float)
+        sigma = np.asarray(data["sigma"], dtype=float)
+        n = len(x) - 1
+        coefficients = dct(initial, type=1, axis=1)
+        # The mesh uses half control volumes at the blocking ends. Its
+        # Neumann Laplacian is diagonal in this cosine basis.
+        rates = 4 / (x[1] - x[0])**2 * np.sin(np.arange(n + 1) * np.pi / (2 * n))**2
+        rates = rates[None, None, :, None] * np.array([4 / 3, 8 / 3])[None, None, None, :]
+
+        def loss(log_diffusivity):
+            multiplier = np.exp(-np.exp(log_diffusivity) * t[None, :, None, None] * rates)
+            prediction = idct(coefficients[:, None, :, :] * multiplier, type=1, axis=2)
+            residual = (prediction - observed) / sigma
+            return np.sum(residual * residual)
+
+        result = minimize_scalar(
+            loss, bounds=(np.log(1e-13), np.log(1e-6)), method="bounded",
+            options={"xatol": 1e-11},
+        )
+        self.diffusivity = float(np.exp(result.x))
+        return self
+
+    def _binary(self, t, x, initial):
+        n = len(x) - 1
+        rates = 4 / (x[1] - x[0])**2 * np.sin(np.arange(n + 1) * np.pi / (2 * n))**2
+        coefficients = dct(initial, type=1, axis=0)
+        decay = np.exp(-self.diffusivity * t[:, None, None] * rates[None, :, None]
+                       * np.array([4 / 3, 8 / 3])[None, None, :])
+        return idct(decay * coefficients[None, :, :], type=1, axis=1)
+
+    def predict(self, t, x, initial):
+        t = np.atleast_1d(np.asarray(t, dtype=float))
+        x = np.asarray(x, dtype=float)
+        initial = np.asarray(initial, dtype=float)
+        if t[-1] == 0:
+            return np.repeat(initial[None, :, :], len(t), axis=0)
+        if np.all(initial[:, 0] == 0) or np.all(initial[:, 1] == 0):
+            return self._binary(t, x, initial)
+
+        count = len(x)
+        dx = x[1] - x[0]
+        widths = np.full(count, dx)
+        widths[[0, -1]] *= 0.5
+        ionic_diffusivity = self.diffusivity * np.array([1.0, 4.0, 2.0])
+
+        def derivative(_time, flat):
+            species = equilibrium(flat.reshape(count, 2))
+            face = (species[:-1] + species[1:]) / 2
+            gradient = np.diff(species, axis=0) / dx
+            # The electric potential gradient cancels total charge current.
+            potential_gradient = -np.sum(
+                ionic_diffusivity[None, :] * gradient[:, :3]
+                * np.array([1.0, 1.0, -1.0])[None, :], axis=1
+            ) / np.sum(ionic_diffusivity[None, :] * face[:, :3], axis=1)
+            free_flux = -ionic_diffusivity[None, :2] * (
+                gradient[:, :2] + face[:, :2] * potential_gradient[:, None]
+            )
+            bound_flux = -self.diffusivity * NEUTRAL_MOBILITY * gradient[:, 3]
+            flux = np.zeros((count + 1, 2))
+            flux[1:-1] = free_flux + bound_flux[:, None]
+            return (-np.diff(flux, axis=0) / widths[:, None]).ravel()
+
+        sparsity = diags(
+            [np.ones(2 * count - abs(i)) for i in range(-3, 4)],
+            range(-3, 4), format="csr",
+        )
+        result = solve_ivp(
+            derivative, (0, float(t[-1])), initial.ravel(), method="BDF",
+            t_eval=t, rtol=1e-8, atol=1e-10, jac_sparsity=sparsity,
+        )
+        if not result.success:
+            raise RuntimeError(result.message)
+        return result.y.T.reshape(len(t), count, 2)
+
+    def correlate(self, t, totals, harmonic=1):
+        """Stationary covariance of a nonzero cosine mode, in A/B order."""
+        t = np.atleast_1d(np.asarray(t, dtype=float))
+        concentrations = equilibrium(np.asarray(totals, dtype=float))
+        charge = np.array([1.0, 1.0, -1.0, 0.0])
+        constituents = np.array([[1.0, 0.0, 0.0, 1.0],
+                                 [0.0, 1.0, 0.0, 1.0]])
+
+        # Ideal-particle equilibrium noise, conditioned on local neutrality.
+        population = np.diag(concentrations)
+        population_charge = population @ charge
+        neutral_population = population - np.outer(population_charge, population_charge) / (
+            charge @ population_charge
+        )
+        susceptibility = constituents @ neutral_population @ constituents.T
+
+        # Project both deterministic and Brownian fluxes onto zero charge current.
+        diffusion = self.diffusivity * np.array([1.0, 4.0, 2.0, NEUTRAL_MOBILITY])
+        species_mobility = np.diag(diffusion * concentrations)
+        mobile_charge = species_mobility @ charge
+        neutral_mobility = species_mobility - np.outer(mobile_charge, mobile_charge) / (
+            charge @ mobile_charge
+        )
+        mobility = constituents @ neutral_mobility @ constituents.T
+
+        eigenvalues, eigenvectors = eigh(mobility, susceptibility)
+        amplitudes = susceptibility @ eigenvectors
+        wave_number = int(harmonic) * np.pi / CELL_LENGTH
+        decays = np.exp(-t[:, None] * wave_number**2 * eigenvalues[None, :])
+        return np.einsum("ik,tk,jk->tij", amplitudes, decays, amplitudes)

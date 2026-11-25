@@ -1,0 +1,18 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,14 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Estimate the common ordinary-fluid drag from calibration records.
++
++        The supplied calibration experiment deliberately has neither magnetic
++        field nor retained contact.  In that case the coordinate covariance
++        has a closed form (``zero_field_calibration``), so fitting it directly
++        is both more accurate and much less expensive than using the general
++        matrix-exponential predictor in the optimizer.
++        """
++        self.friction = fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

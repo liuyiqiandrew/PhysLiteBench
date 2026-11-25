@@ -1,0 +1,1 @@
+A normal-mode transformation diagonalizes the Hamiltonian and total friction. It need not make the separate physical reservoirs independent in that basis. Derive the stationary covariance of the full position, momentum and local-force process before evaluating each reservoir's mean power. The calibration sees only one mode's autocorrelation at a time.

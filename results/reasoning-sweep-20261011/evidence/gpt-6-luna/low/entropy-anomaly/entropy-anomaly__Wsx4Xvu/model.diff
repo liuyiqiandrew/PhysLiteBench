@@ -1,0 +1,32 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ """Stationary small-mass calorimetry of switched anisotropic thermal contacts."""
+ from functools import lru_cache
+ import numpy as np
++from scipy.optimize import minimize_scalar
+ 
+ INPUT_FIELDS=('force_x','force_y','drag_ratio','magnetic','temperature','contrast','wavenumber','bath_contrast','switch_rate')
+ 
+@@ -93,5 +94,19 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        experiments=[r['input'] for r in records]
++        observed=np.asarray([r['value'] for r in records],dtype=float)
++        sigma=np.asarray([r['sigma'] for r in records],dtype=float)
++        if not records or np.any(sigma<=0) or not np.all(np.isfinite(observed)):
++            raise ValueError('Calibration records must contain finite values and positive uncertainties.')
++        def objective(friction):
++            residual=(coefficients(experiments,float(friction))-observed)/sigma
++            return float(residual@residual)
++        result=minimize_scalar(objective,bounds=(.7,1.6),method='bounded',options={'xatol':1e-10})
++        # Include the closed endpoints in case the best fit lies on a boundary.
++        candidates=[(.7,objective(.7)),(1.6,objective(1.6)),(float(result.x),float(result.fun))]
++        self.friction=min(candidates,key=lambda item:item[1])[0]
++        return self
++    def predict(self,experiments):
++        if self.friction is None:raise ValueError('Call fit(records) before predict(experiments).')
++        return coefficients(experiments,self.friction)

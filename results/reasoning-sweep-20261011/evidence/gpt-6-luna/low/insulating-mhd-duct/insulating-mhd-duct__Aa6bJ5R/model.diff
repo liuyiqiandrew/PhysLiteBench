@@ -1,0 +1,44 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -61,7 +62,32 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate the common viscosity from weighted calibration residuals.
++
++        The supplied ``sigma`` values are standard deviations, so minimizing
++        the sum of squared standardized residuals is the Gaussian maximum
++        likelihood estimate.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigmas = np.asarray([r['sigma'] for r in records], dtype=float)
++        if np.any(~np.isfinite(values)) or np.any(~np.isfinite(sigmas)) or np.any(sigmas <= 0):
++            raise ValueError("calibration values and positive sigmas must be finite")
++        experiments = [r['input'] for r in records]
++
++        def objective(mu):
++            self.viscosity = float(mu)
++            residual = (self.predict(experiments) - values) / sigmas
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018), method='bounded',
++                                 options={'xatol': 1e-10})
++        # Include both endpoints in case the constrained optimum lies there.
++        candidates = [0.006, float(result.x), 0.018]
++        self.viscosity = min(candidates, key=objective)
++        return self
+ 
+     def predict(self, experiments):
+         m, n, _, mean, *_ = operators()

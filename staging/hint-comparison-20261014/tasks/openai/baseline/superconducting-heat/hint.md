@@ -1,0 +1,1 @@
+For a third cumulant, retain how the conditional event intensities change with the fluctuating spin state. Independent Poisson events with linearly screened marks reproduce only part of the third stationary counting-field response.

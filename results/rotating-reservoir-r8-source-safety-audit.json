@@ -1,0 +1,230 @@
+{
+  "task": "rotating-reservoir",
+  "revision": 8,
+  "reviewer": "brownian_physics_review",
+  "utc": "2026-10-06T05:19:35.603252+00:00",
+  "all_three_sources_and_native_trajectories_read": true,
+  "batch_complete_before_review": true,
+  "trials": {
+    "rotating-reservoir__6eW4yJo": {
+      "safe_to_import": true,
+      "source_sha256": "840926a4915ae6fcc479fa3a3d1c5d1c58868826ebb719c0ad4cd184d208beca",
+      "parameter_attribute": "drag",
+      "manual_source_review": "Read full source: adds correct constant-clock raw moments through degree4 and quadratic Poisson/shared-Wiener noise. Keeps original Gaussian closure byte-for-byte for all finite flux. Explicitly acknowledges retaining finite-flux treatment. No missing collision input or unfinished fit.",
+      "source_scope": "Only numerical imports, constants, function/class definitions and cache decorators at module scope; no shell/network/file access or unsafe import-time execution.",
+      "native_task_complete": true,
+      "completion_events": [
+        {
+          "timestamp": "2026-10-06T05:13:59.139Z",
+          "ordinal": 161,
+          "type": "event_msg",
+          "payload": {
+            "type": "task_complete",
+            "turn_id": "01a10f9f-f3b4-75a3-b0c7-63ec5a80bbda",
+            "last_agent_message": "Implemented `/app/model.py`.\n\n- Added calibration-based drag fitting (`drag \u2248 0.66995`)\n- Preserved `Model.fit()` / `Model.predict()` API\n- Added exact zero-flux noise calculation\n- Supports mixed mean/noise predictions\n- Verified finite outputs and passing tests\n\n`pytest`: 1 passed.",
+            "started_at": 1791263503,
+            "completed_at": 1791263639,
+            "duration_ms": 135851,
+            "time_to_first_token_ms": 6011
+          }
+        }
+      ],
+      "terminal_native_assistant_message": {
+        "timestamp": "2026-10-06T05:13:59.065Z",
+        "ordinal": 158,
+        "type": "response_item",
+        "payload": {
+          "type": "message",
+          "id": "msg_05020f1237c26a19016ac48396abd8819f9456dbd361bccd46",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Implemented `/app/model.py`.\n\n- Added calibration-based drag fitting (`drag \u2248 0.66995`)\n- Preserved `Model.fit()` / `Model.predict()` API\n- Added exact zero-flux noise calculation\n- Supports mixed mean/noise predictions\n- Verified finite outputs and passing tests\n\n`pytest`: 1 passed."
+            }
+          ],
+          "phase": "final_answer",
+          "internal_chat_message_metadata_passthrough": {
+            "turn_id": "01a10f9f-f3b4-75a3-b0c7-63ec5a80bbda",
+            "create_time": 1791263638.6725726,
+            "content_item_kinds": [
+              "unknown"
+            ]
+          }
+        }
+      },
+      "assistant_messages": [
+        {
+          "step_id": 4,
+          "message": "I\u2019ll inspect the README, calibration data, and current implementation, then derive and verify the prediction behavior against the documented interface."
+        },
+        {
+          "step_id": 9,
+          "message": "The current file already contains a useful finite-contact moment model, but `Model.fit` is intentionally unimplemented. I\u2019m checking how well its calibrated mean and noise equations behave before deciding whether the broader predictor needs replacement."
+        },
+        {
+          "step_id": 12,
+          "message": "The calibration fit now recovers a drag of about 0.670. I found one meaningful edge case worth tightening: when the flux fraction is zero, the process is polynomial-linear with constant-rate velocity exchange, so its noise readout can be computed from exact stationary moments rather than the Gaussian approximation. I\u2019m adding that exact branch while retaining the existing finite-flux treatment."
+        },
+        {
+          "step_id": 21,
+          "message": "The implementation now passes the public test, fits the shared drag at `0.66995`, preserves mixed mean/noise prediction ordering, and returns finite outputs across the documented parameter ranges. I\u2019m doing one final validation pass for syntax, edge behavior, and the calibration residual."
+        },
+        {
+          "step_id": 22,
+          "message": "Implemented `/app/model.py`.\n\n- Added calibration-based drag fitting (`drag \u2248 0.66995`)\n- Preserved `Model.fit()` / `Model.predict()` API\n- Added exact zero-flux noise calculation\n- Supports mixed mean/noise predictions\n- Verified finite outputs and passing tests\n\n`pytest`: 1 passed."
+        }
+      ],
+      "native_sha256": {
+        "agent/trajectory.json": "3ffa8a96bee391b972e0fcab5964431b778b54f093465d8e7864f85350fbb176",
+        "result.json": "7ec25e7969381f401549f26c26d1f2004957710098e7e321eb827b2407bf7aee",
+        "agent/sessions/2026/10/06/rollout-2026-10-06T05-11-43-01a10f9f-f3a8-7011-9cb4-09c5c18b449e.jsonl": "1c80f6443712a2ef5aff8b9f422ee6a2901c1d0458931b701cdb30d9921bc1b5"
+      },
+      "source_diff_from_completed_control": "--- \n+++ \n@@ -96,6 +96,9 @@\n     if statistic not in ['mean','noise']:raise ValueError('statistic must be mean or noise')\n     if statistic=='mean' and flux_fraction==0. and angular_speed==0.:\n         return float(calibration_mean(e,drag))\n+    if statistic=='noise' and flux_fraction==0.:\n+        return _constant_flux_noise(angular_speed,flip_rate,temperature_a,\n+                                    temperature_b,relaxation_rate,drag)\n     return gaussian_closure(e,drag,noise=statistic=='noise')[statistic]\n \n \n@@ -106,6 +109,95 @@\n def calibration_mean(e,drag):\n     lam=e['relaxation_rate']\n     return drag*lam*RATE/(2*drag*lam+RATE*(drag+lam))*(e['temperature_a']-e['temperature_b'])\n+\n+\n+@lru_cache(4096)\n+def _constant_flux_noise(angular_speed,flip_rate,temperature_a,temperature_b,\n+                         relaxation_rate,drag):\n+    \"\"\"Exact quadratic additive-functional variance for eta == 0.\n+\n+    With a constant collision clock the generator maps polynomials to\n+    polynomials.  The heat drift is quadratic, so its Poisson equation is\n+    quadratic and only stationary moments through degree four are needed.\n+    The extra binary coordinate is the motor label s (s**2 == 1).\n+    \"\"\"\n+    omega=float(angular_speed); flip=float(flip_rate)\n+    ta=float(temperature_a); tb=float(temperature_b)\n+    lam=float(relaxation_rate); gamma=float(drag)\n+\n+    def basis(degree):\n+        return [(i,j,k) for total in range(degree+1)\n+                for i in range(total+1) for j in [total-i]\n+                for k in (0,1)]\n+\n+    def generator(degree):\n+        states=basis(degree); index={q:n for n,q in enumerate(states)}\n+        matrix=np.zeros((len(states),len(states)))\n+        def add(column, q, value):\n+            if abs(value): matrix[index[q],column] += value\n+        for column,(i,j,k) in enumerate(states):\n+            add(column,(i,j,k),-gamma*i-lam*j-2*flip*k)\n+            if j:\n+                add(column,(i,j-1,(k+1)&1),lam*omega*j)\n+            if i >= 2:\n+                add(column,(i-2,j,k),gamma*ta*i*(i-1))\n+            if j >= 2:\n+                add(column,(i,j-2,k),lam*tb*j*(j-1))\n+            # A constant-rate collision exchanges v and g.\n+            add(column,(j,i,k),RATE)\n+            add(column,(i,j,k),-RATE)\n+        return states,matrix\n+\n+    states4,g4=generator(4)\n+    equations=g4.T.copy(); equations[0]=0.\n+    equations[0,0]=1.; rhs=np.zeros(len(states4)); rhs[0]=1.\n+    moments4=solve(equations,rhs)\n+    index4={q:n for n,q in enumerate(states4)}\n+\n+    states2,g2=generator(2); index2={q:n for n,q in enumerate(states2)}\n+    heat=np.zeros(len(states2))\n+    heat[index2[(0,0,0)]]=lam*(omega*omega-tb)\n+    heat[index2[(0,1,1)]]=-2.*lam*omega\n+    heat[index2[(0,2,0)]]=lam\n+    mean=float(moments4[index4[(0,0,0)]]*heat[index2[(0,0,0)]])\n+    mean=sum(float(coef)*moments4[index4[(i,j,k)]]\n+             for (i,j,k),coef in zip(states2,heat))\n+\n+    # L phi = mean - heat, with E[phi] = 0 fixing the nullspace.\n+    poisson=-heat.copy(); poisson[0]+=mean; poisson[0]=0.\n+    system=g2.copy(); system[0]=0.; system[0]=[\n+        moments4[index4[q]] for q in states2]\n+    phi=solve(system,poisson)\n+\n+    def expectation(poly):\n+        total=0.\n+        for (i,j,k),coef in poly.items():\n+            total += coef*moments4[index4[(i,j,k)]]\n+        return float(total)\n+\n+    aphi={}\n+    for q,coef in zip(states2,heat):\n+        if coef:\n+            for r,val in zip(states2,phi):\n+                if val:\n+                    aphi[(q[0]+r[0],q[1]+r[1],(q[2]+r[2])&1)] = \\\n+                        aphi.get((q[0]+r[0],q[1]+r[1],(q[2]+r[2])&1),0.) + coef*val\n+\n+    # (g-s*omega) * d_g(phi), including the common Wiener noise term.\n+    cross={}\n+    for (i,j,k),coef in zip(states2,phi):\n+        if j:\n+            q=(i,j-1,k)\n+            key=(i,j,(k)&1)\n+            cross[key]=cross.get(key,0.)+coef*j\n+            key=(i,j-1,(k+1)&1)\n+            cross[key]=cross.get(key,0.)-coef*j*omega\n+    stationary_heat=float(expectation(aphi))\n+    diffusion=expectation({(0,2,0):1.,(0,1,1):-2.*omega,\n+                           (0,0,0):omega*omega})\n+    shot=2.*lam*tb*diffusion\n+    correlation=2.*stationary_heat-4.*lam*tb*expectation(cross)\n+    return float(max(shot+correlation,0.))\n \n \n def fit_drag(records):\n"
+    },
+    "rotating-reservoir__k57nvYZ": {
+      "safe_to_import": true,
+      "source_sha256": "7685e3669910cc60cdf76e22fc30db9555ba2ede6fc4b900cea82e90c11f0b8a",
+      "parameter_attribute": "drag",
+      "manual_source_review": "Read full source: physical Gaussian closure/readout functions unchanged from completed frozen control. Implements equivalent weighted calibration with input checks. All first/second and heat-response calculations still use the assumed conditional Gaussian law.",
+      "source_scope": "Only numerical imports, constants, function/class definitions and cache decorators at module scope; no shell/network/file access or unsafe import-time execution.",
+      "native_task_complete": true,
+      "completion_events": [
+        {
+          "timestamp": "2026-10-06T05:12:48.333Z",
+          "ordinal": 96,
+          "type": "event_msg",
+          "payload": {
+            "type": "task_complete",
+            "turn_id": "01a10fa0-11c1-7ae0-a56f-c062c9a061c4",
+            "last_agent_message": "Implemented `/app/model.py`:\n\n- Added calibration-based drag fitting with weighted least squares.\n- Enforced documented calibration validation and drag bounds.\n- Added clear error handling for invalid fit/predict usage.\n- Preserved the prediction API and mixed mean/noise support.\n\nValidation: `pytest -q` passes.",
+            "started_at": 1791263510,
+            "completed_at": 1791263568,
+            "duration_ms": 57354,
+            "time_to_first_token_ms": 2828
+          }
+        }
+      ],
+      "terminal_native_assistant_message": {
+        "timestamp": "2026-10-06T05:12:48.274Z",
+        "ordinal": 93,
+        "type": "response_item",
+        "payload": {
+          "type": "message",
+          "id": "msg_0abc03a8cf85cf04016ac4834fe09881a08dcd37d6fa079e72",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Implemented `/app/model.py`:\n\n- Added calibration-based drag fitting with weighted least squares.\n- Enforced documented calibration validation and drag bounds.\n- Added clear error handling for invalid fit/predict usage.\n- Preserved the prediction API and mixed mean/noise support.\n\nValidation: `pytest -q` passes."
+            }
+          ],
+          "phase": "final_answer",
+          "internal_chat_message_metadata_passthrough": {
+            "turn_id": "01a10fa0-11c1-7ae0-a56f-c062c9a061c4",
+            "create_time": 1791263567.8816152,
+            "content_item_kinds": [
+              "unknown"
+            ]
+          }
+        }
+      },
+      "assistant_messages": [
+        {
+          "step_id": 4,
+          "message": "I\u2019ll inspect the apparatus description, calibration data, and existing API in `/app`, then implement and test the model against the documented interface."
+        },
+        {
+          "step_id": 7,
+          "message": "The current public test is blocked only because `Model.fit` is still a stub. I\u2019m checking the calibration structure and the existing moment equations now; the main implementation choice is how accurately to handle the retained gas, state-dependent collision hazard, and noise readout beyond calibration."
+        },
+        {
+          "step_id": 11,
+          "message": "`Model.fit` is now implemented using the calibration protocol\u2019s exact linear heat-conductance relation and uncertainty-weighted least squares; it infers a drag of about `0.66995`, and the public calibration test passes. I\u2019m doing a final sweep of prediction behavior, especially mixed mean/noise requests and boundary settings."
+        },
+        {
+          "step_id": 14,
+          "message": "Implemented `/app/model.py`:\n\n- Added calibration-based drag fitting with weighted least squares.\n- Enforced documented calibration validation and drag bounds.\n- Added clear error handling for invalid fit/predict usage.\n- Preserved the prediction API and mixed mean/noise support.\n\nValidation: `pytest -q` passes."
+        }
+      ],
+      "native_sha256": {
+        "agent/trajectory.json": "1b3aee81670e73d568aacc6776505e55c4e2c7e6fbb93c24a2ed985ec507de71",
+        "result.json": "2dcc8c2509cb459a64cf24946907be05b4c8acc54d15ec77bc60742b6c21b556",
+        "agent/sessions/2026/10/06/rollout-2026-10-06T05-11-50-01a10fa0-11b0-7921-a946-65c25fb434a7.jsonl": "187ca7a61caf0891dfbac3f0ab34b172d3a173dca1cbf5264a003dabab919b88"
+      },
+      "source_diff_from_completed_control": "--- \n+++ \n@@ -125,7 +125,64 @@\n     def __init__(self):self.drag=None\n \n     def fit(self,records):\n-        self.drag=fit_drag(records)\n+        \"\"\"Estimate the (common) laboratory drag from calibration records.\n+\n+        For the calibration protocol the collision rate is constant, the\n+        motor has zero mean flow, and the stationary mean heat is linear in\n+        ``temperature_a - temperature_b``.  Writing its slope as ``c`` gives\n+\n+            c = gamma * lam * RATE / (2*gamma*lam + RATE*(gamma + lam)).\n+\n+        The records contain repeated measurements with known, equal (but not\n+        necessarily assumed equal by callers) Gaussian uncertainties, so the\n+        slope is obtained by weighted least squares through the origin and\n+        then inverted analytically.\n+        \"\"\"\n+        if not records:\n+            raise ValueError('records must contain at least one calibration record')\n+\n+        # Keep the calibration assumptions explicit.  They are part of the\n+        # documented data contract and checking them here makes a malformed\n+        # calibration fail clearly instead of producing a plausible drag.\n+        first = records[0]['input']\n+        lam = float(first['relaxation_rate'])\n+        if lam <= 0:\n+            raise ValueError('relaxation_rate must be positive')\n+\n+        contrasts = []\n+        values = []\n+        weights = []\n+        for record in records:\n+            inp = record['input']\n+            if (float(inp['angular_speed']) != 0.0 or\n+                    float(inp['flux_fraction']) != 0.0 or\n+                    float(inp['relaxation_rate']) != lam):\n+                raise ValueError('records do not match the documented calibration protocol')\n+            sigma = float(record['sigma'])\n+            if not np.isfinite(sigma) or sigma <= 0:\n+                raise ValueError('record sigma must be positive and finite')\n+            contrasts.append(float(inp['temperature_a']) - float(inp['temperature_b']))\n+            values.append(float(record['value']))\n+            weights.append(1.0 / sigma**2)\n+\n+        contrasts = np.asarray(contrasts, dtype=float)\n+        values = np.asarray(values, dtype=float)\n+        weights = np.asarray(weights, dtype=float)\n+        denominator = float(np.sum(weights * contrasts**2))\n+        if denominator == 0.0:\n+            raise ValueError('calibration records contain no temperature contrast')\n+        conductance = float(np.sum(weights * contrasts * values) / denominator)\n+\n+        denominator = lam * RATE - conductance * (2.0 * lam + RATE)\n+        if denominator == 0.0:\n+            raise ValueError('calibration data do not identify a finite drag')\n+        drag = conductance * lam * RATE / denominator\n+        # The apparatus specification supplies the admissible interval.  The\n+        # clipping also makes the fit robust to the stated measurement noise.\n+        self.drag = float(np.clip(drag, 0.4, 1.1))\n         return self\n \n-    def predict(self,experiments):return predict_at(experiments,self.drag)\n+    def predict(self,experiments):\n+        if self.drag is None:\n+            raise RuntimeError('fit must be called before predict')\n+        return predict_at(experiments,self.drag)\n"
+    },
+    "rotating-reservoir__wjoF9AJ": {
+      "safe_to_import": true,
+      "source_sha256": "5129a04f29ec5fb7f17855fb48589fd403ebfed457e939361cdc0b90cd8a5c95",
+      "parameter_attribute": "drag",
+      "manual_source_review": "Read full source: explicit motor-label quadratic basis is physically equivalent to the correctly reduced starter treatment; its claimed motor correction did not repair a missing motor in the starter. Retains Gaussian conditional law and substitutes a centered-unconditional relative-speed exchange approximation. Uses9-node tensor quadrature; will separately refine it. Temporary wrong exchange signs in trajectory were corrected in final source.",
+      "source_scope": "Only numerical imports, constants, function/class definitions and cache decorators at module scope; no shell/network/file access or unsafe import-time execution.",
+      "native_task_complete": true,
+      "completion_events": [
+        {
+          "timestamp": "2026-10-06T05:17:13.950Z",
+          "ordinal": 133,
+          "type": "event_msg",
+          "payload": {
+            "type": "task_complete",
+            "turn_id": "01a10fa0-12be-7bd3-ac0f-a976c77e8ddf",
+            "last_agent_message": "Implemented `/app/model.py`.\n\n- Added drag calibration via weighted least squares.\n- Implemented `Model.fit()` and guarded `predict()`.\n- Added motor-aware stationary moment closure and mean/noise prediction.\n- Preserved documented API and output shape.\n- Verified with `pytest`: 1 passed.\n",
+            "started_at": 1791263511,
+            "completed_at": 1791263833,
+            "duration_ms": 322719,
+            "time_to_first_token_ms": 5764
+          }
+        }
+      ],
+      "terminal_native_assistant_message": {
+        "timestamp": "2026-10-06T05:17:13.914Z",
+        "ordinal": 130,
+        "type": "response_item",
+        "payload": {
+          "type": "message",
+          "id": "msg_0e0d61c5525d4cb0016ac48458f3dc87d2a6ba6529dccd5392",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Implemented `/app/model.py`.\n\n- Added drag calibration via weighted least squares.\n- Implemented `Model.fit()` and guarded `predict()`.\n- Added motor-aware stationary moment closure and mean/noise prediction.\n- Preserved documented API and output shape.\n- Verified with `pytest`: 1 passed.\n"
+            }
+          ],
+          "phase": "final_answer",
+          "internal_chat_message_metadata_passthrough": {
+            "turn_id": "01a10fa0-12be-7bd3-ac0f-a976c77e8ddf",
+            "create_time": 1791263823.803504,
+            "content_item_kinds": [
+              "unknown"
+            ]
+          }
+        }
+      },
+      "assistant_messages": [
+        {
+          "step_id": 4,
+          "message": "I\u2019ll inspect the apparatus description, calibration data, and current model/API, then implement and run the available tests or validation examples."
+        },
+        {
+          "step_id": 8,
+          "message": "The calibration law is exact for the zero-flux calibration records, so I\u2019m using it to infer the single drag parameter. I\u2019m also correcting the stationary readout model to retain the motor\u2019s \u00b1 flow label explicitly; that matters whenever angular speed is nonzero, especially for the heat and noise statistics."
+        },
+        {
+          "step_id": 14,
+          "message": "The implementation now passes the public calibration test. I also exercised mixed mean/noise predictions across the full documented parameter ranges; they remain finite, and the inferred drag is about 0.670. I\u2019m doing a final consistency check on exact zero-flux behavior and edge cases."
+        },
+        {
+          "step_id": 17,
+          "message": "Implemented `/app/model.py`.\n\n- Added drag calibration via weighted least squares.\n- Implemented `Model.fit()` and guarded `predict()`.\n- Added motor-aware stationary moment closure and mean/noise prediction.\n- Preserved documented API and output shape.\n- Verified with `pytest`: 1 passed.\n"
+        }
+      ],
+      "native_sha256": {
+        "agent/trajectory.json": "c86be0df538fca179d3933ed37bca05f69f98a276c80519020eab315c61d925e",
+        "result.json": "299038968afadd825c31236fd201be3c1268d462eab5a551b50017246c8b8e19",
+        "agent/sessions/2026/10/06/rollout-2026-10-06T05-11-51-01a10fa0-12b2-7fa3-aefc-cf6dc4364e9a.jsonl": "5319196c5ef89be1ec1ca1a336e61d667c4807a79220f04e1286f18a8d6ea414"
+      },
+      "source_diff_from_completed_control": "--- \n+++ \n@@ -1,11 +1,19 @@\n-\"\"\"Conditional pair-Gaussian moment and quadratic-response model.\"\"\"\n+\"\"\"Model for the finite rotor--gas contact.\n+\n+The zero-flux calibration problem has an exact closed form.  Away from the\n+calibration surface the continuous state is not Gaussian (the collision clock\n+depends on the relative speed), so the implementation below uses a small\n+conditional-Gaussian moment closure.  The motor label is kept as an explicit\n+two-state variable.  This is important: replacing ``s * angular_speed`` by a\n+constant angular speed gives the wrong answer even when the label has equal\n+stationary probabilities.\n+\"\"\"\n from functools import lru_cache\n from math import erf\n import numpy as np\n from numpy.polynomial.hermite import hermgauss\n-from numpy.polynomial.legendre import leggauss\n from scipy.integrate import solve_ivp\n-from scipy.linalg import solve\n+from scipy.optimize import minimize_scalar\n \n RATE=3.6\n \n@@ -18,75 +26,154 @@\n     return absolute,signed_square,absolute_cube\n \n \n+def _stationary_moments(e, gamma):\n+    \"\"\"Return stationary moments of (v, g, s*v, s*g).\n+\n+    Unconditional first moments of v and g vanish by the sign symmetry of the\n+    apparatus.  The two label-weighted first moments do not vanish and carry\n+    the response to the moving bath.  The relative-speed part of the collision\n+    clock is closed with Gaussian absolute moments.\n+    \"\"\"\n+    ta = float(e['temperature_a'])\n+    tb = float(e['temperature_b'])\n+    omega = float(e['angular_speed'])\n+    lam = float(e['relaxation_rate'])\n+    eta = float(e['flux_fraction'])\n+    flip = float(e['flip_rate'])\n+\n+    def derivative(_t, y):\n+        k, h, vv, gg, vg = y\n+        dvar = max(vv + gg - 2.0 * vg, 1.0e-14)\n+        # E[|d| d^2] / E[d^2], for a centered Gaussian d.\n+        abs_factor = 2.0 * np.sqrt(2.0 / np.pi) * np.sqrt(dvar)\n+\n+        # Conditional on s, d has mean s*(k-h).  This gives the more useful\n+        # folded moment for the label-weighted collision terms.\n+        cdvar = max(dvar - (k - h) ** 2, 1.0e-14)\n+        label_flux = (1.0 - eta) * (k - h) + eta * folded(k - h, cdvar)[1]\n+        pair_flux = (1.0 - eta) + eta * abs_factor\n+        exchange = RATE * pair_flux * (gg - vv)\n+\n+        return np.array([\n+            -gamma * k - RATE * label_flux - 2.0 * flip * k,\n+            -lam * (h - omega) + RATE * label_flux - 2.0 * flip * h,\n+            -2.0 * gamma * (vv - ta) + exchange,\n+            -2.0 * lam * (gg - omega * h - tb) - exchange,\n+            -(gamma + lam) * vg + lam * omega * k,\n+        ])\n+\n+    initial = np.array([0.0, 0.0, ta, tb, 0.0])\n+    solution = solve_ivp(\n+        derivative, (0.0, 260.0), initial, method='BDF',\n+        rtol=2e-9, atol=2e-11,\n+    )\n+    if not solution.success:\n+        raise RuntimeError('stationary moment integration failed')\n+    k, h, vv, gg, vg = solution.y[:, -1]\n+    # Small numerical negative eigenvalues can occur at the end of a stiff\n+    # solve.  Keep the closure usable at the edges of the documented range.\n+    covariance = np.array([[vv, vg], [vg, gg]], dtype=float)\n+    eig = np.linalg.eigvalsh(covariance)\n+    if eig[0] < 0.0:\n+        covariance += np.eye(2) * (-eig[0] + 1e-12)\n+        vv, vg, gg = covariance[0, 0], covariance[0, 1], covariance[1, 1]\n+    return np.array([k, h, vv, gg, vg], dtype=float)\n+\n+\n+def _quadratic_response(e, gamma, moments, mean):\n+    \"\"\"Project the generator and the heat Poisson equation onto quadratics.\"\"\"\n+    ta = float(e['temperature_a'])\n+    tb = float(e['temperature_b'])\n+    omega = float(e['angular_speed'])\n+    lam = float(e['relaxation_rate'])\n+    eta = float(e['flux_fraction'])\n+    flip = float(e['flip_rate'])\n+    k, h, vv, gg, vg = moments\n+\n+    # Approximate the conditional law of (v,g) given the motor label by a\n+    # Gaussian.  Its conditional covariance follows from E[s v] and E[s g].\n+    conditional = np.array([[vv - k*k, vg - k*h], [vg - k*h, gg - h*h]])\n+    values, vectors = np.linalg.eigh(conditional)\n+    values = np.maximum(values, 1e-12)\n+    transform = vectors @ np.diag(np.sqrt(values))\n+    nodes, weights = hermgauss(9)\n+    z1, z2 = np.meshgrid(nodes, nodes, indexing='ij')\n+    qw = (weights[:, None] * weights[None, :] / np.pi).ravel() * 0.5\n+    z = np.column_stack((z1.ravel(), z2.ravel())) * np.sqrt(2.0)\n+\n+    all_v = []\n+    all_g = []\n+    all_s = []\n+    all_w = []\n+    for label in (-1.0, 1.0):\n+        x = label * np.array([k, h]) + z @ transform.T\n+        all_v.append(x[:, 0])\n+        all_g.append(x[:, 1])\n+        all_s.append(np.full(len(x), label))\n+        all_w.append(qw)\n+    v = np.concatenate(all_v)\n+    g = np.concatenate(all_g)\n+    s = np.concatenate(all_s)\n+    w = np.concatenate(all_w)\n+\n+    # b = (1, v, g, s, v^2, vg, g^2, sv, sg).\n+    b = np.column_stack((\n+        np.ones_like(v), v, g, s, v*v, v*g, g*g, s*v, s*g,\n+    ))\n+    dv = -gamma * v\n+    dg = -lam * (g - s * omega)\n+    collision = RATE * ((1.0 - eta) + eta * np.abs(v - g))\n+    swapped = np.column_stack((\n+        np.ones_like(v), g, v, s, g*g, v*g, v*v, s*g, s*v,\n+    ))\n+    local = np.column_stack((\n+        np.zeros_like(v),\n+        dv,\n+        dg,\n+        -2.0 * flip * s,\n+        2.0 * v * dv + 2.0 * gamma * ta,\n+        dv * g + v * dg,\n+        2.0 * g * dg + 2.0 * lam * tb,\n+        s * dv - 2.0 * flip * s * v,\n+        s * dg - 2.0 * flip * s * g,\n+    ))\n+    local += collision[:, None] * (swapped - b)\n+\n+    gram = b.T @ (w[:, None] * b)\n+    generator = np.linalg.solve(gram, b.T @ (w[:, None] * local))\n+    stationary = np.array([1.0, 0.0, 0.0, 0.0, vv, vg, gg, k, h])\n+\n+    # Heat drift f = a dot b.  Solve L phi = mean - f, with E[phi]=0.\n+    a = np.array([\n+        lam * (omega * omega - tb), 0.0, 0.0, 0.0,\n+        0.0, 0.0, lam, 0.0, -2.0 * lam * omega,\n+    ])\n+    rhs = mean * np.array([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]) - a\n+    system = generator.copy()\n+    system[0, :] = stationary\n+    rhs[0] = 0.0\n+    phi = np.linalg.solve(system, rhs)\n+\n+    gradient_g = phi[2] + phi[5] * v + 2.0 * phi[6] * g + phi[8] * s\n+    heat_noise = -np.sqrt(2.0 * lam * tb) * (g - s * omega)\n+    particle_noise = np.sqrt(2.0 * lam * tb) * gradient_g\n+    shot = float(w @ (heat_noise * heat_noise))\n+    correlation = 2.0 * float(a @ gram @ phi + w @ (heat_noise * particle_noise))\n+    return max(0.0, shot + correlation)\n+\n+\n def gaussian_closure(e, gamma, noise=False):\n-    \"\"\"All exact five first/second equations, Gaussian assumption only in flux.\n-\n-    The conditional covariance is retained; the gas is not refreshed at\n-    collisions, and finite gas relaxation and rotor backaction remain.\n-    At eta=0 the Gaussian assumption disappears from these equations.\n-    \"\"\"\n-    ta=e['temperature_a'];tb=e['temperature_b'];omega=e['angular_speed']\n-    lam=e['relaxation_rate'];eta=e['flux_fraction'];flip=e['flip_rate']\n-    def derivative(t,y):\n-        mv,mg,v2,g2,vg=y;mu=mv-mg;total=mv+mg\n-        vv=v2-mv*mv;gg=g2-mg*mg;cov=vg-mv*mg;variance=vv+gg-2*cov\n-        absolute,signed_square,absolute_cube=folded(mu,variance)\n-        flux_mean=RATE*((1-eta)*mu+eta*signed_square)\n-        mixed=total*signed_square+(vv-gg)/max(variance,1e-14)*(absolute_cube-mu*signed_square)\n-        exchange=RATE*((1-eta)*(g2-v2)-eta*mixed)\n-        return np.array([-gamma*mv-flux_mean-2*flip*mv,\n-            -lam*(mg-omega)+flux_mean-2*flip*mg,\n-            -2*gamma*(v2-ta)+exchange,\n-            -2*lam*(g2-omega*mg-tb)-exchange,\n-            -(gamma+lam)*vg+lam*omega*mv])\n-    initial=[0.,0.,ta,tb,0.]\n-    solution=solve_ivp(derivative,[0,200],initial,method='BDF',rtol=2e-10,atol=2e-12)\n-    assert solution.success\n-    mv,mg,v2,g2,vg=solution.y[:,-1]\n-    covariance=np.array([[v2-mv*mv,vg-mv*mg],[vg-mv*mg,g2-mg*mg]])\n-    mean=lam*(g2-2*omega*mg+omega**2-tb)\n-    cov=vg-mv*mg\n-    result=dict(mean=float(mean),vmean=float(mv),gmean=float(mg),v2=float(v2),g2=float(g2),vg=float(vg),\n-                energy_covariance=float(mv*mg*cov+.5*cov**2),\n-                minimum_covariance=float(np.linalg.eigvalsh(covariance).min()),\n-                derivative_residual=float(max(abs(derivative(200,solution.y[:,-1])))),\n-                first_law_residual=float(abs(gamma*(v2-ta)+mean-lam*(omega**2-omega*mg))))\n+    moments = _stationary_moments(e, gamma)\n+    k, h, vv, gg, vg = moments\n+    omega = float(e['angular_speed'])\n+    lam = float(e['relaxation_rate'])\n+    tb = float(e['temperature_b'])\n+    mean = lam * (gg - 2.0 * omega * h + omega * omega - tb)\n+    result = dict(mean=float(mean), vmean=0.0, gmean=0.0,\n+                  v2=float(vv), g2=float(gg), vg=float(vg),\n+                  motor_v=float(k), motor_g=float(h))\n     if noise:\n-        # Conditional-Gaussian quadratic response. Project the exact kinetic\n-        # generator in this assumed Gaussian law, then retain its quadratic\n-        # Poisson response. This is an approximation even at eta=0 for heat\n-        # noise: eta=0 calibrates mean heat, not the nonGaussian joint law.\n-        vv=v2-mv*mv;gg=g2-mg*mg;cds=vv-gg\n-        vd=vv+gg-2*cov;vs=vv+gg+2*cov\n-        md=mv-mg;ms=mv+mg;conditional=max(vs-cds*cds/vd,0.)\n-        nodes,weights=leggauss(80);gh,gw=hermgauss(5)\n-        ds=[];ws=[]\n-        limits=[md-10*np.sqrt(vd),0.,md+10*np.sqrt(vd)]\n-        for left,right in zip(limits[:-1],limits[1:]):\n-            d=(right-left)/2*nodes+(right+left)/2\n-            w=(right-left)/2*weights*np.exp(-(d-md)**2/(2*vd))/np.sqrt(2*np.pi*vd)\n-            ds.append(d);ws.append(w)\n-        d=np.concatenate(ds)[:,None];w=np.concatenate(ws)[:,None]*gw[None,:]/np.sqrt(np.pi)\n-        s=ms+cds/vd*(d-md)+np.sqrt(2*conditional)*gh[None,:]\n-        v=(s+d)/2;g=(s-d)/2;v=v.ravel();g=g.ravel();w=w.ravel()\n-        basis=lambda v,g:np.array([np.ones_like(v),v,g,v*v,v*g,g*g]).T\n-        b=basis(v,g);swapped=basis(g,v)\n-        local=np.array([np.zeros_like(v),-(gamma+2*flip)*v,\n-            -lam*(g-omega)-2*flip*g,-2*gamma*(v*v-ta),\n-            -(gamma+lam)*v*g+lam*omega*v,-2*lam*(g*g-omega*g-tb)]).T\n-        local+=RATE*((1-eta)+eta*abs(v-g))[:,None]*(swapped-b)\n-        gram=b.T@(w[:,None]*b);generator=solve(gram,b.T@(w[:,None]*local))\n-        moments=w@b\n-        a=np.array([lam*(omega**2-tb),0.,-2*lam*omega,0.,0.,lam])\n-        system=generator.copy();system[0]=moments;constant=np.zeros(6);constant[0]=1.\n-        rhs=mean*constant-a;rhs[0]=0.;phi=solve(system,rhs)\n-        gradient=phi[2]+phi[4]*v+2*phi[5]*g\n-        shot=2*lam*tb*float(w@((g-omega)**2))\n-        correlation=2*float(a@gram@phi-2*lam*tb*(w@((g-omega)*gradient)))\n-        result.update(noise=shot+correlation,noise_shot=shot,noise_correlation=correlation,\n-                      projected_stationary_residual=float(max(abs(moments@generator))),\n-                      poisson_residual=float(max(abs(generator@phi-(mean*constant-a)))),\n-                      projected_nonconstant_decay=float(min(-value.real for value in np.linalg.eigvals(generator) if abs(value)>1e-8)))\n+        result['noise'] = float(_quadratic_response(e, gamma, moments, mean))\n     return result\n \n \n@@ -109,12 +196,28 @@\n \n \n def fit_drag(records):\n-    lam=float(records[0]['input']['relaxation_rate'])\n-    assert all(r['input']['relaxation_rate']==lam for r in records)\n-    contrast=np.array([(r['input']['temperature_a']-r['input']['temperature_b'])/r['sigma'] for r in records])\n-    measured=np.array([r['value']/r['sigma'] for r in records])\n-    conductance=float(contrast@measured/(contrast@contrast))\n-    return float(np.clip(conductance*lam*RATE/(lam*RATE-conductance*(2*lam+RATE)),.4,1.1))\n+    if not records:\n+        raise ValueError('at least one calibration record is required')\n+\n+    def prediction(record, drag):\n+        item = record['input']\n+        return calibration_mean(item, drag)\n+\n+    values = np.asarray([float(r['value']) for r in records])\n+    sigmas = np.asarray([float(r.get('sigma', 1.0)) for r in records])\n+    if np.any(~np.isfinite(values)) or np.any(~np.isfinite(sigmas)) or np.any(sigmas <= 0):\n+        raise ValueError('calibration values and uncertainties must be finite')\n+\n+    def objective(drag):\n+        expected = np.asarray([prediction(r, drag) for r in records])\n+        residual = (expected - values) / sigmas\n+        return float(residual @ residual)\n+\n+    result = minimize_scalar(objective, bounds=(0.4, 1.1), method='bounded',\n+                             options={'xatol': 1e-12})\n+    if not result.success:\n+        raise RuntimeError('drag calibration failed')\n+    return float(np.clip(result.x, 0.4, 1.1))\n \n \n def predict_at(experiments,drag):\n@@ -125,7 +228,14 @@\n     def __init__(self):self.drag=None\n \n     def fit(self,records):\n-        self.drag=fit_drag(records)\n+        self.drag = fit_drag(records)\n+        # The fit is commonly followed by predictions for the same settings;\n+        # clearing this cache also prevents a previous model fit from leaking\n+        # into a newly calibrated instance in long-running processes.\n+        readout.cache_clear()\n         return self\n \n-    def predict(self,experiments):return predict_at(experiments,self.drag)\n+    def predict(self,experiments):\n+        if self.drag is None:\n+            raise RuntimeError('fit must be called before predict')\n+        return predict_at(experiments,self.drag)\n"
+    }
+  }
+}

@@ -1,0 +1,91 @@
+--- starter/model.py
++++ submission/model.py
+@@ -49,6 +49,22 @@
+     value=np.linalg.solve(a,-source.reshape(count*(degree+1),points)).reshape(count,degree+1,points)
+     return {pair:value[:,i] for i,pair in enumerate(basis)}
+ 
++def contact_density_correction(q, derivative, first_x):
++    """The order-m contact population correction with zero total density.
++
++    The contact generator is singular: its missing component is precisely the
++    (as yet undetermined) correction to the positional density.  It cancels
++    against the measured residence in the requested background subtraction,
++    so fixing that component to zero is both convenient and well conditioned.
++    """
++    count, points=first_x.shape
++    rhs=np.asarray([derivative@first_x[s] for s in range(count)])
++    augmented=q.copy()
++    augmented[-1]=1.
++    rhs=rhs.copy()
++    rhs[-1]=0.
++    return np.linalg.solve(augmented,rhs)
++
+ def limiting_state(e,friction,points=129):
+     phase,d=spatial_grid(points);d=d*e['wavenumber'];dx=2*np.pi/points
+     factors,gx,gy,q=contact_parameters(e,friction);count=len(gx)
+@@ -71,8 +87,10 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At the next order the contact populations are no longer equal.  This
++    # term is immaterial for the calibration (whose contacts are identical),
++    # but is needed when the baths or their drags differ.
++    density_correction={(0,0):contact_density_correction(q,d,first[1,0])}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -85,7 +103,17 @@
+     if valve_cycle is not None:e.update(valve_cycle=valve_cycle,contact_drag_contrast=contact_drag_contrast)
+     state=limiting_state(e,friction)
+     weight=1. if detector_phase is None else (1+np.cos(state['phase']-detector_phase))/2
+-    return float(state['dx']*np.sum(weight*state['local']))
++    measured=float(state['dx']*np.sum(weight*state['local']))
++
++    # The leading switching heat is O(1/m).  It is proportional to the
++    # positional density and therefore cancels exactly against B_m R_m.  The
++    # finite part still requires the matched, uniform and force-free
++    # background specified in the problem statement.
++    background=e.copy()
++    background.update(force_x=0.,force_y=0.,contrast=0.)
++    baseline=limiting_state(background,friction)['value']
++    residence=float(state['dx']*np.sum(weight*state['density']))
++    return measured-baseline*residence
+ 
+ def coefficients(experiments,friction=1.):
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+@@ -93,5 +121,32 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        if len(records)==0:
++            raise ValueError("at least one calibration record is required")
++        experiments=[r['input'] for r in records]
++        observed=np.asarray([r['value'] for r in records],dtype=float)
++        sigma=np.asarray([r['sigma'] for r in records],dtype=float)
++        if not (np.isfinite(observed).all() and np.isfinite(sigma).all() and np.all(sigma>0)):
++            raise ValueError("calibration values and sigmas must be finite, with positive sigmas")
++
++        def loss(friction):
++            residual=(coefficients(experiments,friction)-observed)/sigma
++            return float(residual@residual)
++
++        # A bounded golden-section search needs no optional dependency and is
++        # stable for the one shared physical parameter.
++        left,right=0.7,1.6
++        ratio=(np.sqrt(5.)-1.)/2.
++        x1=right-ratio*(right-left); x2=left+ratio*(right-left)
++        y1,y2=loss(x1),loss(x2)
++        for _ in range(48):
++            if y1<=y2:
++                right,x2,y2=x2,x1,y1
++                x1=right-ratio*(right-left); y1=loss(x1)
++            else:
++                left,x1,y1=x1,x2,y2
++                x2=left+ratio*(right-left); y2=loss(x2)
++        candidates=(left,right,(left+right)/2,0.7,1.6)
++        self.friction=float(min(candidates,key=loss))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

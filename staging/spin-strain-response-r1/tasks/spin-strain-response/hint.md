@@ -1,0 +1,1 @@
+The force is measured after thermal equilibration at each displacement. When the displacement-coupled operator does not commute with the Hamiltonian, distinguish its equal-time fluctuations from the change in its Gibbs mean under a static displacement.

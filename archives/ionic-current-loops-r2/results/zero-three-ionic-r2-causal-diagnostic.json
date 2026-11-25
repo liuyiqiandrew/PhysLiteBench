@@ -1,0 +1,499 @@
+{
+  "task": "ionic-current-loops",
+  "revision": 2,
+  "status": "completed_fixed_parameter_causal_diagnostic",
+  "scope": "Two completed physical failures from the partial batch only. This is a numerical posthoc diagnostic, not a model trial, retry, new fit or change to retained artifacts.",
+  "prior_review": {
+    "path": "results/zero-three-ionic-r2-partial-review.json",
+    "sha256": "8719c4a20d3a2280986a5726b8f75fbb3ae1e4909a07e298e6112731ebb67ead"
+  },
+  "physical_derivation": [
+    "Nernst-Planck charge current divided by common D is j=\u2212gprime+sigma*E, where gprime=sum_i ratio_i*z_i*dc_i/dx and sigma=sum_i ratio_i*z_i^2*c_i.",
+    "Electroneutral charge conservation requires spatially constant j, not j=0.",
+    "A periodic electrostatic potential and no inductive EMF require integral E dx=0.",
+    "Consequently j=\u2212mean(gprime/sigma)/mean(1/sigma) and E=(gprime+j)/sigma. The original zero-current closure need not meet the loop constraint."
+  ],
+  "exact_in_memory_change": {
+    "removed": "    electric=diffusion_charge_gradient/conductivity\n",
+    "inserted": "    current=-np.mean(diffusion_charge_gradient/conductivity)/np.mean(1/conductivity)\n    electric=(diffusion_charge_gradient+current)/conductivity\n",
+    "number_of_replacements_per_source": 1,
+    "all_other_code_unchanged": true
+  },
+  "independent_reference": {
+    "path": "staging/ionic-current-loops-r2/tasks/ionic-current-loops/tests/reference.py",
+    "sha256": "4763f70c078601ad2b187749121aae28d567e002a46d569577b4892c73d5674f",
+    "method": "Conservative face fluxes with a periodic scalar-potential sparse solve, 512/1024 Richardson extrapolation as used by original grading."
+  },
+  "hidden_test_sha256": "8f9f499522a6df65a4bf5e016344865635ebc741a821147a55d4679fb1e1b5ee",
+  "calibration_sha256": "bfe01acbaa947f0e841445780e3204e5b4a1a33a213c0b5fff24ff515c9f0bfe",
+  "thresholds": {
+    "calibration_chi2": 1.5,
+    "parameter_relative_error": 0.03,
+    "hidden_relative_rms": 0.04
+  },
+  "diagnostic_script": {
+    "path": "/private/tmp/ionic_r2_fixed_parameter_diagnostic.py",
+    "sha256": "a713faa70025dc0c4cdf0b48267ae82556f34b119dc232a391ba07f03b1a9cf6"
+  },
+  "trials": {
+    "ionic-current-loops__5AKENRj": {
+      "classification": "physical_model_failure_supported_by_fixed_parameter_repair",
+      "source": "staging/ionic-current-loops-r2/evaluations/zero-three-ionic-r2-partial/ionic-current-loops__5AKENRj/artifacts/app/model.py",
+      "source_sha256": "795bdd99d7f1a3306dc607bf1bd1942ff521dc73fabce5dbbcee0d019ae927f6",
+      "result_sha256": "506f05da8ed980dad0be7c37edf3a1fe1fc3078d041dd8b4eb252a8da1b3ddb8",
+      "verifier_metrics_sha256": "29693744ca4ef70996aac1ea31ca0c6a4b1e4d3e929d57d9f89d5ad2ba7d8531",
+      "reviewed_trajectory_sha256": "75f3550f1c68da3197b0a02ddcbcf9aed21562e1cc16bf83b2dd72b898e807a7",
+      "reviewed_native_transcript_sha256": "a894772b020a2a8d7f3ac34a35e1736d1ae46ac28c4923ad7516270345b2e9a6",
+      "repair_source_sha256_in_memory": "5ce9707e3840e538127987052d48dc2a91c77595676a0fa774fcbe82802e9e6f",
+      "parameter_held_fixed": 1.129920760033953,
+      "refit_repaired_model": false,
+      "original_fit_reproduction_absolute_error": 2.220446049250313e-16,
+      "before": {
+        "diffusivity": 1.129920760033953,
+        "parameter_relative_error": 7.012386375837565e-05,
+        "calibration_chi2": 1.0846029248256768,
+        "hidden": {
+          "phase_quadrature": 0.42075418318868685,
+          "cosine_harmonics": 0.09121633644255905,
+          "reversed_profiles": 0.4207541831887494,
+          "aligned_profiles": 7.012384799337924e-05
+        },
+        "all_grader_thresholds_pass": false
+      },
+      "after": {
+        "diffusivity": 1.129920760033953,
+        "parameter_relative_error": 7.012386375837565e-05,
+        "calibration_chi2": 1.0846029248256859,
+        "hidden": {
+          "phase_quadrature": 7.012436280081121e-05,
+          "cosine_harmonics": 7.011840470844239e-05,
+          "reversed_profiles": 7.012436275091987e-05,
+          "aligned_profiles": 7.012384799337924e-05
+        },
+        "all_grader_thresholds_pass": true
+      },
+      "before_field_checks": {
+        "maximum_absolute_loop_emf": 0.7829941428864552,
+        "maximum_charge_current_nonuniformity": 1.9834687322752426e-15,
+        "maximum_absolute_uniform_charge_current": 5.076430371763879e-17
+      },
+      "after_field_checks": {
+        "maximum_absolute_loop_emf": 3.012866951587223e-16,
+        "maximum_charge_current_nonuniformity": 1.887379141862766e-15,
+        "maximum_absolute_uniform_charge_current": 0.6433374824690103
+      },
+      "original_metrics_reproduction_absolute_error_max": 2.2154500456395e-13,
+      "calibration_prediction_change_absolute_max": 1.1102230246251565e-16,
+      "hidden_predictions": {
+        "phase_quadrature": {
+          "reference": [
+            0.03306580415212191,
+            -0.2521214742870716,
+            -0.02751561178473198,
+            0.20982026179431632,
+            -0.09467836596946395,
+            -0.15842083845200833,
+            0.0729515040893881,
+            -0.5119649167814325,
+            -0.05227773535962355,
+            0.37739292036797184,
+            -0.16262706824900966,
+            -0.2616043228036378
+          ],
+          "before": [
+            0.06097186600800882,
+            -0.43325554396422067,
+            -0.04471711279673008,
+            0.32584442109140416,
+            -0.1415774976044261,
+            -0.2294275780746122,
+            0.10277939743507154,
+            -0.7041991174348121,
+            -0.07040475932297052,
+            0.49880403377588006,
+            -0.2113621718898925,
+            -0.33487969870852835
+          ],
+          "after": [
+            0.03306348543717714,
+            -0.2521037933651725,
+            -0.02751368227796522,
+            0.20980554785388889,
+            -0.09467172674615416,
+            -0.15840972918944288,
+            0.07294638844508644,
+            -0.5119290157396725,
+            -0.0522740694435889,
+            0.37736645633277816,
+            -0.1626156642194711,
+            -0.26158597839558184
+          ]
+        },
+        "cosine_harmonics": {
+          "reference": [
+            0.17552480120442468,
+            -1.100864889688006,
+            -0.1010278754538661,
+            0.6585391268241327,
+            -0.25724193532034345,
+            -0.376332591699121,
+            0.15272314428711317,
+            -0.9505998166049144,
+            -0.08653852555443542,
+            0.5592942877978297,
+            -0.2164973621019499,
+            -0.3136663687481477
+          ],
+          "before": [
+            0.16285447150138607,
+            -1.017475067769366,
+            -0.09300026922048472,
+            0.6036628328985691,
+            -0.23476423935757332,
+            -0.3418505442703599,
+            0.1380474551765716,
+            -0.8547738291268498,
+            -0.07738333762807306,
+            0.4971624217578729,
+            -0.19122446616443756,
+            -0.275155431262515
+          ],
+          "after": [
+            0.17551249278817468,
+            -1.1007876989412768,
+            -0.10102079102422791,
+            0.658492951259335,
+            -0.25722389661382417,
+            -0.3763062039809088,
+            0.15271243480605937,
+            -0.9505331624791924,
+            -0.08653245717053505,
+            0.5592550712886771,
+            -0.21648218055264337,
+            -0.3136443751823717
+          ]
+        },
+        "reversed_profiles": {
+          "reference": [
+            0.033065804152290816,
+            -0.25212147428700643,
+            -0.02751561178499531,
+            0.20982026179433802,
+            -0.09467836596937292,
+            -0.1584208384519195,
+            0.07295150408924243,
+            -0.5119649167814967,
+            -0.05227773535970485,
+            0.3773929203679933,
+            -0.16262706824890757,
+            -0.26160432280352414
+          ],
+          "before": [
+            0.060971866008009454,
+            -0.4332555439642187,
+            -0.044717112796728825,
+            0.32584442109140416,
+            -0.1415774976044272,
+            -0.22942757807460856,
+            0.10277939743507185,
+            -0.7041991174348129,
+            -0.07040475932296976,
+            0.4988040337758813,
+            -0.21136217188989254,
+            -0.3348796987085231
+          ],
+          "after": [
+            0.03306348543717776,
+            -0.25210379336516986,
+            -0.027513682277964222,
+            0.20980554785388847,
+            -0.09467172674615552,
+            -0.1584097291894392,
+            0.07294638844508668,
+            -0.511929015739674,
+            -0.05227406944358815,
+            0.37736645633277965,
+            -0.16261566421947107,
+            -0.26158597839557773
+          ]
+        },
+        "aligned_profiles": {
+          "reference": [
+            -0.5423999999913877,
+            -1.7356799999724404,
+            -2.2780799999642465,
+            -0.5423999999913877,
+            -1.7356799999724404,
+            -2.2780799999642465,
+            -0.5423999999913877,
+            -1.7356799999724404,
+            -2.2780799999642465,
+            -0.5423999999913877,
+            -1.7356799999724404,
+            -2.2780799999642465
+          ],
+          "before": [
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496
+          ],
+          "after": [
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496
+          ]
+        }
+      },
+      "original_source_unchanged_after_diagnostic": true,
+      "causal_interpretation": "Changing only the common electrostatic loop-current closure at the submitted fitted diffusivity restores all original grading thresholds. The final source retained a physical zero-current approximation; the prior full-trajectory review found no implementation regression from a correct common-current model."
+    },
+    "ionic-current-loops__C34iydh": {
+      "classification": "physical_model_failure_supported_by_fixed_parameter_repair",
+      "source": "staging/ionic-current-loops-r2/evaluations/zero-three-ionic-r2-partial/ionic-current-loops__C34iydh/artifacts/app/model.py",
+      "source_sha256": "bf5c69f20362184bb2821d477fcfafc26e25a14869e715ed1acf23e012e7b5c3",
+      "result_sha256": "1eb60c2c6d728a865fe1400ab58a385f751a8e03f026517d5168d047b0b549b4",
+      "verifier_metrics_sha256": "29693744ca4ef70996aac1ea31ca0c6a4b1e4d3e929d57d9f89d5ad2ba7d8531",
+      "reviewed_trajectory_sha256": "e8595d4110d0c0d73f5b684e99d236327aa1966bcd366e128ffc1d777f49409d",
+      "reviewed_native_transcript_sha256": "a796699dd73dd167e7ee6909e7cdb9562799ffcbec056a403cab7e8c2dcba2ec",
+      "repair_source_sha256_in_memory": "04dd2b2248a4a859a5fc3e08d889971422bae242d0d65742bff5a07d9d8335ab",
+      "parameter_held_fixed": 1.129920760033953,
+      "refit_repaired_model": false,
+      "original_fit_reproduction_absolute_error": 2.220446049250313e-16,
+      "before": {
+        "diffusivity": 1.129920760033953,
+        "parameter_relative_error": 7.012386375837565e-05,
+        "calibration_chi2": 1.0846029248256768,
+        "hidden": {
+          "phase_quadrature": 0.42075418318868685,
+          "cosine_harmonics": 0.09121633644255905,
+          "reversed_profiles": 0.4207541831887494,
+          "aligned_profiles": 7.012384799337924e-05
+        },
+        "all_grader_thresholds_pass": false
+      },
+      "after": {
+        "diffusivity": 1.129920760033953,
+        "parameter_relative_error": 7.012386375837565e-05,
+        "calibration_chi2": 1.0846029248256859,
+        "hidden": {
+          "phase_quadrature": 7.012436280081121e-05,
+          "cosine_harmonics": 7.011840470844239e-05,
+          "reversed_profiles": 7.012436275091987e-05,
+          "aligned_profiles": 7.012384799337924e-05
+        },
+        "all_grader_thresholds_pass": true
+      },
+      "before_field_checks": {
+        "maximum_absolute_loop_emf": 0.7829941428864552,
+        "maximum_charge_current_nonuniformity": 1.9834687322752426e-15,
+        "maximum_absolute_uniform_charge_current": 5.076430371763879e-17
+      },
+      "after_field_checks": {
+        "maximum_absolute_loop_emf": 3.012866951587223e-16,
+        "maximum_charge_current_nonuniformity": 1.887379141862766e-15,
+        "maximum_absolute_uniform_charge_current": 0.6433374824690103
+      },
+      "original_metrics_reproduction_absolute_error_max": 2.2154500456395e-13,
+      "calibration_prediction_change_absolute_max": 1.1102230246251565e-16,
+      "hidden_predictions": {
+        "phase_quadrature": {
+          "reference": [
+            0.03306580415212191,
+            -0.2521214742870716,
+            -0.02751561178473198,
+            0.20982026179431632,
+            -0.09467836596946395,
+            -0.15842083845200833,
+            0.0729515040893881,
+            -0.5119649167814325,
+            -0.05227773535962355,
+            0.37739292036797184,
+            -0.16262706824900966,
+            -0.2616043228036378
+          ],
+          "before": [
+            0.06097186600800882,
+            -0.43325554396422067,
+            -0.04471711279673008,
+            0.32584442109140416,
+            -0.1415774976044261,
+            -0.2294275780746122,
+            0.10277939743507154,
+            -0.7041991174348121,
+            -0.07040475932297052,
+            0.49880403377588006,
+            -0.2113621718898925,
+            -0.33487969870852835
+          ],
+          "after": [
+            0.03306348543717714,
+            -0.2521037933651725,
+            -0.02751368227796522,
+            0.20980554785388889,
+            -0.09467172674615416,
+            -0.15840972918944288,
+            0.07294638844508644,
+            -0.5119290157396725,
+            -0.0522740694435889,
+            0.37736645633277816,
+            -0.1626156642194711,
+            -0.26158597839558184
+          ]
+        },
+        "cosine_harmonics": {
+          "reference": [
+            0.17552480120442468,
+            -1.100864889688006,
+            -0.1010278754538661,
+            0.6585391268241327,
+            -0.25724193532034345,
+            -0.376332591699121,
+            0.15272314428711317,
+            -0.9505998166049144,
+            -0.08653852555443542,
+            0.5592942877978297,
+            -0.2164973621019499,
+            -0.3136663687481477
+          ],
+          "before": [
+            0.16285447150138607,
+            -1.017475067769366,
+            -0.09300026922048472,
+            0.6036628328985691,
+            -0.23476423935757332,
+            -0.3418505442703599,
+            0.1380474551765716,
+            -0.8547738291268498,
+            -0.07738333762807306,
+            0.4971624217578729,
+            -0.19122446616443756,
+            -0.275155431262515
+          ],
+          "after": [
+            0.17551249278817468,
+            -1.1007876989412768,
+            -0.10102079102422791,
+            0.658492951259335,
+            -0.25722389661382417,
+            -0.3763062039809088,
+            0.15271243480605937,
+            -0.9505331624791924,
+            -0.08653245717053505,
+            0.5592550712886771,
+            -0.21648218055264337,
+            -0.3136443751823717
+          ]
+        },
+        "reversed_profiles": {
+          "reference": [
+            0.033065804152290816,
+            -0.25212147428700643,
+            -0.02751561178499531,
+            0.20982026179433802,
+            -0.09467836596937292,
+            -0.1584208384519195,
+            0.07295150408924243,
+            -0.5119649167814967,
+            -0.05227773535970485,
+            0.3773929203679933,
+            -0.16262706824890757,
+            -0.26160432280352414
+          ],
+          "before": [
+            0.060971866008009454,
+            -0.4332555439642187,
+            -0.044717112796728825,
+            0.32584442109140416,
+            -0.1415774976044272,
+            -0.22942757807460856,
+            0.10277939743507185,
+            -0.7041991174348129,
+            -0.07040475932296976,
+            0.4988040337758813,
+            -0.21136217188989254,
+            -0.3348796987085231
+          ],
+          "after": [
+            0.03306348543717776,
+            -0.25210379336516986,
+            -0.027513682277964222,
+            0.20980554785388847,
+            -0.09467172674615552,
+            -0.1584097291894392,
+            0.07294638844508668,
+            -0.511929015739674,
+            -0.05227406944358815,
+            0.37736645633277965,
+            -0.16261566421947107,
+            -0.26158597839557773
+          ]
+        },
+        "aligned_profiles": {
+          "reference": [
+            -0.5423999999913877,
+            -1.7356799999724404,
+            -2.2780799999642465,
+            -0.5423999999913877,
+            -1.7356799999724404,
+            -2.2780799999642465,
+            -0.5423999999913877,
+            -1.7356799999724404,
+            -2.2780799999642465,
+            -0.5423999999913877,
+            -1.7356799999724404,
+            -2.2780799999642465
+          ],
+          "before": [
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496
+          ],
+          "after": [
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496,
+            -0.5423619648162975,
+            -1.7355582874121516,
+            -2.2779202522284496
+          ]
+        }
+      },
+      "original_source_unchanged_after_diagnostic": true,
+      "causal_interpretation": "Changing only the common electrostatic loop-current closure at the submitted fitted diffusivity restores all original grading thresholds. The final source retained a physical zero-current approximation; the prior full-trajectory review found no implementation regression from a correct common-current model."
+    }
+  },
+  "qualification": "Both reviewed completed failures have a causal physical repair. The unstarted infrastructure attempt is not a model outcome; this report does not assert three-trial qualification."
+}

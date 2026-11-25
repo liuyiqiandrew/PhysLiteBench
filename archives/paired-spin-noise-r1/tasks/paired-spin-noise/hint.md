@@ -1,0 +1,1 @@
+The detector couples to a local spin density, so its rate depends on a two-particle correlation. The sample is a paired Gaussian state: exact normal one-particle spectra do not imply statistically independent opposite-spin densities. Derive the local spin correlation for that state, or evaluate the specified detector transitions directly in the occupation basis.

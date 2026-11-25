@@ -1,0 +1,39 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,7 +54,35 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit the material scale by weighted least squares.
++
++        In the calibration interval both hierarchical levels are in their
++        high-temperature phase, so the limiting energy density is
++        ``-beta * width**2``.  The supplied sigmas are independent Gaussian
++        errors; using their inverse variances gives the maximum-likelihood
++        estimate (with the physical interval enforced).
++        """
++        rows = list(records)
++        if not rows:
++            raise ValueError('At least one calibration record is required to fit width.')
++        numerator = 0.0
++        denominator = 0.0
++        for row in rows:
++            try:
++                beta = float(row['input']['beta'])
++                observed = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError('Calibration records need finite beta, value, and sigma fields.') from exc
++            if (not math.isfinite(beta) or not .2 <= beta <= .6 or
++                    not math.isfinite(observed) or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Calibration beta/value/sigma must be finite and in range, with sigma positive.')
++            weight = 1.0 / (sigma * sigma)
++            numerator += weight * beta * (-observed)
++            denominator += weight * beta * beta
++        squared_width = numerator / denominator
++        self.width = min(1.2, max(.8, math.sqrt(max(0.0, squared_width))))
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

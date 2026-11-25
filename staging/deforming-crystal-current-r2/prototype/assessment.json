@@ -1,0 +1,97 @@
+{
+  "status": "bounded_feasibility_complete_pending_independent_actual_file_peer",
+  "created_utc": "2026-10-06T04:29:09.770575+00:00",
+  "authority": {
+    "path": "results/deforming-crystal-r2-bounded-feasibility-decision.json",
+    "sha256": "403c81117320f9c35a28f84578e989031f788de2a2e181de869d9668606c3716"
+  },
+  "prior_assessment": {
+    "path": "staging/deforming-crystal-current-next-step-review/assessment.json",
+    "sha256": "82263d018eee12a57275e5f776d8baa1e34af167a135e427137a998c3ed48ed0"
+  },
+  "preserved_prior_result": "Crystal r1 remains archived at1/3 with two physical failures. The r2 source includes the moving-electrode conversion solved by that passer and instead neglects finite-load electric backaction. No old or new model evaluation was performed.",
+  "physics": {
+    "scales": "S lateral reference cells, N cells through slab, a0 reference length, q0 positive charge, E0 cell energy. C0=epsilon*a0*S/N; cL=CL/C0. Keep cL fixed in the macroscopic limit and CL fixed during the subsequent deformation. q=Q_top/(q0*S). Fixed known electrical coupling g=q0^2/(epsilon*a0*E0)=1.",
+    "reduced_model": "For c=det(F)|F^(-T)e3|^2, total per-cell energy is W0/E0+g[(q-s3)^2/c+q^2/cL]/2. Minimize charge to get q=cL*s3/(c+cL) and add g*s3^2/[2(c+cL)] to W0. The source solves W0 alone, then applies the exact same electrode charge/divider and its geometry derivative. Positive added curvature is the reciprocal field feedback that source omits.",
+    "reference": "Separate seven unknowns are s(3), lab normal electric field e, voltage v and crystal/load face charges qc,qL. Set b=|F^-T e3|, A=det(F)b and n=F^-T e3/b. Maxwell boundary charge gives qc=s3-A*e; potential drop gives v=-e/b; load gives qL=cL*v; each isolated node is neutral, qc+qL=0. Internal equilibrium includes g*e*F^T*n. The solver uses these equations jointly, never the reduced divider or Hessian, and obtains response from a fourth-order finite deformation difference of qc.",
+    "reference_scope": "This is an exact uniform macroscopic Maxwell problem, not a spatial mesh simulation of microscopic ionic fields. W0 already includes their zero-macroscopic-field free energy. The reference independently solves field/node/internal-force equations and differences charge, while sharing the specified constitutive energy. For ideal-short reference checks, v=0 replaces the load relation; qL then denotes compensating transferred charge rather than a finite capacitor face.",
+    "sign": "Positive measured current enters the top crystal electrode. Its connected load face has opposite free charge; the macroscopic field is positive upward when s3>0 in the loaded examples, with negative top-minus-bottom voltage. The energy and direct Maxwell reference give the same sign.",
+    "domain_proof": "Original upper-triangular F/G/K domain retained, finite cL in[.5,2], plus ideal-short preparations. Convexity is continuous: K>0 plus a positive electrostatic quadratic yields unique equilibrium. Prior analytic component bounds keep the negative center within the material cell: x1<=.0672, x2<=.0549 in absolute value, and -.00125<=s3<=.48265. Numerical samples support but do not replace these bounds."
+  },
+  "coverage": {
+    "domain": "All64 F-box corners, both K endpoints and both cL endpoints, each with the six positive upper-triangular drive basis directions:1536 responses. Another96 random interior F/G/K/cL controls are saved. Both models are linear in drive; oracle sign reversal is separately checked. This is not an interval error proof.",
+    "reference": "Every domain response has an independent charge-difference reference.288 also halve the difference step from2e-4 to1e-4. All492 loaded responses from41 K values, three load groups and four states per group also have an independent reference.",
+    "calibration": "Exact ideal-short longitudinal calibration is unchanged from r1.18 settings repeated16 times gives288 readings with fixed sigma.001. Forty-one noiseless fits include both K endpoints. Existing analytic monotonicity proves global identification; the numerical fits are not a uniqueness proof for arbitrary noisy observations.",
+    "noise": "512 saved draws:256 at nominal K1.06 and256 with one draw at each K in a uniform endpoint-inclusive sweep. These are two finite tests, not all possible noise or a uniform probability guarantee. All declared fit/prediction gates are applied individually.",
+    "limits": "84 saved combinations cover three K values, seven load choices and four electrical couplings. g=0 and ideal-short responses coincide exactly; finite large cL approaches the short limit. g!=1 and cL>2 are clearly labeled outside future prediction inputs.",
+    "dimensional_scaling": "Six dimensional energy checks use N8/64/512 and S50/200, verifying Cb from actual area/gap and intensive electric energy. A counterexample column records how fixed dimensional CL makes cL grow with N; it is not the intended apparatus."
+  },
+  "summary": {
+    "corner_response_cases": 1536,
+    "interior_response_cases": 96,
+    "reference_max_error": 5.723810314606226e-12,
+    "refinement_max_change": 1.1969591984239969e-12,
+    "refined_max_error": 7.867873019762328e-13,
+    "state_max_error": 1.8970935933282362e-14,
+    "charge_max_error": 7.951972413877684e-15,
+    "node_max_error": 0.0,
+    "field_max_residual": 6.751543768501733e-15,
+    "sign_max_error": 0.0,
+    "cell_min": 0.22832381104787264,
+    "cell_max": 0.5380094560426272,
+    "noiseless_fit_max_error": 8.371542126184295e-09,
+    "calibration_equivalence_max_error": 0.0,
+    "sampled_group_gap_min": 0.30381496356624316,
+    "sampled_physical_signal_min": 0.12716086042152971,
+    "sampled_source_signal_min": 0.21049156034188382,
+    "group_reference_max_error": 1.5184520307798266e-12,
+    "noise_max_chi2": 1.2686503476119673,
+    "noise_max_parameter_error": 0.0003002154587360417,
+    "noise_max_physical_error": 0.0001930788964376344,
+    "noise_min_source_error": 0.3039100235294784,
+    "noise_calibration_pass_count": 512,
+    "noise_physical_pass_count": 512,
+    "noise_source_all_groups_fail_count": 512,
+    "limit_reference_max_error": 4.590772206825022e-13,
+    "short_or_g0_max_difference": 0.0,
+    "dimensional_energy_max_error": 3.469446951953614e-18
+  },
+  "runtime_seconds": 13.595778624992818,
+  "weak_results_preserved": {
+    "domain_physical_range": [
+      -0.3931553692226686,
+      0.5054423429624688
+    ],
+    "domain_source_range": [
+      -0.5996630873206942,
+      0.7605511771128914
+    ],
+    "physical_absolute_below_0_05": 827,
+    "source_absolute_below_0_05": 667,
+    "absolute_difference_below_0_04": 1185,
+    "opposite_sign_cases": 21,
+    "qualification": "These1632 full-domain cases are preserved without filtering. The ordinary positive diagnostic groups are the predefined loaded longitudinal/mixed settings, not a claim of a large discrepancy throughout all directions. Short and weak-electrical-coupling equality is expected and retained."
+  },
+  "execution_history": {
+    "attempt1": "Exact source and terminal serialization error preserved in runs/20261006T042017458202Z and the self-contained original checkpoint snapshot. No numerical rows were saved; no result is retroactively assigned to that attempt.",
+    "repair": "One required cast to Python float in noise parameter_error; source diff is exactly this replacement. It prevents NumPy boolean comparisons from producing an int64 calibration-pass count. No equations, inputs, checks, seed or thresholds changed.",
+    "attempt2": {
+      "run": "runs/20261006T042602395349Z",
+      "exit_code": 0,
+      "exec_session_id": 70961,
+      "source_sha256": "413ccaa0978beb153e8143767c5b22675f3d950003081619aa3232bbdfda9a30",
+      "report_sha256": "578f5b10acd258e6039ac44654501c45d65a2ff9ec7f53e410d6be32f04bb8a8"
+    },
+    "scientific_runs": 2,
+    "model_or_docker_runs": 0,
+    "git_operations": 0
+  },
+  "limitations_and_next_gate": [
+    "No full task package, generated calibration artifact, local grader run or model trial exists.",
+    "Whole author validation takes13.60seconds on the stated cached environment; this supports a small-solve reference, but is not a measured verifier timeout guarantee.",
+    "Only the independent actual-file peer and root review may decide whether this becomes a task. The previous peer was conceptual only.",
+    "The future public apparatus must state floating-node neutrality, circuit topology, background permittivity/zero-field constitutive scope and CL size scaling. It should not include the private divider/backaction equations or a requested method.",
+    "The prior passer may solve finite-load reciprocity readily. Numerical separation does not establish empirical difficulty.",
+    "No new primary literature was consulted. The prior assessment records the proper-current and constrained-piezoelectricity overlap; finite loading is this explicitly derived construction."
+  ]
+}

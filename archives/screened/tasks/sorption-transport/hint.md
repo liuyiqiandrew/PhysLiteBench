@@ -1,0 +1,1 @@
+Binding changes the amount stored in each chamber, while only dissolved molecules carry the interchamber flux. Conserve dissolved plus bound molecules of each species. The two binding equilibria use the same free-site concentration, so the storage derivatives with respect to dissolved A and B form a coupled matrix.

@@ -1,0 +1,1 @@
+Thermal fluctuations enter through the internal loss channels and propagate into outgoing ports. For a circuit with static nonreciprocal couplings, absorptivity for an incoming port does not determine the same-numbered outgoing thermal emission. Propagate the internal Langevin inputs, or derive the appropriate outgoing scattering defect from fluctuation-dissipation balance.

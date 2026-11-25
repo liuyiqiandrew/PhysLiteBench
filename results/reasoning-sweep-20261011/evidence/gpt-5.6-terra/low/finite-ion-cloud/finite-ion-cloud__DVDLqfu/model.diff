@@ -1,0 +1,59 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,9 +33,33 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        """Fit the common reference coupling by its Gaussian likelihood."""
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all()
++                or np.any(sigmas <= 0)):
++            raise ValueError("calibration values must be finite and sigmas positive")
++
++        # The normalization terms of the independent Gaussian observations do
++        # not depend on g, so weighted least squares is the MLE.
++        def objective(g):
++            residual = (predict_at(experiments, g) - values) / sigmas
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(objective, bounds=(0.7, 1.4),
++                                 method='bounded', options={'xatol': 1e-10})
++        if not result.success or not np.isfinite(result.fun):
++            raise RuntimeError("could not fit electrostatic coupling")
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
++        if self.coupling is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments,self.coupling)
+ 
+ 
+@@ -45,7 +69,7 @@
+     return (x+1)/2,w/2
+ 
+ 
+-def three_ion_coefficient(gamma,ratio,order=32):
++def three_ion_coefficient(gamma,ratio,order=48):
+     length = np.log(ratio)
+     x,w = nodes(order)
+     d1 = np.broadcast_to((length*x)[:,None],(order,order)).ravel()
+@@ -56,7 +80,11 @@
+         angular *= hyp2f1(-gamma/2,-gamma/2,1,np.exp(-2*gap))
+     span = length-d1-d2
+     slope = 6-6*gamma
+-    weight = weights*angular*np.exp((4-3*gamma)*d1+(2-gamma)*d2)
++    # d1=x_outer-x_middle and d2=x_middle-x_inner.  In ordered radial
++    # coordinates the Boltzmann/area factors have exponents
++    # (2-Gamma), (2-2 Gamma), (2-3 Gamma), respectively.  Thus d1 gets
++    # the outer-particle coefficient, while d2 gets the outer+middle one.
++    weight = weights*angular*np.exp((2-gamma)*d1+(4-3*gamma)*d2)
+     partition = np.dot(weight,span*exprel(slope*span))
+     boundary = np.dot(weight,np.exp(slope*span))
+     return -np.expm1(-2*length)*boundary/(6*partition)

@@ -1,0 +1,69 @@
+--- starter/model.py
++++ submission/model.py
+@@ -91,7 +91,63 @@
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        # This is deliberately not given a default: the calibration is part of
++        # the definition of a model instance, rather than a prediction input.
++        self.friction=None
++
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Estimate the common drag by Gaussian weighted least squares.
++
++        The records are independent measurements, so their supplied standard
++        deviations are the appropriate weights.  A small one-dimensional
++        golden-section search keeps this module independent of scipy and, in
++        particular, enforces the physically allowed interval exactly.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        try:
++            experiments=[r['input'] for r in records]
++            observed=np.asarray([r['value'] for r in records],dtype=float)
++            sigma=np.asarray([r['sigma'] for r in records],dtype=float)
++        except (KeyError, TypeError) as exc:
++            raise ValueError("each calibration record needs input, value, and sigma") from exc
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values must be finite and sigma must be positive")
++
++        def loss(friction):
++            predicted=coefficients(experiments,float(friction))
++            residual=(predicted-observed)/sigma
++            return float(residual@residual)
++
++        # The objective is smooth for this linear stationary problem.  More
++        # iterations than needed for the data precision also make the result
++        # insensitive to tiny changes in the spatial quadrature.
++        lo,hi=0.7,1.6
++        ratio=(np.sqrt(5.)-1.)/2.
++        left=hi-ratio*(hi-lo)
++        right=lo+ratio*(hi-lo)
++        fleft,fright=loss(left),loss(right)
++        for _ in range(42):
++            if fleft <= fright:
++                hi,right,fright=right,left,fleft
++                left=hi-ratio*(hi-lo)
++                fleft=loss(left)
++            else:
++                lo,left,fleft=left,right,fright
++                right=lo+ratio*(hi-lo)
++                fright=loss(right)
++        self.friction=float((lo+hi)/2.)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        result=coefficients(list(experiments),self.friction)
++        # Keep this explicit contract check close to the public boundary; it
++        # makes numerical failures much easier to diagnose for callers.
++        if not np.isfinite(result).all():
++            raise FloatingPointError("non-finite entropy-rate prediction")
++        return result

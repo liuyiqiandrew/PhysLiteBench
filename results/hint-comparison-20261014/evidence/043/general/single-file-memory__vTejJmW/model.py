@@ -1,0 +1,68 @@
+import numpy as np
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    """Limiting two-time tagged-particle covariance.
+
+    The fixed, equally-spaced initial state is the quenched single-file
+    setting.  Its long-time tagged-particle process has Hurst exponent 1/4,
+    giving the square-root time combination below.
+    """
+    return (np.sqrt(diffusivity / (2.0 * np.pi)) / density
+            * (np.sqrt(time_a) + np.sqrt(time_b)
+               - np.sqrt(np.abs(time_a - time_b))))
+
+
+def predict_at(experiments, diffusivity):
+    return np.asarray([
+        covariance(float(diffusivity), float(e["density"]),
+                   float(e["time_a"]), float(e["time_b"]))
+        for e in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Estimate the shared diffusivity by Gaussian weighted least squares.
+
+        For each record, the model is ``value = a * sqrt(D) + error``, where
+        ``a`` is the covariance at unit diffusivity.  This makes the maximum
+        likelihood estimate a one-parameter weighted linear regression with
+        a closed-form solution.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        try:
+            inputs = [record["input"] for record in records]
+            values = np.asarray([record["value"] for record in records], dtype=float)
+            sigmas = np.asarray([record["sigma"] for record in records], dtype=float)
+            unit_predictions = predict_at(inputs, 1.0)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid calibration record") from exc
+
+        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all()
+                or np.any(sigmas <= 0.0) or not np.isfinite(unit_predictions).all()
+                or np.any(unit_predictions <= 0.0)):
+            raise ValueError("calibration records must have finite positive controls and sigma")
+
+        weights = 1.0 / np.square(sigmas)
+        denominator = np.sum(weights * np.square(unit_predictions))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError("calibration records do not identify diffusivity")
+
+        sqrt_diffusivity = np.sum(weights * unit_predictions * values) / denominator
+        # The specified physical range is part of the model, so apply its
+        # constrained maximum-likelihood solution rather than extrapolating.
+        sqrt_diffusivity = np.clip(sqrt_diffusivity, np.sqrt(0.8), np.sqrt(1.2))
+        self.diffusivity = float(sqrt_diffusivity * sqrt_diffusivity)
+        return self
+
+    def predict(self, experiments):
+        if self.diffusivity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.diffusivity)

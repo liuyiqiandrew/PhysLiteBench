@@ -1,0 +1,9 @@
+# Membrane partition, revision 1
+
+Pure ACl and BCl2 preparations identify the common non-electrical partition factor. The shortcut divides a mixed preparation into independent neutral binary subsystems, assigning each a fraction of the fixed charge proportional to its prepared positive charge. It exactly solves the finite-volume binary electrochemical equilibrium, preserves all species amounts and bulk electroneutrality even in mixtures, and agrees exactly with the correct model for every pure-salt calibration record. In mixtures it gives the two artificial chloride populations different electrochemical potentials.
+
+The correct model has one potential difference and one chloride population. The common standard transfer factor multiplies all species concentrations equally, not in proportion to valence, so it is identifiable independently of the electric potential. The oracle eliminates mass balances and solves a monotone scalar electroneutrality equation. The reference instead solves simultaneous log-concentration chemical-potential equations, species balances, and neutrality.
+
+Concentrations use mmol/L and volumes L. Ideal ions, prescribed fixed volumes, permanent fixed charge, and excluded membrane charge are public model assumptions. No binding, finite bath chemostat, or hidden pH rule is needed. Prediction grading uses relative RMS per hidden family with a 1.5% limit; measurement sigma is 0.002 mmol/L. The two compartment concentrations make calibration well conditioned. Run scripts/validate_membrane_partition.py; regenerate public/private data only with --generate.
+
+The equilibrium framework is the ideal-ion bulk limit of [Donnan thermodynamics](https://www.uu.nl/sites/default/files/the_donnan_equilibrium_i.pdf). The present task explicitly retains finite amount balances and excludes solvent exchange.

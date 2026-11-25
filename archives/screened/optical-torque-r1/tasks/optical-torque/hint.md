@@ -1,0 +1,1 @@
+The measured torque is fixed by total angular-momentum balance, including the angular momentum carried away by the dipole radiation. A torque calculated from the incident field alone need not equal that mechanical torque, even when the polarizability already includes radiation reaction.

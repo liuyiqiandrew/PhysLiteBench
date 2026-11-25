@@ -1,0 +1,68 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,7 +191,55 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one apparatus parameter by weighted least squares.
++
++        The calibration records use the unmodulated, oscillator-decoupled
++        contact.  In that limit the stationary heat current is exactly linear
++        in the normal conductance, so solving the one-parameter weighted
++        regression directly is both more accurate and considerably less
++        expensive than repeatedly running a nonlinear optimiser.
++        """
++        if not records:
++            raise ValueError("fit requires at least one calibration record")
++
++        inputs = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values and sigmas must be finite, with sigma > 0")
++
++        weights = sigma ** -2
++        bare_calibration = all(
++            item.get('statistic', 'mean') == 'mean'
++            and item.get('amplitude', 0.) == 0.
++            and item.get('oscillator_coupling', 0.) == 0.
++            and item.get('secondary_coupling', 0.) == 0.
++            and item.get('quadratic_coupling', 0.) == 0.
++            and item.get('momentum_coupling', 0.) == 0.
++            for item in inputs
++        )
++        if bare_calibration:
++            # Evaluate at one microsiemens; this preserves the documented
++            # units and avoids optimiser noise for the supplied calibration.
++            design = np.asarray(r4_predict_at(inputs, 1.0), dtype=float)
++            denominator = float(np.dot(weights, design * design))
++            if not np.isfinite(denominator) or denominator == 0:
++                raise ValueError("calibration records do not identify conductance")
++            estimate = float(np.dot(weights * design, observed) / denominator)
++        else:
++            def objective(conductance):
++                predicted = predict_at(inputs, float(conductance))
++                residual = (predicted - observed) / sigma
++                return float(residual @ residual)
++            result = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                     options={'xatol': 1e-8})
++            if not result.success or not np.isfinite(result.fun):
++                raise RuntimeError("conductance fit did not converge")
++            estimate = float(result.x)
++        # Conductance is known a priori to lie in the stated physical range.
++        self.conductance = float(np.clip(estimate, 20.0, 80.0))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)

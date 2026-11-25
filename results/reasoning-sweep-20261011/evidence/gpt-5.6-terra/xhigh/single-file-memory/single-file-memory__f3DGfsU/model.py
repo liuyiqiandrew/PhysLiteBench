@@ -1,0 +1,126 @@
+"""Long-time covariance model for a tagged particle in a single file.
+
+The initial positions in the problem are fixed (a quenched lattice).  This is
+relevant at unequal times: although the equal-time variance agrees with the
+more familiar fractional-Brownian-motion expression, the two-time covariance
+does not.
+"""
+
+import math
+
+import numpy as np
+
+
+# The diffusivity is a physical control with these known bounds, rather than a
+# regularisation choice.  Optimising its square root makes the calibration
+# likelihood a one-parameter weighted linear least-squares problem.
+_MIN_DIFFUSIVITY = 0.8
+_MAX_DIFFUSIVITY = 1.2
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    """Return the limiting tagged-particle covariance coefficient.
+
+    For an initially deterministic lattice of density ``rho``, single-file
+    diffusion gives
+
+        sqrt(D / pi) / rho * (sqrt(t_a + t_b) - sqrt(|t_a - t_b|)).
+
+    The expression already is the coefficient of ``sqrt(lambda)`` requested
+    in the problem statement.
+    """
+    diffusivity = float(diffusivity)
+    density = float(density)
+    time_a = float(time_a)
+    time_b = float(time_b)
+
+    if not all(math.isfinite(value) for value in
+               (diffusivity, density, time_a, time_b)):
+        raise ValueError("diffusivity, density, and times must be finite")
+    if diffusivity < 0.0 or density <= 0.0 or time_a < 0.0 or time_b < 0.0:
+        raise ValueError("diffusivity and times must be non-negative and density positive")
+
+    return (math.sqrt(diffusivity / math.pi) / density
+            * (math.sqrt(time_a + time_b) - math.sqrt(abs(time_a - time_b))))
+
+
+def _controls(experiment):
+    """Read and validate the three control values from one input mapping."""
+    try:
+        density = float(experiment["density"])
+        time_a = float(experiment["time_a"])
+        time_b = float(experiment["time_b"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("each experiment needs numeric density, time_a, and time_b") from error
+
+    if not all(math.isfinite(value) for value in (density, time_a, time_b)):
+        raise ValueError("experiment controls must be finite")
+    if density <= 0.0 or time_a < 0.0 or time_b < 0.0:
+        raise ValueError("density must be positive and times must be non-negative")
+    return density, time_a, time_b
+
+
+def predict_at(experiments, diffusivity):
+    """Predict covariance coefficients for an iterable of experiment inputs."""
+    diffusivity = float(diffusivity)
+    return np.asarray(
+        [covariance(diffusivity, *_controls(experiment))
+         for experiment in experiments],
+        dtype=float,
+    )
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Estimate the shared diffusivity by weighted Gaussian MLE.
+
+        Covariance is linear in ``sqrt(diffusivity)``.  Thus, with ``k_i``
+        denoting the prediction at unit diffusivity and ``s = sqrt(D)``, the
+        maximum-likelihood estimate is the weighted least-squares slope
+        ``sum(k_i * value_i / sigma_i**2) / sum(k_i**2 / sigma_i**2)``.
+        """
+        unit_predictions = []
+        values = []
+        inverse_variances = []
+
+        for record in records:
+            try:
+                experiment = record["input"]
+                value = float(record["value"])
+                sigma = float(record["sigma"])
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError("each calibration record needs input, value, and sigma") from error
+
+            if not math.isfinite(value) or not math.isfinite(sigma) or sigma <= 0.0:
+                raise ValueError("calibration values must be finite and sigma must be positive")
+
+            unit_predictions.append(covariance(1.0, *_controls(experiment)))
+            values.append(value)
+            inverse_variances.append(1.0 / (sigma * sigma))
+
+        if not unit_predictions:
+            raise ValueError("at least one calibration record is required")
+
+        design = np.asarray(unit_predictions, dtype=float)
+        observed = np.asarray(values, dtype=float)
+        weights = np.asarray(inverse_variances, dtype=float)
+        denominator = np.sum(weights * design * design)
+        if not math.isfinite(float(denominator)) or denominator <= 0.0:
+            raise ValueError("calibration records do not identify diffusivity")
+
+        amplitude = np.sum(weights * design * observed) / denominator
+        amplitude = float(np.clip(
+            amplitude,
+            math.sqrt(_MIN_DIFFUSIVITY),
+            math.sqrt(_MAX_DIFFUSIVITY),
+        ))
+        self.diffusivity = amplitude * amplitude
+        return self
+
+    def predict(self, experiments):
+        if self.diffusivity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.diffusivity)

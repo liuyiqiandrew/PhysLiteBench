@@ -1,0 +1,13 @@
+# Excited-state survival near a plane
+
+An immobile two-level emitter is in vacuum at height d above the planar boundary z=0 of a homogeneous semi-infinite material occupying z<0. Its electric transition dipole makes angle `tilt` with the positive z axis. Its vacuum transition wavelength is 600 nm. The same unknown vacuum population decay rate `vacuum_rate` lies in [0.4,1.2] per ns. The dipole approximation applies. There are no intrinsic non-electromagnetic transitions, other emitters, external illumination, motion or additional surfaces.
+
+The material is linear, isotropic, nonmagnetic and spatially local. Its relative permittivity at the transition frequency is `epsilon_real` + i*`epsilon_imag`, with the convention exp(-i*omega*t). It is the value of a passive causal response. Each preparation uses either a transparent material with epsilon_imag=0 and epsilon_real in [0.3,1], or an absorbing material with epsilon_real in [-4,4] and epsilon_imag in [0.3,2]. The emitter and all electromagnetic/material reservoirs are at zero temperature before the emitter is excited. Standard Maxwell boundary conditions apply, with outgoing fields and no incoming radiation. The surface has no separate sheet response.
+
+Use the leading weak-coupling, exponential population-decay limit: take the dipole coupling small at fixed distance and fixed material response before evaluating the decay. Material correlation times remain short compared with the population lifetime; level shifts affect neither the specified transition frequency nor the leading rate. The emitter is much smaller than its height, and the given local dielectric continuum is valid at that separation.
+
+Each fresh preparation starts with the emitter excited. At `time` ns, an ideal nondestructive state-selective measurement reports the probability that it remains excited. This is a measurement of the emitter population, with no selection on the subsequent field or material state.
+
+Inputs contain `height`=2*pi*d/(600 nm) in [0.2,1.5], `tilt` in [0,pi/2] radians, both permittivity components, and `time` in [0,3] ns. All are known exactly. The unknown vacuum rate is common to all records. Calibration uses transparent materials, including vacuum, at several heights and orientations. Each calibration record contains `input`, measured survival probability `value`, and independent Gaussian instrumental uncertainty `sigma`. This uncertainty is fixed independently of the decay rate and the noiseless response.
+
+Implement `Model.fit(records)`, storing the fitted scalar `vacuum_rate` and returning self. `predict(experiments)` must return a finite NumPy array of shape `(len(experiments),)` in input order. Any implementation satisfying this interface may be used.

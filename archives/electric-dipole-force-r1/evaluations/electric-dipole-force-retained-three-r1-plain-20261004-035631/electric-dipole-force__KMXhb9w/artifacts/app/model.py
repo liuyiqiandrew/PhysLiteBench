@@ -1,0 +1,155 @@
+import numpy as np
+
+
+_LOWER_RESPONSE = 0.6
+_UPPER_RESPONSE = 1.6
+_RADIATION_SCALE = 6.0 * np.pi
+
+
+def field_data(experiment):
+    electric = np.zeros(3, dtype=complex)
+    magnetic = np.zeros(3, dtype=complex)
+    derivative = np.zeros((3, 3), dtype=complex)
+    position = np.array(experiment['position'])
+    for wave in experiment['waves']:
+        direction = np.array(wave['direction'])
+        amplitude = np.array(wave['real'])+1j*np.array(wave['imag'])
+        local = amplitude*np.exp(1j*direction@position)
+        electric += local
+        magnetic += np.cross(direction, local)
+        derivative += 1j*np.outer(direction, local)
+    return electric, magnetic, derivative
+
+
+def coefficients(experiment):
+    electric, magnetic, derivative = field_data(experiment)
+    axis = np.array(experiment['axis'])
+    # For p = alpha E, the time-averaged Lorentz force on an electric
+    # dipole in the incident field is
+    #
+    #   F_i = 1/2 Re[alpha * E_j * d_i(E_j)^*].
+    #
+    # ``derivative @ electric.conj()`` is the conjugate of the quantity in
+    # this expression.  Keeping its real and imaginary parts separately is
+    # important for elliptically polarized fields; replacing the imaginary
+    # part with the real Poynting vector only works for more restricted
+    # polarizations.
+    field_gradient = derivative @ electric.conj()
+    first = .5*np.real(field_gradient)
+    second = .5*np.imag(field_gradient)
+    return np.array([axis@first, axis@second])
+
+
+def polarizability(response_strength):
+    """Return the radiation-reaction-corrected electric polarizability."""
+    response_strength = float(response_strength)
+    return response_strength/(1-1j*response_strength/_RADIATION_SCALE)
+
+
+def predict_at(experiments, response_strength):
+    alpha = polarizability(response_strength)
+    return np.asarray(
+        [coefficients(e) @ np.array([alpha.real, alpha.imag]) for e in experiments],
+        dtype=float,
+    )
+
+
+class Model:
+    def __init__(self):
+        self.response_strength = None
+
+    def fit(self, records):
+        """Fit the response strength by weighted least squares.
+
+        For a fixed experiment the force is
+
+            force = c_real Re(alpha) + c_imag Im(alpha),
+
+        where the two coefficients are independent of the unknown response
+        strength.  The calibration therefore reduces to a bounded scalar
+        optimization.  A small grid followed by golden-section refinement is
+        used so this implementation does not depend on SciPy.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError("At least one calibration record is required.")
+
+        coeff = np.asarray(
+            [coefficients(record['input']) for record in records], dtype=float
+        )
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
+
+        if (
+            coeff.shape != (len(records), 2)
+            or not np.isfinite(coeff).all()
+            or not np.isfinite(values).all()
+            or not np.isfinite(sigma).all()
+            or (sigma <= 0).any()
+        ):
+            raise ValueError("Calibration records must contain finite values and positive sigma.")
+
+        weights = 1.0 / sigma
+
+        def objective(response_strength):
+            alpha = polarizability(response_strength)
+            prediction = coeff @ np.array([alpha.real, alpha.imag])
+            residual = (prediction - values) * weights
+            return float(residual @ residual)
+
+        # Find every promising basin on a dense bounded grid.  This matters
+        # for unusual, user-supplied calibration sets where the scalar
+        # objective need not be strictly convex.
+        grid = np.linspace(_LOWER_RESPONSE, _UPPER_RESPONSE, 2049)
+        objective_grid = np.asarray([objective(x) for x in grid])
+        candidates = [0, len(grid) - 1]
+        candidates.extend(
+            i for i in range(1, len(grid) - 1)
+            if objective_grid[i] <= objective_grid[i - 1]
+            and objective_grid[i] <= objective_grid[i + 1]
+        )
+
+        def minimize_interval(left, right):
+            # Golden-section minimization, including the endpoints through the
+            # final comparison below.  The interval is at most one grid cell.
+            phi = (1.0 + np.sqrt(5.0)) / 2.0
+            inv_phi = 1.0 / phi
+            x1 = right - (right - left) * inv_phi
+            x2 = left + (right - left) * inv_phi
+            f1, f2 = objective(x1), objective(x2)
+            for _ in range(80):
+                if f1 <= f2:
+                    right, x2, f2 = x2, x1, f1
+                    x1 = right - (right - left) * inv_phi
+                    f1 = objective(x1)
+                else:
+                    left, x1, f1 = x1, x2, f2
+                    x2 = left + (right - left) * inv_phi
+                    f2 = objective(x2)
+            return (x1, f1) if f1 <= f2 else (x2, f2)
+
+        best_strength = grid[int(np.argmin(objective_grid))]
+        best_value = objective(best_strength)
+        for index in candidates:
+            if index == 0:
+                left, right = grid[0], grid[1]
+            elif index == len(grid) - 1:
+                left, right = grid[-2], grid[-1]
+            else:
+                left, right = grid[index - 1], grid[index + 1]
+            strength, value = minimize_interval(left, right)
+            if value < best_value:
+                best_strength, best_value = strength, value
+
+        self.response_strength = float(np.clip(
+            best_strength, _LOWER_RESPONSE, _UPPER_RESPONSE
+        ))
+        return self
+
+    def predict(self, experiments):
+        if self.response_strength is None:
+            raise ValueError("Model must be fit before prediction.")
+        prediction = predict_at(experiments, self.response_strength)
+        if not np.isfinite(prediction).all():
+            raise ValueError("Prediction is not finite for the supplied experiments.")
+        return prediction

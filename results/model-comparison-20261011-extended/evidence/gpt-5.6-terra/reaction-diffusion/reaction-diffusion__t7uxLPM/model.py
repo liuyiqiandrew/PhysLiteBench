@@ -1,0 +1,201 @@
+"""Electroneutral transport model for the electrolyte cell."""
+
+import numpy as np
+from scipy.fft import dct, idct
+from scipy.integrate import solve_ivp
+from scipy.linalg import expm
+from scipy.optimize import minimize_scalar
+from scipy.sparse import diags
+
+ASSOCIATION = 0.5
+NEUTRAL_MOBILITY = 0.15
+CELL_LENGTH = 1.0e-3
+
+
+def equilibrium(totals):
+    """Return free A, free B, free C, and cluster concentration locally."""
+    totals = np.asarray(totals, dtype=float)
+    if totals.shape[-1] != 2:
+        raise ValueError("total concentrations must have a final dimension of 2")
+    a_total, b_total = totals[..., 0], totals[..., 1]
+    if np.any(a_total < 0) or np.any(b_total < 0):
+        raise ValueError("total concentrations must be non-negative")
+
+    # The scalar mass-action equation is monotone in 0 <= p <= min(A,B).
+    bound = np.zeros_like(a_total)
+    upper = np.minimum(a_total, b_total)
+    for _ in range(40):
+        a, b = a_total - bound, b_total - bound
+        c = a + b
+        residual = bound - ASSOCIATION * a * b * c**2
+        slope = 1.0 + ASSOCIATION * (c**3 + 4.0 * a * b * c)
+        new_bound = np.clip(bound - residual / slope, 0.0, upper)
+        if np.max(np.abs(new_bound - bound), initial=0.0) < 2e-14:
+            bound = new_bound
+            break
+        bound = new_bound
+    a, b = a_total - bound, b_total - bound
+    return np.stack((a, b, a + b, bound), axis=-1)
+
+
+def _check_grid(x):
+    x = np.asarray(x, dtype=float)
+    if x.ndim != 1 or len(x) < 2:
+        raise ValueError("x must be a one-dimensional mesh with at least two points")
+    dx = x[1] - x[0]
+    if not np.isfinite(dx) or dx <= 0 or not np.allclose(np.diff(x), dx, rtol=2e-12, atol=1e-15):
+        raise ValueError("x must be an equally spaced increasing mesh")
+    return x, dx
+
+
+def _check_times(t):
+    t = np.asarray(t, dtype=float)
+    if t.ndim != 1 or len(t) == 0 or not np.all(np.isfinite(t)):
+        raise ValueError("t must be a nonempty finite one-dimensional array")
+    if t[0] < 0 or np.any(np.diff(t) < 0):
+        raise ValueError("t must be nonnegative and increasing")
+    return t
+
+
+class TransportModel:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, data):
+        """Fit D by Gaussian weighted least squares on binary calibrations."""
+        try:
+            t = _check_times(data["t"])
+            x, _ = _check_grid(data["x"])
+            initial = np.asarray(data["initial"], dtype=float)
+            observed = np.asarray(data["concentration"], dtype=float)
+            sigma = np.asarray(data["sigma"], dtype=float)
+        except KeyError as error:
+            raise ValueError(f"missing calibration field {error.args[0]!r}") from error
+        if initial.ndim != 3 or initial.shape[1:] != (len(x), 2):
+            raise ValueError("initial must have shape (records, len(x), 2)")
+        expected = (len(initial), len(t), len(x), 2)
+        if observed.shape != expected or sigma.shape != expected:
+            raise ValueError("concentration and sigma have incompatible shapes")
+        if not (np.all(np.isfinite(initial)) and np.all(np.isfinite(observed))):
+            raise ValueError("calibration concentrations must be finite")
+        if np.any(sigma <= 0) or not np.all(np.isfinite(sigma)):
+            raise ValueError("sigma must be finite and strictly positive")
+        binary = np.all(initial[:, :, 0] == 0.0, axis=1) | np.all(initial[:, :, 1] == 0.0, axis=1)
+        if not np.all(binary):
+            raise ValueError("calibration preparations must contain one cation constituent")
+
+        def objective(log_d):
+            self.diffusivity = float(np.exp(log_d))
+            predicted = np.asarray([self._binary(t, x, profile) for profile in initial])
+            residual = (predicted - observed) / sigma
+            return float(np.sum(residual * residual))
+
+        result = minimize_scalar(
+            objective, bounds=(np.log(1e-14), np.log(1e-4)), method="bounded", options={"xatol": 1e-11}
+        )
+        if not result.success or not np.isfinite(result.fun):
+            raise RuntimeError("unable to fit diffusivity")
+        self.diffusivity = float(np.exp(result.x))
+        return self
+
+    def _binary(self, t, x, initial):
+        """Exact semidiscrete no-flux solution of a binary preparation."""
+        if self.diffusivity is None:
+            raise RuntimeError("fit must be called before prediction")
+        intervals = len(x) - 1
+        dx = x[1] - x[0]
+        eigenvalue = 4.0 / dx**2 * np.sin(np.arange(intervals + 1) * np.pi / (2.0 * intervals)) ** 2
+        coefficients = dct(initial, type=1, axis=0)
+        # 2 D_i D_C / (D_i + D_C), for A/C and B/C respectively.
+        ambipolar = self.diffusivity * np.array([4.0 / 3.0, 8.0 / 3.0])
+        decay = np.exp(-t[:, None, None] * eigenvalue[None, :, None] * ambipolar[None, None, :])
+        return idct(decay * coefficients[None, :, :], type=1, axis=1)
+
+    def predict(self, t, x, initial):
+        """Predict the total A and B concentration profiles."""
+        if self.diffusivity is None or not np.isfinite(self.diffusivity) or self.diffusivity <= 0:
+            raise RuntimeError("fit must be called before prediction")
+        t = _check_times(t)
+        x, dx = _check_grid(x)
+        initial = np.asarray(initial, dtype=float)
+        if initial.shape != (len(x), 2) or not np.all(np.isfinite(initial)):
+            raise ValueError("initial must be finite with shape (len(x), 2)")
+        if np.any(initial < 0):
+            raise ValueError("initial total concentrations must be non-negative")
+        if np.all(initial[:, 0] == 0.0) or np.all(initial[:, 1] == 0.0):
+            return self._binary(t, x, initial)
+        if t[-1] == 0.0:
+            return np.broadcast_to(initial, (len(t),) + initial.shape).copy()
+
+        nodes = len(x)
+        width = np.full(nodes, dx)
+        width[[0, -1]] *= 0.5
+        d_a, d_b, d_c = self.diffusivity * np.array([1.0, 4.0, 2.0])
+
+        def derivative(_, flat):
+            # Protect the equilibrium map from negligible BDF roundoff below 0.
+            species = equilibrium(np.maximum(flat.reshape(nodes, 2), 0.0))
+            face = 0.5 * (species[:-1] + species[1:])
+            gradient = np.diff(species, axis=0) / dx
+            numerator = d_a * gradient[:, 0] + d_b * gradient[:, 1] - d_c * gradient[:, 2]
+            denominator = d_a * face[:, 0] + d_b * face[:, 1] + d_c * face[:, 2]
+            field = np.divide(-numerator, denominator, out=np.zeros_like(numerator), where=denominator > 0)
+            ion_flux = -np.array([d_a, d_b]) * (gradient[:, :2] + face[:, :2] * field[:, None])
+            cluster_flux = -self.diffusivity * NEUTRAL_MOBILITY * gradient[:, 3]
+            flux = np.zeros((nodes + 1, 2))  # blocking ends
+            flux[1:-1] = ion_flux + cluster_flux[:, None]
+            return (-np.diff(flux, axis=0) / width[:, None]).ravel()
+
+        size = 2 * nodes
+        sparsity = diags(
+            [np.ones(size - abs(offset)) for offset in range(-3, 4)], range(-3, 4), shape=(size, size), format="csr"
+        )
+        solution = solve_ivp(
+            derivative, (0.0, float(t[-1])), initial.ravel(), method="BDF", t_eval=t,
+            rtol=2e-8, atol=2e-10, jac_sparsity=sparsity,
+        )
+        if not solution.success:
+            raise RuntimeError(solution.message)
+        return np.maximum(solution.y.T.reshape(len(t), nodes, 2), 0.0)
+
+
+def fluctuation_matrices(totals, diffusivity):
+    """Return the constrained susceptibility and Onsager mobility matrices."""
+    totals = np.asarray(totals, dtype=float)
+    if totals.shape != (2,) or np.any(totals <= 0) or not np.all(np.isfinite(totals)):
+        raise ValueError("totals must be a finite positive pair")
+    species = equilibrium(totals)
+    charge = np.array([1.0, 1.0, -1.0, 0.0])
+    constituents = np.array([[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 1.0]])
+    population = np.diag(species)
+    charge_population = population @ charge
+    species_susceptibility = population - np.outer(charge_population, charge_population) / (charge @ population @ charge)
+    susceptibility = constituents @ species_susceptibility @ constituents.T
+    particle_mobility = np.diag(diffusivity * np.array([1.0, 4.0, 2.0, NEUTRAL_MOBILITY]) * species)
+    charge_mobility = particle_mobility @ charge
+    constrained_mobility = particle_mobility - np.outer(charge_mobility, charge_mobility) / (charge @ particle_mobility @ charge)
+    return susceptibility, constituents @ constrained_mobility @ constituents.T
+
+
+def equilibrium_correlations(t, totals, harmonic, diffusivity):
+    susceptibility, mobility = fluctuation_matrices(totals, diffusivity)
+    relaxation = (harmonic * np.pi / CELL_LENGTH) ** 2 * mobility @ np.linalg.inv(susceptibility)
+    # The stated detector predictor uses independent ideal total fluctuations
+    # at equal time, hence S(0) = diag(A_total, B_total).
+    equal_time = np.diag(totals)
+    return np.asarray([expm(-float(lag) * relaxation) @ equal_time for lag in t])
+
+
+def correlate(self, t, totals, harmonic=1):
+    if self.diffusivity is None or not np.isfinite(self.diffusivity) or self.diffusivity <= 0:
+        raise RuntimeError("fit must be called before correlation prediction")
+    t = _check_times(t)
+    if isinstance(harmonic, bool) or int(harmonic) != harmonic or not 1 <= int(harmonic) <= 8:
+        raise ValueError("harmonic must be an integer from 1 through 8")
+    answer = equilibrium_correlations(t, np.asarray(totals, dtype=float), int(harmonic), self.diffusivity)
+    if not np.all(np.isfinite(answer)):
+        raise RuntimeError("correlation calculation produced non-finite values")
+    return answer
+
+
+TransportModel.correlate = correlate

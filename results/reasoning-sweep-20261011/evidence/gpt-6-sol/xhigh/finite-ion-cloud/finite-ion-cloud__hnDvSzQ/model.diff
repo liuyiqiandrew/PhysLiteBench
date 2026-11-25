@@ -1,0 +1,61 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,7 +33,32 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        # The absolute disk radius drops out after scaling all positions by a.
++        # Combine repeated preparations using their inverse-variance weights.
++        groups = {}
++        for record in records:
++            experiment = record['input']
++            key = (experiment['ion_count'],
++                   experiment['temperature_multiplier'],
++                   experiment['radius_ratio'])
++            weight = 1 / record['sigma']**2
++            total_weight, weighted_value = groups.get(key, (0.0, 0.0))
++            groups[key] = (total_weight + weight,
++                           weighted_value + weight * record['value'])
++
++        if not groups:
++            raise ValueError('At least one calibration record is required.')
++
++        def loss(g):
++            return sum(weight * (coefficient(g * u, count, ratio)
++                                 - weighted_value / weight)**2
++                       for (count, u, ratio), (weight, weighted_value)
++                       in groups.items())
++
++        result = minimize_scalar(loss, bounds=(0.7, 1.4), method='bounded',
++                                 options={'xatol': 1e-11})
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.coupling)
+@@ -51,9 +76,21 @@
+     d1 = np.broadcast_to((length*x)[:,None],(order,order)).ravel()
+     d2 = ((length-length*x)[:,None]*x[None,:]).ravel()
+     weights = (length*(length-length*x)[:,None]*w[:,None]*w[None,:]).ravel()
+-    angular = np.ones(len(d1))
+-    for gap in [d1,d2,d1+d2]:
+-        angular *= hyp2f1(-gamma/2,-gamma/2,1,np.exp(-2*gap))
++    # Angular averages of the three pair factors are correlated.  If c_k(q)
++    # is the k-th Fourier coefficient of |1-q*exp(i*theta)|**gamma, their
++    # joint average is c_0(q12)c_0(q23)c_0(q13) plus twice the sum of the
++    # products of their matching positive-frequency coefficients.
++    qs = [np.exp(-d1), np.exp(-d2), np.exp(-d1-d2)]
++    squared = [q*q for q in qs]
++    alpha = -gamma/2
++    zero = [hyp2f1(alpha,alpha,1,z) for z in squared]
++    angular = zero[0]*zero[1]*zero[2]
++    factor = 1.0
++    for k in range(1,25):
++        factor *= (alpha+k-1)/k  # (-gamma/2)_k / k!
++        terms = [factor*q**k*hyp2f1(k+alpha,alpha,k+1,z)
++                 for q,z in zip(qs,squared)]
++        angular += 2*terms[0]*terms[1]*terms[2]
+     span = length-d1-d2
+     slope = 6-6*gamma
+     weight = weights*angular*np.exp((4-3*gamma)*d1+(2-gamma)*d2)

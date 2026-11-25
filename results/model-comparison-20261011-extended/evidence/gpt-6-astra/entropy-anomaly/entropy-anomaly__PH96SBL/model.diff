@@ -1,0 +1,70 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,4 +1,17 @@
+-"""Stationary small-mass calorimetry of switched anisotropic thermal contacts."""
++"""Stationary small-mass calorimetry of switched anisotropic thermal contacts.
++
++The fast variable is u = sqrt(m)*v.  Its stationary moment equations close
++at each order needed here: degrees 0, 2 and 4 at leading order, degrees 1
++and 3 at order sqrt(m), and degrees 0 and 2 at order m.  In particular the
++order-m contact populations are not generally equal, even though the valve
++has uniform stationary probabilities after integrating over position.
++
++Position is represented by the phase k*x, with density normalized on one
++phase period.  The homogeneous fast heat leak is b/m per unit residence.
++Subtracting the measured background residence cancels both the leading
++leak and the unknown order-m correction to the total position density.
++We may therefore choose that latter correction to be zero pointwise.
++"""
+ from functools import lru_cache
+ import numpy as np
+ 
+@@ -71,8 +84,15 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At order m, Q*r = d_x J_s.  Only the sum of r is undetermined;
++    # its contribution cancels against the matched background times the
++    # actual residence.  Fix this freedom by imposing sum_s r_s = 0.
++    # Adding the projector onto the stationary nullspace makes Q invertible
++    # and also removes roundoff in sum_s d_x J_s = 0.
++    population_source=first[1,0]@d.T
++    population_source-=population_source.mean(axis=0,keepdims=True)
++    population_correction=np.linalg.solve(q+np.ones((count,count))/count,population_source)
++    density_correction={(0,0):population_correction}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +113,28 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Fit the common drag by weighted least squares on calibration data.
++
++        Calibration has identical baths and zero magnetic field.  Every
++        rate is then exactly proportional to 1/friction, so the Gaussian
++        likelihood is a one-parameter linear least-squares problem.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++        unit=coefficients([r['input'] for r in records],1.)
++        values=np.asarray([r['value'] for r in records],dtype=float)
++        sigma=np.asarray([r['sigma'] for r in records],dtype=float)
++        if not (np.isfinite(values).all() and np.isfinite(sigma).all() and (sigma>0).all()):
++            raise ValueError("Calibration values and positive uncertainties must be finite.")
++        weighted_unit=unit/sigma
++        information=float(weighted_unit@weighted_unit)
++        if not information>0:
++            raise ValueError("Calibration does not identify the friction.")
++        inverse_friction=float(weighted_unit@(values/sigma))/information
++        self.friction=float(1/np.clip(inverse_friction,1/1.6,1/.7))
++        return self
++    def predict(self,experiments):
++        if self.friction is None:
++            raise ValueError("Fit the model before predicting.")
++        return coefficients(experiments,self.friction)

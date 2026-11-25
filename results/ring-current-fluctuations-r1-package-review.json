@@ -1,0 +1,347 @@
+{
+  "reviewer": "independent teammate /root/adiabatic_physics_review",
+  "review_date": "2026-10-06",
+  "task": "ring-current-fluctuations",
+  "revision": 1,
+  "package": "staging/ring-current-fluctuations-r1",
+  "verdict": "approved_for_source_freeze_and_fresh_docker_controls",
+  "physics_and_local_package_pass": true,
+  "blocking_issues": [],
+  "scope": "Read actual public/private package, completed controls, independent reference, retained plans/reports/profiles, local validation and primary papers. Independently derived normalization, stationary functional and elliptic factors; checked source AST transfer, hashes, selected gold and report reductions. No scientific functions, tests, fits, model trials or Docker were run by this reviewer; no package files were edited.",
+  "physical_assessment": {
+    "microscopic_process": "The positive rates D*exp(+/-E/L), exactly L/2 particles on an even periodic ring, uniform canonical initial ensemble and successful-jump counting define a closed continuous-time process. Uniform canonical measure is stationary because every ring configuration has equal numbers of 10 and 01 interfaces. Blocked attempts do not contribute to Q or tilted off-diagonal transitions.",
+    "tilt_and_limits": "Each successful signed jump contributes +/-1/L to Q, so off-diagonal rates acquire exp(+/-lambda/L) while original escape diagonals remain. Taking the finite-L long-time Perron eigenvalue before multiplying by L and sending even L to infinity matches the public definition. D multiplies the entire generator; psi scales exactly with D in the fixed microscopic clock.",
+    "independent_factor_checks": "At half filling the mean number of right-eligible interfaces is L^2/[4(L-1)]. Thus L*E[Q]/t tends D*E/2. At E=0 the signed count is a martingale with activity tending D*L/2, giving psi_second_derivative(0)=D/2. Both fix the factors in psi_flat=D*lambda*(lambda+2E)/4.",
+    "mapping": "Dividing rates by 2D gives (1/2)*exp(+/-E/L), the cited WASEP normalization to leading weak asymmetry. Its rescaled SCGF must be multiplied by 2D. Equivalently the task has hydrodynamic diffusivity D and mobility 2D*rho*(1-rho). No additional factor of L, two, density or clock is missing.",
+    "mechanism": "The homogeneous macroscopic conditioned-profile ansatz becomes unstable for E>2*pi and |E+lambda|<sqrt(E^2-4*pi^2). Suppressed current is then less costly through a nonuniform dominant profile. Half filling gives zero propagation speed; this is not a moving-wave task.",
+    "translation_symmetry": "AUTHOR correctly states that finite-ring conditioned stationary laws remain translation invariant and their unaligned one-point mean is flat. The nonuniform macroscopic profiles have arbitrary translated centers. The source is a homogeneous-profile restriction, not merely a flat unaligned mean-density measurement.",
+    "source_validity": "The completed source evaluates the full homogeneous branch with all controls and the correct fitted D. Its convex Gaussian SCGF preserves Gallavotti-Cohen symmetry and exact zeros, is exact on all weak-field calibration settings, and can be negative between its zeros. It is a complete physical approximation, not an unfinished fit, missing-control implementation or numerical failure.",
+    "prior_family": "The earlier archived exclusion-current task omits joint correlations between finite-channel counter signals. This package instead concerns the thermodynamic current-conditioned density instability on a ring; the counting-process background is shared but the omitted physics and observable limits differ."
+  },
+  "independent_equation_review": {
+    "stationary_functional": "At D=1 let z=2rho-1, eta=E+lambda and H=<1/(1-z^2)>. Expanding the stationary action and integrating periodic derivative cross terms gives F(q,z)=eta*q-q^2*H-E^2<1-z^2>/4-<z_prime^2/(1-z^2)>/4. Optimizing q gives q=eta/(2H) and exactly the packaged functional.",
+    "profile_and_period": "The symmetric one-period branch has z_prime^2=E^2*(a^2-z^2)*(b^2-z^2), m=(a/b)^2, b=4*K(m)/E, H=Pi(a^2,m)/K(m), and |eta|=E*sqrt((1-a^2)*(1-b^2))*H. The use of the elliptic parameter m rather than modulus sqrt(m) is correct.",
+    "value": "The first integral gives psi/D=E^2*(2<z^2>-a^2-b^2)/4=4*K(m)^2*(1-m-2*EllE(m)/K(m)). At m=0 the critical value is -D*pi^2. At the upper root 4K=E, b=1 and eta=q=0.",
+    "independent_grid": "Setting z=sin(phi) gives the negative of [E^2<cos^2(phi)>+<phi_prime^2>-eta^2/<sec^2(phi)>]/4. The reference uses periodic edge differences, mean sin(phi)=0 and three independent seeds, without the elliptic shape or its warm start. Its objective, gradient and equality-constrained Hessian match this functional. Small KKT residual alone does not prove a maximum; selection uses the best eligible seed, and the published branch comparison remains necessary."
+  },
+  "public_inputs_and_separation": {
+    "complete": true,
+    "details": "README states microscopic rate units, unchanged clock, field/counting parameter meanings, all-bond successful jumps, fixed canonical half filling, ordered limits, raw SCGF, domain and NumPy API including empty input. Ring size/time are correctly absent from prediction inputs. The neutral instruction permits replacing every helper.",
+    "public_domain": {
+      "field": [
+        0,
+        12
+      ],
+      "bias": "[-2*field-2,2]",
+      "diffusivity": [
+        0.8,
+        1.2
+      ]
+    },
+    "private_material_exclusion": "Dockerfile copies only README, starter, public tests and calibration under environment/. True D, hidden cases, AUTHOR, reference and physical solution remain outside the ordinary image. There is no hint file or appended hint in this plain package.",
+    "harness": "Public interface/calibration plus private calibration, parameter and three prediction groups give seven tests. Standard 600-second agent and 60-second verifier limits and /app artifacts are retained. solve.sh only installs the solution model; test.sh records both reward outcomes and diagnostic metrics."
+  },
+  "source_transfer_and_endpoint": {
+    "identical_functions": [
+      "oracle quadrature",
+      "oracle branch_point",
+      "reference functional",
+      "reference optimize_profile",
+      "reference state",
+      "reference cost_hessian",
+      "reference polish"
+    ],
+    "reviewed_difference": "elliptic() alone enforces exact eta(upper)=0 for root bracketing and for the returned endpoint residual convention. Static AST comparison shows only this documented difference from frozen screen.py. Original feasibility source and failed outcomes remain unchanged.",
+    "justification": "Numerical evaluation of the upper root 4K=E can leave b slightly below one and manufacture a positive eta endpoint. The analytical endpoint removes a false bracket failure. Near-center changes are even and quadratic in eta, so returning the central value when the modulus shift is below floating-point resolution is appropriate.",
+    "retained_checks": {
+      "fields": [
+        6.5,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "eta_magnitudes": [
+        0,
+        1e-12,
+        1e-09,
+        1e-07
+      ],
+      "both_signs": true,
+      "rows": 56,
+      "all_match_plan": true,
+      "max_relative_center_change": 0.0,
+      "max_reported_bias_residual": 1.0000000028043132e-07
+    },
+    "precision_limit": "All 56 outputs equal the center at represented precision. Residuals around 1e-7 for the 1e-7 offsets are retained, not presented as exact bias inversion to 1e-14. The fixed gate concerns finite values and SCGF continuity. No near-center hidden case or changed gold was introduced."
+  },
+  "gold_and_grading": {
+    "provenance": "All six unit gold values, grid128 companions, seed labels and elliptic provenance exactly match the six predeclared selected grid256 rows of domain-report.json. Grading reads unit_value and scales by true D; it does not evaluate the oracle or substitute elliptic gold.",
+    "ordinary_groups": {
+      "field10": [
+        {
+          "input": {
+            "field": 10.0,
+            "bias": -5.0
+          },
+          "unit_value": -16.891985320359368
+        },
+        {
+          "input": {
+            "field": 10.0,
+            "bias": -7.5
+          },
+          "unit_value": -18.968527248367863
+        },
+        {
+          "input": {
+            "field": 10.0,
+            "bias": -10.0
+          },
+          "unit_value": -19.43195160408267
+        }
+      ],
+      "field12": [
+        {
+          "input": {
+            "field": 12.0,
+            "bias": -6.0
+          },
+          "unit_value": -21.707812089101292
+        },
+        {
+          "input": {
+            "field": 12.0,
+            "bias": -9.0
+          },
+          "unit_value": -23.438770374956214
+        },
+        {
+          "input": {
+            "field": 12.0,
+            "bias": -12.0
+          },
+          "unit_value": -23.755657663478193
+        }
+      ]
+    },
+    "exact_limits": [
+      {
+        "input": {
+          "field": 0.0,
+          "bias": 1.0
+        },
+        "unit_value": 0.25,
+        "reference": {
+          "method": "exact flat/critical limit"
+        }
+      },
+      {
+        "input": {
+          "field": 4.0,
+          "bias": 2.0
+        },
+        "unit_value": 5.0,
+        "reference": {
+          "method": "exact flat/critical limit"
+        }
+      },
+      {
+        "input": {
+          "field": 6.283185307179586,
+          "bias": -6.283185307179586
+        },
+        "unit_value": -9.869604401089358,
+        "reference": {
+          "method": "exact flat/critical limit"
+        }
+      }
+    ],
+    "normalization": "Each complete three-point group uses norm(prediction-truth)/norm(truth)<.04 on raw SCGF. No subtraction, selected residual, point deletion or target reweighting occurs. All group norms are nonzero. Parameter error <.03 and reduced calibration chi-square/(192-1)<1.5 are consistent throughout.",
+    "independence_limit": "Grid optimization is an independent numerical solution of the stationary functional, supported by the published half-filled Bethe mapping. It is not a new microscopic simulation or proof over every unrestricted time-dependent history."
+  },
+  "retained_domain_evidence": {
+    "case_count": 37,
+    "expected_and_observed_raw_profiles": 222,
+    "expected_and_observed_refined_profiles": 222,
+    "case_grid_seed_product_verified": true,
+    "selected_seed_and_value_rules_reproduced": true,
+    "source_and_preexecution_manifest_hashes_match": true,
+    "max_fine_grid_elliptic_relative": 3.3576771952799384e-05,
+    "max_grid_refinement_relative": 0.00010077970333337976,
+    "max_doubled_mesh_relative": 2.5187277091222256e-05,
+    "raw_grid_group_source_errors": {
+      "10.0": 0.23068742640740278,
+      "12.0": 0.42349309536858476
+    },
+    "original_screen": "The 72-row initial screen remains numerical_unresolved. Its separately frozen all-row polishing diagnostic remains separate. The subsequent domain report retains three raw iteration-limit failures with success=false; these remain excluded from selection despite completed polishing.",
+    "gates": {
+      "all_spatial_runs_completed": true,
+      "constrained_interior": true,
+      "quadrature": true,
+      "branch_residual": true,
+      "independent_spatial": true,
+      "spatial_refinement": true,
+      "doubled_mesh": true,
+      "prediction_contrast": true,
+      "not_below_flat": true,
+      "symmetry": true,
+      "exact_anchors": true,
+      "monotonicity": true,
+      "separation": true,
+      "convexity": true
+    },
+    "limits": "All sampled domain gates pass; 37 cases and finite starts are not a uniform continuous-domain bound or unrestricted global-optimality proof. E<4*pi avoids the second homogeneous-mode instability but does not itself exclude every other branch."
+  },
+  "calibration_and_local_validation": {
+    "calibration": {
+      "records": 192,
+      "distinct_settings": 12,
+      "replicates_per_setting": 16,
+      "true_D": 0.937,
+      "sigma": 0.005,
+      "data_seed": 172101,
+      "noise_seed": 172102,
+      "public_private_byte_identity": true,
+      "sha256": "2506da3227c5ddce4b2c4b990b8e7b8065096a1c584ed105c2f3f68890f7cb24"
+    },
+    "identifiability": "Every calibration field 0,1,2,4 is below 2*pi. The exact coefficient f=lambda*(lambda+2E)/4 is informative and both controls use the identical weighted scalar fit, clipped to [.8,1.2]. A common D rescaling cannot reproduce the two hidden density-instability corrections.",
+    "validation_status": "all_local_validation_gates_pass",
+    "validation_seconds": 14.892819958971813,
+    "controls": {
+      "oracle": {
+        "diffusivity": 0.9370167715770505,
+        "parameter_relative_error": 1.7899228442308512e-05,
+        "calibration_chi2": 0.9547336032966209,
+        "hidden": {
+          "field10": 4.016121728319723e-05,
+          "field12": 4.945338411280364e-05,
+          "exact_limits": 1.7899228442372873e-05
+        }
+      },
+      "shortcut": {
+        "diffusivity": 0.9370167715770505,
+        "parameter_relative_error": 1.7899228442308512e-05,
+        "calibration_chi2": 0.9547336032966156,
+        "hidden": {
+          "field10": 0.23070857623636165,
+          "field12": 0.423517940870174,
+          "exact_limits": 1.7899228442372873e-05
+        }
+      }
+    },
+    "all_256_noise_rows_independently_reduced": true,
+    "all_noise_gates_pass": true,
+    "same_fitted_D_in_both_controls_each_draw": true,
+    "noise_summary": {
+      "realizations": 256,
+      "min_diffusivity": 0.936464846168835,
+      "max_diffusivity": 0.9375204031300329,
+      "max_chi2": 1.2770602251029781,
+      "max_oracle_prediction": 0.0005868920568597015,
+      "min_shortcut_distinguishing_prediction": 0.23001263968100022
+    },
+    "reference_reproduction": {
+      "raw_profiles": 36,
+      "refined_profiles": 36,
+      "all_raw_success": true,
+      "all_polishing_target_reached": true,
+      "selected_grid256_values_exactly_match_gold": true,
+      "reported_max_relative_error": 0.0
+    },
+    "pytest": "Oracle 7 passed; shortcut exactly field10/field12 failed with 5 passed. Recorded test runtimes are 1.09s and .93s. Cache-permission warnings did not change outcomes.",
+    "startup_failure": "Initial bare-python invocation stopped at import numpy before data generation or science; its traceback and classification are retained. The first pinned scientific validation completed successfully. This is not erased or misclassified as a physics failure.",
+    "manifest": "All 42 source/evidence payload hashes, 8 validation artifact hashes and 11 validator-recorded source/data hashes match. Top-level validation.json is byte-identical to its timestamped report."
+  },
+  "primary_sources": [
+    {
+      "title": "Damien Simon, Bethe Ansatz for the Weakly Asymmetric Simple Exclusion Process and phase transition in the current distribution",
+      "url": "https://arxiv.org/pdf/1011.3590",
+      "read_scope": "Weak-asymmetry normalization, Assumption III.1, IV.D half-filled correspondence, IV.E branch caveats and Appendix A. The half-filled stationary branch and its eigenvalue map agree; assumptions about the thermodynamic resolvent and further branches remain explicit."
+    },
+    {
+      "title": "Espigares, Garrido and Hurtado, Dynamical phase transition for current statistics in a simple driven diffusive system, PRE 87, 032115",
+      "url": "https://ergodic.ugr.es/garrido/papers/102.pdf",
+      "read_scope": "Microscopic rate normalization, MFT coefficients, transition/current-bias conventions, half-filled zero-speed case and microscopic cloning comparison. Supports the accepted branch, not a new proof of unrestricted global optimality."
+    }
+  ],
+  "next_step": "Root may freeze these reviewed bytes and perform fresh Docker physical/shortcut controls. A model batch requires the planned controls and frozen-input protocol; local physics success is not empirical model difficulty. Preserve all prior failures and limitations.",
+  "qualified": false,
+  "model_difficulty_measured": false,
+  "evidence_path_base": "PhysLiteBench",
+  "evidence_sha256": {
+    "AGENTS.md": "9caad678c2b2f719a0ece41bf63ae4cb3f14ce4b560a6bbd80dfc65dad5f715c",
+    "archives/screened/tasks/exclusion-current/AUTHOR.md": "57c3c8a2c6a3bec156bec332b5f62d6bf67a6d289dced4cfc790921d6fa52c4c",
+    "docs/ADDING_TASKS.md": "2f11f36dee01b7823b1d984a8f86b15f9d53942aab73ee3cce0bb64d1c22b751",
+    "results/exclusion-current-half-filled-domain-review.json": "a9df1e1ae9efdd50f2616ba8e00295137d8c60dc2dde3037807f154208098bb4",
+    "results/exclusion-current-half-filled-domain-source-review.json": "99c6ad49dc49774b32deeff7255f42ab8729bbb0b0bdb0f644dc16b8edf0f6a5",
+    "results/exclusion-current-half-filled-proposal-review.json": "c62f685ca139c0954c1a445e8f469f0e59ae56fefbb31cf731bc5a1a12b80ac7",
+    "staging/exclusion-current-half-filled-feasibility/domain-plan.json": "d1f1324c856ca1f981558dd6c8b67053e98b702898562f42ba4ddaa46578d6ca",
+    "staging/exclusion-current-half-filled-feasibility/domain-preexecution-manifest.json": "778db4e2aea6f5de25f63198cd0b1409a5c0784080f8e6811a7bcd49dcdb8dbe",
+    "staging/exclusion-current-half-filled-feasibility/domain-report.json": "62040128a25980616099d5fd5d84168eb064122bd3d2c9fb24d8c51c75080d6e",
+    "staging/exclusion-current-half-filled-feasibility/domain.py": "edd45dfde737da09ebf47766836d9cb76523b541709c7fa91a28b993b7aee468",
+    "staging/exclusion-current-half-filled-feasibility/plan.json": "36a1a2da2bf48929c92c8fc6a3d1b9f33ea64d8c5fc1068226f28179e5773f88",
+    "staging/exclusion-current-half-filled-feasibility/polishing-plan.json": "76e9a179d7faa010805c01fe11d4b8ab44280af70a7ad17780ec8617e7c57a29",
+    "staging/exclusion-current-half-filled-feasibility/polishing-report.json": "fcac1de4ab75c08f61fd2df9fc357eccf734eabff3b7a5011621349475081733",
+    "staging/exclusion-current-half-filled-feasibility/polishing.py": "be7d80a81ce1a7fe0f7e480ce199423af4d1f08d88f25dea6f953b34f0c968ee",
+    "staging/exclusion-current-half-filled-feasibility/report.json": "22052e8977e087459fd314bb7ef90f656ca88a437661f5604eaca20e020bb2bb",
+    "staging/exclusion-current-half-filled-feasibility/screen.py": "8b98d640a204196faaf06767aae12f6bdfa43cef97ed21eb01e4725b481f70a5",
+    "staging/ring-current-fluctuations-r1/ASSESSMENT.md": "f3eb6d0da0bccb360507e0b8934d99834f3253e6c28245ffc66441da25d1f0ed",
+    "staging/ring-current-fluctuations-r1/evidence/domain-plan.json": "d1f1324c856ca1f981558dd6c8b67053e98b702898562f42ba4ddaa46578d6ca",
+    "staging/ring-current-fluctuations-r1/evidence/domain-preexecution-manifest.json": "778db4e2aea6f5de25f63198cd0b1409a5c0784080f8e6811a7bcd49dcdb8dbe",
+    "staging/ring-current-fluctuations-r1/evidence/domain-report.json": "62040128a25980616099d5fd5d84168eb064122bd3d2c9fb24d8c51c75080d6e",
+    "staging/ring-current-fluctuations-r1/evidence/domain.py": "edd45dfde737da09ebf47766836d9cb76523b541709c7fa91a28b993b7aee468",
+    "staging/ring-current-fluctuations-r1/evidence/exclusion-current-bounded-proposal-review.json": "2d3cb68fddea5d2e8980d3062d421dc21752a850646ba11fc151470d292611b9",
+    "staging/ring-current-fluctuations-r1/evidence/exclusion-current-half-filled-domain-review.json": "a9df1e1ae9efdd50f2616ba8e00295137d8c60dc2dde3037807f154208098bb4",
+    "staging/ring-current-fluctuations-r1/evidence/exclusion-current-half-filled-domain-source-review.json": "99c6ad49dc49774b32deeff7255f42ab8729bbb0b0bdb0f644dc16b8edf0f6a5",
+    "staging/ring-current-fluctuations-r1/evidence/exclusion-current-half-filled-polishing-outcome-review.json": "6072911181f149f593cc24161bda308049ac6d2f832e21ec6817b3620dead085",
+    "staging/ring-current-fluctuations-r1/evidence/exclusion-current-half-filled-polishing-source-review.json": "7e4cea7509f14771f55ed6f730f713bf2279da2e4d9459ae4a53c64211cd5135",
+    "staging/ring-current-fluctuations-r1/evidence/exclusion-current-half-filled-proposal-review.json": "c62f685ca139c0954c1a445e8f469f0e59ae56fefbb31cf731bc5a1a12b80ac7",
+    "staging/ring-current-fluctuations-r1/evidence/exclusion-current-half-filled-screen-outcome-review.json": "ef5c208280fa58b7d50a3496a4118f2cf3ed400a72efe80101d98efb44d11ee6",
+    "staging/ring-current-fluctuations-r1/evidence/exclusion-current-half-filled-screen-source-review.json": "f9720818aa81c487f503d247be789e6840860009e5ee919f05e7545dd531f522",
+    "staging/ring-current-fluctuations-r1/evidence/packaging-plan-before-endpoint-check.json": "7ba5a2adfe40dd8d810d2c1d48f5ac1fad072a8e8922dbb3229faaa232eafaf0",
+    "staging/ring-current-fluctuations-r1/evidence/plan.json": "36a1a2da2bf48929c92c8fc6a3d1b9f33ea64d8c5fc1068226f28179e5773f88",
+    "staging/ring-current-fluctuations-r1/evidence/polishing-plan.json": "76e9a179d7faa010805c01fe11d4b8ab44280af70a7ad17780ec8617e7c57a29",
+    "staging/ring-current-fluctuations-r1/evidence/polishing-preexecution-manifest.json": "385c91f8dd314612eb7df73d2c0e516e771d4aff120e9f25af6aeb77deccab8a",
+    "staging/ring-current-fluctuations-r1/evidence/polishing-report.json": "fcac1de4ab75c08f61fd2df9fc357eccf734eabff3b7a5011621349475081733",
+    "staging/ring-current-fluctuations-r1/evidence/polishing.py": "be7d80a81ce1a7fe0f7e480ce199423af4d1f08d88f25dea6f953b34f0c968ee",
+    "staging/ring-current-fluctuations-r1/evidence/preexecution-manifest.json": "d2fa224f9bded3e5117d250557306619b29a618105263a14fd52adede0415b77",
+    "staging/ring-current-fluctuations-r1/evidence/report.json": "22052e8977e087459fd314bb7ef90f656ca88a437661f5604eaca20e020bb2bb",
+    "staging/ring-current-fluctuations-r1/evidence/screen.py": "8b98d640a204196faaf06767aae12f6bdfa43cef97ed21eb01e4725b481f70a5",
+    "staging/ring-current-fluctuations-r1/evidence/transfer-manifest.json": "0bb547dbd9063789f616ec7a54819bd881093ad8d3aa6798243081f1c9b6f150",
+    "staging/ring-current-fluctuations-r1/packaging-plan.json": "2761675da47e2d542dbe26588fc72efba26bd0446b667295ef77879f1e72062a",
+    "staging/ring-current-fluctuations-r1/results/first-validation-console.txt": "77ebbfc2a290006d1e9546233a2685e8b74ea7705dcdb6bedbfcbce625d0d9cf",
+    "staging/ring-current-fluctuations-r1/results/pinned-validation-console.txt": "b811add828c65181d99d0e7870e51ddcdb5759ccd8a1a18794cec41baa0129d3",
+    "staging/ring-current-fluctuations-r1/results/validation-20261006T100320969111Z/local-oracle.txt": "9d26df75ce4fffa506c7011e0134b1bd19d5b51b85d13423e3003d56d3c27e5c",
+    "staging/ring-current-fluctuations-r1/results/validation-20261006T100320969111Z/local-shortcut.txt": "5f00f3e836ca975f75ad77abf7da18d50b9e9cdc91e7a05c7aa784633ff01fe1",
+    "staging/ring-current-fluctuations-r1/results/validation-20261006T100320969111Z/reference-reproduction.json": "46945d823e7d473a45ad7ed589c2a041c2eb9c938243295f98453be5ee331352",
+    "staging/ring-current-fluctuations-r1/results/validation-20261006T100320969111Z/report.json": "1e4174f1dc47839f57867fdb03f0ca040656843f6ae9e0fa68f4b4f9cc25fdc3",
+    "staging/ring-current-fluctuations-r1/results/validation-startup-failure.json": "feb805f90bca788d6937111e379813686550040cd99e8dd3b2a3e4b9bf92c16f",
+    "staging/ring-current-fluctuations-r1/results/validation.json": "1e4174f1dc47839f57867fdb03f0ca040656843f6ae9e0fa68f4b4f9cc25fdc3",
+    "staging/ring-current-fluctuations-r1/scripts/ring_current_fluctuations_baseline.py": "ce24dae828209784ff2591354b00bd72e90cc8747262bf8e01db80a54ca1404e",
+    "staging/ring-current-fluctuations-r1/scripts/validate_ring_current_fluctuations.py": "df3e8a7735db598b0b40a9758797c0ccfeb1bd88c132e4e1148bec02132b62f6",
+    "staging/ring-current-fluctuations-r1/source-manifest.json": "d6390d5de6765c8af7f7317585cea972d7bcda110d508c147d394b9dea3c1dee",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/AUTHOR.md": "b7044b55a8dfca1e1c8595acfa693cc7f0a73c5aa13d7d8782663f91429c4ee5",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/environment/Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/environment/README.md": "3e5d24ebe15f64094a04ae40701a468b5856400318a8a3e544be017b65f61a0f",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/environment/data/calibration.json": "2506da3227c5ddce4b2c4b990b8e7b8065096a1c584ed105c2f3f68890f7cb24",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/environment/model.py": "313543b6839140787d606b8ccdf93c835cd8e98c6341126f590b09a192a4b6a8",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/environment/test_public.py": "af4d87506bd2287a9be63250c131d746121b6778f2ac2008e01095cc5745c5e1",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/solution/model.py": "8b436e98226a7feea1b76f00e07675cb284e016e93c6e4d0621feb869b8ba19a",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/tests/data/calibration.json": "2506da3227c5ddce4b2c4b990b8e7b8065096a1c584ed105c2f3f68890f7cb24",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/tests/data/hidden.json": "f23d348b32e764367d02de170738b3af544b132bc3e3f9c469679cce437b17e7",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/tests/metadata.json": "5d46966fb7bbf08c874ee1abc7588540043020205ef17a7074415cf235eb84b3",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/tests/reference.py": "4f109a91a20337030bfa522da7ebf16765fa4398d2339521c96ebdb98ac5753e",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+    "staging/ring-current-fluctuations-r1/tasks/ring-current-fluctuations/tests/test_hidden.py": "7c0b9d009e049562ce64250030e2a572d7dbcc830933a99f42720bbe18ec8a47"
+  },
+  "new_scientific_executions": 0,
+  "new_test_executions": 0,
+  "new_model_trials": 0,
+  "task_edits": 0
+}

@@ -1,0 +1,1 @@
+The detector includes the internal mechanical degrees of freedom. A parameter that reproduces a monochromatic wave equation need not replace the physical masses when evaluating stored energy. Recover the resonator motion, or derive the energy from the original host and spring-mass system before eliminating it.

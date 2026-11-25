@@ -1,0 +1,1 @@
+Quasineutrality constrains the divergence of charge current. A closed ring also constrains the electrostatic potential around its entire circumference. Determine which spatially constant current satisfies both requirements for the prepared concentrations, then compute the species fluxes and measured rates.

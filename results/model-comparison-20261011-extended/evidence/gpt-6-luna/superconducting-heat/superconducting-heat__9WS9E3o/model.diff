@@ -1,0 +1,55 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,7 +191,33 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the shared normal-state conductance to the supplied records.
++
++        The quoted uncertainties are independent Gaussian standard errors, so
++        the fit minimizes the usual uncertainty-weighted sum of squared
++        residuals.  Conductance is the only fitted quantity and is reported in
++        microsiemens.
++        """
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.all(np.isfinite(values)) or not np.all(np.isfinite(sigmas))
++                or np.any(sigmas <= 0)):
++            raise ValueError('Calibration values must be finite and sigma must be positive.')
++
++        def objective(conductance):
++            prediction = predict_at(experiments, float(conductance))
++            residual = (prediction-values)/sigmas
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                 options={'xatol': 1e-10, 'maxiter': 200})
++        # A bounded minimizer may be a few ulps inside an exact endpoint.
++        candidates = (20., float(result.x), 80.)
++        self.conductance = min(candidates, key=objective)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,7 +438,7 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            other=dict(e,phase=(e['phase']+np.pi+np.pi)%(2*np.pi)-np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)

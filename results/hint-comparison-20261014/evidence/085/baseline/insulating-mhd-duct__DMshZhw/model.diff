@@ -1,0 +1,92 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -61,17 +62,75 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate the (common) dynamic viscosity from noisy observations.
++
++        The records have independent Gaussian errors, so their maximum
++        likelihood estimate is the minimum of the weighted squared residuals.
++        There is only one unknown parameter and its physical range is known,
++        which makes a bounded scalar minimisation both more reliable and less
++        prone to scaling issues than a general purpose curve fitter.
++        """
++        records = list(records)
++        if not records:
++            # There is no statistical information in an empty calibration
++            # set.  Keep the model usable while respecting the specified
++            # physical interval.
++            self.viscosity = 0.012
++            return self
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        uncertainty = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(uncertainty).all()
++                or np.any(uncertainty <= 0)):
++            raise ValueError('calibration values must be finite and sigma must be positive')
++
++        # predict() uses self.viscosity, so keep the trial value local to this
++        # closure and restore a valid value even if the optimizer stops early.
++        previous = self.viscosity
++
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - observed) / uncertainty
++            return float(residual @ residual)
++
++        try:
++            result = minimize_scalar(
++                objective, bounds=(0.006, 0.018), method='bounded',
++                options={'xatol': 1.e-10},
++            )
++            # ``bounded`` need not inspect an endpoint.  Including them also
++            # handles data whose likelihood is monotone across the allowed
++            # physical range.
++            candidates = (0.006, float(result.x), 0.018)
++            self.viscosity = min(candidates, key=objective)
++        except Exception:
++            self.viscosity = previous
++            raise
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError('fit must be called before predict')
++        if not np.isfinite(self.viscosity) or not 0.006 <= self.viscosity <= 0.018:
++            raise ValueError('viscosity must be finite and lie in [0.006, 0.018]')
++
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:
+-            bx, by = e['magnetic_x'], e['magnetic_y']
+-            observation = mean if e['observable'] == 'mean' else 2*np.sin(m*np.pi*e['x'])*np.sin(n*np.pi*e['y'])
++            bx, by = float(e['magnetic_x']), float(e['magnetic_y'])
++            time = float(e['time'])
++            if e['observable'] == 'mean':
++                observation = mean
++            elif e['observable'] == 'point':
++                observation = (2*np.sin(m*np.pi*float(e['x']))
++                               * np.sin(n*np.pi*float(e['y'])))
++            else:
++                raise ValueError("observable must be 'mean' or 'point'")
+             value = 0.
+             for ids, rates, vectors, forcing in spectrum(self.viscosity, bx, by):
+-                amplitude = vectors@(-np.expm1(-rates*e['time'])/rates*forcing)
++                # expm1 maintains relative accuracy in the short-time limit.
++                amplitude = vectors@(-np.expm1(-rates*time)/rates*forcing)
+                 value += observation[ids]@amplitude
+-            output.append(e['pressure_gradient']/DENSITY*value)
+-        return np.array(output)
++            output.append(float(e['pressure_gradient'])/DENSITY*value)
++        return np.asarray(output, dtype=float)

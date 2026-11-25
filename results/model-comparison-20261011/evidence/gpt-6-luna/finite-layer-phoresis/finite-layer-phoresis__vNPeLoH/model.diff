@@ -1,0 +1,49 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,45 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the uniform viscosity from independent calibration records.
++
++        The hydrodynamic response is inversely proportional to viscosity, so
++        each record has the form ``value = response(input) / viscosity``.
++        The instrument uncertainties are independent and Gaussian; their
++        inverse variances therefore provide the least-squares weights.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all()
++                or np.any(sigmas <= 0)):
++            raise ValueError('Calibration values and uncertainties must be finite, with positive uncertainties.')
++
++        basis = np.asarray([
++            response(float(record['input']['radius']),
++                     float(record['input']['width']),
++                     float(record['input']['strength']),
++                     float(record['input']['slip']))
++            for record in records
++        ], dtype=float)
++        weights = 1.0 / sigmas**2
++        denominator = np.sum(weights * basis**2)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records do not identify viscosity.')
++
++        # Fit inverse viscosity as a weighted linear regression through zero.
++        inverse_viscosity = np.sum(weights * basis * values) / denominator
++        if not np.isfinite(inverse_viscosity) or inverse_viscosity <= 0:
++            raise ValueError('Calibration records imply a nonpositive or invalid viscosity.')
++        viscosity = 1.0 / inverse_viscosity
++        # The apparatus specification constrains viscosity to this interval.
++        self.viscosity = float(np.clip(viscosity, 0.8, 1.6))
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise ValueError('Call fit(records) before predict(experiments).')
+         return predict_at(experiments, self.viscosity)

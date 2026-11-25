@@ -1,0 +1,43 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,9 +33,39 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        """Fit the common reference coupling by weighted least squares.
++
++        ``sigma`` is the (known) standard deviation of each independent
++        measurement, so minimizing this objective is also the Gaussian
++        maximum-likelihood estimate.  The disk radius deliberately does not
++        occur below: after scaling every coordinate by ``a`` it cancels from
++        both the canonical partition function and the pressure ratio.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record["input"] for record in records]
++        values = np.asarray([record["value"] for record in records], dtype=float)
++        sigmas = np.asarray([record["sigma"] for record in records], dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all()
++                or np.any(sigmas <= 0.0)):
++            raise ValueError("calibration values must be finite and sigma positive")
++
++        def objective(g):
++            residual = (predict_at(experiments, g) - values) / sigmas
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(objective, bounds=(0.7, 1.4),
++                                 method="bounded",
++                                 options={"xatol": 1e-11})
++        if not result.success or not np.isfinite(result.fun):
++            raise RuntimeError("could not fit electrostatic coupling")
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
++        if self.coupling is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments,self.coupling)
+ 
+ 

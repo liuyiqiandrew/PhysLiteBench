@@ -1,0 +1,36 @@
+--- before/model.py
++++ after/model.py
+@@ -11,9 +11,31 @@
+ 
+ 
+ def coefficients(e):
++    """Return the storage and hydraulic conductance of one Fourier mode.
++
++    The pressure and displacement response of a nonzero cosine mode can be
++    written as ``p = P*cos(k.x)`` and ``u = U*sin(k.x)``.  If ``B`` maps the
++    displacement amplitude to engineering strain, mechanical equilibrium is
++
++        B.T @ C @ B @ U = alpha * P * k.
++
++    Consequently, the fluid content amplitude is ``S(k)*P`` with the
++    wave-vector-dependent storage used below.  The zero mode is special: its
++    affine strain is free to adjust, so its storage is the usual zero-mean
++    stress (undrained) storage.
++    """
+     k = 2 * np.pi / LENGTH * np.asarray(e['mode'], dtype=float)
+-    strain = np.linalg.solve(ELASTICITY, ALPHA * TRACE)
+-    storage = 1 / BULK + ALPHA * TRACE @ strain
++    uniform_strain = np.linalg.solve(ELASTICITY, ALPHA * TRACE)
++    uniform_storage = 1 / BULK + ALPHA * TRACE @ uniform_strain
++
++    if np.all(k == 0):
++        storage = uniform_storage
++    else:
++        # e = B @ U for u = U*sin(k.x), using engineering shear strain.
++        B = np.array([[k[0], 0.], [0., k[1]], [k[1], k[0]]])
++        stiffness = B.T @ ELASTICITY @ B
++        storage = 1 / BULK + ALPHA**2 * (k @ np.linalg.solve(stiffness, k))
++
+     conductance = k @ PERMEABILITY @ k + LEAKAGE
+     return float(storage), float(conductance)
+ 

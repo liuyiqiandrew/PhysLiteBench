@@ -1,0 +1,3 @@
+# dielectric-flow, revision 2
+
+Archived after three physical passes in three frozen unhinted Luna-high trials. The actual model trials had no infrastructure exceptions. Oracle and shortcut controls scored 1/0 as expected. Frozen source and pre-evaluation author notes remain unchanged. Complete reviews, all outcomes and raw evidence hashes are preserved here; full raw jobs remain at their original ignored jobs/ paths. No completed score was replaced. The earlier failed Docker preflight created no job or model trial and is preserved separately. No numerical or model run was performed during archival.

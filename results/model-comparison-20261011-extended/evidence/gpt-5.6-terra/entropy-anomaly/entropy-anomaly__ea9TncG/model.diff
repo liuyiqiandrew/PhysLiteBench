@@ -1,0 +1,78 @@
+--- starter/model.py
++++ submission/model.py
+@@ -46,7 +46,19 @@
+                 if p:source[s,i]+=p*force[0]*prior[p-1,n][s]
+                 if n:source[s,i]+=n*force[1]*prior[p,n-1][s]
+             if higher is not None:source[s,i]-=derivative@higher[p+1,n][s]
+-    value=np.linalg.solve(a,-source.reshape(count*(degree+1),points)).reshape(count,degree+1,points)
++    rhs=-source.reshape(count*(degree+1),points)
++    # The degree-zero collision operator has the conserved probability as a
++    # null vector.  In the expansion we use this routine for the *conditional*
++    # part of the next density correction; fixing its total to zero gives the
++    # unique, physically relevant solution.  (The remaining common density
++    # correction cancels against the measured-residence background term.)
++    if degree == 0:
++        constrained=a.copy()
++        constrained[-1,:]=1.
++        rhs[-1]=0.
++        value=np.linalg.solve(constrained,rhs).reshape(count,degree+1,points)
++    else:
++        value=np.linalg.solve(a,rhs).reshape(count,degree+1,points)
+     return {pair:value[:,i] for i,pair in enumerate(basis)}
+ 
+ def limiting_state(e,friction,points=129):
+@@ -71,21 +83,30 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At second order the individual contact populations need not be equal.
++    # Their sum is deliberately fixed to zero here: its undetermined common
++    # part drops out of the matched-background observable.
++    density_correction=solve_moments(0,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,first)
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+-    return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
++    leading_local=np.sum(gx[:,None]*(second[2,0]/temperatures-zeroth[0,0])+gy[:,None]*(second[0,2]/temperatures-zeroth[0,0]),axis=0)
++    return dict(value=float(dx*local.sum()),local=local,leading_local=leading_local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+ 
+ @lru_cache(4096)
+ def entropy_rate(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate,friction,detector_phase=None,valve_cycle=None,contact_drag_contrast=0.):
+-    if bath_contrast==0. and magnetic==0. and valve_cycle is None and friction!=1.:
+-        return entropy_rate(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate,1.,detector_phase)/friction
+     e=dict(zip(INPUT_FIELDS,(force_x,force_y,drag_ratio,magnetic,temperature,contrast,wavenumber,bath_contrast,switch_rate)))
+     if valve_cycle is not None:e.update(valve_cycle=valve_cycle,contact_drag_contrast=contact_drag_contrast)
+     state=limiting_state(e,friction)
+     weight=1. if detector_phase is None else (1+np.cos(state['phase']-detector_phase))/2
+-    return float(state['dx']*np.sum(weight*state['local']))
++    # The fast switched contacts can have an O(1/m) housekeeping entropy
++    # rate.  The specified background subtraction removes it pointwise up to
++    # the measured weighted residence.  The leading coefficient is spatially
++    # constant per positional probability, hence its background value is the
++    # integral below.  The common second-order density correction cancels in
++    # the same expression.
++    background_leading=float(state['dx']*np.sum(state['leading_local']))
++    residence_correction=state['dx']*np.sum(weight*np.sum(state['density_correction'][0,0],axis=0))
++    return float(state['dx']*np.sum(weight*state['local'])-background_leading*residence_correction)
+ 
+ def coefficients(experiments,friction=1.):
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+@@ -93,5 +114,16 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        # Calibration errors are independent Gaussians, so fit the sole
++        # parameter by its bounded weighted least-squares likelihood.
++        from scipy.optimize import minimize_scalar
++        experiments=[record['input'] for record in records]
++        observed=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        def objective(friction):
++            residual=(coefficients(experiments,float(friction))-observed)/sigma
++            return float(residual@residual)
++        result=minimize_scalar(objective,bounds=(.7,1.6),method='bounded',options={'xatol':1e-9})
++        self.friction=float(result.x)
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

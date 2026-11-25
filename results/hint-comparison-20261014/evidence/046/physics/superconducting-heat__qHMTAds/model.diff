@@ -1,0 +1,396 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,62 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the (normal-state, two-spin) contact conductance.
++
++        The supplied calibration is deliberately in the unmodulated limit.  In
++        that limit the prediction is linear in the conductance, so doing the
++        weighted linear fit directly is both quicker and more numerically
++        stable than repeatedly solving the spin kinetic equation.
++        """
++        if not records:
++            raise ValueError('at least one calibration record is required')
++
++        coefficients = []
++        values = []
++        sigmas = []
++        original = True
++        for record in records:
++            inp = record['input']
++            if (inp.get('statistic', 'mean') != 'mean' or
++                    inp.get('amplitude', 0.) != 0. or
++                    inp.get('oscillator_coupling', 0.) != 0. or
++                    inp.get('secondary_coupling', 0.) != 0. or
++                    inp.get('quadratic_coupling', 0.) != 0. or
++                    inp.get('momentum_coupling', 0.) != 0.):
++                original = False
++                break
++            coefficients.append(power_per_conductance(
++                inp['left_temperature'], inp['right_temperature'],
++                inp['phase'], 0., inp.get('drive_energy', .3)))
++            values.append(record['value'])
++            sigmas.append(record['sigma'])
++
++        if original:
++            coefficients = np.asarray(coefficients, dtype=float)
++            values = np.asarray(values, dtype=float)
++            sigmas = np.asarray(sigmas, dtype=float)
++            if np.any(sigmas <= 0) or not np.isfinite(sigmas).all():
++                raise ValueError('calibration uncertainties must be positive and finite')
++            weights = 1. / sigmas**2
++            denominator = np.sum(weights * coefficients**2)
++            if denominator <= 0 or not np.isfinite(denominator):
++                raise ValueError('calibration records do not constrain conductance')
++            fitted = np.sum(weights * coefficients * values) / denominator
++        else:
++            # This fallback keeps fit useful for a mixed, explicitly supplied
++            # calibration set while respecting the documented bounds.
++            def objective(g):
++                prediction = predict_at([r['input'] for r in records], float(g))
++                residual = (prediction - np.asarray([r['value'] for r in records])) / np.asarray(
++                    [r['sigma'] for r in records])
++                return float(residual @ residual)
++            from scipy.optimize import minimize_scalar
++            result = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                     options={'xatol': 1e-8})
++            fitted = result.x
++
++        self.conductance = float(np.clip(fitted, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,7 +467,8 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            # The contrast preparation is phi+pi, not a 2*pi wrapping of phi.
++            other=dict(e,phase=(e['phase']+2.*np.pi)%(2.*np.pi)-np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)
+@@ -420,66 +476,256 @@
+ 
+ FACTORIZED = False
+ 
+-def gate_statistics(e,conductance,nodes=192,count=64):
+-    work_noise=True
+-    args=oscillator_arguments(e);kwargs=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+-    state=stationary(*args,conductance,nodes=nodes,count=count,**kwargs);mu=state['mu'];left,right=args[:2]
+-    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kwargs)
+-    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+-    fl=expit((sl*mu[0]-energy)/left);fr=expit((sr*mu[1]-other)/right);df=fl*(1-fl)/left;dg=fr*(1-fr)/right
+-    forward=np.where(pair,pf*(1-fl)*(1-fr),pf*fl*(1-fr));backward=np.where(pair,pb*fl*fr,pb*fr*(1-fl));shot=measure*(forward+backward)
+-    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-fr)+pb*fr)
+-    dright=-sr*dg*np.where(pair,pf*(1-fl)+pb*fl,pf*fl+pb*(1-fl))
+-    loss=np.broadcast_to(work[:,None],energy.shape) if work_noise else np.where(pair,-energy,energy);hprime=np.array([np.sum(measure*loss*dleft),np.sum(measure*loss*dright)])
+-    response=hprime@np.linalg.inv(state['jacobian'])
+-    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+-    flips=[]
+-    for temp,delta,pol in zip([left,right],[dl,dr],mu):
+-        current,slope=spin_loss(temp,delta,pol)
+-        intensity=current/np.tanh(pol/temp) if abs(pol/temp)>1e-7 else temp*slope
+-        flips.append(2*ratio*intensity)
+-    raw=float(np.sum(shot*loss**2));correct=float(np.sum(shot*(loss-(injection@response)[:,None])**2)+np.sum(np.array(flips)*response**2))
+-    scale=RATE_CONVERSION*conductance*KB**2*1e24
+-    return dict(noise=correct*scale,shot=raw*scale,response=response.tolist(),mu=mu.tolist(),
+-                heat_derivative=hprime.tolist(),spin_jacobian=state['jacobian'].tolist(),flip_noise=flips,
+-                work_spin_identity_error=float(np.max(abs(work-args[4]/2*injection.sum(axis=1)))))
+-
+-
+-mean_predict=predict_at
+-def predict_at(experiments,conductance):
+-    return np.array([gate_statistics(e,conductance)['noise'] if e.get('statistic','mean')=='gate_noise'
+-                     else mean_predict([e],conductance)[0] for e in experiments])
+-
+-def gate_third(e,conductance,nodes=192,count=64):
+-    args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+-    state=stationary(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+-    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+-    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+-    f=expit((sl*mu[0]-energy)/tl);g=expit((sr*mu[1]-other)/tr)
+-    rp=measure*np.where(pair,pf*(1-f)*(1-g),pf*f*(1-g));rm=measure*np.where(pair,pb*f*g,pb*g*(1-f))
+-    
+-    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+-    flipdata=[]
+-    for j,(temp,delta,pol) in enumerate(zip([tl,tr],[dl,dr],mu)):
+-        x,w=leggauss(160);upper=delta+max(80*temp,6*abs(pol));ee=delta+(x+1)*(upper-delta)/2;mm=w*(upper-delta)/2*ratio/2
+-        u=expit((pol-ee)/temp);d=expit((-pol-ee)/temp);ap=mm*u*(1-d);am=mm*d*(1-u)
+-        flipdata.append((temp,u,d,mm,ap,am))
+-    # Differentiate the actual work-marked rates directly. This avoids
+-    # subtracting spin-loss Jacobians and is exactly zero for a static gate.
+-    df=f*(1-f)/tl;dg=g*(1-g)/tr
+-    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-g)+pb*g)
+-    dright=-sr*dg*np.where(pair,pf*(1-f)+pb*f,pf*f+pb*(1-f))
+-    hp=np.array([np.sum(measure*work[:,None]*dleft),np.sum(measure*work[:,None]*dright)])
+-    p1=-np.linalg.solve(state['jacobian'].T,hp)
+-    mark=work+injection@p1;mark=mark[:,None]
+-    bare=float(np.sum((rp-rm)*mark**3))
+-    for j,(temp,u,d,mm,ap,am) in enumerate(flipdata):
+-        ell=-2*p1[j];bare+=float(np.sum(ap-am))*ell**3
+-    scale=RATE_CONVERSION*conductance*KB**3*1e36
+-    return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
+-
+-
+-noise_predict=predict_at
+-def predict_at(experiments,conductance):
+-    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+-                     else noise_predict([e],conductance)[0] for e in experiments])
++@lru_cache(maxsize=1024)
++def _spin_susceptibility(temperature, delta, polarization, nodes=192):
++    """Return dS/dmu and d2S/dmu2 per island-size factor.
++
++    The change of variables E=delta+z**2 removes the BCS edge singularity.
++    """
++    x, weights = leggauss(nodes)
++    zmax = np.sqrt(max(80. * temperature, 6. * abs(polarization), 1e-12))
++    z = (x + 1.) * zmax / 2.
++    energy = delta + z*z
++    edge_measure = np.zeros_like(energy)
++    denominator = np.sqrt(energy + delta)
++    np.divide(2. * energy, denominator, out=edge_measure, where=denominator > 0)
++    measure = weights * zmax / 2. * edge_measure
++    up = expit((polarization - energy) / temperature)
++    down = expit((-polarization - energy) / temperature)
++    up1 = up * (1. - up) / temperature
++    down1 = down * (1. - down) / temperature
++    up2 = up * (1. - up) * (1. - 2. * up) / temperature**2
++    down2 = down * (1. - down) * (1. - 2. * down) / temperature**2
++    return (QUASIPARTICLE_DENSITY * np.sum(measure * (up1 + down1)),
++            QUASIPARTICLE_DENSITY * np.sum(measure * (up2 - down2)))
++
++
++def _gate_events(e, conductance, nodes=192, count=64):
++    """Build conditional event rates and their first two state derivatives.
++
++    The state coordinate here is the spin excess S in one macroscopic-size
++    copy of the apparatus.  Thus a tunnelling or flip event has a fixed state
++    jump q, which is the convenient coordinate for the large-size tilted
++    generator.
++    """
++    args = oscillator_arguments(e)
++    kwargs = dict(secondary_coupling=e.get('secondary_coupling', 0.),
++                  quadratic_coupling=e.get('quadratic_coupling', 0.),
++                  momentum_coupling=e.get('momentum_coupling', 0.))
++    state = stationary(*args, conductance, nodes=nodes, count=count, **kwargs)
++    left, right, phase, amplitude, drive = args[:5]
++    dl, dr, channels = prepare(*args, nodes=nodes, count=count,
++                               window=state['search_bound'], **kwargs)
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
++    pair = pair[:, 0].astype(bool)
++    sl, sr = sl[:, 0], sr[:, 0]
++    nchan, nquad = energy.shape
++    mu = state['mu']
++    f = expit((sl[:, None] * mu[0] - energy) / left)
++    g = expit((sr[:, None] * mu[1] - other) / right)
++    f1 = sl[:, None] * f * (1. - f) / left
++    g1 = sr[:, None] * g * (1. - g) / right
++    f2 = f * (1. - f) * (1. - 2. * f) / left**2
++    g2 = g * (1. - g) * (1. - 2. * g) / right**2
++
++    # Forward and reverse occupation factors and their mu derivatives.
++    if np.any(pair):
++        forward = np.where(pair[:, None], (1. - f) * (1. - g), f * (1. - g))
++        backward = np.where(pair[:, None], f * g, g * (1. - f))
++        forward_l = np.where(pair[:, None], -f1 * (1. - g), f1 * (1. - g))
++        forward_r = np.where(pair[:, None], -(1. - f) * g1, -f * g1)
++        backward_l = np.where(pair[:, None], f1 * g, -g * f1)
++        backward_r = np.where(pair[:, None], f * g1, g1 * (1. - f))
++        forward_ll = np.where(pair[:, None], -f2 * (1. - g), f2 * (1. - g))
++        forward_rr = np.where(pair[:, None], -(1. - f) * g2, -f * g2)
++        forward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
++        backward_ll = np.where(pair[:, None], f2 * g, -g * f2)
++        backward_rr = np.where(pair[:, None], f * g2, -f * g2)
++        backward_lr = np.where(pair[:, None], f1 * g1, -f1 * g1)
++    # The expressions above are written for both channel families at once;
++    # the pair mask selects the pair-creation or quasiparticle-transfer form.
++    rf = measure * np.where(pair[:, None], pf * forward, pf * forward)
++    rb = measure * np.where(pair[:, None], pb * backward, pb * backward)
++    gf = np.stack((measure * pf * forward_l, measure * pf * forward_r), axis=-1)
++    gb = np.stack((measure * pb * backward_l, measure * pb * backward_r), axis=-1)
++    hf = np.zeros((nchan, nquad, 2, 2))
++    hb = np.zeros_like(hf)
++    hf[..., 0, 0] = measure * pf * forward_ll
++    hf[..., 1, 1] = measure * pf * forward_rr
++    hf[..., 0, 1] = hf[..., 1, 0] = measure * pf * forward_lr
++    hb[..., 0, 0] = measure * pb * backward_ll
++    hb[..., 1, 1] = measure * pb * backward_rr
++    hb[..., 0, 1] = hb[..., 1, 0] = measure * pb * backward_lr
++
++    def flatten_channel(values):
++        return np.asarray(values).reshape(nchan * nquad, *np.asarray(values).shape[2:])
++
++    rf, rb = rf.ravel(), rb.ravel()
++    gf, gb = gf.reshape(-1, 2), gb.reshape(-1, 2)
++    hf, hb = hf.reshape(-1, 2, 2), hb.reshape(-1, 2, 2)
++    qchan = np.broadcast_to(injection[:, None, :], (nchan, nquad, 2)).reshape(-1, 2)
++    wchan = np.broadcast_to(work[:, None], (nchan, nquad)).ravel()
++    rates = np.concatenate((rf, rb))
++    grad_mu = np.concatenate((gf, gb))
++    hess_mu = np.concatenate((hf, hb))
++    q = np.concatenate((qchan, -qchan))
++    marks = np.concatenate((wchan, -wchan))
++
++    # Equal-energy stochastic spin flips.  The BCS DOS cancels the
++    # superconducting enhancement in 1/tau_j(E), leaving an integral over dE.
++    ratio = QUASIPARTICLE_DENSITY / (NORMAL_POLARIZATION_TIME * RATE_CONVERSION * conductance)
++    flip_rates, flip_grad, flip_hess, flip_q, flip_marks = [], [], [], [], []
++    for j, (temp, delta, pol) in enumerate(((left, dl, mu[0]), (right, dr, mu[1]))):
++        x, weights = leggauss(max(96, nodes // 2))
++        upper = delta + max(80. * temp, 6. * abs(pol))
++        ee = delta + (x + 1.) * (upper - delta) / 2.
++        measure_flip = weights * (upper - delta) / 2. * ratio / 2.
++        up, down = expit((pol - ee) / temp), expit((-pol - ee) / temp)
++        up1 = up * (1. - up) / temp
++        down1 = -down * (1. - down) / temp
++        up2 = up * (1. - up) * (1. - 2. * up) / temp**2
++        down2 = down * (1. - down) * (1. - 2. * down) / temp**2
++        ap = measure_flip * up * (1. - down)
++        am = measure_flip * down * (1. - up)
++        ap1 = measure_flip * (up1 * (1. - down) - up * down1)
++        am1 = measure_flip * (down1 * (1. - up) - down * up1)
++        ap2 = measure_flip * (up2 * (1. - down) - 2. * up1 * down1 - up * down2)
++        am2 = measure_flip * (down2 * (1. - up) - 2. * down1 * up1 - down * up2)
++        for rate, first, second, jump in ((ap, ap1, ap2, -2.), (am, am1, am2, 2.)):
++            rates = np.concatenate((rates, rate))
++            gadd = np.zeros((len(rate), 2)); gadd[:, j] = first
++            hadd = np.zeros((len(rate), 2, 2)); hadd[:, j, j] = second
++            grad_mu = np.concatenate((grad_mu, gadd))
++            hess_mu = np.concatenate((hess_mu, hadd))
++            flip_q.append(np.column_stack((np.full(len(rate), jump) if j == 0 else np.zeros(len(rate)),
++                                           np.full(len(rate), jump) if j == 1 else np.zeros(len(rate)))))
++            flip_marks.append(np.zeros(len(rate)))
++    if flip_q:
++        q = np.concatenate((q, *flip_q))
++        marks = np.concatenate((marks, *flip_marks))
++
++    chi = np.empty(2); chi2 = np.empty(2)
++    for j, (temp, delta, pol) in enumerate(((left, dl, mu[0]), (right, dr, mu[1]))):
++        chi[j], chi2[j] = _spin_susceptibility(temp, delta, pol)
++    inverse = 1. / chi
++    grad = grad_mu * inverse[None, :]
++    hess = hess_mu * inverse[None, :, None] * inverse[None, None, :]
++    hess[:, 0, 0] -= grad_mu[:, 0] * chi2[0] * inverse[0]**3
++    hess[:, 1, 1] -= grad_mu[:, 1] * chi2[1] * inverse[1]**3
++    return state, rates, grad, hess, q, marks, mu
++
++
++def _cumulants_from_events(rates, gradients, hessians, jumps, marks):
++    """Second and third SCGF derivatives for a stationary jump process."""
++    # Remove exponentially irrelevant roundoff-sized negative quadrature
++    # contributions, while retaining all physical interference terms.
++    rates = np.maximum(np.asarray(rates, dtype=float), 0.)
++    gradients = np.asarray(gradients, dtype=float)
++    hessians = np.asarray(hessians, dtype=float)
++    jumps = np.asarray(jumps, dtype=float)
++    marks = np.asarray(marks, dtype=float)
++    jmat = np.einsum('ni,nj->ij', gradients, jumps)
++    diffusion = np.einsum('n,ni,nj->ij', rates, jumps, jumps)
++    mark_gradient = np.einsum('ni,n->i', gradients, marks)
++    jump_mark = np.einsum('n,ni->i', rates * marks, jumps)
++    hess_mark = np.einsum('n,nij->ij', marks, hessians)
++
++    A = np.zeros((4, 4))
++    A[:2, 2:] = jmat
++    A[2:, :2] = jmat.T
++    A[2:, 2:] = diffusion
++    hz = np.concatenate((mark_gradient, jump_mark))
++    try:
++        z1 = -np.linalg.solve(A, hz)
++    except np.linalg.LinAlgError:
++        z1 = -np.linalg.pinv(A) @ hz
++
++    # Third derivatives of H(x,p,k) = sum r(x)[exp(p.q+k.w)-1].
++    tensor = np.zeros((5, 5, 5))
++    hxxp = np.einsum('nij,nk->ijk', hessians, jumps)
++    hxxk = np.einsum('nij,n->ij', hessians, marks)
++    hxpp = np.einsum('ni,nj,nk->ijk', gradients, jumps, jumps)
++    hxpk = np.einsum('ni,nj,n->ij', gradients, jumps, marks)
++    hxkk = np.einsum('ni,n->i', gradients, marks**2)
++    hppp = np.einsum('n,ni,nj,nk->ijk', rates, jumps, jumps, jumps)
++    hppk = np.einsum('n,ni,nj,n->ij', rates, jumps, jumps, marks)
++    hpkk = np.einsum('n,ni,n->i', rates, jumps, marks**2)
++    tensor[:2, :2, 2:4] = hxxp
++    tensor[:2, 2:4, :2] = hxxp.transpose(0, 2, 1)
++    tensor[2:4, :2, :2] = hxxp.transpose(2, 0, 1)
++    tensor[:2, :2, 4] = hxxk
++    tensor[:2, 4, :2] = hxxk
++    tensor[4, :2, :2] = hxxk
++    tensor[:2, 2:4, 2:4] = hxpp
++    tensor[2:4, :2, 2:4] = hxpp.transpose(1, 0, 2)
++    tensor[2:4, 2:4, :2] = hxpp.transpose(1, 2, 0)
++    tensor[:2, 2:4, 4] = hxpk
++    tensor[:2, 4, 2:4] = hxpk
++    tensor[2:4, :2, 4] = hxpk.T
++    tensor[2:4, 4, :2] = hxpk.T
++    tensor[4, :2, 2:4] = hxpk
++    tensor[4, 2:4, :2] = hxpk.T
++    tensor[:2, 4, 4] = hxkk
++    tensor[4, :2, 4] = hxkk
++    tensor[4, 4, :2] = hxkk
++    tensor[2:4, 2:4, 2:4] = hppp
++    tensor[2:4, 2:4, 4] = hppk
++    tensor[2:4, 4, 2:4] = hppk
++    tensor[4, 2:4, 2:4] = hppk
++    tensor[2:4, 4, 4] = hpkk
++    tensor[4, 2:4, 4] = hpkk
++    tensor[4, 4, 2:4] = hpkk
++    tensor[4, 4, 4] = np.sum(rates * marks**3)
++
++    z2_rhs = (np.einsum('ijk,j,k->i', tensor[:4, :4, :4], z1, z1) +
++              2. * np.einsum('ij,j->i', tensor[:4, :4, 4], z1) +
++              tensor[:4, 4, 4])
++    try:
++        z2 = -np.linalg.solve(A, z2_rhs)
++    except np.linalg.LinAlgError:
++        z2 = -np.linalg.pinv(A) @ z2_rhs
++    second = float(np.sum(rates * marks**2) + hz @ z1)
++    third = float(tensor[4, 4, 4] +
++                  2. * np.dot(tensor[4, 4, :4], z1) +
++                  np.einsum('ij,i,j->', tensor[4, :4, :4], z1, z1) +
++                  np.dot(hz, z2))
++    return second, third, z1, z2
++
++
++def gate_statistics(e, conductance, nodes=192, count=64):
++    if e.get('amplitude', 0.) == 0.:
++        return dict(noise=0., shot=0., response=[0., 0.], mu=[0., 0.])
++    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
++        e, conductance, nodes, count)
++    second, _, z1, _ = _cumulants_from_events(rates, gradients, hessians, jumps, marks)
++    scale = RATE_CONVERSION * conductance * KB**2 * 1e24
++    return dict(noise=second * scale, shot=float(np.sum(rates * marks**2) * scale),
++                response=(-z1[2:]).tolist(), mu=mu.tolist(),
++                spin_jacobian=state['jacobian'].tolist())
++
++
++def gate_third(e, conductance, nodes=192, count=64):
++    if e.get('amplitude', 0.) == 0.:
++        return dict(third=0., screened_poisson=0., count_response=[0., 0.])
++    state, rates, gradients, hessians, jumps, marks, mu = _gate_events(
++        e, conductance, nodes, count)
++    _, third, z1, _ = _cumulants_from_events(rates, gradients, hessians, jumps, marks)
++    scale = RATE_CONVERSION * conductance * KB**3 * 1e36
++    return dict(third=third * scale, screened_poisson=0.,
++                count_response=z1[2:].tolist(), mu=mu.tolist())
++
++
++_mean_predict = predict_at
++
++
++def predict_at(experiments, conductance):
++    values = []
++    for experiment in experiments:
++        statistic = experiment.get('statistic', 'mean')
++        if statistic == 'gate_noise':
++            values.append(gate_statistics(experiment, conductance)['noise'])
++        elif statistic == 'gate_third':
++            values.append(gate_third(experiment, conductance)['third'])
++        else:
++            values.append(_mean_predict([experiment], conductance)[0])
++    return np.asarray(values, dtype=float)

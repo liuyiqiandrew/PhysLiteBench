@@ -1,0 +1,17 @@
+--- before/model.py
++++ after/model.py
+@@ -68,7 +68,13 @@
+         self.friction = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        inputs = [r['input'] for r in records]
++        values = np.array([r['value'] for r in records])
++        sigma = np.array([r['sigma'] for r in records])
++        coefficient = coefficients(inputs)
++        inverse_friction = np.sum(coefficient*values/sigma**2)/np.sum(coefficient**2/sigma**2)
++        self.friction = float(1/inverse_friction)
++        return self
+ 
+     def predict(self, experiments):
+         return coefficients(experiments, self.friction)

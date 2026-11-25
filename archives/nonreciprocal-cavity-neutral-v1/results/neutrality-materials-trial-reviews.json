@@ -1,0 +1,62 @@
+{
+  "nonreciprocal-cavity__goMTqDM": {
+    "task": "nonreciprocal-cavity",
+    "revision_label": "neutral-v1",
+    "condition": "plain",
+    "stage": "initial",
+    "job": "nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459",
+    "classification": "physics_model_failure",
+    "reason": "The final source retains diag(I-S\u2020S), incoming absorptivity, for outgoing thermal emission in the biased circuit. It fits the correct loss rate, and total-output calibration is exactly blind to that reciprocal-emission approximation. Public trajectory accepts the supplied forward calculation and focuses on weighted fitting and interface behavior, without identifying the correct outgoing covariance. This is a physical-model failure under the neutral edit-permission instruction.",
+    "reward": 0.0,
+    "metrics": {
+      "parameters": {
+        "loss_rate": 0.2700427989863407
+      },
+      "parameter_relative_error_max": 0.00015851476422468203,
+      "calibration_chi2": 0.9023136465489543,
+      "hidden": {
+        "clockwise_ports": 0.131141413672621,
+        "reversed_bias": 0.19367749255556865,
+        "thermal_background": 0.159483508299608
+      }
+    },
+    "source_sha256": "35b68734e86cc7ef8fab93e15d73513c75481bc1b3f72ff9051b40397231a2e4",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/artifacts/app/model.py",
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/agent/trajectory.json",
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/agent/codex.txt",
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/verifier/metrics.json",
+      "jobs/nonreciprocal-cavity-neutral-v1-initial-plain-20261002-155459/nonreciprocal-cavity__goMTqDM/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API, then implement and test the model against the documented interface.",
+      "The scattering calculation already follows the stated input\u2013output convention, but fitting is missing. I\u2019m checking the calibration residual structure now so the fit uses the recorded uncertainties correctly and remains stable for all documented experiment shapes.",
+      "The calibration is consistent with a weighted one-parameter least-squares fit; the optimum is near `loss_rate = 0.27004`. I\u2019ll add that constrained fit and keep the prediction path vectorized, including total-output and per-port cases.",
+      "Implemented [`model.py`](/app/model.py).\n\n- Added uncertainty-weighted calibration fitting for `loss_rate`.\n- Constrained fit to `[0.1, 0.6]`.\n- Preserved prediction API and empty-input behavior.\n- Calibration fit: `loss_rate \u2248 0.27004`.\n- Tests pass: `2 passed`.\n"
+    ],
+    "public_tool_count": 11,
+    "aggregation_note": "Retain this initial/follow-up outcome in the combined instruction-revision screen; do not replace the initial pass with follow-ups.",
+    "fixed_parameter_repair": {
+      "parameter_name": "loss_rate",
+      "parameter": 0.2700427989863407,
+      "change": "Only replace incoming-absorption emission closure by outgoing Langevin-noise covariance; scattering matrix, fitted rate, external background and all remaining source unchanged.",
+      "before_line": "emission=1-np.sum(powers,axis=1)",
+      "after_line": "emission=1-np.sum(powers,axis=2)",
+      "before": {
+        "clockwise_ports": 0.13114141367262103,
+        "reversed_bias": 0.19367749255556851,
+        "thermal_background": 0.15948350829960806
+      },
+      "after": {
+        "clockwise_ports": 4.023216752561143e-05,
+        "reversed_bias": 6.122294909928791e-05,
+        "thermal_background": 4.050975713482082e-05
+      },
+      "calibration_prediction_max_change": 8.881784197001252e-16,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "execution": "In-memory copy only; no retained artifact was edited."
+    }
+  }
+}

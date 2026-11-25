@@ -1,0 +1,74 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,15 +3,33 @@
+ 
+ 
+ def response(e):
+-    rho, mean = e['density'], e['length']
++    """Current cumulant rate for unit-speed hard rods.
++
++    In the thermodynamic preparation in the problem, the mixture affects the
++    free length only through its average rod length.  Thus the two lengths
++    and their contrast do not enter this long-time, annealed current rate
++    separately.  (They would, for example, matter for observables resolved
++    by rod type.)
++    """
++    rho, mean = float(e['density']), float(e['length'])
+     if e['statistic'] == 'mean':
+-        return 0.
++        return 0.0
+     if e['statistic'] == 'variance':
+-        return rho*(1-rho*mean)
+-    field = abs(e['counting_field'])
+-    c = rho/(1-rho*mean)
+-    s = brentq(lambda s: s+c*mean*np.sinh(s)-field, 0., field+1, xtol=1e-14)
+-    return c*2*np.sinh(s/2)**2
++        return rho * (1.0 - rho * mean)
++
++    # The current distribution is symmetric, so its SCGF is even in the
++    # counting field.  s is the corresponding free-coordinate tilt.
++    field = abs(float(e['counting_field']))
++    if field == 0.0:
++        return 0.0
++    free_density = rho / (1.0 - rho * mean)
++    s = brentq(
++        lambda trial: trial + free_density * mean * np.sinh(trial) - field,
++        0.0,
++        field + 1.0,
++        xtol=1e-14,
++    )
++    return 2.0 * free_density * np.sinh(0.5 * s) ** 2
+ 
+ 
+ def predict_at(experiments, speed):
+@@ -23,7 +41,29 @@
+         self.speed = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the common speed from calibration records.')
++        """Fit the shared speed by Gaussian weighted least squares.
++
++        Every reported rate is linear in the common speed, so the maximum
++        likelihood estimate has a closed form.  Zero-response observations
++        (the mean current) correctly contain no information about speed.
++        """
++        records = list(records)
++        unit_rates = np.asarray([response(record['input']) for record in records], dtype=float)
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if (unit_rates.shape != values.shape or values.shape != sigmas.shape or
++                not np.isfinite(unit_rates).all() or not np.isfinite(values).all() or
++                not np.isfinite(sigmas).all() or np.any(sigmas <= 0.0)):
++            raise ValueError('records must contain finite values and positive standard deviations')
++
++        weights = 1.0 / sigmas ** 2
++        denominator = np.dot(weights, unit_rates ** 2)
++        if denominator <= 0.0:
++            raise ValueError('records contain no speed-sensitive observations')
++
++        self.speed = float(np.dot(weights * unit_rates, values) / denominator)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.speed)

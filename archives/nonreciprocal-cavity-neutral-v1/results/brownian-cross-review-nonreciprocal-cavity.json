@@ -1,0 +1,36 @@
+{
+  "task": "nonreciprocal-cavity",
+  "revision": 1,
+  "reviewer": "brownian_candidates",
+  "status": "approved",
+  "source_sha256": {
+    "environment/README.md": "89b392d0678eadaa1a907935cf008ce609531426b524e138a39953c7be7eff9c",
+    "environment/model.py": "bf12fbb2c26d4f08b6b66c65b6f0abbcbd9ca29c7f2035e97c4395179ed76fa8",
+    "solution/model.py": "56fb9f2ddf84386d144f345fd9341d73281435c63364ea6a4ab7b64afde9e1ea",
+    "tests/reference.py": "fa581f8cd93e06b1c8c41fd776bd8d58b10af1a607471a6d0c2ac2d282a45c10",
+    "tests/test_hidden.py": "48d97081156980e687c1420707356e9ea21fbaa8d49827e8b0d6d44631bc09e6",
+    "hint.md": "a84d52358659bb45b396d9418d3ff0a5ed3fe3632eeeaa0d8071af23f9978168"
+  },
+  "findings": [
+    "The public Hermitian number-conserving Hamiltonian, static bias, amplitude damping convention and independent flat Markov occupations determine the output spectrum without gain, modulation or vacuum-ordering ambiguity.",
+    "With G inverse=i(H-omega I)+(WW^dagger+Gamma)/2 and S=I-W^dagger G W, the independent internal bath output covariance is n_body*W^dagger G Gamma G^dagger W=n_body*(I-SS^dagger). The source instead uses the diagonal of I-S^dagger S, an incoming-absorption closure.",
+    "Both defects are positive semidefinite and have equal trace. Thus total output calibration with cold ports is exactly equivalent at every allowed frequency, magnetic phase and loss rate, while nonreciprocal directional readouts distinguish the two models. The correct external contribution S diag(n_external) S^dagger is present in both.",
+    "The independent reference propagates one Langevin bath at a time and sums its output covariance. Its minus sign in the radiated internal amplitude cancels within the occupation; direct external input correctly interferes with resonator leakage. Port indexing and total-readout normalization are correct.",
+    "No source-level scientific or API blocker. Separate author validation establishes256 noise robustness, global calibration uniqueness and local control behavior; this review additionally checks off-grid preparations and thermal equilibrium."
+  ],
+  "independent_checks": {
+    "seed": 10622,
+    "off_grid_cases_per_loss": 32,
+    "loss_rates": [
+      0.1,
+      0.27,
+      0.6
+    ],
+    "oracle_langevin_max_absolute_difference": 1.7763568394002505e-15,
+    "total_shortcut_equivalence_error": 8.881784197001252e-16,
+    "equal_bath_covariance_error": 6.662102437898592e-16,
+    "bias_reversal_scattering_transpose_error": 6.753223014464258e-16,
+    "minimum_internal_emission_covariance_eigenvalue": 0.0058006432993804495
+  },
+  "author_validation": "results/nonreciprocal-cavity-validation.json"
+}

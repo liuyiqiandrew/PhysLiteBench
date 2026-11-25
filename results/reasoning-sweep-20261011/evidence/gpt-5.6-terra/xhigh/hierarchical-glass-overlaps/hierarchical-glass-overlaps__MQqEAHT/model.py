@@ -1,0 +1,178 @@
+"""Thermodynamic-limit predictions for the hierarchical energy landscape."""
+import math
+from numbers import Integral, Real
+
+import numpy as np
+
+
+WIDTH_INTERVAL = (0.8, 1.2)
+
+# Entropy and energy-variance density at the two levels.  Level zero labels a
+# family and level one labels a configuration within that family.
+ENTROPIES = (0.3, 0.7)
+VARIANCES = (0.7, 0.3)
+
+
+def level_parameter(beta, width, level):
+    """Return the Poisson--Dirichlet parameter at one hierarchy level."""
+    critical = math.sqrt(2.0 * ENTROPIES[level] / VARIANCES[level]) / width
+    return min(1.0, critical / beta)
+
+
+def participation(parameter, replicas):
+    """Probability that ``replicas`` PD(parameter, 0) draws coincide."""
+    result = 1.0
+    for j in range(1, replicas):
+        result *= (j - parameter) / j
+    return result
+
+
+def leaf_partition(parameter, blocks):
+    """Probability of one specified labelled partition of PD(parameter, 0) draws."""
+    replicas = sum(blocks)
+    block_count = len(blocks)
+    result = parameter ** (block_count - 1)
+    result *= math.factorial(block_count - 1) / math.factorial(replicas - 1)
+    for size in blocks:
+        for j in range(1, size):
+            result *= j - parameter
+    return result
+
+
+def joint_leaf_partition(parent_parameter, leaf_parameter, blocks):
+    """Probability of a leaf partition while every draw has one parent.
+
+    This is the two-level cascade EPPF.  It is deliberately not the product
+    of two independent PD(., 0) probabilities: conditioning on the total
+    inner partition function tilts the inner law by the parent level.
+    """
+    replicas = sum(blocks)
+    result = 1.0 / math.factorial(replicas - 1)
+    for j in range(1, len(blocks)):
+        result *= j * leaf_parameter - parent_parameter
+    for size in blocks:
+        for j in range(1, size):
+            result *= j - leaf_parameter
+    return result
+
+
+def coincidence(beta, replicas, observable, width, blocks=None):
+    """Evaluate the disorder-averaged overlap observable."""
+    parent_parameter = level_parameter(beta, width, 0)
+    leaf_parameter = level_parameter(beta, width, 1)
+    parent = participation(parent_parameter, replicas)
+    if observable == "parent_collision":
+        return parent
+    if observable == "state_collision":
+        # In a Ruelle cascade the lower-level state coincidence is controlled
+        # by its own breakpoint, rather than by a product of both levels.
+        return participation(leaf_parameter, replicas)
+    return joint_leaf_partition(parent_parameter, leaf_parameter, blocks)
+
+
+def _finite_real(value, message):
+    """Convert a scalar physical quantity, excluding bools and NaNs."""
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise ValueError(message)
+    value = float(value)
+    if not math.isfinite(value):
+        raise ValueError(message)
+    return value
+
+
+def _calibration_beta(row):
+    try:
+        beta = _finite_real(row["input"]["beta"], "Use a finite calibration beta.")
+    except (KeyError, TypeError):
+        raise ValueError("Each calibration record needs input.beta.") from None
+    if not 0.2 <= beta <= 0.6:
+        raise ValueError("Outside the stated calibration inverse-temperature range.")
+    return beta
+
+
+class Model:
+    def __init__(self):
+        self.width = None
+
+    def _parameter(self, width):
+        if width is not None:
+            value = _finite_real(width, "Supply a real material scale.")
+        else:
+            value = self.width
+        if value is None or not math.isfinite(value) or not WIDTH_INTERVAL[0] <= value <= WIDTH_INTERVAL[1]:
+            raise ValueError("Fit or supply width in [0.8,1.2].")
+        return float(value)
+
+    def fit(self, records):
+        """Fit the material width by constrained Gaussian maximum likelihood.
+
+        Across the calibration range neither level is frozen, hence the mean
+        energy density is ``-beta * width**2``.  Independent Gaussian errors
+        make this a weighted least-squares fit in ``width**2``.
+        """
+        numerator = 0.0
+        denominator = 0.0
+        count = 0
+        for row in records:
+            beta = _calibration_beta(row)
+            try:
+                observed = _finite_real(row["value"], "Calibration values must be finite reals.")
+                sigma = _finite_real(row["sigma"], "Calibration sigmas must be positive finite reals.")
+            except (KeyError, TypeError):
+                raise ValueError("Each calibration record needs value and sigma.") from None
+            if sigma <= 0.0:
+                raise ValueError("Calibration sigmas must be positive finite reals.")
+            precision = 1.0 / (sigma * sigma)
+            numerator += precision * beta * observed
+            denominator += precision * beta * beta
+            count += 1
+
+        if count == 0:
+            raise ValueError("At least one calibration record is required to fit width.")
+
+        # The unconstrained MLE for theta = width**2, then its allowed range.
+        squared_width = -numerator / denominator
+        squared_width = min(WIDTH_INTERVAL[1] ** 2,
+                            max(WIDTH_INTERVAL[0] ** 2, squared_width))
+        self.width = math.sqrt(squared_width)
+        return self
+
+    def predict_calibration(self, records, width=None):
+        value = self._parameter(width)
+        # A loop preserves arbitrary one-pass iterables and their order.
+        return np.asarray(
+            [-_calibration_beta(row) * value * value for row in records], dtype=float
+        )
+
+    def predict(self, experiments, width=None):
+        value = self._parameter(width)
+        result = []
+        for row in experiments:
+            try:
+                beta = _finite_real(row["beta"], "Use a finite inverse temperature.")
+                replicas = row["replicas"]
+                observable = row["observable"]
+            except (KeyError, TypeError):
+                raise ValueError("Each experiment needs beta, replicas, and observable.") from None
+            if not 0.2 <= beta <= 6.0:
+                raise ValueError("Outside the stated inverse-temperature range.")
+            if (isinstance(replicas, bool) or not isinstance(replicas, Integral)
+                    or not 2 <= replicas <= 6):
+                raise ValueError("Use an integer number of replicas from 2 through 6.")
+            if observable not in ("parent_collision", "state_collision", "leaf_partition"):
+                raise ValueError("Unknown observable.")
+
+            blocks = None
+            if observable == "leaf_partition":
+                try:
+                    blocks = list(row["partition"])
+                except (KeyError, TypeError):
+                    raise ValueError("Leaf partitions must be iterable.") from None
+                if (not blocks
+                        or any(isinstance(n, bool) or not isinstance(n, Integral) or n < 1
+                               for n in blocks)
+                        or sum(blocks) != replicas):
+                    raise ValueError("Partition sizes must be positive integers summing to replicas.")
+
+            result.append(coincidence(beta, int(replicas), observable, value, blocks))
+        return np.asarray(result, dtype=float)

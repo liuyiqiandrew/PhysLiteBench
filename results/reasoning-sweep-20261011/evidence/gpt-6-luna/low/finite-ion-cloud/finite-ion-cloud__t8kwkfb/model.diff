@@ -1,0 +1,26 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,7 +33,22 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        # The calibration errors are specified as independent Gaussian
++        # standard deviations, so maximize their likelihood by minimizing
++        # the weighted sum of squared residuals.
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        def objective(coupling):
++            prediction = predict_at(inputs, coupling)
++            residual = (prediction - values) / sigmas
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(objective, bounds=(0.7, 1.4), method='bounded',
++                                 options={'xatol': 1e-12})
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.coupling)

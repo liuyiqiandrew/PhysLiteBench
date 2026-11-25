@@ -1,0 +1,47 @@
+--- before/model.py
++++ after/model.py
+@@ -78,7 +78,43 @@
+         self.diffusivity = 1.
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Estimate the common diffusivity from calibration measurements.
++
++        The electric field and concentration evolution are independent of the
++        overall scale of the diffusivities: multiplying the common ``D`` by a
++        factor multiplies every predicted rate by that factor.  Consequently
++        each calibration record has the form ``value = D * unit_signal`` and
++        the Gaussian maximum-likelihood estimate is a one-parameter weighted
++        least-squares fit.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        unit = np.asarray([
++            unit_signal(tuple(record['input']['amplitudes']),
++                        record['input']['phase'],
++                        record['input']['species'],
++                        tuple(record['input']['detector']))
++            for record in records
++        ], dtype=float)
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if (not np.isfinite(unit).all() or not np.isfinite(values).all()
++                or not np.isfinite(sigma).all() or np.any(sigma <= 0)):
++            raise ValueError('Calibration records must contain finite values and positive sigma.')
++
++        weights = 1. / sigma**2
++        denominator = np.sum(weights * unit**2)
++        if denominator == 0:
++            raise ValueError('Calibration records contain no diffusivity information.')
++        estimate = np.sum(weights * unit * values) / denominator
++
++        # The apparatus definition restricts D to this interval.  Clipping
++        # also keeps a noisy calibration fit physically meaningful.
++        self.diffusivity = float(np.clip(estimate, .5, 2.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

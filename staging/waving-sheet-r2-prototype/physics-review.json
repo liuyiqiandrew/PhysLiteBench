@@ -1,0 +1,74 @@
+{
+  "status": "prototype_physics_source_and_science_review_passed",
+  "reviewer": "physics_review",
+  "reviewed_at_utc": "2026-10-04T14:45:10.872782+00:00",
+  "verdict": "No scientific blocker to the proposed same-family viscoelastic revision. This approves the bounded prototype, not a final task or empirical difficulty.",
+  "scope": "Read actual corrected prototype source, full report summary and case data, final author ASSESSMENT, preserved tail-error note, and relevant primary-paper sections. Verified all six payload hashes. No numerical or model rerun; no source edits.",
+  "reviewed_payload_sha256": {
+    "ASSESSMENT.md": "4d16ceb3793021d695a1bd6c996450468d3cfa4bbb190cb078338fb4cf09c8e9",
+    "history/first-tail-evaluation/NOTE.txt": "b5f172d0b8f34e4f5a3594dfccacdfb45f0d700e896249f8c15ee8ef88d4e0d4",
+    "history/first-tail-evaluation/prototype.py": "8d120636cc94cac0c396b6ae0c7afb0bfa7910a71c7565498b5b04c865d88e5f",
+    "history/first-tail-evaluation/report.json": "ac5a2718dcd012b7f097b1862ae5feb995897d5a5e23a3387cc226f0d1087473",
+    "prototype.py": "ad17e76a661bb746c1f2789ec1b20fd5a27d4c2545cafa0eeaccfc6ae2a8dd40",
+    "report.json": "cb7033f7f92a6d241474c354f12f4281463e295d54c005ec7bdaee4391811188"
+  },
+  "derivation": [
+    "With exp[i(kx-omega t)], the linear viscosity is nu0[beta+(1-beta)/(1-i omega lambda)]. The decaying root s=sqrt(k^2-i omega/viscosity) and anchored transverse-sheet streamfunction satisfy psi(0)=omega/k and psi_prime(0)=0. Velocities u=psi_prime and v=-i k psi have the stated phase.",
+    "For G_ij=partial_j u_i, first-order conformation is (G+G^T)/(lambda^(-1)-i omega). Expanding the upper-convected equation gives mean extra polymer stress eta_p times the average of G C+C G^T-u dot grad C. The code correctly forms the harmonic products with one-half real-part factors.",
+    "The derivative polymer forcing includes derivatives of both gradient factors and all material-advection factors. Componentwise assembly in the mean BVP has the same tensor orientation and sign.",
+    "The mean x-momentum equation is nu0 U_second+Nxy_prime=average(u partial_x u+v partial_y u)=partial_y average(u v), with density one. Zero far-field shear gives nu0 U_prime+Nxy=average(u v). Thus the far-field mean is the wall Taylor value plus integral[average(u v)-Nxy]/nu0.",
+    "The source retains the complete first-order Jeffreys response, the correct displaced-wall mean boundary term and the full Reynolds transport term from revision 1. It omits only the nonlinear polymer contribution by extending a laboratory-frame linear viscoelastic law to the second-order mean. This is an explicit physical approximation; it is not an objective corotational fluid model.",
+    "Two distinct positive calibration heights provide global identification: (u+i v)(h2)/(u+i v)(h1)=exp[-s(h2-h1)]. The recorded worst phase bound .68851 radians is below pi, removing logarithm aliases. The known complex-viscosity factor then uniquely gives positive nu0. This argument does not assume the real part of s is monotonic in nu0."
+  ],
+  "reference_scope": {
+    "independent_parts": "Fourth-order harmonic-vorticity BVP and componentwise differentiated forced mean-momentum BVP; no closed harmonic modes or integrated flux oracle in its physical prediction.",
+    "shared_parts": "Known complex-viscosity law and local velocity/conformation tensor helper are shared. The reference is independent in spatial solution and mean integration, not a fully independent derivation of every constitutive factor.",
+    "complementary_checks": "Newtonian limits beta=1 or lambda=0, the independent published creeping limit, momentum balance, wall power versus volume dissipation, wave reversal and finite-difference polymer-gradient check support the common algebra."
+  },
+  "input_assessment": {
+    "scope": "Actual final author ASSESSMENT read. It specifies geometry, material, units and limit order without a final task interface. No final public task files exist yet; final public input and grader require later review.",
+    "necessary_apparatus": "Incompressible Oldroyd-B half-space, known solvent fraction and polymer relaxation, fixed material sheet x=X with prescribed transverse traveling displacement, no slip, no imposed pressure gradient or far counterflow/shear, and the stationary small-amplitude Eulerian far-field pumping coefficient. Density and current/reference length/time units must remain explicit.",
+    "limit_order": "At each finite frequency and relaxation time, take the stable periodic small-amplitude branch; the mean pumping is the coefficient in the stationary far-field response. No high-De limit at fixed nonzero deformation amplitude or unstated swimming/inextensibility constraint is assumed.",
+    "readout": "Calibration uses signed first-harmonic velocities divided by amplitude. Pumping is lab-frame Eulerian mean divided by amplitude squared; far-field Stokes drift vanishes as harmonic velocities decay. No additional Lagrangian correction belongs in this readout."
+  },
+  "existing_evidence_not_rerun": {
+    "structured_cases": 12,
+    "random_cases": 12,
+    "max_relative_bvp_error": 4.496005995818621e-09,
+    "max_bvp_refinement": 2.7571434024764585e-09,
+    "candidate_window_cases": 27,
+    "candidate_window_frequency": [
+      4,
+      8
+    ],
+    "min_window_relative_gap": 0.7629789104730438,
+    "min_window_absolute_pumping": 0.4882981336135257,
+    "broad_domain_min_gap": 0.0017937937339483122,
+    "max_noiseless_parameter_error": 6.0976935722933945e-09,
+    "noise_draws": 64,
+    "max_noisy_parameter_error": 0.0014812059338953354,
+    "creeping_ratio_last": 0.4000960216031488,
+    "creeping_ratio_expected": 0.4
+  },
+  "primary_source": {
+    "title": "Lauga, Propulsion in a viscoelastic fluid",
+    "url": "https://arxiv.org/html/cond-mat/0703548",
+    "sections_read": "Section III.3 equations 19-20; Appendix B equations 64-68 and surrounding text; abstract and linear-response discussion.",
+    "supports": "Nonlinear constitutive terms enter quadratic propulsion; the creeping pumping ratio is (1+beta*De^2)/(1+De^2). Corotational Maxwell is in the family with the same leading pumping. These statements do not directly verify the new finite-inertia numerical solution."
+  },
+  "qualifications": [
+    "The 27-point high-frequency window has healthy positive physical signals and at least 76.3% sampled separation. A broader control has only .1794% gap; it is preserved and no universal full-domain gap is claimed.",
+    "The first unweighted-expm1 tail implementation overflowed when Re(s-k)<0; initial nonfinite output and its inadequate aggregate check are preserved as a numerical failure, not physics evidence. Corrected weighted exponentials and explicit finite assertions are used in the current successful source.",
+    "The objective corotational alternative is not a discriminator here. For planar incompressible harmonics, the change in stretching contributes an isotropic mean term, absorbable into pressure. Keep the weaker laboratory-linear source limitation explicit in author documentation.",
+    "This is a waving-sheet family revision and shares constitutive-objectivity themes with archived dumbbell stress. It is not an unrelated new theoretical principle.",
+    "No final calibration dataset, 256-noise study, Docker control, task grading or model evaluation is approved by this prototype review."
+  ],
+  "numerical_runs_by_reviewer": 0,
+  "model_evaluations_by_reviewer": 0,
+  "requested_source_changes": [],
+  "manifest_at_review": {
+    "path": "staging/waving-sheet-r2-prototype/manifest.json",
+    "sha256": "edee21c1a9d5077aa05260f944270f7a05e9b6fe2242fbedc3a082bd0015d9e3",
+    "verified_payload_count": 6
+  }
+}

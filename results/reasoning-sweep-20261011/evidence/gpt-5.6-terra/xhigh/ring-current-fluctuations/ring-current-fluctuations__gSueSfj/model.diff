@@ -1,0 +1,84 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,75 @@
+-"""Current SCGF model and calibration interface."""
++"""SCGF for the weakly asymmetric exclusion process in the README.
++
++The output is in microscopic inverse-time units.  ``field`` and ``bias`` are
++the dimensionless quantities called :math:`E` and :math:`\\lambda` in the
++problem statement.
++"""
++
+ import numpy as np
+ 
++
++_DIFFUSIVITY_BOUNDS = (0.8, 1.2)
++
++
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    """Evaluate the leading large-ring SCGF at a collection of inputs.
++
++    At half filling the homogeneous macroscopic-current saddle has mobility
++    ``D / 2``.  Tilting every jump by ``lambda / L`` shifts the weak field from
++    ``E`` to ``E + lambda``.  Subtracting the untilted eigenvalue consequently
++    gives ``D * ((E + lambda)**2 - E**2) / 4``.
++    """
++    # Constructing the arrays from the records deliberately also gives the
++    # required float array of shape ``(0,)`` for an empty input list.
++    field = np.asarray([experiment["field"] for experiment in experiments], dtype=float)
++    bias = np.asarray([experiment["bias"] for experiment in experiments], dtype=float)
++    return float(diffusivity) * bias * (bias + 2.0 * field) / 4.0
+ 
+ 
+ class Model:
++    """One-parameter calibrated model for the apparatus."""
++
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Fit the common rate prefactor by inverse-variance least squares.
++
++        Each calibration value is an independent Gaussian measurement, so the
++        maximum-likelihood estimate is the weighted linear regression through
++        the origin.  The documented parameter interval is imposed directly on
++        that estimate.
++        """
++        numerator = 0.0
++        denominator = 0.0
++
++        for record in records:
++            experiment = record["input"]
++            field = float(experiment["field"])
++            bias = float(experiment["bias"])
++            value = float(record["value"])
++            sigma = float(record["sigma"])
++
++            if not (np.isfinite(field) and np.isfinite(bias) and
++                    np.isfinite(value) and np.isfinite(sigma) and sigma > 0.0):
++                raise ValueError("calibration records require finite values and positive sigma")
++
++            design = bias * (bias + 2.0 * field) / 4.0
++            weight = 1.0 / (sigma * sigma)
++            numerator += weight * design * value
++            denominator += weight * design * design
++
++        # A data set consisting solely of the exact SCGF zeroes contains no
++        # information about D.  Retaining the current, valid value is a stable
++        # and deterministic response in that degenerate case.
++        if denominator > 0.0 and np.isfinite(denominator):
++            estimate = numerator / denominator
++            if np.isfinite(estimate):
++                self.diffusivity = float(np.clip(estimate, *_DIFFUSIVITY_BOUNDS))
++        else:
++            self.diffusivity = float(np.clip(self.diffusivity, *_DIFFUSIVITY_BOUNDS))
++
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

@@ -1,0 +1,51 @@
+"""Current SCGF model and calibration interface."""
+import numpy as np
+
+# Public bounds on the unknown diffusivity.
+D_MIN, D_MAX = 0.8, 1.2
+
+
+def _features(experiments):
+    """Unit-diffusivity SCGF basis for each experiment.
+
+    For the asymmetric exclusion ring at half filling the leading
+    large-ring scaled cumulant generating function of
+    Q_t = (J_+ - J_-)/L is
+
+        psi(E, lambda; D) = D * lambda * (lambda + 2 E) / 4.
+    """
+    field = np.asarray([e["field"] for e in experiments], dtype=float)
+    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+    return bias * (bias + 2.0 * field) / 4.0
+
+
+def predict_at(experiments, diffusivity):
+    return diffusivity * _features(experiments)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Fit diffusivity by inverse-variance weighted least squares."""
+        if len(records) == 0:
+            self.diffusivity = float(np.clip(1.0, D_MIN, D_MAX))
+            return self
+
+        features = _features([r["input"] for r in records])
+        values = np.asarray([r["value"] for r in records], dtype=float)
+        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
+        weights = 1.0 / np.square(sigma)
+
+        denom = float(np.sum(weights * features * features))
+        if denom > 0.0:
+            diffusivity = float(np.sum(weights * features * values) / denom)
+        else:
+            diffusivity = 1.0
+
+        self.diffusivity = float(np.clip(diffusivity, D_MIN, D_MAX))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

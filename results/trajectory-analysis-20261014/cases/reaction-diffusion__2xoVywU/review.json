@@ -1,0 +1,54 @@
+{
+  "trial": "reaction-diffusion__2xoVywU",
+  "title": "Rewrites transport carefully, but preserves independent initial constituent counts",
+  "finding": "GPT-5.6 Terra High rewrote the solver and added validation. The final correlate() still multiplied the relaxation propagator by diag(totals), even though it computed the charge-conditioned susceptibility for the relaxation rate.",
+  "actions": [
+    {
+      "step_id": 9,
+      "timestamp": "2026-10-11T13:40:12.035Z",
+      "action": "Checks the transport reduction numerically."
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-10-11T13:40:21.454Z",
+      "action": "Starts a full rewrite of model.py."
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-10-11T13:42:22.783Z",
+      "action": "Writes the replacement implementation."
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-10-11T13:42:29.828Z",
+      "action": "Runs public tests and transport checks."
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-10-11T13:42:51.803Z",
+      "action": "Adds the zero-time prediction branch."
+    },
+    {
+      "step_id": 16,
+      "timestamp": "2026-10-11T13:43:00.717Z",
+      "action": "Reruns public tests and further numerical checks."
+    }
+  ],
+  "diagnosis": "Wrong equilibrium initial covariance. Mean transport errors remain small, but fluctuation-group errors are 42.15\u201359.41%. Replacing diag(totals) with the already-computed susceptibility reduces those errors to at most 0.00308%.",
+  "confidence": "Confirmed by a targeted diagnostic intervention",
+  "model": "gpt-5.6-terra",
+  "effort": "high",
+  "task": "reaction-diffusion",
+  "agent_seconds": 300.464761,
+  "exception_type": null,
+  "source_path": "jobs/pareto-gpt-5.6-terra-reaction-diffusion-20261011-133709/reaction-diffusion__2xoVywU",
+  "source_sha256": "d12bfac20660b5fd98d3b9da7436ff9c6d9de60e809cfbd42872679fe4152e11",
+  "trajectory_sha256": "f86b26088d72796b2a91970a90a901cb16033995d48b1fd40af1d1217ef4e097",
+  "evidence": {
+    "metrics.json": "adc082141ef7ec366e0bfa9f9a5bbbf75072d3fe6fb173e058d383f8b211ef5c",
+    "test-stdout.txt": "e89ff67d39c58865c8256e7d88ee02c77cfeb60d673424292e5eb24a9be28780",
+    "model.py": "d12bfac20660b5fd98d3b9da7436ff9c6d9de60e809cfbd42872679fe4152e11",
+    "reward.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "model.diff": "6758177eb0d5ead70dbd1d63b04f04c4b87d3e068156d83c714a99540001041b"
+  }
+}

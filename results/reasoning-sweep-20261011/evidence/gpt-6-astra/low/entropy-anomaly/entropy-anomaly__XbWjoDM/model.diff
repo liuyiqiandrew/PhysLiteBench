@@ -1,0 +1,92 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,4 +1,10 @@
+-"""Stationary small-mass calorimetry of switched anisotropic thermal contacts."""
++"""Stationary small-mass calorimetry of switched anisotropic thermal contacts.
++
++Moments use the rescaled velocity u = sqrt(m) v.  The fast generator
++contains both the Ornstein--Uhlenbeck dynamics and the contact generator Q.
++Its leading even moments, and the next odd moments, close through degree
++four.  The order-m second moments give the finite excess calorimetry.
++"""
+ from functools import lru_cache
+ import numpy as np
+ 
+@@ -50,6 +56,12 @@
+     return {pair:value[:,i] for i,pair in enumerate(basis)}
+ 
+ def limiting_state(e,friction,points=129):
++    """Return the limiting spatial entropy density on one profile period.
++
++    Density is normalized with respect to profile phase, so integrating over
++    this period already accounts for all identical periods and the uniform y
++    coordinate.  Spatial derivatives still include the physical wavenumber.
++    """
+     phase,d=spatial_grid(points);d=d*e['wavenumber'];dx=2*np.pi/points
+     factors,gx,gy,q=contact_parameters(e,friction);count=len(gx)
+     force=(e['force_x'],e['force_y']);magnetic=e['magnetic']
+@@ -63,16 +75,28 @@
+     diff_source=np.column_stack((unit2[2,0][:,0],unit2[1,1][:,0])).ravel()
+     velocity=-np.linalg.solve(a1,force_source).reshape(count,2).sum(axis=0)
+     diffusion=-np.linalg.solve(a1,diff_source).reshape(count,2).sum(axis=0)
+-    operator=-d@(velocity[0]*np.eye(points)-diffusion[0]*d*local_t[None,:])
+-    operator[-1]=dx;rhs=np.zeros(points);rhs[-1]=1.
+-    density=np.linalg.solve(operator,rhs)
++    if e['contrast']==0.:
++        density=np.full(points,1./(2*np.pi))
++    else:
++        operator=-d@(velocity[0]*np.eye(points)-diffusion[0]*d*local_t[None,:])
++        operator[-1]=dx;rhs=np.zeros(points);rhs[-1]=1.
++        density=np.linalg.solve(operator,rhs)
+     zeroth={(0,0):np.tile(density/count,(count,1))}
+     second=solve_moments(2,zeroth,temperatures,gx,gy,magnetic,q)
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At the next even order, contact-wise continuity requires
++    # Q n_2 = d_x j_1.  Although the leading populations are equal, their
++    # corrections generally are not.  Fix the nullspace by sum_s n_2,s = 0.
++    # The omitted common-density correction contributes precisely the fast
++    # background rate times the residence correction and thus cancels in the
++    # specified finite-mass subtraction, including for weighted detectors.
++    contact_source=(d@first[1,0].T).T
++    population_operator=q.copy()
++    population_operator[-1,:]=1.
++    contact_source[-1,:]=0.
++    density_correction={(0,0):np.linalg.solve(population_operator,contact_source)}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +117,28 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Fit inverse friction by uncertainty-weighted least squares.
++
++        Calibration has identical baths and zero magnetic field.  Every
++        predicted rate is then exactly proportional to inverse friction;
++        the independent contact label has no effect on the dynamics.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++        values=np.asarray([r['value'] for r in records],dtype=float)
++        sigma=np.asarray([r['sigma'] for r in records],dtype=float)
++        if not np.all(np.isfinite(values)) or not np.all(np.isfinite(sigma)&(sigma>0)):
++            raise ValueError("Calibration values must be finite and uncertainties positive.")
++        reference=coefficients([r['input'] for r in records],friction=1.)
++        design=reference/sigma
++        information=float(design@design)
++        if information==0.:
++            raise ValueError("Calibration does not identify friction.")
++        inverse=float(design@(values/sigma))/information
++        self.friction=float(1./np.clip(inverse,1./1.6,1./.7))
++        return self
++    def predict(self,experiments):
++        if self.friction is None:
++            raise ValueError("Fit the model before predicting.")
++        return coefficients(experiments,self.friction)

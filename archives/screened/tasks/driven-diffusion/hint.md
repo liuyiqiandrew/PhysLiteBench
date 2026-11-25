@@ -1,0 +1,1 @@
+A nonzero constant drive produces a stationary probability current. An equilibrium fluctuation-response relation between diffusion and differential mobility need not hold there, even if the stationary drift is exact. Obtain long-time spreading from the periodic transport fluctuations or cell-corrector problem while retaining the unwrapped displacement.

@@ -1,0 +1,105 @@
+from functools import lru_cache
+import numpy as np
+from scipy.integrate import quad, solve_bvp
+
+
+@lru_cache(256)
+def response(radius, width, strength, slip):
+    """Return the response with the viscosity factor omitted.
+
+    The concentration is written as ``c = exp(-U) * psi``.  The l=1
+    component of ``psi`` obeys the diffusion equation with the no-flux
+    condition at the sphere and matching to a unit gradient outside the
+    interaction layer.
+
+    The force calculation uses the translating-sphere auxiliary problem.
+    In particular, the force density must be tested against the *relative*
+    auxiliary flow (the sphere's carried-potential reaction is the ``1`` in
+    ``1 - A(r)`` below).  This is important for a finite Navier slip length.
+    """
+    if strength == 0:
+        return 0.
+    end = radius+width
+    def equations(x, y):
+        r = radius+width*x
+        return np.array([y[1], -(2*width/r+2*strength*(1-x))*y[1]+2*width**2*y[0]/r**2])
+    def boundary(left, right):
+        return np.array([left[1], end*right[1]/width+2*right[0]-3*end])
+    grid = np.linspace(0., 1., 129)
+    r = radius+width*grid
+    initial = np.array([r+radius**3/(2*r**2), width*(1-radius**3/r**3)])
+    solution = solve_bvp(equations, boundary, grid, initial, tol=2e-10, max_nodes=10000)
+    if not solution.success:
+        raise RuntimeError(solution.message)
+    beta = slip/radius
+
+    # Auxiliary flow for a sphere translating with unit velocity.  Its radial
+    # component is A(r)*cos(theta), where the Navier condition gives
+    #
+    #   A(r) = alpha*radius/r + b*radius**3/r**3,
+    #   alpha = 3(1+2 beta)/(2(1+3 beta)),
+    #   b     = -1/(2(1+3 beta)).
+    #
+    # The corresponding drag is 6*pi*viscosity*radius*drag.  The reaction
+    # of the potential carried by the sphere changes the radial kernel from
+    # r**2*A(r) to r**2*(1-A(r)).
+    drag = (1+2*beta)/(1+3*beta)
+    alpha = 3*drag/2
+    b = -1/(2*(1+3*beta))
+
+    def integrand(r):
+        x = (r-radius)/width
+        concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+        derivative = -2*strength*(1-x)/width
+        weight = r*r - alpha*radius*r - b*radius**3/r
+        return weight*concentration*derivative
+    return 2/(9*radius*drag)*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
+
+
+def predict_at(experiments, viscosity):
+    return np.array([response(e['radius'], e['width'], e['strength'], e['slip'])
+                     for e in experiments])/viscosity
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        # For a given experiment, response = response_without_viscosity /
+        # viscosity.  Therefore the weighted Gaussian maximum-likelihood
+        # estimate has a closed form.
+        if not records:
+            raise ValueError('records must contain at least one calibration')
+
+        inputs = [record['input'] for record in records]
+        measured = np.asarray([record['value'] for record in records],
+                              dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records],
+                           dtype=float)
+        if (not np.all(np.isfinite(measured)) or
+                not np.all(np.isfinite(sigma)) or np.any(sigma <= 0)):
+            raise ValueError('calibration values and uncertainties must be finite')
+
+        scale = np.asarray([response(item['radius'], item['width'],
+                                     item['strength'], item['slip'])
+                            for item in inputs], dtype=float)
+        weights = 1/sigma**2
+        denominator = np.sum(weights*scale**2)
+        if not np.isfinite(denominator) or denominator == 0:
+            raise ValueError('calibration has no informative response')
+        cross = np.sum(weights*scale*measured)
+        if not np.isfinite(cross) or cross <= 0:
+            raise ValueError('calibration implies a non-positive viscosity')
+        viscosity = denominator/cross
+        if not np.isfinite(viscosity) or viscosity <= 0:
+            raise ValueError('calibration implies a non-positive viscosity')
+
+        # The stated model range is part of the apparatus specification.  It
+        # also keeps a pathological noisy calibration from creating an
+        # unusable predictor.
+        self.viscosity = float(np.clip(viscosity, 0.8, 1.6))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.viscosity)

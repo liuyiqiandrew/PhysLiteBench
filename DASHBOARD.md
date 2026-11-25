@@ -1,119 +1,103 @@
-# Latest evaluation dashboard
+# PhysLiteBench evaluation dashboard
 
-For the physics and calibration loopholes behind the three tasks, see [TASKS.md](TASKS.md).
+## Current study artifacts
 
-Updated 2026-09-17. **Only the newest completed three-trial batch for each task/model is included: 27 trials, nine batches.** Luna uses the fresh recheck; Terra and Sol use their latest comparison batches. Older results are excluded from these counts. Original raw artifacts are archived separately and are not included in this repository.
+[Final presentation](%21PhysLiteBench-FINAL.pptx) · [Unified Python plots and source data](output/presentation-20261014/PhysLiteBench-no-pilot-figures-20261016/README.txt) · [Completed High-effort hint comparison](results/hint-comparison-20261014/FINAL-REPORT.txt) · [DeepSeek execution errors](results/deepseek-failure-review-20261016/diagnosis.json)
 
-All models used **high reasoning effort**, Harbor 0.21.0, Codex CLI 0.154.0, and the same task files, data, and grading within each task. Agent/verifier limits were 600/60 seconds. The original audit checked native logs to confirm the requested models and effort. No new agent runs were made for this dashboard.
+The hint comparison has recorded all 351 observations. The unified plotting bundle combines the available studies by model, effort and hint condition, removes known duplicate trials, and retains execution errors and cost uncertainty. The versioned reports below preserve their original scope and protocols.
 
-This repository includes the [per-trial statistics and spin diagnostic](results/latest.json) and a small [electrodiffusion endpoint diagnostic](results/electrodiffusion-endpoints.json). Full trajectories, command logs, final submissions, and batch audits are not bundled. The trajectory findings below summarize the original review of public messages, tool activity, and final code. Trial and batch IDs identify those archived records; they are not links to local files.
+## Thirteen-task reasoning-effort comparison
 
-## Results
+The [current comparison report](results/reasoning-sweep-20261011/README.md) varies reasoning effort across GPT-6 Luna, GPT-6 Sol, GPT-5.6 Terra and GPT-6 Astra, and records DeepSeek V4.1 Flash through Prime. Each complete plotted point covers thirteen frozen tasks and three attempts per task. The report distinguishes completed panels, partial panels, execution errors and passing checkpoints after timeouts. OpenAI High reuses the matching original ten-task observations and adds the three imported tasks. The October 12 continuation evaluates Astra Extra High and a fresh DeepSeek cohort at None, Low, High and Max after a reproduced transport correction; the legacy DeepSeek cohort remains separately preserved.
 
-Cells show **passes out of three**.
+![Reasoning effort and cost on thirteen tasks](output/reasoning-sweep-20261011/pareto-reasoning.png)
 
-| Task | Luna high | Terra high | Sol high |
+[PDF](output/reasoning-sweep-20261011/pareto-reasoning.pdf) · [SVG](output/reasoning-sweep-20261011/pareto-reasoning.svg) · [Summary CSV](results/reasoning-sweep-20261011/summary.csv) · [Per-task scores](results/reasoning-sweep-20261011/per-task-scores.csv) · [Trial outcomes](results/reasoning-sweep-20261011/trial-outcomes.csv) · [Model inventory](results/reasoning-sweep-20261011/model-inventory.json) · [Reproduce the figure](results/reasoning-sweep-20261011/REPRODUCE.md)
+
+OpenAI costs apply published token rates to recorded usage. Prime costs include its reconciled request ledger and retained reserves for missing usage. The budget-limited delivery contains 15 complete comparison points. DeepSeek None is partial at 3/39 attempts, with 36 attempts unrun and excluded from the plot. See the report for account-budget limits, execution errors and the documented Terra and DeepSeek host-sleep effects. The GPT-5.6 Luna development-selected qualification baseline and the original ten-task comparison are preserved below.
+
+## GPT-5.6 effort and hint comparison
+
+The [general/physics hint summary](results/hint-comparison-20261015-005800/summary.md) covers all thirteen tasks and the ten model/effort settings from the latest [Terra/Sol](results/sol-terra-low-medium-20261011-185155/report.md) and [Luna](results/luna-all-efforts-20261011-205240/report.md) no-hint batches: three fresh attempts with each hint, **780 attempts total**. General hints passed **183/390 (46.9%)** and physics hints passed **257/390 (65.9%)**; the historical no-hint panels passed **84/390 (21.5%)**. Recorded usage totals **337,196,408 tokens** and **at least $88.070178 in API-equivalent cost**; 19 matrix attempts have unknown full costs. Per-panel costs, task pass rates, failure-category counts and verification metadata are included; full trajectories and the evidence archive remain local. Five pre-agent setup failures were preserved alongside five replacements. Source and grading hashes match the baselines, while CPU limits and worker concurrency differ.
+
+## Qualification and task roster
+
+**October 11, 2026: thirteen tasks are installed; the original ten each have 0/3 completed unhinted GPT-5.6 Luna High passes.** The selected thirty trials have no infrastructure exceptions. Exact evaluated sources are installed in `tasks/`; the [full thirteen-task roster](results/task-roster.json) also records the imported additions below, while [the manifest](results/qualified-tasks.json) and [reviewed evidence](results/qualification-20261011) identify each outcome.
+
+| Task and public apparatus | Revision | GPT-5.6 Luna High passes |
+|---|---:|---:|
+| [Entropy anomaly](tasks/entropy-anomaly/environment/README.md) | 9 | 0/3 |
+| [Finite-layer phoresis](tasks/finite-layer-phoresis/environment/README.md) | 2 | 0/3 |
+| [Hierarchical glass overlaps](tasks/hierarchical-glass-overlaps/environment/README.md) | 2 | 0/3 |
+| [Insulating MHD duct](tasks/insulating-mhd-duct/environment/README.md) | 2 | 0/3 |
+| [Magnetic tracer](tasks/magnetic-tracer/environment/README.md) | 9 | 0/3 |
+| [Reaction–diffusion](tasks/reaction-diffusion/environment/README.md) | 10 | 0/3 |
+| [Ring-current fluctuations](tasks/ring-current-fluctuations/environment/README.md) | 1 | 0/3 |
+| [Rotating reservoir](tasks/rotating-reservoir/environment/README.md) | 11 | 0/3 |
+| [Single-file memory](tasks/single-file-memory/environment/README.md) | 1 | 0/3 |
+| [Superconducting heat](tasks/superconducting-heat/environment/README.md) | 11 | 0/3 |
+
+The original rerun retained five tasks. The other five were refined within their physical families. All three failed submissions for each new final revision passed after correcting only the reviewed physical mistake while retaining their fitted parameter. Controls and independent numerical references passed before the final trials. All exploratory outcomes, including successful predecessor revisions and execution errors, remain in [the development ledger](results/qualification-20261011/development-ledger.json).
+
+## Three imported tasks
+
+| Imported task | Revision | Original selection passes | Latest GPT-5.6 Luna High passes |
 |---|---:|---:|---:|
-| Spin probes, r6 | 1/3 | 3/3 | 3/3 |
-| Thermal piston, r9 | 0/3 | 1/3 | 3/3 |
-| Electrodiffusion, r6 | 0/3 | 0/3 | 3/3 |
-| **Total** | **1/9** | **4/9** | **9/9** |
+| [Swirling heat tails](tasks/swirling-heat-tails/environment/README.md) | 1 | 0/3 | **1/3** |
+| [Hard-rod current](tasks/hard-rod-current/environment/README.md) | 2 | 0/3 | **0/3** |
+| [Finite-ion cloud](tasks/finite-ion-cloud/environment/README.md) | 3 | 0/3 | **0/3** |
 
-All 27 submissions passed calibration and parameter recovery. Every failed submission failed only hidden predictions; there were **no timeouts or Harbor exceptions**. Trajectory review distinguishes the causes:
+The three additions were merged from `origin/luna-high-qualified-tasks` at `6f4ca59`. Their fresh confirmation retained all nine completed trials with no infrastructure errors or retries. Swirling heat tails has a passing solution; hard-rod current has three clean physical failures; finite-ion cloud has two clean physical failures and one mixed physical/mathematical failure. These are the remote results, not new local benchmark runs. See the [confirmation results](results/expansion-confirmation-20261011-1709-results.json) and [independent review](results/expansion-confirmation-20261011-1709-review.md).
 
-| Model | Pass | Physical-model failure | Mixed math diagnostic / model selection | Numerical implementation failure |
+Their web search was disabled, but shell networking remained available. This differs from the original ten's restricted-network qualification. The imported review found no external retrieval in the emitted trajectories. Original selection results and the passing confirmation outcome are both preserved.
+
+The fresh comparison of GPT-6 Luna, GPT-5.6 Terra, GPT-6 Sol, GPT-6 Astra and DeepSeek V4.1 Flash through Prime is complete; results appear below.
+
+The chart uses per-request token usage and published OpenAI Standard and Prime gateway prices, including cache rates, to estimate cost per attempt. This is not a measurement of the Pro subscription bill. The development-selected GPT-5.6 Luna baseline is labeled separately from fresh comparison results.
+
+## Original ten-task model comparison
+
+These panels cover the original ten tasks only. The three imported additions have not been evaluated in this comparison.
+
+Updated 2026-10-11 15:29 UTC. Five fresh model panels cover the same ten frozen tasks, High reasoning, three attempts per task, Codex CLI 0.160.0, and configured 600/60-second solving/verifying limits (see the host-sleep caveat below).
+
+| Model | Completed passes | Timeouts | Other execution errors | Mean estimated API cost per attempt |
 |---|---:|---:|---:|---:|
-| Luna | 1 | 7 | 1 | 0 |
-| Terra | 4 | 4 | 0 | 1 |
-| Sol | 9 | 0 | 0 | 0 |
+| GPT-6 Luna | 1/30 | 0 | 0 | $0.00498 |
+| DeepSeek V4.1 Flash (Prime) | 0/30 | 24 | 1 | $0.14599–$0.15187 |
+| GPT-6 Sol | 30/30 | 0 | 0 | $0.20375 |
+| GPT-5.6 Terra | 8/30 | 0 | 0 | $0.20382 |
+| GPT-6 Astra | 30/30 | 0 | 0 | $0.71376 |
 
-**Classification qualification:** Luna spin trial `vYnEEHB` submitted the wrong physical model, but its trajectory includes a mathematical error in the comparison used to select that model. Its raw failure stands; it is separated here from clean physical-model failures. Under a strict “no mathematical cause” criterion, the newest spin batch supplies **one clean physical failure, one mixed failure, and one pass**—so it does not establish two clean physical failures. Thermal and electrodiffusion each retain three clean Luna physical failures.
+![Cost–score frontier](output/overnight-20261011/model-cost-score-pareto.png)
 
-These are small batches on three tasks developed against Luna, not general model success rates.
+Costs apply the published OpenAI Standard or Prime gateway catalog rates to recorded token usage, including reasoning within output tokens. OpenAI requests use cache rates and per-request long-context multipliers; Prime uses its own rates without those multipliers. Prime supplied no separate cache price, so cached input is conservatively priced at the ordinary input rate. The Prime panel total also includes provider requests completed after an agent timeout, reconciled against the relay ledger. Any request without final usage retains its conservative reserved maximum, with the cost interval recorded in the JSON. These are token-cost estimates, excluding local compute; OpenAI numbers are not Pro subscription charges. Prime returned zero in its cost field, so that field is not treated as proof of free inference.
 
-## Interaction and resource statistics
+[Prices](results/model-comparison-20261011-extended/pricing.json), [CSV](output/overnight-20261011/model-cost-score.csv), [PDF](output/overnight-20261011/model-cost-score-pareto.pdf), [SVG](output/overnight-20261011/model-cost-score-pareto.svg), [complete results](results/model-comparison-20261011-extended/results.json), and [submitted-source evidence](results/model-comparison-20261011-extended/evidence) are available. The earlier three-model export remains preserved in `results/model-comparison-20261011/`.
 
-Each row covers nine trials. Counts are totals; time is the median per trial.
+DeepSeek’s score measures end-to-end performance through the Prime gateway and this Codex harness. Incomplete attempts and the provider stream interruption dominate its failures, so the result has limited value as a pure physics-capability comparison.
 
-| Model | Model rounds | Tool requests | Shell commands | Median agent time | Output tokens |
+GPT-5.6 Luna is the selected 0/30 development baseline, using CLI 0.154.0, and is excluded from the fresh-model frontier. These small trial counts are clustered by task; Wilson intervals are descriptive. Verifier-passing checkpoints with execution exceptions are reported separately and do not count as completed successes. No completed model outcome was resampled.
+
+The user approved GPT-5.6 Terra because GPT-6 Terra was unavailable, and supplied Prime credentials with a $10 cap including compatibility calls. DeepSeek V4.1 Flash is evaluated through Prime’s gateway. It uses the same Codex client and tools, with provider-specific context configuration, a 128,000-token per-request output cap, and zero transport retries. An authenticated local relay restricts requests to that model and reserves a conservative maximum cost before each call. Task instructions, physical systems, private grading, and execution timeouts stayed fixed. The relay’s source and exact protocol are preserved with the evidence.
+
+The original CLI 0.154.0 rejected six GPT-6 requests before any model answer or tool use. Those access failures were preserved before all fresh panels moved to 0.160.0. Prime’s separate harmless compatibility task initially failed due to a local relay header bug; the corrected run successfully executed Python, used apply_patch, and read back the resulting file before any DeepSeek physics trial began.
+
+Four retained Terra attempts have 34–40 minutes of timestamp elapsed time despite the configured 600-second solving timeout. macOS recorded repeated host sleep and dark wake during that interval, ending at 10:34 local time. All four attempts failed grading. Their exact active inference time cannot be reconstructed; see [timing audit](results/model-comparison-20261011-extended/timing-audit.json). This limits strict equal-wall-time comparisons.
+
+Two Terra superconducting-heat attempts failed during Codex installation before model execution. Their setup logs are preserved separately; exactly two replacement slots were run. The completed third attempt was retained unchanged.
+
+| Task | GPT-6 Luna | GPT-6 Sol | GPT-6 Astra | GPT-5.6 Terra | DeepSeek V4.1 Flash (Prime) |
 |---|---:|---:|---:|---:|---:|
-| Luna | 111 | 102 | 104 | 123.4 s | 58,999 |
-| Terra | 71 | 62 | 50 | 102.2 s | 43,966 |
-| Sol | 89 | 80 | 64 | 159.1 s | 69,742 |
+| entropy-anomaly | 0/3 | 3/3 | 3/3 | 2/3 | 0/3 (3 errors) |
+| finite-layer-phoresis | 0/3 | 3/3 | 3/3 | 3/3 | 0/3 (1 error) |
+| hierarchical-glass-overlaps | 0/3 | 3/3 | 3/3 | 0/3 | 0/3 (3 errors) |
+| insulating-mhd-duct | 0/3 | 3/3 | 3/3 | 3/3 | 0/3 (3 errors) |
+| magnetic-tracer | 0/3 | 3/3 | 3/3 | 0/3 | 0/3 (3 errors) |
+| reaction-diffusion | 0/3 | 3/3 | 3/3 | 0/3 | 0/3 (3 errors) |
+| ring-current-fluctuations | 0/3 | 3/3 | 3/3 | 0/3 | 0/3 (2 errors) |
+| rotating-reservoir | 0/3 | 3/3 | 3/3 | 0/3 | 0/3 (3 errors) |
+| single-file-memory | 1/3 | 3/3 | 3/3 | 0/3 | 0/3 (1 error) |
+| superconducting-heat | 0/3 | 3/3 | 3/3 | 0/3 | 0/3 (3 errors) |
 
-- **Model rounds / interactions:** sum of Harbor trajectory `llm_call_count` over agent steps, cross-checked against native token-usage records. These are model turns, not human conversations; no trial received a human follow-up.
-- **Tool requests:** unique top-level tool-call IDs in the model transcript, cross-checked against native logs. An orchestration request can contain multiple shell commands or patches, so shell counts need not match tool counts.
-- **Shell commands:** completed `command_execution` items, counted once by item ID. Setup and verifier commands are excluded.
-- **Agent time:** Harbor's agent-execution interval, excluding container setup and grading. Output tokens are Harbor's recorded completion-token totals; reasoning tokens are not added again.
-
-Luna used **111 model rounds versus Sol's 89**, yet passed one trial versus nine. More interaction was not sufficient to correct the physics in these runs. Nonzero shell exits occurred **11 / 12 / 8** times for Luna / Terra / Sol; these included fit checks, missing paths, and Git commands outside a repository. They are intermediate events, not trial verdicts.
-
-## Interesting trajectories
-
-**1. Recognizing the right issue did not prevent a wrong conclusion.** Luna spin `vYnEEHB` explicitly checked whether the probes' shared noise required correlation. Its temporary shared-noise candidate used incorrect preparation/readout rotations and reported reduced χ² **997**, versus **0.9924** for the supplied factorized model. Its next public update accepted the factorized model. A post-hoc recomputation corrects only those rotations at the retained fitted gamma and obtains **0.9924** for the shared-noise model too. This is a mixed diagnostic/model-selection failure, not simple forgetting. The recomputation is recorded in the [statistics data](results/latest.json), without changing the submission or running another agent.
-
-**2. Sol changed its initial physical assumption.** Thermal `3k2BgxE` initially endorsed the supplied constant-pressure model, then noticed that calibration keeps the temperature sum fixed and cannot validate general heating. It corrected the piston dynamics and checked a new `[320,300] K` preparation against the coupled first law; derivative disagreement was **2.38×10⁻⁸ K/s**. Its final hidden error was below **0.065%**. The public trajectory records the correction directly.
-
-**3. The longest Luna trajectory repaired fitting but left the physics wrong.** Thermal `QDbiKyo` used **26 model rounds, 25 tool requests, 20 shell commands, four patch events, 308 s, and 15,008 output tokens**. It fixed an intermediate golden-section-search bug and passed calibration, but kept the original constant-pressure predictor. Hidden errors remained **13.25–27.20%**. Successful numerical self-correction did not become a physical-model audit.
-
-**4. A conservation check can validate the wrong discretization.** Terra electrodiffusion `CMRj2xx` included the correct shared electric field and tested a mixture, but checked the unweighted mean over grid nodes. Its incorrect full-width endpoint cells conserve that quantity, while the physical spatial mass requires half-weight endpoints. The check passed; hidden error reached **9.004%**. Correcting only endpoint volumes at fixed diffusivity reduced it to **0.1192%** in the retained [diagnostic](results/electrodiffusion-endpoints.json). All three Sol trials checked correctly weighted mass; `KWp96WN` also compared the coupled solver with the binary-salt limit and tested a mixed profile with two spatial harmonics.
-
-**5. Several passing agents checked behavior outside calibration.** Terra spin `UAEzApH` compared its joint probability with one million shared-phase samples. Sol `yZc2yzY` used two million samples, agreeing within **0.000195**. In contrast, all three latest Luna electrodiffusion agents fitted the pure-salt data and left the independent-salt predictor unchanged. Their public tests passed, but they completely missed the initially uniform ion's induced redistribution in the hidden mixtures.
-
-## Per-trial statistics
-
-**P** = pass; **F** = physical-model failure; **M** = mixed mathematical diagnostic/model-selection failure; **N** = numerical implementation failure. Trial IDs identify the separately archived runs. All table values and classifications are included in the bundled [statistics](results/latest.json).
-
-### Spin
-
-| Model / trial | Result | Model rounds | Tool requests | Shell commands | Agent seconds | Output tokens |
-|---|---:|---:|---:|---:|---:|---:|
-| Luna / `gw836QL` | P | 16 | 15 | 15 | 211.7 | 9,150 |
-| Luna / `vYnEEHB` | M | 9 | 8 | 11 | 123.4 | 5,378 |
-| Luna / `vkqNyWU` | F | 11 | 10 | 17 | 114.8 | 5,091 |
-| Terra / `B7hhTin` | P | 9 | 8 | 6 | 114.5 | 5,114 |
-| Terra / `UAEzApH` | P | 10 | 9 | 7 | 133.7 | 6,354 |
-| Terra / `qdAqWSC` | P | 8 | 7 | 6 | 102.2 | 4,503 |
-| Sol / `4H7oWE6` | P | 7 | 6 | 5 | 99.5 | 4,416 |
-| Sol / `Yq6wDKj` | P | 10 | 9 | 7 | 130.7 | 5,118 |
-| Sol / `yZc2yzY` | P | 11 | 10 | 7 | 200.2 | 9,479 |
-
-### Thermal
-
-| Model / trial | Result | Model rounds | Tool requests | Shell commands | Agent seconds | Output tokens |
-|---|---:|---:|---:|---:|---:|---:|
-| Luna / `4wpYNZt` | F | 13 | 12 | 11 | 184.7 | 8,190 |
-| Luna / `QDbiKyo` | F | 26 | 25 | 20 | 308.3 | 15,008 |
-| Luna / `XiM8S5L` | F | 7 | 6 | 5 | 98.7 | 4,048 |
-| Terra / `8ZeNNqP` | F | 8 | 7 | 6 | 95.8 | 4,360 |
-| Terra / `DPmhFWA` | F | 7 | 6 | 5 | 83.1 | 3,744 |
-| Terra / `Hq9qXxN` | P | 8 | 7 | 6 | 125.0 | 5,539 |
-| Sol / `3k2BgxE` | P | 11 | 10 | 8 | 159.1 | 7,620 |
-| Sol / `JfrrvPr` | P | 11 | 10 | 9 | 141.8 | 5,812 |
-| Sol / `xgEJXCg` | P | 9 | 8 | 7 | 129.1 | 5,706 |
-
-### Electrodiffusion
-
-| Model / trial | Result | Model rounds | Tool requests | Shell commands | Agent seconds | Output tokens |
-|---|---:|---:|---:|---:|---:|---:|
-| Luna / `DQSz4mt` | F | 11 | 10 | 11 | 126.2 | 4,765 |
-| Luna / `igafNCt` | F | 10 | 9 | 8 | 98.2 | 4,337 |
-| Luna / `rWQHHqo` | F | 8 | 7 | 6 | 85.4 | 3,032 |
-| Terra / `CMRj2xx` | N | 9 | 8 | 6 | 154.8 | 7,149 |
-| Terra / `ZWrTrQ4` | F | 6 | 5 | 4 | 92.8 | 3,396 |
-| Terra / `cyEhdFf` | F | 6 | 5 | 4 | 86.7 | 3,807 |
-| Sol / `KWp96WN` | P | 13 | 12 | 9 | 350.0 | 14,351 |
-| Sol / `SNjmsdi` | P | 9 | 8 | 6 | 269.2 | 11,175 |
-| Sol / `bkh5WFN` | P | 8 | 7 | 6 | 166.0 | 6,065 |
-
-## Selected batches and evidence
-
-Only these nine batches contribute to this dashboard. These are archive identifiers, not bundled directories. The statistics preserve both the original final-artifact classification and the reviewed trajectory classification, including the mixed spin failure.
-
-| Task | Latest Luna | Latest Terra | Latest Sol |
-|---|---|---|---|
-| Spin | `qubit-r6-luna-high-recheck` | `qubit-r6-terra-high` | `qubit-r6-sol-high` |
-| Thermal | `thermal-v9-luna-high-recheck` | `thermal-v9-terra-high` | `thermal-v9-sol-high` |
-| Electrodiffusion | `reaction-v6-luna-high-recheck` | `reaction-v6-terra-high` | `reaction-v6-sol-high` |
-
-[Machine-readable statistics and diagnostic](results/latest.json). This summary supports recomputing the aggregate tables from the 27 per-trial rows. Independently checking interaction counts or trajectory interpretations requires the original raw traces, which are archived separately. When updating, replace each task/model cell with its newest completed batch; do not accumulate earlier batches into these totals.
+Prime estimated token cost including compatibility calls: $4.39077. The conservative spending ledger accounts for $4.74464 of the authorized $10 cap, including retained reserves for unresolved or failed requests. See [Prime spending ledger](results/model-comparison-20261011-extended/prime/ledger.json).

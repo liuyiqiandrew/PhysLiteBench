@@ -1,0 +1,142 @@
+{
+  "paired-spin-noise__toyvkFo": {
+    "task": "paired-spin-noise",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "paired-spin-noise-neutral-r1-initial-plain-20261003-041626",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The agent explicitly identifies that the normal-only source omits pairing contributions to the local spin response, while remaining exact for unpaired calibration. Its final submission constructs the complete 64-state fermionic Hamiltonian with correctly ordered pair creation/annihilation and the local Sz operator. It weights squared transition matrix elements by initial Gibbs probabilities and the positive sample-absorption detector window. This restores the joint pair covariance through a direct many-body calculation and passes every hidden group. Recovered diagnostic and implementation bugs do not change the correct final physics.",
+    "metrics": {
+      "parameters": {
+        "gain": 1.1001184095231482
+      },
+      "parameter_relative_error_max": 0.00010764502104376739,
+      "calibration_chi2": 1.2104043536301414,
+      "hidden": {
+        "pairing_sweep": 0.00010764502104276873,
+        "phase_sweep": 0.00010764502104278561,
+        "detector_sweep": 0.00010764502104343314,
+        "normal_anchors": 0.00010764502104283761
+      }
+    },
+    "source_sha256": "4e1fca0e64cd34c69356101fc1059b5eb139a08736fd7756fbd86a9dd5caf089",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/artifacts/app/model.py",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/agent/trajectory.json",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/agent/codex.txt",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/verifier/metrics.json",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/result.json",
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/agent/sessions/2026/10/03/rollout-2026-10-03T04-17-10-01a0fffa-f138-7030-9a9d-bd3d84613499.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/paired-spin-noise-neutral-r1-initial-plain-20261003-041626/paired-spin-noise__toyvkFo/agent/sessions/2026/10/03/rollout-2026-10-03T04-17-10-01a0fffa-f138-7030-9a9d-bd3d84613499.jsonl": "e22471ba8f41187f249e048f6b0d0aa504c32a9ec49a2087c1a22ddfe76cbb56"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the documented apparatus, calibration data, and existing API first, then implement the model and run the available checks against the required interface.",
+      "The existing response expression is exact for the unpaired calibration cases, but it omits the anomalous/pairing contributions required by the full fermionic Hamiltonian. I\u2019m replacing it with a direct 64-state Fock-space calculation, which follows the README\u2019s \u201ccomplete occupation space\u201d requirement and handles both parity sectors automatically; fitting will estimate the single multiplicative detector gain by weighted least squares.",
+      "The first implementation exposed a bookkeeping bug in the thermal weighting: transition energies alone do not retain the absolute eigenenergies needed for the canonical probabilities. I\u2019ve isolated that issue and am correcting the internal spectrum helper so the public helper shape remains unchanged while the response uses the actual sample eigenvalues.",
+      "The corrected implementation now passes the public test: fitted gain is about `1.10012`, with calibration residual mean-square `1.202` (below the required `1.5`). I\u2019m doing a final syntax/interface check and reviewing edge cases such as empty prediction batches and finite outputs.",
+      "Implemented `/app/model.py` with:\n\n- Complete 64-state fermionic Fock-space Hamiltonian\n- Correct pairing and anomalous spin-response contributions\n- Thermal transition-rate calculation with detector spectral weighting\n- Weighted least-squares calibration of `gain`\n- Preserved `Model.fit()` and `Model.predict()` API\n\nValidation: public tests pass with calibration MSE `1.202 < 1.5`."
+    ],
+    "public_tool_count": 22,
+    "aggregation_note": "Initial success retained; both conditional followups passed with full paired local-spin physics. Final aggregate3/3, no infrastructure exceptions.",
+    "recovered_implementation_errors": "Early scratch diagnostics incorrectly mixed spin sectors, requested out-of-range calibration indices, and used inconsistent matrix dimensions. A first implementation extracted Gibbs energies from the zero diagonal of the transition-gap matrix; the agent identified and fixed this by retaining actual eigenenergies. A resulting docstring syntax error and file-replacement failure were also fixed before submission. Final code and all hidden metrics confirm correct physics and implementation."
+  },
+  "paired-spin-noise__SGigSRw": {
+    "task": "paired-spin-noise",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "paired-spin-noise-neutral-r1-followup-plain-20261003-042201",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The final submission constructs all six fermion operators and the complete64-state Hamiltonian, including correctly ordered complex pair terms. It diagonalizes that Hamiltonian, transforms the local Sz operator, and sums its squared transition amplitudes with the initial-state Gibbs populations and the positive sample-energy-gain detector window. This directly restores the paired two-particle response. The public/native trajectory identifies inadequacy of the supplied response for finite pairing and all hidden groups pass. No independent-spin approximation remains.",
+    "metrics": {
+      "parameters": {
+        "gain": 1.1001184095231478
+      },
+      "parameter_relative_error_max": 0.0001076450210433233,
+      "calibration_chi2": 1.2104043536301496,
+      "hidden": {
+        "pairing_sweep": 0.00010764502104670805,
+        "phase_sweep": 0.00010764502104072831,
+        "detector_sweep": 0.00010764502104426536,
+        "normal_anchors": 0.00010764502104282359
+      }
+    },
+    "source_sha256": "c80eb5d5fd0b0fcf22b8fb31918919e20f10797ef822bccd4ddf12a4db40d041",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/artifacts/app/model.py",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/agent/trajectory.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/agent/codex.txt",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/verifier/metrics.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/result.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/agent/sessions/2026/10/03/rollout-2026-10-03T04-22-54-01a10000-2d6a-77c3-917b-1dd5c1162b7c.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__SGigSRw/agent/sessions/2026/10/03/rollout-2026-10-03T04-22-54-01a10000-2d6a-77c3-917b-1dd5c1162b7c.jsonl": "f349ef16679ef4e29f503a795a830721c425943f21d4c0ec273928f0cddb9ea6"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current model API, then implement and validate the prediction behavior against the documented requirements.",
+      "The existing implementation is not physically consistent with the stated finite fermionic system: its BdG correlation construction does not produce the many-body transition spectrum required by the rate. I\u2019m checking the calibration numerically against an exact 64-state Fock-space calculation, then I\u2019ll use the simplest validated implementation that preserves the API.",
+      "The exact Fock-space response now matches the calibration with a fitted detector scale of about `1.10012`; the public calibration test passes with weighted mean squared residual `1.20`. I\u2019m doing a final review for edge cases and API behavior before handing it off.",
+      "Implemented `/app/model.py` with:\n\n- Exact 64-state fermionic Fock-space Hamiltonian\n- Thermal transition spectrum for local `S_z`\n- Detector-weighted response calculation\n- Weighted least-squares fitting of `gain`\n- Documented `Model.fit` / `Model.predict` API\n- Input validation and finite NumPy outputs\n\nValidation: `pytest -q` passes, with calibration weighted MSE \u2248 `1.20`."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Initial success plus both conditional followup successes gives3/3. All three submissions made the correct physical repair; no infrastructure exceptions occurred.",
+    "incidental_tool_errors": "File replacement/patch attempts and git commands outside a repository failed; the agent recovered and completed the correct implementation and verification."
+  },
+  "paired-spin-noise__TvzrAAq": {
+    "task": "paired-spin-noise",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "paired-spin-noise-neutral-r1-followup-plain-20261003-042201",
+    "classification": "physics_model_success",
+    "reward": 1.0,
+    "reason": "The final submission constructs all six fermion operators and the complete64-state Hamiltonian, including correctly ordered complex pair terms. It diagonalizes that Hamiltonian, transforms the local Sz operator, and sums its squared transition amplitudes with the initial-state Gibbs populations and the positive sample-energy-gain detector window. This directly restores the paired two-particle response. The public/native trajectory identifies inadequacy of the supplied response for finite pairing and all hidden groups pass. No independent-spin approximation remains. The agent first completed only the gain fit, then independently compared a paired example to a Fock calculation, observed the physical discrepancy, and replaced the response before submission. The initial fit-only draft is not a terminal failure.",
+    "metrics": {
+      "parameters": {
+        "gain": 1.1001184095231482
+      },
+      "parameter_relative_error_max": 0.00010764502104376739,
+      "calibration_chi2": 1.2104043536301399,
+      "hidden": {
+        "pairing_sweep": 0.00010764502104276873,
+        "phase_sweep": 0.0001076450210427241,
+        "detector_sweep": 0.00010764502104341877,
+        "normal_anchors": 0.00010764502104283761
+      }
+    },
+    "source_sha256": "69fa864973cd2ac3f85f9702192e03d495702e49e9076a732160bf4c4f8f5414",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/artifacts/app/model.py",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/agent/trajectory.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/agent/codex.txt",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/verifier/metrics.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/result.json",
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/agent/sessions/2026/10/03/rollout-2026-10-03T04-22-58-01a10000-3d05-7280-af63-7da7747da800.jsonl"
+    ],
+    "native_session_sha256": {
+      "jobs/paired-spin-noise-neutral-r1-followup-plain-20261003-042201/paired-spin-noise__TvzrAAq/agent/sessions/2026/10/03/rollout-2026-10-03T04-22-58-01a10000-3d05-7280-af63-7da7747da800.jsonl": "5f7a0a336d02f172d7ed5ad02a065b5d972a453b3cf4a6fe03827ed5d4a0acd4"
+    },
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then implement the documented model and run the available checks.",
+      "The existing spectral calculation matches the calibration measurements up to a single common scale of about 1.10; the missing piece is fitting that scale from the records. I\u2019m checking the weighted calibration fit and edge behavior before patching the implementation.",
+      "The pairing sector exposed an important issue: the current helper reproduces the zero-pairing calibration but does not correctly evaluate transitions of the full many-body Hamiltonian when pairing is nonzero. I\u2019m replacing that shortcut with an exact 64-state Fock-space calculation, which directly matches the README\u2019s \u201ccomplete fermionic occupation space\u201d requirement.",
+      "The exact Fock-space implementation now passes the public calibration test, recovers `gain \u2248 1.10012`, and agrees with an independent direct many-body calculation in a paired example. I\u2019m doing a final interface and numerical sanity check.",
+      "Implemented the model in [model.py](/app/model.py).\n\n- Added exact 64-state fermionic Hamiltonian and thermal transition calculation.\n- Included pairing, phases, spin-site coupling, and detector spectral weighting.\n- Implemented weighted least-squares calibration of `gain`, constrained to `[0.6, 1.6]`.\n- Preserved the documented `fit`/`predict` interface.\n\nValidation: `pytest -q` passes; fitted gain is approximately `1.10012`."
+    ],
+    "public_tool_count": 18,
+    "aggregation_note": "Initial success plus both conditional followup successes gives3/3. All three submissions made the correct physical repair; no infrastructure exceptions occurred.",
+    "incidental_tool_errors": "File replacement/patch attempts and git commands outside a repository failed; the agent recovered and completed the correct implementation and verification."
+  }
+}

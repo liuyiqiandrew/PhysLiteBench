@@ -1,0 +1,51 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,46 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the solvent viscosity from independent calibration records.
++
++        For a fixed experiment the response is inversely proportional to the
++        viscosity, so if ``q_i`` is the viscosity-independent response and
++        ``y_i`` is the measured value, the model is ``y_i = q_i / mu``.
++        The calibration uncertainties are independent Gaussians; minimizing
++        the corresponding weighted squared residual therefore gives a
++        one-dimensional closed-form estimate for ``mu``.
++        """
++        if not records:
++            raise ValueError('at least one calibration record is required')
++
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        independent = np.asarray(predict_at(experiments, 1.0), dtype=float)
++
++        if (values.shape != independent.shape or
++                not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(independent)) or
++                not np.all(np.isfinite(sigmas)) or
++                np.any(sigmas <= 0)):
++            raise ValueError('calibration records must contain finite values')
++
++        weights = 1.0 / sigmas**2
++        denominator = np.sum(weights * independent * values)
++        if denominator <= 0 or not np.isfinite(denominator):
++            raise ValueError('calibration records do not identify a positive viscosity')
++
++        viscosity = np.sum(weights * independent**2) / denominator
++        # The stated apparatus restricts viscosity to this interval.  A
++        # bounded fit is the appropriate likelihood estimate if noisy input
++        # records happen to put the unconstrained estimate just outside it.
++        self.viscosity = float(np.clip(viscosity, 0.8, 1.6))
++        return self
+ 
+     def predict(self, experiments):
+-        return predict_at(experiments, self.viscosity)
++        if self.viscosity is None:
++            raise RuntimeError('fit must be called before predict')
++        result = np.asarray(predict_at(experiments, self.viscosity), dtype=float)
++        if result.ndim != 1 or not np.all(np.isfinite(result)):
++            raise ValueError('prediction produced non-finite values')
++        return result

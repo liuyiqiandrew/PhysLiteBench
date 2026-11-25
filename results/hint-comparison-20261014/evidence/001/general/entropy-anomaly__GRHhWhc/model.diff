@@ -1,0 +1,103 @@
+--- starter/model.py
++++ submission/model.py
+@@ -49,6 +49,22 @@
+     value=np.linalg.solve(a,-source.reshape(count*(degree+1),points)).reshape(count,degree+1,points)
+     return {pair:value[:,i] for i,pair in enumerate(basis)}
+ 
++def contact_population_correction(first,derivative,q):
++    """Return the order-m correction to the contact populations.
++
++    With u=sqrt(m) v, the order-sqrt(m) x-moment is ``first``.  The
++    order-m zeroth moment therefore obeys q p2 = d_x(first_x).  Its component
++    in the stationary nullspace is an ordinary normalization correction and
++    cancels against the matched background residence; fixing its sum to zero
++    leaves the uniquely relevant, state-dependent part.
++    """
++    count= q.shape[0]
++    matrix=q.copy()
++    matrix[-1]=1.
++    rhs=np.vstack([derivative@first[1,0][s] for s in range(count)])
++    rhs[-1]=0.
++    return np.linalg.solve(matrix,rhs)
++
+ def limiting_state(e,friction,points=129):
+     phase,d=spatial_grid(points);d=d*e['wavenumber'];dx=2*np.pi/points
+     factors,gx,gy,q=contact_parameters(e,friction);count=len(gx)
+@@ -71,8 +87,11 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # The state-dependent order-m correction to the zeroth moment is needed
++    # when contact temperatures or contact drags differ.  Its nullspace
++    # (common density) component is fixed to zero because it cancels in the
++    # prescribed matched-background subtraction.
++    density_correction={(0,0):contact_population_correction(first,d,q)}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +112,62 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Estimate the common friction from the independent calibration data.
++
++        The calibration records are noisy observations of the same prediction
++        function, so use their quoted standard uncertainties as weights.  The
++        parameter is one-dimensional and bounded by the range specified in
++        the problem statement; a small deterministic grid followed by a
++        bracket refinement is sufficient and avoids adding an optimizer
++        dependency to this module.
++        """
++        if not records:
++            raise ValueError("records must contain at least one calibration record")
++
++        experiments=[record['input'] for record in records]
++        observed=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if (observed.ndim != 1 or sigma.shape != observed.shape or
++                not np.isfinite(observed).all() or
++                not np.isfinite(sigma).all() or np.any(sigma <= 0)):
++            raise ValueError("calibration values and uncertainties must be finite, positive arrays")
++
++        def objective(friction):
++            residual=(coefficients(experiments,float(friction))-observed)/sigma
++            return float(residual@residual)
++
++        # The allowed interval is narrow.  This also makes the fit robust to
++        # a flat/noisy objective without relying on scipy being installed.
++        grid=np.linspace(.7,1.6,91)
++        costs=np.asarray([objective(value) for value in grid])
++        best=int(np.argmin(costs))
++        left=grid[max(0,best-1)]
++        right=grid[min(len(grid)-1,best+1)]
++        if right > left:
++            # Golden-section minimization on the bracket around the best grid
++            # point.  The objective is smooth for all admissible settings.
++            golden=(np.sqrt(5.)-1.)/2.
++            x1=right-golden*(right-left)
++            x2=left+golden*(right-left)
++            f1=objective(x1)
++            f2=objective(x2)
++            for _ in range(60):
++                if f1 > f2:
++                    left=x1
++                    x1=x2
++                    f1=f2
++                    x2=left+golden*(right-left)
++                    f2=objective(x2)
++                else:
++                    right=x2
++                    x2=x1
++                    f2=f1
++                    x1=right-golden*(right-left)
++                    f1=objective(x1)
++            fitted=.5*(left+right)
++        else:
++            fitted=grid[best]
++
++        self.friction=float(np.clip(fitted,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

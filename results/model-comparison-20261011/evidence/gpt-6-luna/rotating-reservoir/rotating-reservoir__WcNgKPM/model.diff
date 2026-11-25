@@ -1,0 +1,21 @@
+--- starter/model.py
++++ submission/model.py
+@@ -207,6 +207,17 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        """Estimate the common drag from the weighted calibration records.
++
++        Calibration experiments have zero flow and a constant collision
++        hazard.  Their mean heat is therefore the temperature difference
++        multiplied by the two-thermostat conductance implemented in
++        :func:`calibration_mean`.  Fit that single conductance by weighted
++        least squares, then invert its analytic dependence on drag.
++        """
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

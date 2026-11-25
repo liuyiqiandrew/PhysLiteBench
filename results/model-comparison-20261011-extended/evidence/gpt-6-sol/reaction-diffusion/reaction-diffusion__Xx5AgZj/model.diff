@@ -1,0 +1,77 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,6 +3,7 @@
+ from scipy.optimize import minimize_scalar
+ from scipy.integrate import solve_ivp
+ from scipy.sparse import diags
++from scipy.linalg import eigh
+ 
+ # Neutral four-ion association A+ + B+ + 2 C- <-> P.
+ ASSOCIATION=0.5
+@@ -25,7 +26,37 @@
+         self.diffusivity = None
+ 
+     def fit(self,data):
+-        raise NotImplementedError('Fit the common ionic diffusion scale from calibration.')
++        x = np.asarray(data['x'], dtype=float)
++        t = np.asarray(data['t'], dtype=float)
++        initial = np.asarray(data['initial'], dtype=float)
++        measured = np.asarray(data['concentration'], dtype=float)
++        sigma = np.asarray(data['sigma'], dtype=float)
++
++        # With only A or only B present, association is absent.  Charge
++        # neutrality makes their effective diffusivities 4D/3 and 8D/3.
++        n = len(x) - 1
++        laplacian_rates = 4 / (x[1] - x[0])**2 * np.sin(
++            np.arange(n + 1) * np.pi / (2 * n)
++        )**2
++        coefficients = dct(initial, type=1, axis=1)
++        unit_rates = laplacian_rates[None, None, :, None] * np.array(
++            [4 / 3, 8 / 3]
++        )[None, None, None, :]
++
++        def weighted_error(log_diffusivity):
++            decay = np.exp(-np.exp(log_diffusivity) * t[None, :, None, None]
++                           * unit_rates)
++            predicted = idct(coefficients[:, None] * decay, type=1, axis=2)
++            residual = (predicted - measured) / sigma
++            return np.sum(residual * residual)
++
++        result = minimize_scalar(weighted_error, bounds=(np.log(1e-14),
++                                np.log(1e-6)), method='bounded',
++                                options={'xatol': 1e-12})
++        if not result.success:
++            raise RuntimeError('Diffusivity calibration failed')
++        self.diffusivity = float(np.exp(result.x))
++        return self
+ 
+     def _binary(self,t,x,initial):
+         t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)
+@@ -60,8 +91,6 @@
+             raise RuntimeError(result.message)
+         return result.y.T.reshape(len(t),count,2)
+ 
+-from scipy.linalg import expm
+-
+ def fluctuation_matrices(totals,diffusivity):
+     concentration=equilibrium(np.asarray(totals)[None,:])[0]
+     charge=np.array([1.,1.,-1.,0.]);constituents=np.array([[1.,0.,0.,1.],[0.,1.,0.,1.]])
+@@ -76,9 +105,15 @@
+ 
+ def equilibrium_correlations(t,totals,harmonic,diffusivity):
+     covariance,mobility=fluctuation_matrices(totals,diffusivity)
+-    relaxation=(harmonic*np.pi/.001)**2*mobility@np.linalg.inv(covariance)
+-    initial_covariance=np.diag(totals)
+-    return np.array([expm(-float(time)*relaxation)@initial_covariance for time in t])
++    # The equilibrium covariance is the ideal-species Poisson covariance
++    # conditioned on local electroneutrality.  Fast association changes its
++    # off-diagonal and diagonal entries even at zero lag.
++    lower=np.linalg.cholesky(covariance)
++    whitened=np.linalg.solve(lower,np.linalg.solve(lower,mobility).T).T
++    rates,vectors=eigh((whitened+whitened.T)/2)
++    amplitudes=lower@vectors
++    decay=np.exp(-np.asarray(t)[:,None]*(harmonic*np.pi/.001)**2*rates[None,:])
++    return np.einsum('ik,tk,jk->tij',amplitudes,decay,amplitudes)
+ 
+ def correlate(self,t,totals,harmonic=1):
+     return equilibrium_correlations(np.asarray(t),np.asarray(totals),int(harmonic),self.diffusivity)

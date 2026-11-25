@@ -1,0 +1,1 @@
+The stationary position limit does not retain all correlations needed for work over an inertial time. Evaluate the finite-mass stationary force–velocity covariance before taking m→0 with tau=memory_ratio*m/gamma. The active force and velocity rotate and relax on comparable time scales; an instantaneous mobility law need not give their work correlation.

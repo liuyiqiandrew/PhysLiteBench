@@ -1,0 +1,103 @@
+--- before/model.py
++++ after/model.py
+@@ -12,12 +12,18 @@
+ 
+ def positional_state(experiment, friction, points=129):
+     x, derivative = spatial_grid(points)
+-    derivative = derivative*experiment['wavenumber']
++    wavenumber = experiment['wavenumber']
+     base = experiment['temperature']
+     contrast = experiment['contrast']
+     bath_contrast = experiment['bath_contrast']
+-    temperatures = np.array([base*(1+sign*bath_contrast)*(1+contrast*np.cos(x)) for sign in [1, -1]])
+-    gradients = np.array([-base*(1+sign*bath_contrast)*contrast*experiment['wavenumber']*np.sin(x) for sign in [1, -1]])
++    temperatures = np.array([
++        base*(1+sign*bath_contrast)*(1+contrast*np.cos(wavenumber*x))
++        for sign in [1, -1]
++    ])
++    gradients = np.array([
++        -base*(1+sign*bath_contrast)*contrast*wavenumber*np.sin(wavenumber*x)
++        for sign in [1, -1]
++    ])
+     gamma_y = friction*experiment['drag_ratio']
+     magnetic = experiment['magnetic']
+     effective_force = experiment['force_x']+magnetic*experiment['force_y']/gamma_y
+@@ -54,9 +60,25 @@
+     temp, gradient, density, current_x, current_y, dx = positional_state(e, friction)
+     gamma_y = friction*drag_ratio
+     positional = np.sum((friction*current_x**2+gamma_y*current_y**2)/(temp*density))*dx
+-    positional += switch_rate*np.sum(density*np.log(density/density[::-1]))*dx
+     thermal = heat_coefficient(friction, drag_ratio, magnetic)*np.sum(density*gradient**2/temp)*dx
+-    return float(positional+thermal)
++
++    # A switch does no instantaneous mechanical work, but velocity remains
++    # continuous.  During the O(m) velocity re-equilibration after a switch,
++    # the new bath absorbs/releases the old kinetic energy.  In two dimensions
++    # its limiting entropy contribution is
++    #
++    #   k p_old (T_old-T_new)/T_new.
++    #
++    # This is heat recorded by the reservoirs, not the entropy production of
++    # an abstract Markov label (which would incorrectly introduce a
++    # p*log(p/p_other) term here).
++    old_temperature = temp[0]
++    new_temperature = temp[1]
++    switch_heat = switch_rate*np.sum(
++        density[0]*(old_temperature-new_temperature)/new_temperature
++        + density[1]*(new_temperature-old_temperature)/old_temperature
++    )*dx
++    return float(positional+thermal+switch_heat)
+ 
+ 
+ def coefficients(experiments, friction=1.):
+@@ -68,7 +90,48 @@
+         self.friction = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Estimate the shared friction by weighted least squares.
++
++        The calibration values have independent Gaussian uncertainties, so
++        the likelihood is a one-dimensional weighted least-squares problem.
++        A bounded golden-section search avoids adding a fitting dependency and
++        keeps the estimate inside the documented physical range.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        uncertainty = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or
++                not np.isfinite(uncertainty).all() or
++                np.any(uncertainty <= 0)):
++            raise ValueError("calibration values and uncertainties must be finite, with sigma > 0")
++
++        def objective(friction):
++            residual = (coefficients(experiments, float(friction))-observed)/uncertainty
++            return float(residual@residual)
++
++        # The apparatus specifies this interval for the unknown coefficient.
++        left, right = 0.7, 1.6
++        golden = (np.sqrt(5.0)-1.0)/2.0
++        x_left = right-golden*(right-left)
++        x_right = left+golden*(right-left)
++        f_left = objective(x_left)
++        f_right = objective(x_right)
++        for _ in range(48):
++            if f_left <= f_right:
++                right, x_right, f_right = x_right, x_left, f_left
++                x_left = right-golden*(right-left)
++                f_left = objective(x_left)
++            else:
++                left, x_left, f_left = x_left, x_right, f_right
++                x_right = left+golden*(right-left)
++                f_right = objective(x_right)
++
++        self.friction = float((left+right)/2.0)
++        return self
+ 
+     def predict(self, experiments):
+-        return coefficients(experiments, self.friction)
++        friction = 1.0 if self.friction is None else self.friction
++        return np.asarray(coefficients(experiments, friction), dtype=float)

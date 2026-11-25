@@ -1,0 +1,44 @@
+--- before/model.py
++++ after/model.py
+@@ -11,9 +11,38 @@
+ 
+ 
+ def coefficients(e):
+-    k = 2 * np.pi / LENGTH * np.asarray(e['mode'], dtype=float)
+-    strain = np.linalg.solve(ELASTICITY, ALPHA * TRACE)
+-    storage = 1 / BULK + ALPHA * TRACE @ strain
++    """Return the pressure storage and hydraulic conductance of a mode.
++
++    For a pressure Fourier mode, write the displacement Fourier amplitude as
++    ``v`` (the harmless factor ``1j`` has been absorbed into ``v``).  If
++    ``n`` is the integer mode vector, its engineering strain is ``B @ v``
++    with the matrix below.  Mechanical equilibrium is
++
++        B.T @ (C @ B @ v - alpha * p * TRACE) = 0.
++
++    Consequently, the fluid content is ``storage * p``.  The zero mode is
++    special: its affine strain is free to adjust, so all mean stresses vanish
++    directly rather than being constrained by a wave-vector equilibrium
++    equation.
++    """
++    mode = np.asarray(e['mode'], dtype=float)
++    k = 2 * np.pi / LENGTH * mode
++
++    if np.all(mode == 0):
++        # sigma = 0 gives e = C^{-1} alpha*p*TRACE.
++        compliance_strain = np.linalg.solve(ELASTICITY, ALPHA * TRACE)
++        storage = 1 / BULK + ALPHA * TRACE @ compliance_strain
++    else:
++        # The common magnitude of the wave vector cancels from this
++        # mechanical calculation, so using the integer mode keeps the
++        # linear solve better scaled.
++        B = np.array([[mode[0], 0.0],
++                      [0.0, mode[1]],
++                      [mode[1], mode[0]]])
++        equilibrium = B.T @ ELASTICITY @ B
++        pressure_strain = B @ np.linalg.solve(equilibrium, B.T @ TRACE)
++        storage = 1 / BULK + ALPHA ** 2 * TRACE @ pressure_strain
++
+     conductance = k @ PERMEABILITY @ k + LEAKAGE
+     return float(storage), float(conductance)
+ 

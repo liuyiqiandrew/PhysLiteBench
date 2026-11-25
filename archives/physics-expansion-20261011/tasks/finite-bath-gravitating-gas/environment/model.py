@@ -1,0 +1,45 @@
+from functools import lru_cache
+import numpy as np
+from scipy.integrate import solve_ivp
+from scipy.optimize import brentq
+
+
+@lru_cache(maxsize=1)
+def profile():
+    start = 1e-5
+    def derivative(x, y):
+        return [y[1], np.exp(-y[0])-2*y[1]/x]
+    return solve_ivp(derivative, (start, 60.), [start**2/6, start/3],
+                     rtol=2e-11, atol=2e-13, dense_output=True, max_step=.1).sol
+
+
+def milne(alpha):
+    psi, gradient = profile()(alpha)
+    eta = alpha*gradient
+    return alpha**2*np.exp(-psi)/eta, eta
+
+
+@lru_cache(maxsize=None)
+def coefficient(observable, contrast, bath):
+    if observable == 'temperature':
+        alpha = brentq(lambda x: profile()(x)[0]-np.log(contrast), .01, 9.)
+    else:
+        alpha = brentq(lambda x: milne(x)[0]-1, 5., 12.)
+    return 1/milne(alpha)[1]
+
+
+def predict_at(experiments, gravity):
+    return np.asarray([gravity*e['mass']/e['radius']*
+                       coefficient(e['observable'], e.get('contrast'), e['bath_capacity'])
+                       for e in experiments])
+
+
+class Model:
+    def __init__(self):
+        self.gravity = None
+
+    def fit(self, records):
+        raise NotImplementedError('Fit gravitational strength from calibration.')
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.gravity)

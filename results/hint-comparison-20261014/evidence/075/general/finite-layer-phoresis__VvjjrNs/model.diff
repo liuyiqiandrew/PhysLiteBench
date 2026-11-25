@@ -1,0 +1,89 @@
+--- starter/model.py
++++ submission/model.py
+@@ -5,6 +5,17 @@
+ 
+ @lru_cache(256)
+ def response(radius, width, strength, slip):
++    """Return the response with the viscosity factor removed.
++
++    The concentration perturbation is written as ``exp(-U) * y(r)``.  The
++    function ``y`` consequently satisfies a scalar l=1 diffusion equation
++    in the interaction layer.  The remaining integral is the reciprocal
++    theorem expression for the translation of a force-free sphere.
++    """
++    radius = float(radius)
++    width = float(width)
++    strength = float(strength)
++    slip = float(slip)
+     if strength == 0:
+         return 0.
+     end = radius+width
+@@ -21,11 +32,20 @@
+         raise RuntimeError(solution.message)
+     beta = slip/radius
+     drag = (1+2*beta)/(1+3*beta)
++
++    # Radial component of the auxiliary translating-sphere flow, measured
++    # relative to the sphere.  The no-slip expression is the special case
++    #   (r-radius)^2 * (2*r+radius) / (2*r)
++    # used in the original implementation.  Navier slip changes this
++    # weighting as well as the Stokes drag.
++    auxiliary_coefficient = 3*drag/2
++
+     def integrand(r):
+         x = (r-radius)/width
+         concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+         derivative = -2*strength*(1-x)/width
+-        weight = (r-radius)**2*(2*r+radius)/(2*r)
++        weight = (r*r - auxiliary_coefficient*radius*r
++                  + (auxiliary_coefficient-1)*radius**3/r)
+         return weight*concentration*derivative
+     return 2/(9*radius*drag)*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
+ 
+@@ -40,7 +60,45 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Fit the single viscosity parameter by weighted least squares.
++
++        For fixed apparatus parameters the prediction is ``a / viscosity``,
++        where ``a`` is the response returned by :func:`response`.  This makes
++        the Gaussian maximum-likelihood estimate available in closed form.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('at least one calibration record is required')
++
++        coefficients = np.asarray([
++            response(record['input']['radius'], record['input']['width'],
++                     record['input']['strength'], record['input']['slip'])
++            for record in records
++        ], dtype=float)
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record.get('sigma', 3e-5) for record in records],
++                           dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError('calibration values and uncertainties must be finite')
++
++        weights = 1/sigma**2
++        denominator = np.sum(weights*coefficients**2)
++        if not np.isfinite(denominator) or denominator == 0:
++            raise ValueError('calibration records contain no informative response')
++        viscosity = np.sum(weights*coefficients**2) / np.sum(
++            weights*coefficients*values)
++        if not np.isfinite(viscosity) or viscosity <= 0:
++            raise ValueError('calibration records imply an invalid viscosity')
++
++        # The apparatus specification supplies the admissible viscosity
++        # interval.  The calibration in normal use is far from its edges;
++        # clipping also keeps noisy, adversarial records within the model
++        # domain.
++        self.viscosity = float(np.clip(viscosity, 0.8, 1.6))
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError('fit must be called before predict')
+         return predict_at(experiments, self.viscosity)

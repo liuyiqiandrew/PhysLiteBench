@@ -1,0 +1,3 @@
+# waving-sheet, revision 1
+
+The three frozen unhinted Luna-high trials produced two physical passes and one clean physical failure. 3 additional started attempts were interrupted by a confirmed host-wide Docker shutdown and received no score. Their partial work and exact predeclared recovery are preserved; the three scored trials completed without exceptions. Oracle and shortcut controls scored 1/0 as expected. Frozen source and pre-evaluation author notes remain unchanged. Complete reviews, all outcomes and raw evidence hashes are preserved here; full raw jobs remain at their original ignored jobs/ paths. No completed score was replaced. No numerical or model run was performed during archival.

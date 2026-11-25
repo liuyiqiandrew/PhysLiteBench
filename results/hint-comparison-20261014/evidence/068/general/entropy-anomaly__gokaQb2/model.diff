@@ -1,0 +1,59 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,18 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At the next order the contact populations acquire a state-dependent
++    # correction.  The zeroth-moment equation is
++    #
++    #       q p0^(2) = d p1^(1).
++    #
++    # Its state-independent part is fixed one order later.  That part is
++    # precisely removed by B_m*R_m, so it need not be found here.  Fixing the
++    # arbitrary common part to zero leaves the state-dependent part, which is
++    # needed whenever the reservoirs have different baseline temperatures.
++    rhs=(d@first[1,0].T).T
++    qsolve=q+np.ones((count,count))/count
++    density_correction={(0,0):np.linalg.solve(qsolve,rhs)}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +103,34 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        records=list(records)
++        if not records:
++            raise ValueError('records must not be empty')
++        experiments=[record['input'] for record in records]
++        observed=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma<=0)):
++            raise ValueError('calibration values and uncertainties must be finite, with sigma > 0')
++
++        def objective(friction):
++            residual=(coefficients(experiments,friction)-observed)/sigma
++            return float(residual@residual)
++
++        # This is a one-dimensional, bounded fit.  A small golden-section
++        # search avoids making scipy part of the model's public dependencies.
++        lo,hi=.7,1.6
++        phi=(1+np.sqrt(5.))/2
++        x1=hi-(hi-lo)/phi
++        x2=lo+(hi-lo)/phi
++        f1,f2=objective(x1),objective(x2)
++        for _ in range(48):
++            if f1>f2:
++                lo=x1; x1=x2; f1=f2
++                x2=lo+(hi-lo)/phi; f2=objective(x2)
++            else:
++                hi=x2; x2=x1; f2=f1
++                x1=hi-(hi-lo)/phi; f1=objective(x1)
++        self.friction=float((lo+hi)/2)
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

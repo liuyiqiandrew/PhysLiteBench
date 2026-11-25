@@ -1,0 +1,66 @@
+"""Scaled current cumulant generating function for a half-filled weakly driven ring."""
+
+import numpy as np
+from scipy.optimize import minimize
+
+
+def _unit_scgf(field, bias):
+    """Macroscopic fluctuation theory variational SCGF at unit rate."""
+    e = float(field)
+    lam = float(bias)
+    homogeneous = lam * (lam + 2.0 * e) / 4.0
+    if -lam * (lam + 2.0 * e) <= 4.0 * np.pi**2:
+        return homogeneous
+
+    # At half filling particle-hole symmetry makes the optimal wave stationary.
+    # The density profile is even after choosing its arbitrary ring origin.
+    n_modes = 12
+    n_grid = 512
+    x = (np.arange(n_grid) + 0.5) / n_grid
+    k = np.arange(1, n_modes + 1, dtype=float)
+    basis = np.cos(2.0 * np.pi * k[:, None] * x[None, :])
+    derivative = -2.0 * np.pi * k[:, None] * np.sin(2.0 * np.pi * k[:, None] * x[None, :])
+
+    def objective(coeff):
+        rho = 0.5 + coeff @ basis
+        if np.min(rho) <= 0.0 or np.max(rho) >= 1.0:
+            return 1e5 + 1e5 * max(0.0, -np.min(rho), np.max(rho) - 1.0)
+        sigma = 2.0 * rho * (1.0 - rho)
+        gradient = coeff @ derivative
+        inv = np.mean(1.0 / sigma)
+        val = 0.5 * (lam + e)**2 / inv - 0.5 * np.mean(gradient**2 / sigma + e**2 * sigma)
+        return -val
+
+    initial = np.zeros(n_modes)
+    initial[0] = 0.2
+    result = minimize(objective, initial, method="BFGS", options={"gtol": 1e-8, "maxiter": 300})
+    return max(homogeneous, -float(result.fun))
+
+
+def predict_at(experiments, diffusivity):
+    """Predict raw SCGF values for dictionaries with field and bias keys."""
+    if not experiments:
+        return np.empty(0, dtype=float)
+    return np.asarray([diffusivity * _unit_scgf(item["field"], item["bias"])
+                       for item in experiments], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        # The process generator is linear in D, so the entire SCGF scales with D.
+        inputs = [record["input"] for record in records]
+        unit = predict_at(inputs, 1.0)
+        values = np.asarray([record["value"] for record in records], dtype=float)
+        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
+        weights = 1.0 / sigma**2
+        denominator = np.sum(weights * unit**2)
+        if denominator > 0:
+            estimate = np.sum(weights * unit * values) / denominator
+            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

@@ -1,0 +1,30 @@
+--- starter/model.py
++++ submission/model.py
+@@ -173,7 +173,12 @@
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+     w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
++    # The first tilted response has Fourier modes 0 and +/-harmonic.
++    # These same modes of the second response suffice for the third
++    # cumulant: the final multiplication by w selects only these modes.
++    # Dropping the nonzero modes would discard the correlations between
++    # the physical angle and the subsequent thermostat heat.
++    ns=[-1,0,1];mean=p@A1@constant
+     def invert(n,rhs):
+         if n:
+             return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+@@ -207,6 +212,10 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        self.drag=fit_drag(records)
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise ValueError('Fit the model before predicting.')
++        return predict_at(experiments,self.drag)

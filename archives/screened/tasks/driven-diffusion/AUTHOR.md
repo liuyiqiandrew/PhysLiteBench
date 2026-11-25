@@ -1,0 +1,13 @@
+# Driven diffusion, revision 1
+
+The completed shortcut already computes the exact nonlinear stationary drift in a tilted periodic potential. It sets the long-time diffusivity equal to temperature times differential mobility, analytically differentiating that drift quadrature. This is a well-defined, positive equilibrium fluctuation-response closure. It is exactly correct at zero force and in a flat potential, but not at finite drive through a periodic potential. Calibration across known amplitudes at zero force identifies the one drag coefficient.
+
+The oracle adds the exact one-dimensional dispersion quadrature. With I_plus(x)=integral_0^L exp[U(x)−U(x−s)−F*s] ds and I_minus(x)=integral_0^L exp[−U(x)+U(x+s)−F*s] ds, the unit-drag drift is [1−exp(−F*L)]/mean(I_plus); the diffusion is mean(I_plus²*I_minus)/mean(I_plus)^3. Both scale inversely with drag. The starter's differentiated drift uses the exact derivative under this integral, not a noisy finite difference.
+
+The independent reference solves the stationary periodic Fokker-Planck distribution and the backward-generator corrector L chi=v−b for b=F−Uprime. Its diffusion is the stationary mean of (1+chi_prime)^2 at unit drag. The physical position is unwrapped and these are asymptotic coefficients; periodicity is used only for the stationary phase and corrector, not to remove winding fluctuations. No finite-time or initial-ensemble trap is present.
+
+Primary theory: [Latorre, Pavliotis and Kramer, Corrections to Einstein's relation for Brownian motion in a tilted periodic potential](https://arxiv.org/abs/1208.2150), and [Sasaki and Amari, Diffusion Coefficient and Mobility of a Brownian Particle in a Tilted Periodic Potential](https://arxiv.org/abs/cond-mat/0502017). The mechanism is nonequilibrium fluctuation-response failure, distinct from magnetic-tracer's antisymmetric mobility divergence.
+
+Calibration seed 641837 and 256 noise draws with seed 870134 give fitted gamma=0.89991128 and reduced chi-square 0.89290. Measurement sigma is 0.0005; hidden relative RMS tolerance is 0.025. Across all noise draws the correct error is below 0.000166 and the shortcut error exceeds 0.14249. Independent cell-problem agreement is below 3.2e-13; quadrature and reference refinements are below 1.3e-12. The analytical differential mobility agrees with an independent five-point derivative to 1.7e-11. Actual local controls give seven passes for the oracle and four passes plus three hidden failures for the shortcut.
+
+Run `uv run --no-project --python 3.13 --with numpy==2.3.3 --with scipy==1.16.3 --with pytest==8.4.2 python scripts/validate_driven_diffusion.py`. Data regeneration requires `--generate`. The shareable report is results/driven-diffusion-validation.json.

@@ -1,0 +1,17 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,13 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Fit the common fluid friction from the calibration records.
++
++        The calibration uncertainties are known absolute standard deviations,
++        so the appropriate objective is the sum of squared standardized
++        residuals.  ``fit_friction`` evaluates the analytic zero-field,
++        zero-memory limit specified for the calibration apparatus.
++        """
++        self.friction=fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

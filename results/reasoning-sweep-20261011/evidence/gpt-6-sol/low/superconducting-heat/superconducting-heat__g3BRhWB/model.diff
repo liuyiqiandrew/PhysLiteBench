@@ -1,0 +1,154 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,18 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        # Calibration uses the static, oscillator-decoupled contact. Its
++        # predicted heat is linear in the sole unknown conductance.
++        unit = np.array([power_per_conductance(
++            record['input']['left_temperature'],
++            record['input']['right_temperature'],
++            record['input']['phase']) for record in records])
++        observed = np.array([record['value'] for record in records])
++        sigma = np.array([record['sigma'] for record in records])
++        self.conductance = float(np.clip(
++            np.sum(unit * observed / sigma**2) / np.sum((unit / sigma)**2),
++            20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,7 +423,7 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            other=dict(e,phase=e['phase']+np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)
+@@ -450,33 +461,95 @@
+     return np.array([gate_statistics(e,conductance)['noise'] if e.get('statistic','mean')=='gate_noise'
+                      else mean_predict([e],conductance)[0] for e in experiments])
+ 
+-def gate_third(e,conductance,nodes=192,count=64):
+-    args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+-    state=stationary(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+-    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+-    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+-    f=expit((sl*mu[0]-energy)/tl);g=expit((sr*mu[1]-other)/tr)
+-    rp=measure*np.where(pair,pf*(1-f)*(1-g),pf*f*(1-g));rm=measure*np.where(pair,pb*f*g,pb*g*(1-f))
+-    
+-    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+-    flipdata=[]
+-    for j,(temp,delta,pol) in enumerate(zip([tl,tr],[dl,dr],mu)):
+-        x,w=leggauss(160);upper=delta+max(80*temp,6*abs(pol));ee=delta+(x+1)*(upper-delta)/2;mm=w*(upper-delta)/2*ratio/2
+-        u=expit((pol-ee)/temp);d=expit((-pol-ee)/temp);ap=mm*u*(1-d);am=mm*d*(1-u)
+-        flipdata.append((temp,u,d,mm,ap,am))
+-    # Differentiate the actual work-marked rates directly. This avoids
+-    # subtracting spin-loss Jacobians and is exactly zero for a static gate.
+-    df=f*(1-f)/tl;dg=g*(1-g)/tr
+-    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-g)+pb*g)
+-    dright=-sr*dg*np.where(pair,pf*(1-f)+pb*f,pf*f+pb*(1-f))
+-    hp=np.array([np.sum(measure*work[:,None]*dleft),np.sum(measure*work[:,None]*dright)])
+-    p1=-np.linalg.solve(state['jacobian'].T,hp)
+-    mark=work+injection@p1;mark=mark[:,None]
+-    bare=float(np.sum((rp-rm)*mark**3))
+-    for j,(temp,u,d,mm,ap,am) in enumerate(flipdata):
+-        ell=-2*p1[j];bare+=float(np.sum(ap-am))*ell**3
+-    scale=RATE_CONVERSION*conductance*KB**3*1e36
+-    return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
++def gate_third(e, conductance, nodes=192, count=64):
++    """Leading extensive third work cumulant of the spin-coupled jump process.
++
++    The tilted macroscopic generator has a stationary saddle in the two spin
++    potentials and their counting fields. Its third derivative needs only the
++    first displacement of that saddle, evaluated below along a straight line.
++    """
++    args = oscillator_arguments(e)
++    if args[3] == 0:
++        return dict(third=0.)
++    kw = dict(secondary_coupling=e.get('secondary_coupling', 0.),
++              quadratic_coupling=e.get('quadratic_coupling', 0.),
++              momentum_coupling=e.get('momentum_coupling', 0.))
++    state = stationary(*args, conductance, nodes=nodes, count=count, **kw)
++    mu = state['mu']
++    tl, tr = args[:2]
++    dl, dr, ch = prepare(*args, nodes=nodes, count=count,
++                         window=state['search_bound'], **kw)
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = ch
++    work = work[:, None]
++    ratio = QUASIPARTICLE_DENSITY / (NORMAL_POLARIZATION_TIME * RATE_CONVERSION * conductance)
++
++    # The density of states cancels the specified spin-flip lifetime factor.
++    x, w = leggauss(192)
++    flip_grids = []
++    for temperature, delta in ((tl, dl), (tr, dr)):
++        upper = delta + max(80 * temperature, 80.)
++        grid = delta + (x + 1) * (upper - delta) / 2
++        weight = w * (upper - delta) / 2 * ratio / 2
++        flip_grids.append((grid, weight, temperature))
++
++    def rates(polarization):
++        f = expit((sl * polarization[0] - energy) / tl)
++        g = expit((sr * polarization[1] - other) / tr)
++        plus = measure * np.where(pair, pf * (1-f) * (1-g), pf * f * (1-g))
++        minus = measure * np.where(pair, pb * f * g, pb * g * (1-f))
++        flip_plus, flip_minus = [], []
++        for j, (grid, weight, temperature) in enumerate(flip_grids):
++            up = expit((polarization[j] - grid) / temperature)
++            down = expit((-polarization[j] - grid) / temperature)
++            flip_plus.append(weight * up * (1-down))
++            flip_minus.append(weight * down * (1-up))
++        return plus, minus, flip_plus, flip_minus
++
++    rp, rm, fp, fm = rates(mu)
++    mark_work = np.broadcast_to(work, rp.shape)
++    spin_work = injection.T @ np.sum((rp + rm) * mark_work, axis=1)
++    spin_cov = injection.T @ (injection * np.sum(rp + rm, axis=1)[:, None])
++    for j in range(2):
++        spin_cov[j, j] += 4 * np.sum(fp[j] + fm[j])
++
++    f = expit((sl * mu[0] - energy) / tl)
++    g = expit((sr * mu[1] - other) / tr)
++    df = f * (1-f) / tl
++    dg = g * (1-g) / tr
++    dleft = np.where(pair, -sl * df, sl * df) * (pf * (1-g) + pb * g)
++    dright = -sr * dg * np.where(pair, pf * (1-f) + pb * f,
++                                pf * f + pb * (1-f))
++    heat_gradient = np.array([np.sum(measure * work * dleft),
++                              np.sum(measure * work * dright)])
++    jacobian = state['jacobian']
++    count_response = -np.linalg.solve(jacobian.T, heat_gradient)
++    state_response = -np.linalg.solve(jacobian,
++                                      spin_work + spin_cov @ count_response)
++    marked = mark_work + (injection @ count_response)[:, None]
++    flip_marks = np.array([-2 * count_response[0], -2 * count_response[1]])
++
++    # Differentiate conditional rates along the tilted saddle direction.
++    # The third directional derivative of the generator equals the third
++    # derivative of its optimized value because its first gradient vanishes.
++    step = 2e-3 / max(1., np.max(np.abs(state_response)))
++    ap, am, afp, afm = rates(mu + step * state_response)
++    bp, bm, bfp, bfm = rates(mu - step * state_response)
++    dsum = (ap + am - bp - bm) / (2 * step)
++    d2difference = ((ap - am) - 2 * (rp - rm) + (bp - bm)) / step**2
++    third = np.sum((rp-rm) * marked**3 + 3 * dsum * marked**2
++                   + 3 * d2difference * marked)
++    for j in range(2):
++        m = flip_marks[j]
++        dsum = (np.sum(afp[j]+afm[j])-np.sum(bfp[j]+bfm[j])) / (2*step)
++        d2difference = (np.sum(afp[j]-afm[j])
++                        -2*np.sum(fp[j]-fm[j])
++                        +np.sum(bfp[j]-bfm[j])) / step**2
++        third += (np.sum(fp[j]-fm[j])*m**3 + 3*dsum*m**2
++                  +3*d2difference*m)
++    scale = RATE_CONVERSION * conductance * KB**3 * 1e36
++    return dict(third=float(third * scale),
++                count_response=count_response.tolist(),
++                state_response=state_response.tolist())
+ 
+ 
+ noise_predict=predict_at

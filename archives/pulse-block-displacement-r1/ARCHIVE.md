@@ -1,0 +1,5 @@
+Pulse-block displacement r1 finished with three physical passes in exactly three scored trials. All three repair whole-body displacement using the center-of-energy relation to excess group delay. Oracle passed and the completed shortcut failed. The task did not meet the zero-pass criterion.
+
+The three original attempts failed before model execution. Their complete raw records, valid controls, dependency checks, install preflight, predeclared exact three replacements and every replacement outcome are preserved. The original matrix is unchanged. A separate retrospective recovery catalog records only the replacement job.
+
+The original frozen stage and manifest are preserved byte-for-byte. The archive manifest covers the added reports and hash indices. Raw jobs remain untouched under jobs/ and are exhaustively hash-indexed, including native sessions; raw payloads are not copied here. Earlier one- and two-trial ledgers are retained unchanged. The family assessment is a bounded historical review, not proof of exhaustion or a validated later revision.

@@ -1,0 +1,101 @@
+--- starter/model.py
++++ submission/model.py
+@@ -138,12 +138,59 @@
+ 
+ 
+ def fit_drag(records):
+-    lam=float(records[0]['input']['relaxation_rate'])
+-    assert all(r['input']['relaxation_rate']==lam for r in records)
+-    contrast=np.array([(r['input']['temperature_a']-r['input']['temperature_b'])/r['sigma'] for r in records])
+-    measured=np.array([r['value']/r['sigma'] for r in records])
+-    conductance=float(contrast@measured/(contrast@contrast))
+-    return float(np.clip(conductance*lam*RATE/(lam*RATE-conductance*(2*lam+RATE)),.4,1.1))
++    """Fit the common rotor drag from the zero-flow, constant-clock data.
++
++    For these calibration settings, the exact stationary heat current is
++    ``conductance * (temperature_a - temperature_b)``.  Estimate that
++    conductance by weighted least squares, then invert its analytic relation
++    to drag.  The final clamp enforces the documented physical parameter
++    range.
++    """
++    if not records:
++        raise ValueError('at least one calibration record is required')
++
++    temperatures=[]
++    values=[]
++    sigmas=[]
++    rates=[]
++    for record in records:
++        experiment=record['input']
++        omega=float(experiment['angular_speed'])
++        eta=float(experiment['flux_fraction'])
++        lam=float(experiment['relaxation_rate'])
++        sigma=float(record['sigma'])
++        value=float(record['value'])
++        if omega != 0. or eta != 0.:
++            raise ValueError('calibration records must have zero flow and zero flux fraction')
++        if not np.isfinite(sigma) or sigma <= 0.:
++            raise ValueError('calibration uncertainties must be finite and positive')
++        if not np.isfinite(value) or not np.isfinite(lam) or lam <= 0.:
++            raise ValueError('calibration values and relaxation rates must be finite')
++        temperatures.append(float(experiment['temperature_a']) - float(experiment['temperature_b']))
++        values.append(value)
++        sigmas.append(sigma)
++        rates.append(lam)
++
++    rates=np.asarray(rates)
++    if not np.allclose(rates, rates[0], rtol=0., atol=1e-12):
++        raise ValueError('calibration records must share one relaxation rate')
++    x=np.asarray(temperatures)
++    y=np.asarray(values)
++    sigma=np.asarray(sigmas)
++    denominator=float(np.sum((x/sigma)**2))
++    if denominator <= 0. or not np.isfinite(denominator):
++        raise ValueError('calibration temperatures do not identify the drag')
++    conductance=float(np.sum((x/sigma)*(y/sigma))/denominator)
++
++    lam=float(rates[0])
++    def conductance_at(drag):
++        return drag*lam*RATE/(2.*drag*lam+RATE*(drag+lam))
++
++    # Clip in conductance space first so the inverse remains well-defined even
++    # when noisy calibration data put the unconstrained estimate out of range.
++    conductance=np.clip(conductance,conductance_at(.4),conductance_at(1.1))
++    drag=conductance*lam*RATE/(lam*RATE-conductance*(2.*lam+RATE))
++    return float(np.clip(drag,.4,1.1))
+ 
+ 
+ def hermite_operators(e,gamma,degree=32):
+@@ -194,19 +241,26 @@
+ def predict_at(experiments,drag):
+     result=[]
+     for e in experiments:
++        statistic=e.get('statistic','mean')
++        if statistic not in ('mean','noise','third_cumulant'):
++            raise ValueError('unknown calorimeter statistic')
+         if e.get('detector_contrast',0.)!=0.:
+             if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
+             values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
+                 float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+-            result.append(values[e.get('statistic','mean')])
+-        else:result.append(readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)))
+-    return np.array(result)
++            result.append(values[statistic])
++        else:result.append(readout(*(float(e[f]) for f in FIELDS),statistic,float(drag)))
++    return np.asarray(result,dtype=float)
+ 
+ 
+ class Model:
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        self.drag=fit_drag(records)
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise RuntimeError('fit(records) must be called before predict(experiments)')
++        return predict_at(experiments,self.drag)

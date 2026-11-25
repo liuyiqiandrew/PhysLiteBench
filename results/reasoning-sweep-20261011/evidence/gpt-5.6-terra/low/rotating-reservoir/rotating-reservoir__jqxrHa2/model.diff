@@ -1,0 +1,115 @@
+--- starter/model.py
++++ submission/model.py
+@@ -4,6 +4,7 @@
+ from numpy.polynomial.hermite import hermgauss
+ from numpy.polynomial.laguerre import laggauss
+ from scipy.linalg import solve
++from scipy.optimize import minimize_scalar
+ 
+ RATE=3.6
+ 
+@@ -42,7 +43,8 @@
+     return matrix
+ 
+ 
+-def hermite(e, gamma=.67, degree=12, variance=1.6, quadrature=None, total_degree=False, noise=False):
++def hermite(e, gamma=.67, degree=12, variance=1.6, quadrature=None,
++            total_degree=False, noise=False, heat_gain2=1.):
+     """Independent polynomial weak generator; no FV or Gaussian closure calls."""
+     ta=e['temperature_a'];tb=e['temperature_b'];omega=e['angular_speed']
+     lam=e['relaxation_rate'];eta=e['flux_fraction'];flip=e['flip_rate']
+@@ -91,7 +93,12 @@
+                 if m+2<width:square[index_full(n,m+2),j]=variance*np.sqrt((m+1)*(m+2))
+         identity=np.eye(width**2);relative_square=square-2*omega*multiply+omega**2*identity
+         first=2*lam*tb*(multiply-omega*identity)@derivative-lam*(relative_square-tb*identity)
+-        second=2*lam*tb*relative_square
++        # In the angular-detector preparation the documented predictor uses
++        # independently rapidly mixed phase.  The first tilted derivative is
++        # multiplied by E[w]=1, while the quadratic variation is multiplied
++        # by E[w**2].  Keeping this here (rather than post-processing the
++        # noise) is important for the third cumulant.
++        second=float(heat_gain2)*2*lam*tb*relative_square
+         first=first[np.ix_(retained,retained)];second=second[np.ix_(retained,retained)]
+         drift=-first[:,0];constant=np.zeros(size);constant[0]=1.
+         tilted_mean=float(moments@first[:,0]);system=matrix.copy();system[0]=moments
+@@ -112,11 +119,13 @@
+     return result
+ 
+ 
+-def kinetic_statistics(e,drag,degree=34,variance=None):
++def kinetic_statistics(e,drag,degree=34,variance=None,heat_gain2=1.):
+     variance=max(e['temperature_a'],e['temperature_b']) if variance is None else float(variance)
+     if e['flux_fraction']==0.:
+-        return hermite(e,drag,degree=6,variance=variance,total_degree=True,noise=True)
+-    return hermite(e,drag,degree=degree,variance=variance,noise=True)
++        return hermite(e,drag,degree=6,variance=variance,total_degree=True,
++                       noise=True,heat_gain2=heat_gain2)
++    return hermite(e,drag,degree=degree,variance=variance,noise=True,
++                   heat_gain2=heat_gain2)
+ 
+ 
+ @lru_cache(4096)
+@@ -138,12 +147,25 @@
+ 
+ 
+ def fit_drag(records):
+-    lam=float(records[0]['input']['relaxation_rate'])
+-    assert all(r['input']['relaxation_rate']==lam for r in records)
+-    contrast=np.array([(r['input']['temperature_a']-r['input']['temperature_b'])/r['sigma'] for r in records])
+-    measured=np.array([r['value']/r['sigma'] for r in records])
+-    conductance=float(contrast@measured/(contrast@contrast))
+-    return float(np.clip(conductance*lam*RATE/(lam*RATE-conductance*(2*lam+RATE)),.4,1.1))
++    """Maximum-likelihood estimate for the common drag.
++
++    The supplied uncertainties are independent Gaussian standard deviations,
++    so a bounded weighted least-squares fit is the likelihood optimum.  This
++    also avoids turning noisy individual records into conductance estimates.
++    """
++    if not records:
++        raise ValueError('at least one calibration record is required')
++    inputs=[r['input'] for r in records]
++    values=np.asarray([float(r['value']) for r in records])
++    sigma=np.asarray([float(r['sigma']) for r in records])
++    if np.any(~np.isfinite(sigma)) or np.any(sigma<=0):
++        raise ValueError('calibration uncertainties must be positive and finite')
++    def objective(drag):
++        predicted=np.asarray([calibration_mean(e,drag) for e in inputs])
++        residual=(predicted-values)/sigma
++        return float(residual@residual)
++    return float(minimize_scalar(objective, bounds=(.4,1.1), method='bounded',
++                                 options={'xatol': 1e-13}).x)
+ 
+ 
+ def hermite_operators(e,gamma,degree=32):
+@@ -196,9 +218,14 @@
+     for e in experiments:
+         if e.get('detector_contrast',0.)!=0.:
+             if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
+-            values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
+-                float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+-            result.append(values[e.get('statistic','mean')])
++            statistic=e.get('statistic','mean')
++            if statistic not in ('mean','noise','third_cumulant'):
++                raise ValueError('unknown calorimeter statistic')
++            # Rapid independent phase mixing: harmonic only labels the
++            # spatial pattern; its phase average is the same for 1, 2 and 3.
++            contrast=float(e['detector_contrast'])
++            gain2=1.+contrast*contrast/2.
++            result.append(kinetic_statistics(e,float(drag),heat_gain2=gain2)[statistic])
+         else:result.append(readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)))
+     return np.array(result)
+ 
+@@ -207,6 +234,10 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        self.drag=fit_drag(records)
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise RuntimeError('fit must be called before predict')
++        return predict_at(experiments,self.drag)

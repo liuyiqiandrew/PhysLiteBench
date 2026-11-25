@@ -1,0 +1,136 @@
+{
+  "review": "Independent bounded proposal review: weakly asymmetric exclusion current",
+  "created_utc": "2026-10-06T09:11:20.876023+00:00",
+  "reviewer": "crystal_plan_review",
+  "decision": "defer_before_execution",
+  "summary": "The quarter-filled model is closed and its conditioned density instability is a genuine physical mechanism, distinct from the reviewed archived tasks. Defer this proposal because a small, accurate, independent thermodynamic reference is not yet established. No feasibility run or task package is recommended at this stage.",
+  "scope": {
+    "density": 0.25,
+    "rates": "D exp(+E/L) for a successful right jump; D exp(-E/L) for a successful left jump",
+    "actions": "Primary-source reading, local archive review and normalization derivation only; no numerical science, model trials, task creation or source edits."
+  },
+  "normalization": {
+    "ensemble": "Canonical fixed N=L/4, with L restricted to multiples of four. Specify the uniform stationary measure on this sector. Do not mix particle-number sectors before the time-first exponential expectation.",
+    "observable": "Q_t = (number of successful right jumps - number of successful left jumps across all bonds)/L. Blocked attempts contribute zero. psi = lim_(L->infinity) L lim_(t->infinity) t^(-1) log E[exp(lambda Q_t)].",
+    "limits_and_clock": "Take the long-time limit at each fixed ring size before L->infinity. t is microscopic time. Hydrodynamic time t/L^2 may be used in a derivation but must not replace the specified clock or absorb the unknown D.",
+    "finite_ring_reference": "Tilt only off-diagonal transition rates by exp(+/-lambda/L); keep the original escape diagonals. The Perron eigenvalue alpha_L is the finite-ring SCGF and the requested quantity is lim L alpha_L.",
+    "hydrodynamic_coefficients": "Diffusivity D; mobility sigma(rho)=2D rho(1-rho); mean macroscopic current 2DE rho(1-rho). The PRE2013 rate convention is (1/2)exp(+/-E/L), so its SCGF and current must be multiplied by 2D.",
+    "homogeneous_source": "psi_flat(D,E,lambda) = D rho(1-rho) lambda(lambda+2E).",
+    "checks": [
+      "psi(D,E,lambda)=D psi(1,E,lambda) exactly because D multiplies the microscopic generator.",
+      "psi(0)=psi(-2E)=0; psi(lambda)=psi(-2E-lambda); psi is convex.",
+      "d psi/d lambda at lambda=0 is 2DE rho(1-rho).",
+      "Use nonzero weak-field SCGF calibration values to identify D; calibration only at lambda=0 or -2E cannot identify it.",
+      "Evaluate raw SCGF with ordinary relative errors away from its zeros; do not inflate separation by subtracting the homogeneous background."
+    ]
+  },
+  "critical_regime": {
+    "field": "The homogeneous saddle becomes unstable for |E|>E_c, where E_c=pi/sqrt(rho(1-rho)). At rho=1/4, E_c=4pi/sqrt(3).",
+    "bias": "The instability interval is |lambda+E|<sqrt(E^2-E_c^2). Its boundary has psi_flat=-D pi^2.",
+    "current": "The corresponding critical current magnitude in the proposed clock is q_c=2D rho(1-rho) sqrt(E^2-E_c^2).",
+    "interpretation": "A current-conditioned nonuniform density profile can improve the homogeneous action. Away from half filling and zero-current bias this can be a traveling profile. The exponential tilt conditions trajectories; it is not an additional physical force in the unconditioned process.",
+    "zero_speed_caveat": "At lambda=-E, symmetry selects zero current and the optimal wave speed is zero even at quarter filling. Quarter filling avoids the all-bias zero-speed symmetry of half filling; it does not make every conditioned profile travel.",
+    "evidence_limit": "The onset criterion does not quantify an ordinary prediction gap above 4%. No new gap has been computed, and linear instability alone does not prove global optimality of a chosen traveling-wave ansatz."
+  },
+  "reference_assessment": [
+    {
+      "route": "Traveling-wave MFT profile optimization or elliptic quadrature",
+      "assessment": "A practical candidate calculation, but PRE2013 explicitly conditions this expression on the traveling wave remaining optimal. Two implementations of this same ansatz only establish numerical consistency, not unrestricted global optimality."
+    },
+    {
+      "route": "Exact finite-ring tilted generator",
+      "assessment": "Independent and unambiguous at fixed L, but its configuration space grows as binomial(L,N), and the target is the thermodynamic limit. Two small sizes would not by themselves certify 1% gold in the phase-transition regime. A failed extrapolation would be numerical/reference incompleteness, not a physical failure."
+    },
+    {
+      "route": "Thermodynamic Bethe solution",
+      "assessment": "A potentially strong independent route, requiring the correct rate and tilt scaling, complex-root branch selection, and the thermodynamic limit. Simon 2011 gives explicit half-filled correspondence but states that the full correspondence away from half filling remains unclear in that work. The checked papers do not provide a ready minimal quarter-filled gold implementation; this is not a claim that later literature cannot resolve it."
+    },
+    {
+      "route": "Rare-event cloning",
+      "assessment": "Published finite-size evidence supports the mechanism, but population bias, finite size and convergence make this an unnecessarily large initial reference campaign."
+    },
+    {
+      "route": "Admissible-profile lower bound",
+      "assessment": "Could establish that the homogeneous answer is wrong by a sufficient amount without solving the optimum. It would not determine accurate gold, so it does not address the present blocker and is not recommended as an extra run."
+    }
+  ],
+  "archive_comparison": {
+    "scan": "Scoped text search of AUTHOR.md and ASSESSMENT.md under tasks, archives and staging, followed by direct inspection of the relevant task documents. No identical conditioned-density instability was found in that scope; this is not a universal novelty claim.",
+    "comparisons": [
+      {
+        "task": "single-file-memory",
+        "mechanism": "Tagged-particle two-time covariance after fixed initial positions; stationary-increment assumption fails. Different observable and omission."
+      },
+      {
+        "task": "screened/exclusion-current",
+        "mechanism": "Four-state open exclusion channel; simultaneous current-counter cross correlations and bounded occupancy identities. Exclusion alone overlaps, but the mechanism does not."
+      },
+      {
+        "task": "terminal-current-noise-r1",
+        "mechanism": "Finite-state terminal displacement-current weighting versus junction current, including finite-frequency noise. Different measurement physics."
+      },
+      {
+        "task": "boson-transfer-noise-r1",
+        "mechanism": "Missing transmission-squared Bose transfer correlations. Different stochastic statistics and transport physics."
+      },
+      {
+        "task": "floating-contact-noise-r1",
+        "mechanism": "Fluctuating probe voltage and charge conservation alter current noise. Different constraint mechanism."
+      }
+    ],
+    "evidence": [
+      {
+        "path": "AGENTS.md",
+        "sha256": "9caad678c2b2f719a0ece41bf63ae4cb3f14ce4b560a6bbd80dfc65dad5f715c"
+      },
+      {
+        "path": "tasks/single-file-memory/AUTHOR.md",
+        "sha256": "6e88ae54b3eadf199e8a14c1cca6188959e57a9d291499b03cc8e20180093188"
+      },
+      {
+        "path": "archives/screened/tasks/exclusion-current/AUTHOR.md",
+        "sha256": "57c3c8a2c6a3bec156bec332b5f62d6bf67a6d289dced4cfc790921d6fa52c4c"
+      },
+      {
+        "path": "archives/screened/tasks/exclusion-current/environment/README.md",
+        "sha256": "4d2ddd4139ccfc82f9a396fa384c2a3521837e722ca1233575369dc6addf2026"
+      },
+      {
+        "path": "archives/terminal-current-noise-r1/tasks/terminal-current-noise/AUTHOR.md",
+        "sha256": "68efccf3832c5d0b1bff8570f1ef4b72231c453477e8df0ba5e1e72266c5023c"
+      },
+      {
+        "path": "archives/boson-transfer-noise-r1/tasks/boson-transfer-noise/AUTHOR.md",
+        "sha256": "734e9b4e4a946152b2643dd5056be400e28c2a4eccb2d207bf40efc57b588a0e"
+      },
+      {
+        "path": "archives/floating-contact-noise-r1/tasks/floating-contact-noise/AUTHOR.md",
+        "sha256": "c30d78b488ccf898877d333ebdb8868448bfb4fc1f3c81f93fe529a63a847784"
+      }
+    ]
+  },
+  "minimal_next_action": {
+    "quarter_filled_proposal": "Retain this review and defer implementation. Require a concise, independently reviewed construction of accurate thermodynamic gold before any science screen or package; do not launch a broader reference research campaign merely to keep this candidate alive.",
+    "possible_later_scope": "Half filling is a separate possible proposal, not an implicit modification of this one. It has E_c=2pi and a stationary spatially nonuniform conditioned profile, with v=0 for all biases. The checked Bethe paper gives a stronger explicit correspondence there. A brief reference derivation and review would still be needed before execution.",
+    "feasibility_plan": "None authorized or recommended now. No new cases, grids, gates or additional candidate screens are proposed."
+  },
+  "primary_sources": [
+    {
+      "citation": "Bodineau and Derrida, Physical Review E 72, 066110 (2005)",
+      "url": "https://www.lps.ens.fr/~derrida/PAPIERS/2005/pre-current-2005.pdf",
+      "used_for": "Time-first current limit, ring current large deviations, homogeneous instability and traveling-profile construction; their rate convention requires explicit conversion."
+    },
+    {
+      "citation": "Espigares, Garrido and Hurtado, Physical Review E 87, 032115 (2013)",
+      "url": "https://ergodic.ugr.es/garrido/papers/102.pdf",
+      "doi": "https://doi.org/10.1103/PhysRevE.87.032115",
+      "used_for": "Microscopic rates, MFT coefficients, critical field/current/bias, fluctuation symmetry, conditional traveling-wave optimum, half-filled zero-speed symmetry and finite-size cloning evidence."
+    },
+    {
+      "citation": "Simon, Journal of Statistical Physics (2011), Bethe Ansatz for the Weakly Asymmetric Simple Exclusion Process and phase transition in the current distribution",
+      "url": "https://arxiv.org/abs/1011.3590",
+      "doi": "https://doi.org/10.1007/s10955-011-0146-6",
+      "used_for": "Tilted generator and fixed diagonals, 1/L weak asymmetry and counting-field scaling, post-transition Bethe construction, explicit half-filled comparison and stated general-density correspondence limitation."
+    }
+  ]
+}

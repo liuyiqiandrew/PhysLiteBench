@@ -1,0 +1,1 @@
+The supplied connector potential defines a fluctuating nonlinear spring. Derive the stationary connector distribution from the bead dynamics and use the mechanical force moments appropriate to the rheometer readout. A closed second-moment equation can contain an additional statistical assumption.

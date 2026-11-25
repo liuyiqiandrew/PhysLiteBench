@@ -1,0 +1,104 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,95 @@
+-"""Current SCGF model and calibration interface."""
++"""Large-ring current SCGF for the half-filled weakly asymmetric exclusion process."""
++
++from functools import lru_cache
++
+ import numpy as np
++from scipy.optimize import brentq
++from scipy.special import ellipe, ellipk, elliprf, elliprj
++
++
++_CRITICAL_FIELD = 2.0 * np.pi
++
++
++def _elliptic_pi(characteristic, parameter):
++    """Complete elliptic integral of the third kind, Pi(n | m)."""
++    return (
++        elliprf(0.0, 1.0 - parameter, 1.0)
++        + characteristic
++        * elliprj(0.0, 1.0 - parameter, 1.0, 1.0 - characteristic)
++        / 3.0
++    )
++
++
++@lru_cache(maxsize=4096)
++def _unit_scgf(field, bias):
++    """SCGF with microscopic rate prefactor D = 1.
++
++    The flat profile gives lambda(lambda + 2E)/4. When it is unstable,
++    the half-filled optimal profile is a stationary density wave
++    u(x) = sqrt(m) sn(E sqrt(n) x | m/n). Its period and the bias fix
++    the elliptic modulus; the expression below is the optimized action.
++    """
++    e = float(field)
++    lam = float(bias)
++    flat = lam * (lam + 2.0 * e) / 4.0
++    h = abs(lam + e)
++
++    if e <= _CRITICAL_FIELD:
++        return flat
++
++    critical_h = np.sqrt(e * e - _CRITICAL_FIELD * _CRITICAL_FIELD)
++    if h >= critical_h:
++        return flat
++
++    # The largest modulus has n = 1, corresponding to lambda = -E.
++    k_max = brentq(lambda k: 4.0 * ellipk(k * k) - e, 0.0, 1.0)
++
++    def bias_magnitude(k):
++        k2 = k * k
++        first = ellipk(k2)
++        n = min((4.0 * first / e) ** 2, 1.0)
++        m = k2 * n
++        mean_inverse_mobility = _elliptic_pi(m, k2) / first
++        return e * np.sqrt((1.0 - m) * (1.0 - n)) * mean_inverse_mobility
++
++    k = k_max if h == 0.0 else brentq(
++        lambda modulus: bias_magnitude(modulus) - h,
++        0.0,
++        k_max,
++        xtol=1e-14,
++    )
++    k2 = k * k
++    first = ellipk(k2)
++    n = min((4.0 * first / e) ** 2, 1.0)
++    m = k2 * n
++    return -e * e * (m - n + 2.0 * n * ellipe(k2) / first) / 4.0
++
+ 
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    """Predict raw SCGF values for a sequence of input dictionaries."""
++    return np.asarray(
++        [diffusivity * _unit_scgf(item["field"], item["bias"]) for item in experiments],
++        dtype=float,
++    )
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Weighted least squares for the single common rate prefactor."""
++        if not records:
++            return self
++        basis = predict_at([record["input"] for record in records], 1.0)
++        values = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        weighted_basis = basis / sigma
++        denominator = float(weighted_basis @ weighted_basis)
++        if denominator > 0.0:
++            estimate = float(weighted_basis @ (values / sigma)) / denominator
++            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

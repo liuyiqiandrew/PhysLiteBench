@@ -1,0 +1,1 @@
+The low-energy internal space is degenerate. Transport its entire two-dimensional subspace around the guide and impose the periodic boundary condition on the laboratory wavefunction. Locally correct geometric kinetic energy and the endpoint sign of a chosen frame need not determine the allowed rotor sectors; internal transport at different positions may not commute.

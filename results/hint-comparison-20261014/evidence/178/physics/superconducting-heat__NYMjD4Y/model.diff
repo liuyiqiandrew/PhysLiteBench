@@ -1,0 +1,393 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,5 +1,6 @@
+ """Thermal quantum phase oscillator and stationary spin-resolved BCS heat."""
+ from functools import lru_cache
++from math import comb
+ import numpy as np
+ from numpy.polynomial.legendre import leggauss
+ from scipy.special import expit
+@@ -43,7 +44,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,7 +192,41 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one unknown scale parameter from the calibration records.
++
++        The supplied calibration is deliberately in the unmodulated limit, in
++        which the prediction is linear in the normal conductance.  Keeping the
++        small weighted least-squares calculation here (rather than fitting a
++        hidden spin or oscillator parameter) also makes ``fit`` behave sensibly
++        for a user-supplied record set containing the optional fields.
++        """
++        if not records:
++            raise ValueError('At least one calibration record is required')
++
++        def prediction(record, conductance):
++            value = mean_heat(record['input'], conductance)
++            if record['input'].get('statistic', 'mean') == 'phase_contrast':
++                value = phase_contrast(record['input'], conductance)
++            return value
++
++        target = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if np.any(~np.isfinite(target)) or np.any(~np.isfinite(sigma)) or np.any(sigma <= 0):
++            raise ValueError('Calibration values and uncertainties must be finite')
++
++        def objective(conductance):
++            values = np.asarray([prediction(record, conductance) for record in records])
++            return float(np.sum(((values - target) / sigma) ** 2))
++
++        # The calibration records are normally exactly linear in conductance;
++        # bounded minimisation also covers optional records with a stationary
++        # spin state without making that assumption part of the API.
++        result = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                 options={'xatol': 1e-10, 'maxiter': 100})
++        if not result.success or not np.isfinite(result.x):
++            raise RuntimeError('Conductance fit did not converge')
++        self.conductance = float(np.clip(result.x, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -200,6 +235,7 @@
+ from scipy.special import gammaln, logsumexp
+ from scipy.linalg import eigh_tridiagonal,expm
+ OSCILLATOR_ENERGY = 24.
++THIRD_SIZE_FACTOR = 1_000_000.
+ 
+ 
+ def sidebands(rho, temperature, count=24, energy=OSCILLATOR_ENERGY):
+@@ -407,15 +443,12 @@
+     return float(stationary(*oscillator_arguments(e),conductance,factorized=FACTORIZED,secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))['heat'][0])
+ 
+ 
+-def predict_at(experiments,conductance):
+-    values=[]
+-    for e in experiments:
+-        value=mean_heat(e,conductance)
+-        if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
+-            value=(value-mean_heat(other,conductance))/2
+-        values.append(value)
+-    return np.array(values)
++def phase_contrast(e, conductance):
++    """Mean heat contrast, allowing the two preparations to equilibrate separately."""
++    # Wrap phi+pi into [-pi, pi].  The extra 2*pi before the modulo is
++    # intentional: modulo after adding only pi would wrap back to phi.
++    other = dict(e, phase=(e['phase'] + 2 * np.pi) % (2 * np.pi) - np.pi)
++    return (mean_heat(e, conductance) - mean_heat(other, conductance)) / 2.
+ 
+ 
+ FACTORIZED = False
+@@ -443,43 +476,261 @@
+     return dict(noise=correct*scale,shot=raw*scale,response=response.tolist(),mu=mu.tolist(),
+                 heat_derivative=hprime.tolist(),spin_jacobian=state['jacobian'].tolist(),flip_noise=flips,
+                 work_spin_identity_error=float(np.max(abs(work-args[4]/2*injection.sum(axis=1)))))
+-
+-
+-mean_predict=predict_at
+-def predict_at(experiments,conductance):
+-    return np.array([gate_statistics(e,conductance)['noise'] if e.get('statistic','mean')=='gate_noise'
+-                     else mean_predict([e],conductance)[0] for e in experiments])
+-
+-def gate_third(e,conductance,nodes=192,count=64):
+-    args=oscillator_arguments(e);kw=dict(secondary_coupling=e.get('secondary_coupling',0.),quadratic_coupling=e.get('quadratic_coupling',0.),momentum_coupling=e.get('momentum_coupling',0.))
+-    state=stationary(*args,conductance,nodes=nodes,count=count,**kw);mu=state['mu'];tl,tr=args[:2]
+-    dl,dr,ch=prepare(*args,nodes=nodes,count=count,window=state['search_bound'],**kw)
+-    energy,other,measure,sl,sr,pair,work,recoil,pf,pb,injection=ch
+-    f=expit((sl*mu[0]-energy)/tl);g=expit((sr*mu[1]-other)/tr)
+-    rp=measure*np.where(pair,pf*(1-f)*(1-g),pf*f*(1-g));rm=measure*np.where(pair,pb*f*g,pb*g*(1-f))
+-    
+-    ratio=QUASIPARTICLE_DENSITY/(NORMAL_POLARIZATION_TIME*RATE_CONVERSION*conductance)
+-    flipdata=[]
+-    for j,(temp,delta,pol) in enumerate(zip([tl,tr],[dl,dr],mu)):
+-        x,w=leggauss(160);upper=delta+max(80*temp,6*abs(pol));ee=delta+(x+1)*(upper-delta)/2;mm=w*(upper-delta)/2*ratio/2
+-        u=expit((pol-ee)/temp);d=expit((-pol-ee)/temp);ap=mm*u*(1-d);am=mm*d*(1-u)
+-        flipdata.append((temp,u,d,mm,ap,am))
+-    # Differentiate the actual work-marked rates directly. This avoids
+-    # subtracting spin-loss Jacobians and is exactly zero for a static gate.
+-    df=f*(1-f)/tl;dg=g*(1-g)/tr
+-    dleft=np.where(pair,-sl*df,sl*df)*(pf*(1-g)+pb*g)
+-    dright=-sr*dg*np.where(pair,pf*(1-f)+pb*f,pf*f+pb*(1-f))
+-    hp=np.array([np.sum(measure*work[:,None]*dleft),np.sum(measure*work[:,None]*dright)])
+-    p1=-np.linalg.solve(state['jacobian'].T,hp)
+-    mark=work+injection@p1;mark=mark[:,None]
+-    bare=float(np.sum((rp-rm)*mark**3))
+-    for j,(temp,u,d,mm,ap,am) in enumerate(flipdata):
+-        ell=-2*p1[j];bare+=float(np.sum(ap-am))*ell**3
+-    scale=RATE_CONVERSION*conductance*KB**3*1e36
+-    return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
+-
+-
+-noise_predict=predict_at
+-def predict_at(experiments,conductance):
+-    return np.array([gate_third(e,conductance)['third'] if e.get('statistic','mean')=='gate_third'
+-                     else noise_predict([e],conductance)[0] for e in experiments])
++def _third_rate_context(e, conductance, nodes, count):
++    """Build the local density-dependent jump process used by gate_third.
++
++    The state is y_j=S_j/nu.  Under the Lambda scaling in the README, a jump
++    changes y by q/(Lambda*nu), while every event intensity is Lambda times
++    the intensity returned here.  Grouping events by (spin jump, gate work)
++    keeps the subsequent polynomial calculation small without discarding any
++    conditional-rate dependence.
++    """
++    args = oscillator_arguments(e)
++    kw = dict(secondary_coupling=e.get('secondary_coupling', 0.),
++              quadratic_coupling=e.get('quadratic_coupling', 0.),
++              momentum_coupling=e.get('momentum_coupling', 0.))
++    state = stationary(*args, conductance, nodes=nodes, count=count, **kw)
++    dl, dr, channels = prepare(*args, nodes=nodes, count=count,
++                               window=state['search_bound'], **kw)
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = channels
++    temperature = args[:2]
++
++    # Two quadratures are enough for the smooth local derivatives.  The upper
++    # limit follows the same exponentially safe cutoff used by gate_statistics.
++    flip_quadrature = []
++    for temp, delta, pol in zip(temperature, (dl, dr), state['mu']):
++        x, weights = leggauss(128)
++        upper = delta + max(80 * temp, 6 * abs(pol))
++        ee = delta + (x + 1) * (upper - delta) / 2
++        prefactor = weights * (upper - delta) / 2 * QUASIPARTICLE_DENSITY / (2 * NORMAL_POLARIZATION_TIME)
++        flip_quadrature.append((ee, prefactor))
++
++    # All tunnel groups which can occur, including the two directions.  The
++    # keys use integer spin changes; the conversion to y-space is applied by
++    # the generator below.
++    tunnel_keys = np.concatenate((
++        np.column_stack((injection.astype(int), work)),
++        np.column_stack((-injection.astype(int), -work))))
++    tunnel_keys = np.unique(tunnel_keys, axis=0)
++    keys = [tuple(row) for row in tunnel_keys]
++    for j in range(2):
++        for sign in (-2, 2):
++            key = [0., 0., 0.]
++            key[j] = sign
++            key = tuple(key)
++            if key not in keys:
++                keys.append(key)
++    key_index = {key: i for i, key in enumerate(keys)}
++
++    return dict(args=args, kw=kw, state=state, dl=dl, dr=dr,
++                channels=channels, keys=keys, key_index=key_index,
++                flip_quadrature=flip_quadrature,
++                y0=np.array([spin_loss(t, d, m)[0]
++                             for t, d, m in zip(temperature, (dl, dr), state['mu'])]))
++
++
++def _third_rates(context, mu, conductance):
++    """Return physical (per-second) grouped rates at a pair of spin potentials."""
++    args = context['args']; tl, tr = args[:2]
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = context['channels']
++    f = expit((sl * mu[0] - energy) / tl)
++    g = expit((sr * mu[1] - other) / tr)
++    forward = measure * np.where(pair, pf * (1 - f) * (1 - g), pf * f * (1 - g))
++    backward = measure * np.where(pair, pb * f * g, pb * g * (1 - f))
++    rates = np.zeros(len(context['keys']))
++    factor = RATE_CONVERSION * conductance
++
++    # There are only a few distinct keys, so this vectorised grouping avoids
++    # a Python loop over the oscillator and energy quadrature points.
++    raw = np.concatenate((
++        np.column_stack((injection.astype(int), work)),
++        np.column_stack((-injection.astype(int), -work))))
++    # Energy quadrature points share the same jump and work mark; first
++    # integrate their intensities before grouping the discrete event types.
++    values = factor * np.concatenate((forward.sum(axis=1), backward.sum(axis=1)))
++    unique, inverse = np.unique(raw, axis=0, return_inverse=True)
++    grouped = np.bincount(inverse, weights=values, minlength=len(unique))
++    for row, value in zip(unique, grouped):
++        rates[context['key_index'][tuple(row)]] += value
++
++    for j, (temp, quad) in enumerate(zip((tl, tr), context['flip_quadrature'])):
++        ee, prefactor = quad
++        up = expit((mu[j] - ee) / temp) * (1 - expit((-mu[j] - ee) / temp))
++        down = expit((-mu[j] - ee) / temp) * (1 - expit((mu[j] - ee) / temp))
++        for sign, value in ((-2., prefactor @ up), (2., prefactor @ down)):
++            key = [0., 0., 0.]
++            key[j] = sign
++            rates[context['key_index'][tuple(key)]] += value
++    return rates
++
++
++def _third_polynomial_matrices(context, conductance, nodes, count):
++    """Construct the local tilted jump generator through third order in tilt.
++
++    A polynomial representation of the generator is used only as a numerical
++    Poisson-equation solver.  Taking Lambda large and then retaining its
++    leading coefficient implements the ordered limits specified in the README.
++    In particular, the rate Taylor terms are retained; omitting them gives the
++    linearly-screened-mark approximation that is insufficient for a third
++    cumulant.
++    """
++    degree = 6
++    size_factor = THIRD_SIZE_FACTOR
++    epsilon = size_factor ** -0.5
++    scale = .30
++    exponents = [(i, j) for i in range(degree + 1)
++                 for j in range(degree + 1 - i)]
++    index = {power: i for i, power in enumerate(exponents)}
++    dimension = len(exponents)
++    grid = np.linspace(-1., 1., degree + 3)
++    points = np.array([(x, y) for x in grid for y in grid])
++    design = np.asarray([[x ** i * y ** j for i, j in exponents]
++                         for x, y in points])
++
++    mu0 = context['state']['mu'].copy()
++    y0 = context['y0']
++    temperatures = context['args'][:2]
++    deltas = (context['dl'], context['dr'])
++    rate_values = []
++    for point in points:
++        target = y0 + epsilon * scale * point
++        mu = mu0.copy()
++        for j in range(2):
++            for _ in range(16):
++                value, derivative = spin_loss(temperatures[j], deltas[j], mu[j])
++                step = (target[j] - value) / max(derivative, 1e-300)
++                mu[j] += step
++                if abs(step) < 2e-14:
++                    break
++        rate_values.append(_third_rates(context, mu, conductance))
++    coefficients = np.linalg.lstsq(design, np.asarray(rate_values), rcond=None)[0]
++
++    def multiply(left, right):
++        result = np.zeros(dimension)
++        for il, (i, j) in enumerate(exponents):
++            if abs(left[il]) < 1e-300:
++                continue
++            for ir, (k, l) in enumerate(exponents):
++                if i + k + j + l <= degree:
++                    result[index[(i + k, j + l)]] += left[il] * right[ir]
++        return result
++
++    def matrix(order):
++        result = np.zeros((dimension, dimension))
++        for group, key in enumerate(context['keys']):
++            q0, q1, mark = key
++            jump = (epsilon * q0 / QUASIPARTICLE_DENSITY / scale,
++                    epsilon * q1 / QUASIPARTICLE_DENSITY / scale)
++            rate = coefficients[:, group]
++            for column, (a, b) in enumerate(exponents):
++                shifted = np.zeros(dimension)
++                for i in range(a + 1):
++                    for j in range(b + 1):
++                        shifted[index[(i, j)]] = (
++                            comb(a, i) * comb(b, j) *
++                            jump[0] ** (a - i) * jump[1] ** (b - j))
++                if order == 0:
++                    shifted[index[(a, b)]] -= 1.
++                else:
++                    shifted *= mark ** order
++                result[:, column] += size_factor * multiply(rate, shifted)
++        return result
++
++    return [matrix(order) for order in range(4)]
++
++
++def gate_third(e, conductance, nodes=192, count=64):
++    amplitude = e.get('amplitude', 0.)
++    if not amplitude:
++        return dict(third=0., screened_poisson=0., count_response=[0., 0.])
++
++    context = _third_rate_context(e, conductance, nodes, count)
++    state = context['state']
++    energy, other, measure, sl, sr, pair, work, recoil, pf, pb, injection = context['channels']
++    tl, tr = context['args'][:2]
++    f = expit((sl * state['mu'][0] - energy) / tl)
++    g = expit((sr * state['mu'][1] - other) / tr)
++    forward = measure * np.where(pair, pf * (1 - f) * (1 - g), pf * f * (1 - g))
++    backward = measure * np.where(pair, pb * f * g, pb * g * (1 - f))
++    df, dg = f * (1 - f) / tl, g * (1 - g) / tr
++    dleft = np.where(pair, -sl * df, sl * df) * (pf * (1 - g) + pb * g)
++    dright = -sr * dg * np.where(pair, pf * (1 - f) + pb * f,
++                                  pf * f + pb * (1 - f))
++    work_derivative = np.array([
++        np.sum(measure * work[:, None] * dleft),
++        np.sum(measure * work[:, None] * dright)])
++    screened_response = -np.linalg.solve(state['jacobian'].T, work_derivative)
++    screened_mark = work + injection @ screened_response
++    screened = float(np.sum((forward - backward) * screened_mark[:, None] ** 3))
++    ratio = QUASIPARTICLE_DENSITY / (NORMAL_POLARIZATION_TIME * RATE_CONVERSION * conductance)
++    for temp, delta, pol, response in zip((tl, tr), (context['dl'], context['dr']),
++                                           state['mu'], screened_response):
++        current, _ = spin_loss(temp, delta, pol)
++        # Third cumulants use the signed forward-minus-backward flip rate.
++        screened += (ratio * current / 2.) * (-2 * response) ** 3
++    screened_value = screened * RATE_CONVERSION * conductance * KB ** 3 * 1e36
++
++    matrices = _third_polynomial_matrices(context, conductance, nodes, count)
++    generator = matrices[0]
++    dimension = generator.shape[0]
++    constant = np.zeros(dimension); constant[0] = 1.
++
++    # The left zero mode supplies stationary averaging for the Poisson
++    # equations.  The constant coefficient is fixed to one, matching the
++    # normalization of the right zero mode.
++    eigenvalues, eigenvectors = np.linalg.eig(generator.T)
++    left = np.real(eigenvectors[:, np.argmin(abs(eigenvalues))])
++    left /= left @ constant
++
++    solutions = [constant]
++    cumulants = []
++    for order in range(1, 4):
++        rhs = np.zeros(dimension)
++        for previous in range(1, order):
++            rhs += comb(order, previous) * cumulants[previous - 1] * solutions[order - previous]
++        for derivative in range(1, order + 1):
++            rhs -= (comb(order, derivative) * matrices[derivative] @
++                    solutions[order - derivative])
++
++        augmented = np.zeros((dimension + 1, dimension + 1))
++        augmented[:dimension, :dimension] = generator
++        augmented[:dimension, dimension] = -constant
++        augmented[dimension, :dimension] = left
++        solved = np.linalg.solve(augmented, np.r_[rhs, 0.])
++        solutions.append(solved[:dimension])
++        cumulants.append(float(solved[dimension]))
++
++    # The matrices use kelvin marks and rates in s^-1.  Convert K^3/s to the
++    # requested pW^3*s^2 (1 pW^3*s^2 = 10^-36 J^3/s).
++    value = cumulants[2] / THIRD_SIZE_FACTOR * KB ** 3 * 1e36
++    return dict(third=value, screened_poisson=screened_value,
++                count_response=screened_response.tolist())
++
++
++def _ordinary_predict(experiments, conductance):
++    values = []
++    for experiment in experiments:
++        if experiment.get('statistic', 'mean') == 'phase_contrast':
++            values.append(phase_contrast(experiment, conductance))
++        else:
++            values.append(mean_heat(experiment, conductance))
++    return np.asarray(values, dtype=float)
++
++
++def predict_at(experiments, conductance):
++    values = []
++    for experiment in experiments:
++        statistic = experiment.get('statistic', 'mean')
++        if statistic == 'gate_noise':
++            values.append(gate_statistics(experiment, conductance)['noise'])
++        elif statistic == 'gate_third':
++            values.append(gate_third(experiment, conductance)['third'])
++        elif statistic == 'phase_contrast':
++            values.append(phase_contrast(experiment, conductance))
++        else:
++            values.append(mean_heat(experiment, conductance))
++    return np.asarray(values, dtype=float)
++
++
++mean_predict = _ordinary_predict
++noise_predict = predict_at

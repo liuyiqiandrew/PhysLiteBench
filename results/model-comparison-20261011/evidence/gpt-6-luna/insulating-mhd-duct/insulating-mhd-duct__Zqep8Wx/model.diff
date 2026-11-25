@@ -1,0 +1,42 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -61,7 +62,30 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate the shared viscosity by weighted least squares.
++
++        The calibration uncertainties are independent, known Gaussian standard
++        deviations, so minimizing the sum of squared standardized residuals is
++        the maximum-likelihood estimate.
++        """
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - values) / sigmas
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018),
++                                 method='bounded', options={'xatol': 1e-9})
++        # Include the allowed endpoints in case the constrained optimum lies
++        # exactly on a boundary.
++        candidates = [(result.fun, float(result.x)),
++                      (objective(0.006), 0.006),
++                      (objective(0.018), 0.018)]
++        self.viscosity = min(candidates, key=lambda item: item[0])[1]
++        return self
+ 
+     def predict(self, experiments):
+         m, n, _, mean, *_ = operators()

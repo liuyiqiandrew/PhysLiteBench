@@ -1,0 +1,120 @@
+{
+  "reviewed_utc": "2026-10-06T05:19:26.457440+00:00",
+  "reviewer": "/root/pulse_archive",
+  "status": "analytical_closure_supported_one_bounded_feasibility_justified",
+  "proposal": "staging/pulse-block-displacement-r2-closure-review/proposal.md",
+  "proposal_sha256": "7201fa0115293571c1e4cb7ab1814c481ca54a786de9cfc86e538733c0bb5e65",
+  "assessment": "staging/pulse-block-displacement-r2-closure-review/assessment.json",
+  "assessment_sha256": "d7db92d0b01a58baf55a80b38a48f867b83d53bf35b9c944e9eb547c5ae28dd1",
+  "manifest_sha256": "488a2c011991af2edfccaa3747b291248acc309ca542f05e398cf8f6309da248",
+  "scope": "Independent analytical closure and overlap review only. Read the complete proposal, assessment and manifest; full actual electric-dipole, pulse r1 and resonator passing code; electric-dipole AUTHOR and complete public step 15 including patch and result; pulse r1 AUTHOR and public README. Read emitted public messages and decisive source patches for context. No new complete native-input certification, private reasoning access, scientific execution, task package, model evaluation, Docker or Git operation.",
+  "evidence_verification": {
+    "cited_files_rehashed": 23,
+    "cited_mismatches": 0,
+    "manifest_payloads_rehashed": 2,
+    "exact_review_directory_inventory": true
+  },
+  "findings": [
+    {
+      "topic": "Defined optical continuum",
+      "verdict": "closed within the explicit ideal sheet model",
+      "reason": "Treat the specification as an exact planar electric-polarization sheet with transverse oscillator displacement, rather than claiming arbitrary discrete dipoles or a bulk effective medium imply it. Tangential E continuity gives e_t=e+e_r; the surface-current jump gives e_r=-P_dot/2. Therefore E_sheet=e-P_dot/2 and B_average=[(e-e_r)+e_t]/2=e. The causal oscillator has P_ddot+(f/2)*P_dot+P=f*e. For f>0 its homogeneous modes decay, so the retarded solution is unique. No added absorption channel is required."
+    },
+    {
+      "topic": "Force and canonical momentum",
+      "verdict": "correct transient distinction",
+      "reason": "The total longitudinal charge Lorentz force is P_dot*B_average=P_dot*e. The electric gradient evaluated symmetrically at the sheet is partial_x E_average=-e_dot, so the proposed source is -P*e_dot. Their difference is d(P*e)/dt. At leading order L_int=P*E+P*(V cross B)_y has canonical longitudinal momentum M1*V-P*B; its Euler-Lagrange equation gives kinetic force P*partial_x E+d(P*B)/dt. Thus the proposed source confuses canonical and kinetic frame acceleration, while its optical oscillator and both derivatives can be implemented exactly."
+    },
+    {
+      "topic": "Maxwell stress and energy",
+      "verdict": "correct at the stated leading order",
+      "reason": "At a zero-thickness sheet the exterior longitudinal momentum-flux difference is e^2+e_r^2-e_t^2=P_dot*e. The oscillator energy U=(P_dot^2+P^2)/(2*f) is positive, and U_dot=P_dot*(e-P_dot/2)=e^2-e_r^2-e_t^2. After the retarded excitation decays, integrating energy balance gives integral(P_dot*e)=integral(P_dot^2)/2=2*reflected_energy. This is the expected complete-pulse impulse. A finite-width reference must retain field momentum inside its control volume, or demonstrate its vanishing in the sheet limit; exterior stresses alone are not generally the finite-volume material force."
+    },
+    {
+      "topic": "Weak-drive and mechanical consistency",
+      "verdict": "correct order counting for a fixed finite clock",
+      "reason": "If the incident amplitude is a, fields and P are O(a), optical force and X,V are O(a^2)=O(E), and longitudinal spring/kinetic energy is O(a^4)=O(E^2). Motion-induced optical corrections therefore do not alter the leading O(E) force at a fixed clock. The transverse oscillator energy is already O(E) and is included. Its contribution to translating inertia times V is higher order. This supports extracting M*X2/E as E tends to zero before considering long-time behavior; it is not a full finite-amplitude moving-sheet simulation."
+    },
+    {
+      "topic": "Mechanical readout",
+      "verdict": "well posed once clock and phase are fixed",
+      "reason": "For equal masses, Xcm_ddot=F/M and R_ddot+Omega_m^2*R=2*F/M. Since X2=Xcm-R/2, the stated kernel [t-s-sin(Omega_m*(t-s))/Omega_m] follows. Retarded zero mechanical initial conditions and a known positive Omega_m close the mechanics. Reflection leaves a nonzero shared drift, so a finite specified clock is essential. The readout retains translation and does not reduce to a deliberately zero rigid-limit signal."
+    },
+    {
+      "topic": "Source separation",
+      "verdict": "physical distinction exists, usable gap unproven",
+      "reason": "Integration by parts gives z-z_source=integral_{-infinity}^{t*}[1-cos(Omega_m*(t*-s))]*P(s)*e(s)/E ds, with vanishing retarded boundary terms. This need not vanish even though the complete-pulse impulses and stationary force averages agree. It can also be small or cancel. No numerical lower bound, stable ordinary-signal domain, noise margin or verifier runtime follows from the identity."
+    },
+    {
+      "topic": "Stationary calibration",
+      "verdict": "shared and noiselessly identifiable",
+      "reason": "For harmonic incident amplitude e0 and I=abs(e0)^2/2, chi=f/[1-omega^2-i*f*omega/2] and R=f^2*omega^2/[4*(1-omega^2)^2+f^2*omega^2]. Averaged radiation force is 2*I*R for either force law because the average of d(Pe)/dt is zero. For positive f, nonzero off-resonant omega and nonzero I, R is strictly increasing. Exactly resonant omega makes R=1 and is unidentifying; large f or near-resonance settings can be poorly conditioned despite strict monotonicity. Fixed-noise robustness still requires checking."
+    },
+    {
+      "topic": "Nearest electric-dipole actual pass",
+      "verdict": "substantial overlap, distinct unperformed repair",
+      "reason": "KMXhb9w final coefficients use .5*Re(derivative@E.conj()) and .5*Im(derivative@E.conj()) instead of a real Poynting-vector term. Public step 15 explicitly repairs complex-polarization dependence of a time-averaged electric-dipole force, and the exact patch succeeds. Its reward is 1 with no exception. The code contains no pulse time, envelope, component motion or d(Pe)/dt term. The proposed source retains that correct stationary gradient limit; adding the transient canonical-to-kinetic term is not a repair already present in this actual pass. Demonstrated Lorentz-force competence nevertheless creates substantial ease risk."
+    },
+    {
+      "topic": "Pulse r1 and resonator actual passes",
+      "verdict": "related concepts but not the same solved readout",
+      "reason": "z8sUiqU predicts whole-body displacement as energy-weighted transit minus length, the complete-body center-of-energy result. That final global constraint does not fix the new inert component at a finite clock. ntqD6wz restores separate internal resonator kinetic and spring energies; the proposed source already includes its transverse oscillator energy and radiation reaction. Neither existing repair alone corrects the new transient force assignment. These comparisons do not prove difficulty."
+    },
+    {
+      "topic": "Physics versus added mathematics",
+      "verdict": "genuine force-assignment issue with a known detector filter",
+      "reason": "The spring and exact oscillator response are shared by source and reference. A causal repair would hold fitted f, optical P(t), clock and mechanical solver fixed and change only the force. The physical distinction is extending a stationary force law to kinetic acceleration during a transient. Merely adding spring modes to a correct force would be extra mathematics; that is not the proposed source error."
+    }
+  ],
+  "specification_items_before_numerics": [
+    "Explicitly set the complete incident spectrum to a real normalization constant times the compact profile (or give any chosen spectral phase), together with energy normalization and the t=0 clock. The cited r1 README already specifies a real constant, so inheriting it closes the phase; the new sheet specification should say so directly. Spectrum intensity and centroid alone would be insufficient for a non-cycle-averaged finite-clock measurement.",
+    "Define the calibration output sign as forward radiation load or the positive magnitude of the opposing support force; the signed holding force itself is negative in the forward convention.",
+    "Use a consistent planar per-area or fixed-area normalization for P, f, M and k, and predeclare positive strength, nonresonant calibration, pulse, mechanical-frequency and clock ranges. No finite-body edge-force correction should enter an otherwise ideal planar model.",
+    "Fix one bounded feasibility protocol before evaluating gaps. Preserve weak-signal and cancellation cases rather than selecting isolated favorable clocks after inspecting them."
+  ],
+  "independent_reference_requirements": [
+    "A time-domain Maxwell characteristic/jump or converged symmetric thin-sheet implementation may obtain both exterior E/B fields and evaluate stress, then integrate Newton equations. It must not use P_dot*e or -P*e_dot as its force input.",
+    "Compare against an independently implemented frequency-domain retarded oscillator and mechanical Green-function oracle; refine pulse-tail cutoff, temporal/spectral resolution and any sheet thickness separately.",
+    "Check instantaneous optical energy balance, positive U, complete-pulse impulse, stationary calibration equality, zero-strength and mechanical limits, and fixed-clock weak-amplitude scaling. An amplitude-rescaling check of the leading equations is useful but is not an independent proof of finite-amplitude moving-body physics.",
+    "Establish ordinary nonzero readout norms and source/oracle separation across the declared domain, then calibration-noise and runtime margins. Reject or defer the proposal if those fail; analytical closure does not justify lowering benchmark gates."
+  ],
+  "primary_source": {
+    "url": "https://arxiv.org/pdf/0910.0770",
+    "title": "Bradshaw et al., Electromagnetic Momenta and Forces in Dispersive Dielectric Media",
+    "access": "Opened the primary PDF and read Sec. III Eq. 17-19 and surrounding assumptions. The electric-dipole Lorentz-force decomposition supports the total-derivative distinction. The sheet jumps, stresses, energy, calibration and mechanical kernel are independently derived in this review; the paper's later bulk and narrow-band formulas are not imported."
+  },
+  "recommendation": "One bounded numerical feasibility calculation is justified after the small specification items above are fixed. This is a coherent same-family closure proposal with a shared identifiable calibration and a distinct transient force error. It is not authorization to package or run a model evaluation, and not a claim of robust separation, a desirable pass rate, or family exhaustion.",
+  "scientific_executions": 0,
+  "model_evaluations": 0,
+  "docker_operations": 0,
+  "git_operations": 0,
+  "task_or_archive_edits": 0,
+  "evidence_sha256": {
+    "AGENTS.md": "9caad678c2b2f719a0ece41bf63ae4cb3f14ce4b560a6bbd80dfc65dad5f715c",
+    "staging/pulse-block-displacement-next-step-review/assessment.json": "b32e20af3246f85b6ff9e1368205fb10e3563b733da21d6abb9e1a5f4aa3741c",
+    "results/pulse-block-next-step-peer-review.json": "cbedb39dfa4ca62c0e2b74ca3b8cf16fcd2e92a9a629c8a6c34f9bbb500bc40d",
+    "results/pulse-block-family-next-step-decision.json": "714339d167b8851b75d5198bf58d0f5aabe36f11de16a769659b7ec4b1bf0317",
+    "archives/pulse-block-displacement-r1/tasks/pulse-block-displacement/AUTHOR.md": "eba33580270e6370af508f894ac1db3ab33f02139a928b2bfcb690cd751c3692",
+    "archives/pulse-block-displacement-r1/tasks/pulse-block-displacement/environment/README.md": "958e00e4e5e9b14c4ea54a2ebebecbf104a58e48041de526c1966e6a44cb86d6",
+    "archives/pulse-block-displacement-r1/prototype/overlap-and-sources.json": "34f65b9da4daece4602fd2809e2b041cdb7b4c2661ed9ff12e475caf47935764",
+    "archives/resonator-energy-neutral-r1/tasks/resonator-energy/AUTHOR.md": "eec2fd0c97e01beec528d43615df8a816c74292f9a86f673579047aa0a12a56c",
+    "archives/resonator-energy-neutral-r1/results/neutrality-materials-trial-reviews.json": "f9eb3f7ed4ec5b15d56c17aea7b9938b7f03566c8eaca8c0c641ffd8dc275181",
+    "archives/electric-dipole-force-r1/tasks/electric-dipole-force/AUTHOR.md": "d4c09d2963306fd1844a533f6605c9ab59a7240e554e603758de67f11b86cea3",
+    "archives/electric-dipole-force-r1/results/fresh-three-goal-entry.json": "c7bbef96363e2830e228a67146e6dc1ff1e9e881e1c4f5948f777c9e37a329ba",
+    "archives/screened/quantum-residence-r1/tasks/quantum-residence/AUTHOR.md": "f96214dcd314aa9b2e11453c0ad03d20cb0d7e4d0f0f0a4184b6440780019d8d",
+    "archives/screened/quantum-residence-r1/trial-reviews.json": "a17c1b53a09e3dc8af68dec0bbb419f6a879158ad0ad37f13fd15ca3e370460d",
+    "archives/screened/tasks/dipole-recoil/AUTHOR.md": "e5759d1e443f9eb30e091fdf2aef829291f40e5658a2b066b8d23f006724705f",
+    "jobs/pulse-block-displacement-zero-three-pulse-block-r1-setup-recovery-20261006-043306/pulse-block-displacement__z8sUiqU/artifacts/app/model.py": "7225461ff01609dfd443aceadf13d0980f28d7599037ad4aeb116006ae92d913",
+    "jobs/pulse-block-displacement-zero-three-pulse-block-r1-setup-recovery-20261006-043306/pulse-block-displacement__z8sUiqU/agent/trajectory.json": "232cb38f6ac6ba43de57cc01193f99d36cf5cbf27eaf34155b172225cb51aacd",
+    "jobs/pulse-block-displacement-zero-three-pulse-block-r1-setup-recovery-20261006-043306/pulse-block-displacement__z8sUiqU/result.json": "3c4d3b8bf1289b2af245658f6e2ed2bba0dc71d8fb417fcd17c09affefd4571d",
+    "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/artifacts/app/model.py": "89efdaa89a7282b4d66b9513a9693af00d8468b5fb4862c5a36b53e51ac5d79e",
+    "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/agent/trajectory.json": "e1b5e0253b6ea82584fd95f28d64647ca18f78e0ee41cd9e58a45594f12f8e59",
+    "jobs/resonator-energy-neutral-r1-initial-plain-20261003-012617/resonator-energy__ntqD6wz/result.json": "82e5315cd2c6a19d6ec188ed5982afe271cb37505d387325f6f064e61b25aa7f",
+    "archives/electric-dipole-force-r1/evaluations/electric-dipole-force-retained-three-r1-plain-20261004-035631/electric-dipole-force__KMXhb9w/artifacts/app/model.py": "b621c0e060795485dad580631beec98147b56b257b7ffc50801f0203388a35d7",
+    "archives/electric-dipole-force-r1/evaluations/electric-dipole-force-retained-three-r1-plain-20261004-035631/electric-dipole-force__KMXhb9w/agent/trajectory.json": "2689fcc100bdf02233c7a614af7f48a99f691a1885c15a93d9ecf85750ae7fab",
+    "archives/electric-dipole-force-r1/evaluations/electric-dipole-force-retained-three-r1-plain-20261004-035631/electric-dipole-force__KMXhb9w/result.json": "aadf2624f057be1969e70af333347417eb02b43669225851418b142d6e6dd431",
+    "staging/pulse-block-displacement-r2-closure-review/proposal.md": "7201fa0115293571c1e4cb7ab1814c481ca54a786de9cfc86e538733c0bb5e65",
+    "staging/pulse-block-displacement-r2-closure-review/assessment.json": "d7db92d0b01a58baf55a80b38a48f867b83d53bf35b9c944e9eb547c5ae28dd1",
+    "staging/pulse-block-displacement-r2-closure-review/manifest.json": "488a2c011991af2edfccaa3747b291248acc309ca542f05e398cf8f6309da248"
+  }
+}

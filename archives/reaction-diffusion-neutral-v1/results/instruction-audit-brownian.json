@@ -1,0 +1,468 @@
+{
+  "scope": "Read-only review of current ordinary instructions, every agent-image source/configuration file and calibration-data schema for thermal-bodies, reaction-diffusion, qubit-control and magnetic-tracer. Private references and tests were read only to identify unearned clues or grading restrictions. Deliberately appended hints are assessed separately.",
+  "frozen_task_files_modified": false,
+  "summary": {
+    "direct_answer_leaks_found": 0,
+    "mandatory_physical_or_numerical_solution_forms_found": 0,
+    "scope_ambiguities_found": 1,
+    "optional_cleanup_items": 2,
+    "conclusion": "The ordinary public surfaces do not expose true parameters, hidden cases, the corrective equations or a required solver. Necessary apparatus facts should remain. Clarifying that all implementation code may be changed would avoid an accidental fit-only reading."
+  },
+  "findings": [
+    {
+      "id": "B-I1",
+      "severity": "medium",
+      "category": "scope_ambiguity",
+      "confidence": "high on wording; no claim that it caused any observed failure",
+      "tasks": [
+        "thermal-bodies",
+        "reaction-diffusion",
+        "qubit-control",
+        "magnetic-tracer"
+      ],
+      "finding": "Each instruction says Complete while fit is the only unfinished method and predict is already implemented. An agent can reasonably read this as filling fit while retaining the supplied model form. No text actually forbids predictor changes, so this is an implicit scope ambiguity rather than an explicit algorithm mandate.",
+      "evidence": [
+        {
+          "path": "tasks/thermal-bodies/instruction.md",
+          "line": 1,
+          "end_line": 1,
+          "evidence_text": "Complete `model.py` using the apparatus documentation and calibration measurements in `README.md`."
+        },
+        {
+          "path": "tasks/thermal-bodies/environment/model.py",
+          "line": 14,
+          "end_line": 22,
+          "evidence_text": "fit raises NotImplementedError; predict is a complete CP-based two-body matrix exponential."
+        },
+        {
+          "path": "tasks/reaction-diffusion/instruction.md",
+          "line": 1,
+          "end_line": 1,
+          "evidence_text": "Complete `TransportModel` in `/app/model.py` using the apparatus and calibration measurements in `/app/README.md`."
+        },
+        {
+          "path": "tasks/reaction-diffusion/environment/model.py",
+          "line": 8,
+          "end_line": 20,
+          "evidence_text": "fit raises NotImplementedError; predict delegates to the complete _binary propagator."
+        },
+        {
+          "path": "tasks/qubit-control/instruction.md",
+          "line": 1,
+          "end_line": 1,
+          "evidence_text": "Complete `model.py` using the apparatus documentation and calibration measurements."
+        },
+        {
+          "path": "tasks/qubit-control/environment/model.py",
+          "line": 22,
+          "end_line": 28,
+          "evidence_text": "fit raises NotImplementedError; predict multiplies the two separately averaged probe responses."
+        },
+        {
+          "path": "tasks/magnetic-tracer/instruction.md",
+          "line": 1,
+          "end_line": 1,
+          "evidence_text": "Complete model.py using the apparatus and calibration measurements described in README.md."
+        },
+        {
+          "path": "tasks/magnetic-tracer/environment/model.py",
+          "line": 39,
+          "end_line": 43,
+          "evidence_text": "fit raises NotImplementedError; predict calls a complete scalar-diffusion implementation."
+        }
+      ],
+      "minimal_proposed_wording": "Append to each ordinary instruction: You may edit any part of model.py while preserving the documented public API.",
+      "rationale": "This grants implementation freedom without saying which supplied assumption is wrong, naming a missing term or requiring a particular representation. Apply uniformly rather than only to tasks with a known modeling trap."
+    },
+    {
+      "id": "B-I2",
+      "severity": "low",
+      "category": "revealing_helper_name",
+      "confidence": "medium; weak cue, not a disclosed answer",
+      "tasks": [
+        "reaction-diffusion"
+      ],
+      "finding": "The helper name _binary labels the supplied propagator as a binary-system approximation even though the apparatus contains two salts and three ions. This is a small implementation-name clue to the calibration limitation; it does not reveal the common-field correction.",
+      "evidence": [
+        {
+          "path": "tasks/reaction-diffusion/environment/model.py",
+          "line": 11,
+          "end_line": 20,
+          "evidence_text": "def _binary(...); rates use independent 4/3 and 8/3 diffusivities; predict calls self._binary."
+        }
+      ],
+      "minimal_proposed_wording": "Optionally rename the private helper _binary to _propagate and update its call. Do not rename the public TransportModel API.",
+      "rationale": "A neutral internal name removes a clue to the source approximation while retaining all equations and physical information. No scientific or grading change is required."
+    },
+    {
+      "id": "B-I3",
+      "severity": "low",
+      "category": "unused_import_cleanup",
+      "confidence": "high",
+      "tasks": [
+        "magnetic-tracer"
+      ],
+      "finding": "The public starter imports least_squares but never calls it. This suggests an intended fitting routine even though any fit satisfying the API and data is valid. It gives no clue to the missing magnetic transport physics.",
+      "evidence": [
+        {
+          "path": "tasks/magnetic-tracer/environment/model.py",
+          "line": 3,
+          "end_line": 3,
+          "evidence_text": "from scipy.optimize import least_squares"
+        },
+        {
+          "path": "tasks/magnetic-tracer/environment/model.py",
+          "line": 39,
+          "end_line": 40,
+          "evidence_text": "def fit(self,records): raise NotImplementedError"
+        }
+      ],
+      "minimal_proposed_wording": "Remove the unused import from the unfinished public starter in a future revision. Keep SciPy installed so agents may choose it.",
+      "rationale": "Optional cleanup only; do not describe this as physical answer leakage or an enforced optimizer restriction."
+    }
+  ],
+  "necessary_apparatus_facts_to_keep": [
+    {
+      "task": "thermal-bodies",
+      "evidence": [
+        {
+          "path": "tasks/thermal-bodies/environment/README.md",
+          "line": 3,
+          "end_line": 5,
+          "evidence_text": "Rigid sealed total volume; freely moving adiabatic unloaded piston; fast mechanical equilibration; known heat paths and no external work."
+        }
+      ],
+      "why_necessary": "These specify the mechanical constraint and heat/work bookkeeping. Removing pressure equilibration or fixed total volume would permit physically different apparatuses. They do not supply the coupled capacity matrix or sum/difference solution. CP in starter model.py:5 and its propagation at19 describes the supplied closure, not a required law or the hidden correction."
+    },
+    {
+      "task": "reaction-diffusion",
+      "evidence": [
+        {
+          "path": "tasks/reaction-diffusion/environment/README.md",
+          "line": 3,
+          "end_line": 3,
+          "evidence_text": "Fully dissociated monovalent salts sharing one anion; ionic diffusion ratios; blocking insulating ends; no applied current; electroneutral bulk observations."
+        },
+        {
+          "path": "tasks/reaction-diffusion/environment/README.md",
+          "line": 5,
+          "end_line": 7,
+          "evidence_text": "Initial concentrations are known and linear between mesh points; species order and output mesh/time convention."
+        }
+      ],
+      "why_necessary": "The ionic composition, boundary conditions and bulk limit select the experiment. Electroneutrality identifies the measured approximation; it does not give the common diffusion-potential equation. The interpolation rule defines initial data independently of a numerical solver and avoids ambiguity when refining the mesh."
+    },
+    {
+      "task": "qubit-control",
+      "evidence": [
+        {
+          "path": "tasks/qubit-control/environment/README.md",
+          "line": 3,
+          "end_line": 5,
+          "evidence_text": "Spatially uniform classical longitudinal field with Gaussian white covariance; identical otherwise uncoupled probes; preparation/readout rotations and joint +z detector."
+        }
+      ],
+      "why_necessary": "The common physical field and joint detector are the apparatus, not optional hints. Omitting uniformity would leave cross-probe noise correlation unspecified. The README gives neither an average-of-products formula nor a collective dephasing generator. Its angular-frequency language is conventional; optional precision is to replace \"its component xi(t)\" with \"the longitudinal spin-precession angular frequency xi(t)\" without adding a solution equation."
+    },
+    {
+      "task": "magnetic-tracer",
+      "evidence": [
+        {
+          "path": "tasks/magnetic-tracer/environment/README.md",
+          "line": 3,
+          "end_line": 21,
+          "evidence_text": "Thermal force covariance; Newton equation with drag and Lorentz force; prescribed nonuniform static B; Maxwell initial velocities; strict small-mass limit at fixed positive observation time."
+        },
+        {
+          "path": "tasks/magnetic-tracer/environment/README.md",
+          "line": 23,
+          "end_line": 42,
+          "evidence_text": "Explicit normalized preparation, detector observable and control ranges; uniform-field calibration including zero."
+        }
+      ],
+      "why_necessary": "These fix the overdamped limit and measurement rather than mandating a solver. Without the microscopic force law, initial velocity law and limiting order, distinct stochastic prescriptions could be defensible. No Hall mobility, noise-induced drift or corrected density generator is supplied publicly. The calibration regime is an observable property of the data and should not be concealed."
+    }
+  ],
+  "grader_solution_space_review": [
+    {
+      "task": "thermal-bodies",
+      "evidence": [
+        {
+          "path": "tasks/thermal-bodies/environment/README.md",
+          "line": 9,
+          "end_line": 13,
+          "evidence_text": "ThermalModel API, fitted conductance and array/time conventions."
+        },
+        {
+          "path": "tasks/thermal-bodies/environment/test_public.py",
+          "line": 33,
+          "end_line": 46,
+          "evidence_text": "Positive conductance, finite NumPy shape and calibration chi-squared only."
+        },
+        {
+          "path": "tasks/thermal-bodies/tests/reference.py",
+          "line": 39,
+          "end_line": 57,
+          "evidence_text": "Private metrics compare temperatures and fitted conductance; no source or method inspection."
+        }
+      ],
+      "assessment": "No constant-CP, matrix-exponential or ODE requirement is enforced. Analytic sum/difference solutions and coupled heat/work integration are both admissible. Returning the fitted physical parameter and the advertised array shape are explicit task requirements, not accidental model restrictions."
+    },
+    {
+      "task": "reaction-diffusion",
+      "evidence": [
+        {
+          "path": "tasks/reaction-diffusion/environment/README.md",
+          "line": 5,
+          "end_line": 7,
+          "evidence_text": "Physical input interpolation and TransportModel API."
+        },
+        {
+          "path": "tasks/reaction-diffusion/environment/test_public.py",
+          "line": 16,
+          "end_line": 28,
+          "evidence_text": "Positive diffusivity, finite arrays and calibration loss."
+        },
+        {
+          "path": "tasks/reaction-diffusion/tests/reference.py",
+          "line": 44,
+          "end_line": 59,
+          "evidence_text": "Private error measures per-species concentration dynamics; no required DCT or finite-volume method."
+        }
+      ],
+      "assessment": "No _binary helper, fixed grid algorithm or independent-species representation is required. The reference uses a finer spatial grid but the output checks accept any method meeting the concentration tolerances. The 5% error on each species is deliberately sensitive to induced transport in an initially uniform species; it does not require a particular solver."
+    },
+    {
+      "task": "qubit-control",
+      "evidence": [
+        {
+          "path": "tasks/qubit-control/environment/README.md",
+          "line": 7,
+          "end_line": 7,
+          "evidence_text": "QubitModel API, gamma and finite probability-array output."
+        },
+        {
+          "path": "tasks/qubit-control/environment/test_public.py",
+          "line": 14,
+          "end_line": 27,
+          "evidence_text": "Parameter positivity, probability range and calibration loss."
+        },
+        {
+          "path": "tasks/qubit-control/tests/reference.py",
+          "line": 37,
+          "end_line": 52,
+          "evidence_text": "Private metrics check gamma and joint probabilities only."
+        }
+      ],
+      "assessment": "No density matrix, Bloch vector, Lindblad equation or quadrature method is mandated. The author solution uses a density matrix and private reference integrates a common phase; both represent the same apparatus. The private reference docstring mentioning density-matrix code is not copied into the image."
+    },
+    {
+      "task": "magnetic-tracer",
+      "evidence": [
+        {
+          "path": "tasks/magnetic-tracer/environment/README.md",
+          "line": 38,
+          "end_line": 42,
+          "evidence_text": "Model API and bounded friction unknown."
+        },
+        {
+          "path": "tasks/magnetic-tracer/environment/test_public.py",
+          "line": 23,
+          "end_line": 35,
+          "evidence_text": "Advertised parameter bounds, output shape, finiteness and calibration loss."
+        },
+        {
+          "path": "tasks/magnetic-tracer/tests/test_hidden.py",
+          "line": 28,
+          "end_line": 51,
+          "evidence_text": "Predictions compared with an independent reference; no inspection of modes(), grid size, optimizer or generator representation."
+        }
+      ],
+      "assessment": "The 64-point eigendecomposition in the starter is not a public mandate or grader requirement. PDE, Fourier, real-space and other sufficiently accurate implementations remain admissible. The advertised physical parameter range is checked consistently."
+    }
+  ],
+  "public_data_and_image_review": {
+    "thermal-bodies": {
+      "agent_environment_files_sha256": {
+        "Dockerfile": "7ec4043eb61d11a80dd9cc3148c3a09ea773e4adbdc827157c5785afdd29fa54",
+        "README.md": "b5510358e969f986404fe7e2e4f3c27dd7b03905523ce191a585992e95a8a376",
+        "data/run_1.csv": "be0c14768431e09230fab97c8611ea2f46e7da429674824cd6678f905ead37c4",
+        "data/run_2.csv": "1fa569ae029887396825d70f226a829368f4f8719fe56958f266da0ec2292d05",
+        "data/run_3.csv": "76f8d5062df165bddb97d339833d568f7ec3fffd9e72e3fe7acb13c11b42530f",
+        "metadata.json": "08abb69399bd5f99dddadd39a008181a8db03cc2153455a0eb484cbf8ae47489",
+        "model.py": "27b1bf4f9fa17b498a54f77e60fae8fcf20c1490d8208c4d7c0660734c60bbd8",
+        "test_public.py": "d981e718831565c6015201bc3e6ed666bf364216f0b0babf7d577766fd35d519"
+      },
+      "instruction_sha256": "09545f27ffc47c30044b536574b08a4a7f09424e69f88e1a7bb06d04a8a5f4e3",
+      "image_boundary_evidence": {
+        "path": "tasks/thermal-bodies/environment/Dockerfile",
+        "line": 5,
+        "end_line": 6,
+        "evidence_text": "COPY only the listed public documentation/model/tests and calibration data."
+      },
+      "assessment": "No hint, solution, author notes, true parameter, private reference or hidden-test file is included in the public copy set. Generic NumPy/SciPy/pytest dependencies do not prescribe an algorithm.",
+      "schema": {
+        "metadata_keys": [
+          "runs"
+        ],
+        "run_keys": [
+          "file",
+          "initial_temperature"
+        ],
+        "csv_columns": [
+          "time",
+          "temperature_1",
+          "temperature_2",
+          "sigma_1",
+          "sigma_2"
+        ],
+        "schema_evidence": {
+          "path": "tasks/thermal-bodies/environment/metadata.json",
+          "line": 2,
+          "end_line": 23,
+          "evidence_text": "Only CSV paths and exact initial temperatures. All three preparations have the calibrated constant temperature sum; this is visible experimental data, not labeled as the hidden failure mechanism."
+        }
+      }
+    },
+    "reaction-diffusion": {
+      "agent_environment_files_sha256": {
+        "Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+        "README.md": "9265df967c36c3a3991cb18b106f0104c767f6bd3ae5d11643ed9cace4944e05",
+        "data/calibration.npz": "276eb776d6b2365e1c9bfb7b618e57358bed33b66120954761c0c80f6128d431",
+        "model.py": "110f315f9986e3c5f902e5fcbbc11d687f7fc1dbb006c66fa71cb97a0a32442f",
+        "test_public.py": "e5e3c193fde3fe45f921dbe898f0ed2725cecea969f399f4bd3a78c43e35cb73"
+      },
+      "instruction_sha256": "75def4b30faeb468b3b777f159e87cf6ebc09f1110aaf28da063164debcc8557",
+      "image_boundary_evidence": {
+        "path": "tasks/reaction-diffusion/environment/Dockerfile",
+        "line": 5,
+        "end_line": 6,
+        "evidence_text": "COPY only the listed public documentation/model/tests and calibration data."
+      },
+      "assessment": "No hint, solution, author notes, true parameter, private reference or hidden-test file is included in the public copy set. Generic NumPy/SciPy/pytest dependencies do not prescribe an algorithm.",
+      "schema": {
+        "npz_members": [
+          "x",
+          "t",
+          "initial",
+          "sigma",
+          "concentration"
+        ],
+        "npz_arrays": "All float64; no object payloads, latent electric fields, oracle state or true diffusivity. Initial shape(4,65,2), observations(4,51,65,2).",
+        "schema_evidence": {
+          "path": "tasks/reaction-diffusion/environment/README.md",
+          "line": 5,
+          "end_line": 5,
+          "evidence_text": "Public NPZ keys and units are documented. The binary file has no line numbers; its five member names were enumerated directly."
+        }
+      }
+    },
+    "qubit-control": {
+      "agent_environment_files_sha256": {
+        "Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+        "README.md": "ce5437733700ac7f40f7844b2b382646cf977213a7c6ed77b0b13ca51e5919ea",
+        "data/calibration.json": "716f7e43a9adbd8ec04ea6410c92585a04d54e7132d08749ed58fb8beebd6171",
+        "model.py": "11d21bb3fc7f7e26626a5b2754517be25c2b70bc584586654a366c367e4fd4fc",
+        "test_public.py": "a5afb81e91f0f4e8d36d1a78e34c1ec8b2afb37d8689725481966b4c5186046a"
+      },
+      "instruction_sha256": "711d862860c7d7d59174799e9bd7fb6f76b09ae7ef2e5ac281a97b7f5004dbd2",
+      "image_boundary_evidence": {
+        "path": "tasks/qubit-control/environment/Dockerfile",
+        "line": 5,
+        "end_line": 6,
+        "evidence_text": "COPY only the listed public documentation/model/tests and calibration data."
+      },
+      "assessment": "No hint, solution, author notes, true parameter, private reference or hidden-test file is included in the public copy set. Generic NumPy/SciPy/pytest dependencies do not prescribe an algorithm.",
+      "schema": {
+        "records": 193,
+        "record_keys": [
+          "experiment",
+          "probability",
+          "sigma"
+        ],
+        "experiment_keys": [
+          "preparation",
+          "readout",
+          "wait"
+        ],
+        "schema_evidence": {
+          "path": "tasks/qubit-control/environment/data/calibration.json",
+          "line": 2,
+          "end_line": 27,
+          "evidence_text": "Only controls, noisy joint probability and sigma; no gamma or private labels. One probe is prepared along a protected longitudinal direction in calibration; this fact is recoverable from the specified rotations."
+        }
+      }
+    },
+    "magnetic-tracer": {
+      "agent_environment_files_sha256": {
+        "Dockerfile": "98d640471edaaab70bafe7e27ab4023a1e1de11cf20e08196ee32a2abc93716b",
+        "README.md": "30ad362574f8a9f8e6496c21773f4c84bb0bb79299fefe48588b1db0c5d6bc37",
+        "data/calibration.json": "43ff5256601400a5ef58a03961274237d050a19c97f5567e1f92eb3812804748",
+        "model.py": "a9889f0ad99c707ae0fc5ddcb92e5c9f5be9e38197c5e9bef44dd6e82277ac7f",
+        "test_public.py": "9e0863c4d3cf1ddcf27db16b1bfe2ab776e3d2ed0584329bd646d180308e4658"
+      },
+      "instruction_sha256": "382554371241822d4f70c5db0e782a33e03cf404a7dce789561e6c7c202c9964",
+      "image_boundary_evidence": {
+        "path": "tasks/magnetic-tracer/environment/Dockerfile",
+        "line": 5,
+        "end_line": 6,
+        "evidence_text": "COPY only the listed public documentation/model/tests and calibration data."
+      },
+      "assessment": "No hint, solution, author notes, true parameter, private reference or hidden-test file is included in the public copy set. Generic NumPy/SciPy/pytest dependencies do not prescribe an algorithm.",
+      "schema": {
+        "records": 168,
+        "record_keys": [
+          "input",
+          "sigma",
+          "value"
+        ],
+        "input_keys": [
+          "amplitude",
+          "detector_mode",
+          "detector_phase",
+          "field_amplitude",
+          "field_offset",
+          "field_phase",
+          "initial_phase",
+          "initial_wave",
+          "time"
+        ],
+        "schema_evidence": {
+          "path": "tasks/magnetic-tracer/environment/data/calibration.json",
+          "line": 2,
+          "end_line": 20,
+          "evidence_text": "Only physical controls, noisy detector reading and sigma; no friction, Hall coefficient or private diagnostic labels."
+        }
+      }
+    }
+  },
+  "intentional_hint_conditions": {
+    "assessment": "All four hint.md files explicitly identify corrective physics. These are deliberate answer hints for the separately labeled hinted condition. They are not copied into the ordinary agent images; the ordinary instruction.md files contain only the task request.",
+    "evidence": [
+      {
+        "path": "tasks/thermal-bodies/hint.md",
+        "line": 1
+      },
+      {
+        "path": "tasks/reaction-diffusion/hint.md",
+        "line": 1
+      },
+      {
+        "path": "tasks/qubit-control/hint.md",
+        "line": 1
+      },
+      {
+        "path": "tasks/magnetic-tracer/hint.md",
+        "line": 1
+      },
+      {
+        "path": "scripts/run_science.py",
+        "line": 65,
+        "end_line": 69,
+        "evidence_text": "Only the requested hint path appends Physics hint plus hint.md to the frozen instruction."
+      }
+    ],
+    "minimal_proposed_wording": "No change needed for the intended hinted comparison. Keep these files outside environment/ and continue recording plain/hint provenance separately."
+  },
+  "future_edit_note": "All proposed edits are for a separately versioned future evaluation. This audit did not alter any frozen task or trial artifact."
+}

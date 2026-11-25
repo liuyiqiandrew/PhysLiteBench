@@ -1,0 +1,1504 @@
+{
+  "ternary-gas": {
+    "status": "physics_review_pass",
+    "apparatus": "Equal molecular masses make molar and barycentric velocities identical. Constant total density and sealed 1D boundaries set their common velocity to zero.",
+    "oracle": "The Maxwell-Stefan resistance diagonal is sum_j x_j/D_ij and off-diagonal is -x_i/D_ij. Its null direction is removed by sum_i j_i=0. The third force equation follows from the other two and sum_i grad x_i=0.",
+    "reference": "Independent two-by-two equations eliminate species C flux and use a refined spatial grid. Coefficients and signs agree with pairwise momentum balance.",
+    "limitations": "The statement is an ideal constant-temperature, constant-pressure bulk diffusion model with composition-independent binary diffusivities. Equal molecular masses are necessary for identifying the two mean-velocity conventions.",
+    "validation": "Parent report: 256 noise fits; reference mesh refinement 8 versus 4 gives max8.7e-6; species conservation2.8e-16; completed corrected mixture-averaged shortcut still fails all hidden groups.",
+    "reviewer": "materials_candidates",
+    "source_sha256": {
+      "tasks/ternary-gas/environment/README.md": "ce3fee2b82b7f59c67275ff3ef98ac2a3184a80d1058234298b86762233e51a8",
+      "tasks/ternary-gas/solution/model.py": "b55d0d8ceb0c5e4ed5c0d5268ecc6ed46db2c66dcb0d42e4b8830f2876166b51",
+      "tasks/ternary-gas/tests/reference.py": "82e53ec002355695529d8c80ef19637c10732e35fb2ebc0ca27717f9c7c238c2"
+    }
+  },
+  "thermoelastic-rod": {
+    "revision": 2,
+    "status": "physics_review_pass",
+    "reviewer": "materials_candidates",
+    "derivation": "Constant E and fixed mean strain give epsilon=alpha(x)*theta-mean(alpha*theta). Entropy balance produces local c_sigma(x) capacity minus the weighted rank-one term T0 E alpha tensor alpha. Its quadratic form is positive by Cauchy-Schwarz and c_e>0.",
+    "calibration": "The midpoint-even expansion profile and insulated conduction preserve odd temperature profiles. Their weighted mean expansion vanishes, making the ordinary local variable-capacity shortcut exactly correct on calibration.",
+    "reference": "Independent cell entropy and mechanical constitutive equations use local E alpha in entropy and local alpha in stress balance. Initial strains obey the fixed-length constraint. Half-cell boundary conduction and bath energy balance are unchanged and correct.",
+    "equilibrium": "Uniform final rod capacity is V[c_e+T0 E Var(alpha)]=7.535J/K; total linearized energy includes the weighted constrained-strain contribution.",
+    "validation": {
+      "revision": 2,
+      "calibration_seed": 9313,
+      "noise_seed": 19313,
+      "noise_trials": 256,
+      "measurement_sigma": 0.0014726782449104167,
+      "controls": {
+        "oracle": {
+          "parameter": 144.8012525239642,
+          "parameter_relative_error": 0.0013706722485228306,
+          "calibration_chi2": 0.9230606104544731,
+          "hidden": {
+            "contact_0.65": 0.00021981606343403687,
+            "contact_1.1": 0.0005855103082025257,
+            "insulated_even": 8.814602789576475e-05
+          }
+        },
+        "shortcut": {
+          "parameter": 144.80125252396653,
+          "parameter_relative_error": 0.0013706722485067324,
+          "calibration_chi2": 0.9230606104544745,
+          "hidden": {
+            "contact_0.65": 0.07249574662607164,
+            "contact_1.1": 0.1003909232482291,
+            "insulated_even": 0.05485977537085069
+          }
+        }
+      },
+      "physical_checks": {
+        "finite_volume_refinement_max_difference": 2.1712816667740498e-05,
+        "oracle_reference_max_error": 0.0013219663982446117,
+        "closed_energy_max_error": 2.9802826873037702e-12,
+        "equilibrium_max_error": 8.660655526071537e-12,
+        "calibration_shortcut_equivalence": 5.551115123125783e-17,
+        "calibration_weighted_strain_max": 4.629219382943466e-20,
+        "minimum_capacity_eigenvalue": 4.999999999999998,
+        "uniform_rod_capacity": 7.535000000000001
+      },
+      "noise": {
+        "parameter_min": 144.22257224530722,
+        "parameter_max": 145.7951544896656,
+        "parameter_relative_error_max": 0.00548382406665926,
+        "calibration_chi2_max": 1.3399019860582773,
+        "calibration_pass_fraction": 1.0,
+        "hidden_at_parameter_extrema": {
+          "oracle": {
+            "min": 0.00014561649903925593,
+            "max": 0.0007651613406593847
+          },
+          "shortcut": {
+            "min": 0.05470632282045906,
+            "max": 0.10046238874429927
+          }
+        }
+      }
+    },
+    "source_sha256": {
+      "tasks/thermoelastic-rod/environment/README.md": "0223844a1e55249cfce7d47861f9d44966e740964ab1269743342841dd4db1c6",
+      "tasks/thermoelastic-rod/solution/model.py": "a3a3b0ff90d261efd648db06e3ad73044232df548738fdfbb8449ca68cbce470",
+      "tasks/thermoelastic-rod/tests/reference.py": "e886798d339e80bc9196d7b4a1a330bcfbf73538ca5c2cb2d45fa3f394ce224a"
+    }
+  },
+  "blocking-ion-cell": {
+    "status": "physics_review_pass",
+    "reviewer": "materials_candidates",
+    "apparatus": "Blocking equal-diffusivity ions, an ideal source and series capacitor, fresh zero-charge preparation, grounded right plate, and no compact or stray capacitance uniquely specify the electrostatic problem.",
+    "derivation": "Gauss law E(x)=Q/epsilon+integral_0^x rho/epsilon and source voltage V=Q/C+integral_0^L E yield q=(v/kappa-p)/(1+r), with p=integral_0^1(1-x)(c_plus-c_minus)dx. Positive left voltage drives positive ions toward increasing x.",
+    "oracle": "The Scharfetter-Gummel face flux B(-step)c_left-B(step)c_right has the correct drift sign and exact local Boltzmann equilibrium. Zero source voltage with equal initial ion profiles gives identically zero electric field and neutral diffusion.",
+    "reference": "Cell-centered Poisson boundary diagonals3 correctly represent half-cell electrode distances. The final circuit row imposes phi_left+2epsilon(phi_left-phi_cell0)/(C dx)=V; reconstructed Q is consistent with the oracle sign convention.",
+    "source_sha256": {
+      "tasks/blocking-ion-cell/environment/README.md": "a9ad251c93af781e3580b45f99376d51814a7b779e865cb9fd217dbc22a19c99",
+      "tasks/blocking-ion-cell/solution/model.py": "616841143ecb4392c5aa8a67dbf3fa773787b9efe36757e46be3c8ddbdea95a6",
+      "tasks/blocking-ion-cell/tests/reference.py": "6becb5b92b7631478f8935e2f49d2a5dbf3a6c08f54b43d02d1e9a0c4173e93e"
+    },
+    "validation": {
+      "revision": 1,
+      "calibration_seed": 9312,
+      "noise_seed": 19312,
+      "noise_trials": 256,
+      "measurement_sigma": 0.0014838032324524398,
+      "controls": {
+        "oracle": {
+          "parameter": 1.1025593182709014e-09,
+          "parameter_relative_error": 0.002326652973546839,
+          "calibration_chi2": 0.8630952790698184,
+          "hidden": {
+            "positive_step": 0.0006352218645015674,
+            "negative_step": 0.0007776558352239212,
+            "larger_capacitor": 0.001048130172243746
+          }
+        },
+        "shortcut": {
+          "parameter": 1.1025593182709014e-09,
+          "parameter_relative_error": 0.002326652973546839,
+          "calibration_chi2": 0.8630952790698184,
+          "hidden": {
+            "positive_step": 0.4194441432221184,
+            "negative_step": 0.22112508986654247,
+            "larger_capacitor": 0.5826957770039012
+          }
+        }
+      },
+      "physical_checks": {
+        "reference_refinement_relative_max": 0.0004089424448910313,
+        "oracle_reference_relative_max": 0.00144880476236033,
+        "oracle_refinement_relative_max": 0.001187942258817903,
+        "both_controls_species_mass_error": 3.3306690738754696e-16,
+        "both_controls_circuit_voltage_error": 6.217248937900877e-15,
+        "oracle_gauss_law_residual": 2.8421709430404007e-13,
+        "minimum_dimensionless_concentration": 0.35884459992092954,
+        "maximum_fixed_voltage_free_energy_increase": 4.157785227221211e-14
+      },
+      "noise": {
+        "parameter_min": 1.0908815769156878e-09,
+        "parameter_max": 1.1092092328137376e-09,
+        "parameter_relative_error_max": 0.008372029830670646,
+        "calibration_chi2_max": 1.3909441146688262,
+        "calibration_pass_fraction": 1.0,
+        "hidden_at_parameter_extrema": {
+          "oracle": {
+            "min": 0.0013236823220153604,
+            "max": 0.0028427293265182872
+          },
+          "shortcut": {
+            "min": 0.22049035942121445,
+            "max": 0.5833114577676751
+          }
+        }
+      }
+    },
+    "time_zero": "The explicit final sentence defines t=0 immediately after the source step and before ionic motion; this agrees with the solver state and circuit charge."
+  },
+  "rigid-linkage": {
+    "status": "physics_review_pass",
+    "reviewer": "materials_candidates",
+    "apparatus": "The exact rigid canonical Hamiltonian, physical clamp removing a momentum degree of freedom, and full re-equilibration after release are explicit. No stiff-spring ensemble or conditional clamped ensemble is implied.",
+    "derivation": "Cartesian velocity pullback gives G=[[r+1,cos(delta)],[cos(delta),1]]. Its determinant is r+sin(delta)^2. The canonical Gaussian momentum integral supplies sqrt(detG), while a physically clamped first joint leaves constant G22=1.",
+    "reference": "The independent reference builds the Cartesian four-by-two velocity Jacobian, applies the four Cartesian masses, and uses Cholesky of G^-1 for momentum integration. Angular Legendre quadrature differs from the oracle periodic quadrature. All omitted global integration factors cancel in normalized moments.",
+    "physical_checks": {
+      "cartesian_momentum_reference_error": 4.009348408828828e-12,
+      "angular_128_vs_192_error": 2.8598337586949185e-09,
+      "direct_momentum_quadrature_relative_error": 9.364731212713195e-13,
+      "rotational_invariance_error": 3.7940570258089745e-17,
+      "small_mass_limit_error": 6.677874696092712e-05,
+      "large_mass_limit_error": 1.2499999929005599e-09,
+      "clamped_von_mises_error": 3.3306690738754696e-16,
+      "normalization_error": 0.0
+    },
+    "source_sha256": {
+      "tasks/rigid-linkage/environment/README.md": "5ad61df8f36d811cd0f6b06aad230b06f6f8c152654a1ba09e7439f2b11aa287",
+      "tasks/rigid-linkage/solution/model.py": "f9aafe103b19fa5a3385414c8cba65042372a97e5f41f616992621944505e3ea",
+      "tasks/rigid-linkage/tests/reference.py": "2342c4aaee47ecb6fb6b9e3626a375c619b3dfe41e57aefb45a485df35ecc445"
+    },
+    "primary_sources": [
+      "https://arxiv.org/abs/q-bio/0512033",
+      "https://doi.org/10.1063/5.0265585"
+    ]
+  },
+  "collective-spin-relaxation": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "derivation": "The fixed isotropic exchange Hamiltonian and collective Sx,Sy bath operators commute with total spin squared. The initial up-up state lies in the triplet, so singlet occupation remains zero. Nonzero field and nonzero detailed-balance transition rates connect all three triplet magnetic levels. Stationarity is Gibbs restricted to that accessible triplet sector.",
+    "reference": "The exchange energy is J/4 throughout the triplet and cancels from normalized probabilities. The independent reference weights exp(h*m/T) over m=1,0,-1, with parallel indicator m\u00b2 and spin correlation1/4, agree with the matrix projection oracle.",
+    "calibration": "The triplet-selected detector conditions global Gibbs and accessible-sector Gibbs to the same distribution. It measures no acceptance probability, so calibration identifies temperature while hiding singlet population. Unselected readouts distinguish the physical stationary state.",
+    "assumptions": "Distinguishable spins, resolved thermal transitions, no local relaxation or dephasing, fixed initial triplet preparation, and a separate final conditional detector are explicitly specified. Singlet-triplet energy crossings do not create bath matrix elements or change invariant sectors.",
+    "source_sha256": {
+      "tasks/collective-spin-relaxation/environment/README.md": "d700c5e7f50fe41df315b0a1d203b7022ca6d2bfca8fbba2bd687d61536c8982",
+      "tasks/collective-spin-relaxation/solution/model.py": "5ca7df1e257152ddbc134de938858154e0bf34cfa1af210b705e74d6a2308c6c",
+      "tasks/collective-spin-relaxation/tests/reference.py": "4386b37de758dc3d194db8bc478299564b61c4b8c862ab4c4bb7224ca212b6fd"
+    }
+  },
+  "thermoelastic-rod-r1": {
+    "status": "physics_review_pass",
+    "apparatus": "The effective one-dimensional constants explicitly include transverse relaxation, and the fixed-end quasistatic constraint makes axial stress uniform and mean strain zero.",
+    "oracle": "Entropy differential is c_e/T0*dtheta+E*alpha*depsilon. Eliminating strain gives c_sigma*thetadot-(c_sigma-c_e)*mean(thetadot)=k*theta_xx. The constant spatial mode has capacity c_e V and other orthonormal cosine modes c_sigma V. The thermal contact is a positive rank-one conductance.",
+    "reference": "Independent cell entropy states and bath energy state, plus mechanical constitutive constraints, reproduce the coupling without the modal capacity formula. Entropy currents have factor1/T0; bath energy currents do not. A half-cell rod resistance in series with contact is correct.",
+    "validation": {
+      "finite_volume_refinement_max_difference": 1.1890579681844704e-05,
+      "oracle_reference_max_error": 0.0010419535987779976,
+      "closed_energy_max_error": 7.672085189369682e-12,
+      "equilibrium_max_error": 1.820155137721713e-11
+    },
+    "reviewer": "materials_candidates",
+    "source_sha256": {
+      "tasks/thermoelastic-rod/environment/README.md": "7dca169f3f7f2a2fff51fec256e9a1e4210566b5efbaec6592cd50cbcaebf5f8",
+      "tasks/thermoelastic-rod/solution/model.py": "d82e8db8d99a76556454264759382ad49dbd8e5792520f875b0884d376e18b2f",
+      "tasks/thermoelastic-rod/tests/reference.py": "efbaf8a5db88228ce4f0817138c8d7ee67f9bf1828e3c64410b72ad981d91616"
+    }
+  },
+  "finite-heat-reservoir": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "derivation": "At fixed probe position, five quadratic canonical coordinates remain. Integrating delta(E-H) over those coordinates gives a factor(E-U)^(5/2-1), hence exponent3/2. The support boundary solves U(qmax)=E. The independent energy-variable reference includes dq/du=1/Uprime(q); positive/negative q factors cancel in normalized even moments.",
+    "calibration": "With harmonic probe all six phase-space coordinates are quadratic, giving q\u00b2 mean E/(3k) and kurtosis9/4. A canonical shortcut at T=E/3 matches the second moment but predicts kurtosis3.",
+    "assumptions": "Ergodic invariant energy-shell sampling is a prescribed ideal mixing assumption. Arbitrarily weak nonlinear coupling alone does not prove ergodicity for a small oscillator system. The public preparation order makes coupling energy negligible only after equilibration.",
+    "source_sha256": {
+      "tasks/finite-heat-reservoir/environment/README.md": "4c0feebbc39e18f90742f9a03c2419c672cc1b793c705f37ebd294471fcaa21c",
+      "tasks/finite-heat-reservoir/solution/model.py": "70acd8f18ccbc9be08a985361ff6f0539ecbdc1f15bd65d3a76cbf6f85efc5af",
+      "tasks/finite-heat-reservoir/tests/reference.py": "f07ca426515a39fb78efc6d015871fd45dc63cad98b36cab17679cf360fd13bc"
+    }
+  },
+  "tube-dispersion": {
+    "derivation": "Stationary uniform radial preparation gives axial shear variance twice the time-integrated Poiseuille velocity covariance. Bessel coefficients 64 U\u00b2/j_1,n^4 sum to U\u00b2/3; their time integral gives U\u00b2t\u00b2/3 at short times and Taylor added diffusivity U\u00b2a\u00b2/(48D) at long times.",
+    "reference": "Independent annular finite-volume radial diffusion generator uses area weights, reflecting boundaries, exact cell-averaged Poiseuille speed and numerical eigenmodes.",
+    "validation_path": "jobs/tube-dispersion-validation/summary.json",
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "source_sha256": {
+      "tasks/tube-dispersion/environment/README.md": "4d6e0f6e5cf2506c018d8316f784aef84766c7b005da1a9750ec1b94b4528f17",
+      "tasks/tube-dispersion/solution/model.py": "995a512bf71dd0b6492cb007d10cfa7cf5427d7f4b08e7989c85ac5176c5e185",
+      "tasks/tube-dispersion/tests/reference.py": "7f177339107a28641d8d798bb508240dc47fa344fc1808bc77606a4d29bf7344"
+    },
+    "validation": {
+      "tube-dispersion": {
+        "revision": 1,
+        "seed": 9779,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 0.019980861985279038,
+            "parameter_relative_error": 0.0009569007360481496,
+            "calibration_chi2": 1.0340674154433327,
+            "calibration_reference_max_error": 0.0,
+            "hidden": {
+              "startup_dispersion": 0.00029585817550075436,
+              "small_tube": 0.00011963088660964562,
+              "reversed_flow": 0.00048725882534805847
+            }
+          },
+          "shortcut": {
+            "parameter": 0.019980861985279038,
+            "parameter_relative_error": 0.0009569007360481496,
+            "calibration_chi2": 1.0340674154433327,
+            "calibration_reference_max_error": 0.0,
+            "hidden": {
+              "startup_dispersion": 0.8555741949242432,
+              "small_tube": 0.5539744677074714,
+              "reversed_flow": 0.9088112296848706
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.3776059450753213,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 0.01994363532663003,
+          "parameter_max": 0.0200482933808516,
+          "parameter_relative_error_max": 0.0028182336684985376
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 0.0002978869929131643,
+            "max": 0.00143194088337181
+          },
+          "shortcut": {
+            "min": 0.5526632493420937,
+            "max": 0.9089730066750421
+          }
+        },
+        "independent_checks": {
+          "bessel_vs_annular_fv_max_error": 5.664276670813706e-06,
+          "mesh_384_vs_768_error": 4.248262734041219e-06,
+          "velocity_variance_series": 0.33333328061041834,
+          "exact_velocity_variance_coefficient": 0.3333333333333333,
+          "long_time_dispersion_series": 0.020833333333209296,
+          "exact_long_time_coefficient": 0.020833333333333332,
+          "direct_moment_ode_error": 1.0236256287043943e-13,
+          "axial_mean_error": 2.6645352591003757e-15,
+          "flow_reversal_variance_error": 0.0
+        },
+        "seconds": 1.32650470797671
+      }
+    }
+  },
+  "hall-laminate": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "revision": 2,
+    "derivation": "Common layer-normal current and tangential field imply rho_nn=<r>+<h\u00b2/r>\u2212<h/r>\u00b2/<1/r>, rho_nt=<h/r>/<1/r>, rho_tn=\u2212rho_nt and rho_tt=1/<1/r>. The omitted diagonal term is the positive conductance-weighted variance of local Hall resistance.",
+    "shortcut": "Exact zero-field layer geometry and exact effective Hall coefficient, but retains only the first-order-in-B response and omits normal magnetoresistance. It remains positive and obeys Onsager-Casimir symmetry. Pure phases at arbitrary B and mixed layers at B=0 are calibration-equivalent.",
+    "reference": "Unchanged independent four-variable laboratory interface/current solve.",
+    "source_sha256": {
+      "tasks/hall-laminate/environment/README.md": "50b7644e277d832ebe1df6c4df0804f760bc7df41df2e3e61765f1b271343110",
+      "tasks/hall-laminate/environment/model.py": "8d787d03155c4560ce54a7a7235a58beafd44fd7af081768eeaffa799f4dbf96",
+      "tasks/hall-laminate/solution/model.py": "d62ede752c07863e9c595f5872edcd5469e649280f38c939c9a5e360b074eb47",
+      "tasks/hall-laminate/tests/reference.py": "6f546d9da3cba82420bf47e50524249879d2d3e002c0149d1d8e9863625f27c1"
+    },
+    "validation": {
+      "hall-laminate": {
+        "revision": 2,
+        "seed": 10003,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 0.8001407995765651,
+            "parameter_relative_error": 0.00017599947070645605,
+            "calibration_chi2": 0.837012437880039,
+            "calibration_reference_max_error": 5.421010862427522e-20,
+            "hidden": {
+              "oblique_layers": 9.530004629252671e-05,
+              "changed_fraction": 2.719454426578314e-05,
+              "rotated_layers": 9.152385830308405e-05
+            }
+          },
+          "shortcut": {
+            "parameter": 0.8001407995765651,
+            "parameter_relative_error": 0.00017599947070645605,
+            "calibration_chi2": 0.8370124378800363,
+            "calibration_reference_max_error": 5.421010862427522e-20,
+            "hidden": {
+              "oblique_layers": 0.7435898306788372,
+              "changed_fraction": 0.5637595999182715,
+              "rotated_layers": 0.7451860368736819
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.2704503681922292,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 0.7987803084901874,
+          "parameter_max": 0.8012664233786377,
+          "parameter_relative_error_max": 0.0015830292232970056
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 0.00023473883664890563,
+            "max": 0.0008575183725496127
+          },
+          "shortcut": {
+            "min": 0.563022371887369,
+            "max": 0.7455298907450728
+          }
+        },
+        "independent_checks": {
+          "hall_variance_identity_error": 2.168404344971009e-19,
+          "direct_interface_reference_error": 4.336808689942018e-19,
+          "interface_continuity_residual": 4.440892098500626e-16,
+          "averaged_current_residual": 5.551115123125783e-16,
+          "minimum_local_joule_power": 1.6469087970787587e-05,
+          "zero_field_series_parallel_error": 1.3552527156068805e-20,
+          "layer_normal_reversal_error": 1.6263032587282567e-19
+        },
+        "seconds": 0.7614703750004992
+      }
+    }
+  },
+  "hall-laminate-r1": {
+    "derivation": "Local Drude Hall tensor signs follow the Lorentz force. Layer homogenization solves for a common normal current and tangential electric field, then transforms the Schur-complement effective tensor to laboratory axes. The imposed mean current determines the measured volume-averaged electric field.",
+    "reference": "Independent four-variable laboratory linear solve enforces two average-current components, normal-current continuity and tangential-field continuity without effective-tensor formulas.",
+    "calibration": "Pure-phase longitudinal resistivity 1/(nq*mobility) identifies the shared mobility independently of field. Arithmetic tensor averaging matches pure phases but violates interface constraints in mixed oblique layers.",
+    "validation_path": "jobs/hall-laminate-validation/summary.json",
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "source_sha256": {
+      "tasks/hall-laminate/environment/README.md": "ec925a78e3462eff125bdcf1b7055da6dcc684f32faf0470835d08c7bb61b64c",
+      "tasks/hall-laminate/solution/model.py": "02a280a39662a6d372e43a3818ccd0ed3e89ab14ac2b4cebf9b17cc7890c7e57",
+      "tasks/hall-laminate/tests/reference.py": "6446121d1f7905fcce695c307fed0172520c6f4dc3ac9ff2c91ed32cc27892d8"
+    },
+    "validation": {
+      "hall-laminate": {
+        "revision": 1,
+        "seed": 9887,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 0.7992859778536865,
+            "parameter_relative_error": 0.0008925276828919415,
+            "calibration_chi2": 0.9048526062442144,
+            "calibration_reference_max_error": 8.131516293641283e-20,
+            "hidden": {
+              "oblique_layers": 0.0004831389158021648,
+              "changed_fraction": 0.00013760105294756061,
+              "rotated_layers": 0.0004639473560300979
+            }
+          },
+          "shortcut": {
+            "parameter": 0.7992859778536865,
+            "parameter_relative_error": 0.0008925276828919415,
+            "calibration_chi2": 0.9048526062442109,
+            "calibration_reference_max_error": 5.421010862427522e-20,
+            "hidden": {
+              "oblique_layers": 0.054982947313043366,
+              "changed_fraction": 0.6217488553180259,
+              "rotated_layers": 0.5502880756153236
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.2514312296608514,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 0.7989994231118784,
+          "parameter_max": 0.8011082510469003,
+          "parameter_relative_error_max": 0.001385313808625277
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 0.0001926791525994335,
+            "max": 0.0007503750941037019
+          },
+          "shortcut": {
+            "min": 0.05488158416057128,
+            "max": 0.6228230366227309
+          }
+        },
+        "independent_checks": {
+          "direct_interface_reference_error": 4.336808689942018e-19,
+          "interface_continuity_residual": 4.440892098500626e-16,
+          "averaged_current_residual": 5.551115123125783e-16,
+          "minimum_local_joule_power": 1.6469087970787587e-05,
+          "zero_field_series_parallel_error": 1.3552527156068805e-20,
+          "layer_normal_reversal_error": 1.6263032587282567e-19
+        },
+        "seconds": 0.7382389999984298
+      }
+    },
+    "revision": 1
+  },
+  "piezoelectric-waves": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "revision": 1,
+    "derivation": "For an electroquasistatic plane wave, curl E=0 constrains E parallel n and absence of free charge constrains n dot D=0. Eliminating this one longitudinal electric amplitude adds g g^T/(n dot epsilon n) to the elastic Christoffel matrix, where g_j=n_k e_kij n_i. The sign is positive and the tensor-strain shear factors agree in both implementations.",
+    "shortcut": "The constant-D tensor cE+e^T epsilon^-1 e imposes all three displacement components to vanish, a stronger local electrical constraint than the bulk wave equations. It is a valid constitutive closure and calibration-equivalent for axial longitudinal and basal transverse branches, but over-stiffens oblique shear waves.",
+    "reference": "Independent stress/electric-displacement assembly gives a four-variable mechanical/electric-potential saddle generalized eigenproblem with one infinite electrical eigenvalue and three positive acoustic eigenvalues. This does not use the oracle rank-one elimination.",
+    "identifiability": "Axial longitudinal speed squared is (lambda+2 mu+e33^2/epsilon33)/rho, strictly monotone in the single unknown lambda. Basal shear calibrations do not determine lambda but validate the common shear response.",
+    "independent_hidden_max_absolute_error_m_per_s": {
+      "lower_shear": 1.5916157281026244e-12,
+      "upper_shear": 1.8189894035458565e-12,
+      "oblique_branches": 1.1368683772161603e-12
+    },
+    "source_sha256": {
+      "tasks/piezoelectric-waves/environment/README.md": "ce05907d6cdc814be3358caa752db2054ef4d17d8a0da88645c4059cb4d52790",
+      "tasks/piezoelectric-waves/environment/model.py": "f7b82dbfc690933ed4cbf96bfcb2e1884bca43b53d01864af39ffb8cd1e48d90",
+      "tasks/piezoelectric-waves/solution/model.py": "2f60f3ec4ec9a00f319767b774ace7cd8e22435bd1a6753c67e4247121f1414c",
+      "tasks/piezoelectric-waves/tests/reference.py": "d0f3cdf781459be1601ab5a6d651bb5875315cea0d504e844125bb4c13f70c11"
+    },
+    "validation": {
+      "piezoelectric-waves": {
+        "revision": 1,
+        "seed": 12117,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 32.02580362440062,
+            "parameter_relative_error": 0.0008063632625194828,
+            "calibration_chi2": 0.7827191063774858,
+            "calibration_reference_max_error": 4.547473508864641e-13,
+            "hidden": {
+              "lower_shear": 2.8535169799422716e-16,
+              "upper_shear": 1.1636350960321977e-05,
+              "oblique_branches": 1.3384042074681962e-05
+            }
+          },
+          "shortcut": {
+            "parameter": 32.02580362245392,
+            "parameter_relative_error": 0.0008063632016850342,
+            "calibration_chi2": 0.782719106377493,
+            "calibration_reference_max_error": 4.547473508864641e-13,
+            "hidden": {
+              "lower_shear": 0.30643578125501164,
+              "upper_shear": 0.26111097404416844,
+              "oblique_branches": 0.1678052307516116
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.3682663973839606,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 31.88446358883863,
+          "parameter_max": 32.11940524291765,
+          "parameter_relative_error_max": 0.0037314138411765896
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 3.1872891142657375e-16,
+            "max": 6.184025078838758e-05
+          },
+          "shortcut": {
+            "min": 0.16779092345237756,
+            "max": 0.3064357812550118
+          }
+        },
+        "independent_checks": {
+          "saddle_reference_max_error": 1.8189894035458565e-12,
+          "parameter_direction_corner_error": 2.7284841053187847e-12,
+          "axial_analytic_error": 0.0,
+          "minimum_acoustic_stiffness_Pa": 19999999999.99998,
+          "gauss_residual": 6.106226635438361e-15,
+          "electric_curl_residual": 1.4600096599955427e-07,
+          "direction_reversal_error": 0.0,
+          "minimum_local_minus_bulk_stiffness_eigenvalue_Pa": -8.674586457617083e-06
+        },
+        "seconds": 3.1015133330074605
+      }
+    }
+  },
+  "floating-contact-noise-r1": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "revision": 1,
+    "derivation": "The floating island obeys C d(mu_2)/dt=-I_2. In the long counting-time limit its bounded charge cannot contribute variance per time, giving delta I_a=delta I_a^0-G_a2 delta I_2^0/G_22. The specified macroscopic linear Langevin limit consistently evaluates bare scattering noise at the self-consistent mean potential.",
+    "shortcut": "The completed shortcut computes correct unitary scattering noise at the correct mean floating potential, but applies only zero mean island current and omits the fluctuating island potential. DC calibrations are exactly shared.",
+    "reference": "Independent Slater determinant probabilities for occupied outgoing channels reproduce the bare charge covariance; integrated island continuity supplies the low-frequency constraint. No spectral factor of two is used, consistent with Cov(Q)/time.",
+    "public_assumptions": "Heat-only zero-temperature thermostat, finite capacitance, macroscopic linear fluctuations, and counting time much longer than island relaxation remove temperature, Coulomb blockade, and order-of-limits ambiguities.",
+    "independent_hidden_max_absolute_error": {
+      "source_noise": 1.6653345369377348e-16,
+      "drain_noise": 1.1102230246251565e-16,
+      "cross_noise": 2.220446049250313e-16
+    },
+    "source_sha256": {
+      "tasks/floating-contact-noise/environment/README.md": "abbe716e4bbc3e389c824c17273814e7fb1e0ad9acdeccb3dee771b5f3a5fd1f",
+      "tasks/floating-contact-noise/environment/model.py": "bf3d2a4a5ff18be5fc2a5412860e1059c343a8154fd4f1284c80bf27a9e4b1d0",
+      "tasks/floating-contact-noise/solution/model.py": "346dd989d16b0605e57c079af322d8ac1432fd2c1959c055ac43c523c2607e65",
+      "tasks/floating-contact-noise/tests/reference.py": "6618f1d4deb83f7d88d18397763f0a0729103a95d139f4e77c7c7095eeab05aa"
+    },
+    "validation": {
+      "revision": 1,
+      "seed": 10021,
+      "noise_trials": 256,
+      "controls": {
+        "oracle": {
+          "parameter": 0.5103790296378311,
+          "parameter_relative_error": 0.0007431953682963677,
+          "calibration_chi2": 0.9561971664762101,
+          "calibration_reference_max_error": 4.440892098500626e-16,
+          "hidden": {
+            "source_noise": 0.0008536491850121174,
+            "drain_noise": 0.0007754919379788549,
+            "cross_noise": 0.000927416032395813
+          }
+        },
+        "shortcut": {
+          "parameter": 0.5103790296378311,
+          "parameter_relative_error": 0.0007431953682963677,
+          "calibration_chi2": 0.9561971664762101,
+          "calibration_reference_max_error": 4.440892098500626e-16,
+          "hidden": {
+            "source_noise": 0.13226146895125587,
+            "drain_noise": 0.2413588797945743,
+            "cross_noise": 0.32498131643745914
+          }
+        }
+      },
+      "noise": {
+        "chi2_max": 1.2519990043112843,
+        "chi2_pass_fraction": 1.0,
+        "parameter_min": 0.5091306605418341,
+        "parameter_max": 0.5108864794148937,
+        "parameter_relative_error_max": 0.0017381949311641165
+      },
+      "hidden_parameter_extrema_check": {
+        "oracle": {
+          "min": 0.0017698115662133369,
+          "max": 0.0021730258777866223
+        },
+        "shortcut": {
+          "min": 0.13180576026122304,
+          "max": 0.3256563380892729
+        }
+      },
+      "independent_checks": {
+        "slater_reference_max_error": 2.220446049250313e-16,
+        "unitarity_error": 8.881784197001252e-16,
+        "mean_charge_error": 1.5543122344752192e-15,
+        "bare_covariance_error": 3.885780586188048e-16,
+        "island_and_terminal_conservation_error": 1.6653345369377348e-16,
+        "minimum_covariance_eigenvalue": -6.539862556313495e-17,
+        "disconnected_bernoulli_error": 2.220446049250313e-16,
+        "finite_capacitance_frequency_errors": [
+          1.2239413827441759e-06,
+          1.2241830632531148e-08,
+          1.2241854752126358e-10
+        ],
+        "calibration_local_minima": 1
+      },
+      "seconds": 5.778612583002541
+    }
+  },
+  "electroviscous-flow-r1": {
+    "derivation": "Fixed-charge Poisson-Boltzmann boundary signs give the compensating diffuse charge. No-slip electroosmotic velocity per axial field is epsilon*(phi-phi_wall)/eta; its convective conductance is epsilon\u00b2/eta times the nonnegative integral(phi_prime\u00b2). Zero total current therefore requires the full positive ohmic-plus-convective denominator.",
+    "reference": "Joint collocation solves Poisson-Boltzmann, axial momentum and the integrated electric current simultaneously. Dimensionless velocity u*eta/(g*h\u00b2) and field E*eta*D/(VT*g*h\u00b2) give the independently specified momentum/current equations.",
+    "calibration": "Neutral walls remove charge and electroosmosis, leaving exact Poiseuille fitting of viscosity. The one-pass streaming-potential shortcut uses the correct equilibrium charge and EOF response but neglects its current in closure.",
+    "validation_path": "jobs/electroviscous-flow-validation/summary.json",
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "source_sha256": {
+      "tasks/electroviscous-flow/environment/README.md": "11807212cf2040039f5618d01193b278bcda64e7db70bf2e7a5418c3945fd480",
+      "tasks/electroviscous-flow/solution/model.py": "496b57f44f0125a218e8a5e0f9e8d3aa7852312c21a83bb2e2d2f8a0444a09cd",
+      "tasks/electroviscous-flow/tests/reference.py": "f36ce8f2c6d52da255f1091a69e00070e09bc4bad15834262ea639aa868dedd6"
+    },
+    "validation": {
+      "revision": 1,
+      "calibration_seed": 9314,
+      "noise_seed": 19314,
+      "noise_trials": 256,
+      "measurement_sigma": 2.56e-08,
+      "controls": {
+        "oracle": {
+          "parameter": 0.0011996327089437361,
+          "parameter_relative_error": 0.0003060758802198027,
+          "calibration_chi2": 0.9582330313054561,
+          "hidden": {
+            "positive_charge": 0.00022552940617179322,
+            "negative_charge": 0.00023959279013427139,
+            "overlapping_layers": 0.00022162991891194094
+          }
+        },
+        "shortcut": {
+          "parameter": 0.0011996327089437361,
+          "parameter_relative_error": 0.0003060758802198027,
+          "calibration_chi2": 0.9582330313054561,
+          "hidden": {
+            "positive_charge": 0.1763752703460542,
+            "negative_charge": 0.1940356642733072,
+            "overlapping_layers": 0.16887178228877198
+          }
+        }
+      },
+      "physical_checks": {
+        "calibration_shortcut_equivalence": 0.0,
+        "oracle_reference_relative_error": 3.0641617246960527e-13,
+        "reference_refinement_relative_error": 3.2352908312568e-13,
+        "transverse_charge_balance_relative_error": 1.3456862258496554e-13,
+        "hydraulic_electric_reciprocity_relative_error": 2.4599162099502823e-13,
+        "feedback_conductance_gradient_identity_relative_error": 8.467805122788773e-13,
+        "open_circuit_current_relative_error": 3.759636808934009e-16,
+        "pressure_power_dissipation_relative_error": 2.918473771424098e-13,
+        "shortcut_uncancelled_current_fraction_min": 0.42713554005987053,
+        "shortcut_positive_mean_flow_fraction_min": 0.5816383830852727,
+        "feedback_to_ohmic_conductance": [
+          0.45607464201637965,
+          0.5593414054593723,
+          0.42713554005987087
+        ],
+        "parameter_geometry_corner_relative_error": 6.719069745031447e-13
+      },
+      "noise": {
+        "parameter_min": 0.0011975001372314512,
+        "parameter_max": 0.0012031594166774053,
+        "parameter_relative_error_max": 0.002632847231171187,
+        "calibration_chi2_max": 1.334739052924444,
+        "calibration_pass_fraction": 1.0,
+        "hidden_at_parameter_extrema": {
+          "oracle": {
+            "min": 0.001510430017216933,
+            "max": 0.00205598963531201
+          },
+          "shortcut": {
+            "min": 0.16840455234411544,
+            "max": 0.19476335751367066
+          }
+        }
+      }
+    }
+  },
+  "phonon-transport-r2": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "revision": 2,
+    "derivation": "Linearizing a common displaced Bose distribution gives f_i=delta T+T0*mu*u/v_i. Total crystal momentum is sum_i(C_i/v_i)<mu f_i>, so the shared-drift target is f_i^N=delta T+3 mu P/[v_i sum_j(C_j/v_j^2)]. This produces the oracle Legendre l=1 cross-branch projection, with the specified C_i proportional to degeneracy/v_i^3.",
+    "independent_projection_check": "Constructed the normal-collision maximum-entropy projection from the quadratic entropy metric diag(C_i) and two linear constraints (total energy and total crystal momentum), rather than inserting the drift formula.",
+    "maximum_entropy_projection_error": 1.1102230246251565e-16,
+    "independent_transport_spot_error": 4.701100619897147e-16,
+    "shortcut": "Its shared l=0 temperature and separate branch l=1 projections preserve total energy/momentum and are passive, but add an unphysical conserved relative branch drift. The public normal collisions explicitly exchange momentum between branches and conserve precisely the total quantities.",
+    "reference": "Discrete angular quadrature transport with explicitly integrated energy/momentum, independent of the oracle orthonormal Legendre expansion. Both resolve the full spherical axisymmetric angular transport; there is no assumed low-moment closure.",
+    "calibration": "Homogeneous P2 modes are orthogonal to all normal and resistive target invariants, so both controls share exp[-(nu_R+nu_N)t] decay and identify the sole unknown resistive rate.",
+    "source_sha256": {
+      "tasks/phonon-transport/environment/README.md": "794c859b5b960691dc3fdbd3370edee601cd6eee32f9aa7f8c73dfae1c68c970",
+      "tasks/phonon-transport/environment/model.py": "3c994bdbd50c5dd40cf55573670e838ae8a52801f9567a44d6e46c960b37e64f",
+      "tasks/phonon-transport/solution/model.py": "939319d85bf5f7728e96fe988e9bb8b8c97d08ce5881eaae5d8b40acd61b982b",
+      "tasks/phonon-transport/tests/reference.py": "2f3b2b6472f35b74af3fc161b3f2170cca719d5c4cdb8a55ad5524b340fba77b",
+      "tasks/phonon-transport/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70"
+    },
+    "validation": {
+      "phonon-transport": {
+        "revision": 2,
+        "seed": 13120,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 0.30131884556323946,
+            "parameter_relative_error": 0.004396151877464893,
+            "calibration_chi2": 1.1268508920192506,
+            "calibration_reference_max_error": 1.1796119636642288e-16,
+            "hidden": {
+              "counterflow": 0.00042561489919780817,
+              "energy_wave": 0.0020154831874315536,
+              "branch_flux": 0.0013791669125517967
+            }
+          },
+          "shortcut": {
+            "parameter": 0.30131884556323946,
+            "parameter_relative_error": 0.004396151877464893,
+            "calibration_chi2": 1.1268508920192506,
+            "calibration_reference_max_error": 1.1796119636642288e-16,
+            "hidden": {
+              "counterflow": 2.21152670788094,
+              "energy_wave": 0.11120003569148303,
+              "branch_flux": 0.39489302937008053
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.2373831690564987,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 0.2969609183526689,
+          "parameter_max": 0.3039737286617544,
+          "parameter_relative_error_max": 0.013245762205848166
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 0.0009821568035428185,
+            "max": 0.0060571986948321915
+          },
+          "shortcut": {
+            "min": 0.10812573658259601,
+            "max": 2.2295062541334874
+          }
+        },
+        "independent_checks": {
+          "angular_reference_error": 5.93275428784068e-16,
+          "angular_80_vs_100_error": 1.5751289161869408e-15,
+          "legendre_64_vs_80_error": 0.0,
+          "normal_energy_residual": 4.053440002151418e-17,
+          "normal_momentum_residual": 2.5618188052786564e-16,
+          "normal_max_weighted_eigenvalue": 2.9784568057138312e-15,
+          "source_conservation_error": 1.952571310119253e-16,
+          "source_max_weighted_eigenvalue": 1.2949301983121804e-16,
+          "physical_normal_nullity": 2,
+          "shortcut_normal_nullity": 3,
+          "zero_total_momentum_counterflow_error": 7.806255641895632e-18
+        },
+        "seconds": 1.9843499590060674
+      }
+    },
+    "infrastructure_update": {
+      "reason": "Original shortcut verifier exceeded its 60-second limit before any Luna trial. Added OPENBLAS_NUM_THREADS=1 and OMP_NUM_THREADS=1 to the Docker environment; all scientific source, data, and grading unchanged.",
+      "original_dockerfile_archive": "archives/phonon-transport-r2-control-timeout",
+      "new_matrix": "jobs/matrix-hardening-r2-threads-20261002-071334/index.json",
+      "classification": "infrastructure_timeout"
+    }
+  },
+  "floquet-thermalization-r2": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "revision": 2,
+    "derivation": "The sigma-minus interaction-picture phase has harmonics with reservoir energy transfers 1+n*Omega. Downward basis-state transitions deposit that signed energy; reverse transitions deposit its negative. Squared Bessel weights determine rates, but heat rates require the additional signed energy factor for each independent bath. Negative-energy sidebands remain valid and represent drive-assisted bath absorption.",
+    "reference": "FFT transition-phase harmonics are obtained independently of Bessel weights. The two-state tilted propagator counts each selected-bath jump with exp(plus/minus i*chi*energy); a symmetric fourth-order derivative of its summed generating function returns the interval-integrated first energy cumulant.",
+    "finite_interval": "The oracle averages the relaxing population over the full interval with (1-exp(-rate*t))/(rate*t), matching the stated calorimeter definition rather than a final-time current. No-drive mean and bath heat calibrations are exactly shared by the shortcut and physical model.",
+    "shortcut": "Both models have the full correct Floquet populations and bath-resolved jump rates. The starter discards the drive energy of each jump when assigning heat, replacing every signed sideband energy by the bare gap. Thus population accuracy and calibration cannot validate driven calorimetry.",
+    "independent_spot_max_absolute_error": 1.4050826474543143e-14,
+    "source_sha256": {
+      "tasks/floquet-thermalization/environment/README.md": "5c2291524b72d1d11daa7cecaf72b7bebf863ed372b0937fe7df3cf1bdb5be35",
+      "tasks/floquet-thermalization/environment/model.py": "493ec293b187ed0760e2ab539c3fa9610839f55dea5ad154e43b5b41a92e59e7",
+      "tasks/floquet-thermalization/solution/model.py": "745b84e2e17ce69ccd3b26334a54e2d247de298624ea8b6fd419222c24a3c89e",
+      "tasks/floquet-thermalization/tests/reference.py": "11508fa326ff162628e6f8dd7da4d152d7f96b56870b91813fc911d32d2d6e22"
+    },
+    "validation": {
+      "floquet-thermalization": {
+        "revision": 2,
+        "seed": 14121,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 0.004999774236320255,
+            "parameter_relative_error": 4.515273594896119e-05,
+            "calibration_chi2": 1.1095359911375848,
+            "calibration_reference_max_error": 2.914335439641036e-16,
+            "hidden": {
+              "cold_bath": 5.046934869730149e-05,
+              "warm_bath": 4.679192228409498e-05,
+              "frequency_scan": 3.8188352169403625e-05
+            }
+          },
+          "shortcut": {
+            "parameter": 0.004999774236320255,
+            "parameter_relative_error": 4.515273594896119e-05,
+            "calibration_chi2": 1.1095359911375848,
+            "calibration_reference_max_error": 2.914335439641036e-16,
+            "hidden": {
+              "cold_bath": 1.0910449740686479,
+              "warm_bath": 1.6227465145017312,
+              "frequency_scan": 0.7159276267447776
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.3593892731112598,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 0.004994564747533718,
+          "parameter_max": 0.005005235850094003,
+          "parameter_relative_error_max": 0.001087050493256414
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 0.00088559464612238,
+            "max": 0.0012149928819634897
+          },
+          "shortcut": {
+            "min": 0.7158183496880312,
+            "max": 1.6232752893670124
+          }
+        },
+        "independent_checks": {
+          "tilted_energy_counting_error": 5.857076976201192e-15,
+          "counting_step_refinement": 5.490833482335589e-15,
+          "fft_1024_vs_2048_error": 1.3010426069826053e-18,
+          "population_reference_error": 2.7755575615628914e-16,
+          "population_shortcut_agreement": 0.0,
+          "independent_time_domain_heat_coefficient_errors": [
+            1.3330057502258796e-08,
+            3.9336341656204254e-08
+          ],
+          "time_domain_refinement_errors": [
+            5.199621833096302e-08,
+            1.7462353098934846e-07
+          ],
+          "static_first_law_error": 2.168404344971009e-19,
+          "sideband_weight_normalization_error": 2.220446049250313e-16,
+          "parameter_and_input_corner_error": 6.838279942300574e-14,
+          "minimum_stationary_bath_entropy_rate_per_coupling": 0.12453404536115287
+        },
+        "seconds": 2.922270416020183
+      }
+    }
+  },
+  "elastohydrodynamic-film-r1": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "revision": 1,
+    "derivation": "Plane-strain elastic energy with a bonded lower boundary and pressure-loaded shear-free upper boundary gives the supplied finite-layer compliance. Its q -> 0 limit is d/(lambda+2mu), matching the homogeneous calibration. Downward surface displacement increases the gap, so conserved liquid volume with Q=-h^3 p_x/(12 eta) yields displacement_dot=-h^3 k^2 displacement/(12 eta C), with the stated positive decay.",
+    "reference": "Independent polynomial displacement basis minimizes the full bulk Lam\u00e9 energy under surface work; its normal/shear factors and pressure-work sign are correct. It then evolves the conserved gap volume, rather than inserting the analytic compliance.",
+    "apparatus": "Plane strain, uniform-load zero lateral strain, closed preparation ports, positive ambient pressure, and the leading thin-gap omission of tangential wall traction/Couette flow fully specify the requested response. Uniform sealed loading has no lateral flux.",
+    "independent_off_grid_max_error_nm": 7.049472117159894e-11,
+    "source_sha256": {
+      "tasks/elastohydrodynamic-film/environment/README.md": "5043e4ff2a77038a70ffed9e8421735d56503017cc7c39d68e9f632f08ea4b56",
+      "tasks/elastohydrodynamic-film/environment/model.py": "14b3e3fd109ab8b37b0ebab8b5a32e3c5215bcbcbadc4b0c4228927da742611f",
+      "tasks/elastohydrodynamic-film/solution/model.py": "2a15f98f763b744ca471438adcf8dfb3d4854f269e8b2b3336083e9cd7cf07d2",
+      "tasks/elastohydrodynamic-film/tests/reference.py": "9862d57fd90736693fc13b5e59915e352f1b986768f878d8c5f34f84c27b9442"
+    },
+    "validation": {
+      "elastohydrodynamic-film": {
+        "revision": 1,
+        "seed": 15123,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 1.0995240490934781,
+            "parameter_relative_error": 0.00043268264229268105,
+            "calibration_chi2": 0.8494417208391011,
+            "calibration_reference_max_error": 3.552713678800501e-15,
+            "hidden": {
+              "pressure_waves": 0.0005442162059486518,
+              "layer_depth": 0.0005245816286172797,
+              "film_mobility": 0.0005131637843142476
+            }
+          },
+          "shortcut": {
+            "parameter": 1.0995240490934746,
+            "parameter_relative_error": 0.0004326826422959007,
+            "calibration_chi2": 0.8494417208390965,
+            "calibration_reference_max_error": 3.552713678800501e-15,
+            "hidden": {
+              "pressure_waves": 0.81774943093596,
+              "layer_depth": 0.8293858164967932,
+              "film_mobility": 0.8441664103312748
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.3032738866916742,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 1.0991978516542613,
+          "parameter_max": 1.1008436455478576,
+          "parameter_relative_error_max": 0.0007669504980523101
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 0.0008651364321488775,
+            "max": 0.000963403238511147
+          },
+          "shortcut": {
+            "min": 0.8176742802180292,
+            "max": 0.8444226709765739
+          }
+        },
+        "independent_checks": {
+          "energy_reference_max_error_nm": 5.2732929134435835e-11,
+          "basis18_vs26_error_nm": 2.3803181647963356e-13,
+          "independent_stress_transfer_compliance_error": 5.773159728050814e-15,
+          "traction_residual": 3.552713678800501e-15,
+          "minimum_dimensionless_compliance": 0.11384695952524497,
+          "uniform_limit_relative_error": 6.994405055138486e-14,
+          "halfspace_limit_relative_error": 6.5503158452884236e-15,
+          "calibration_equivalence": 1.7763568394002505e-15,
+          "parameter_input_corner_error_nm": 3.6408209780347534e-11,
+          "maximum_gap_deformation_fraction": 0.021779803647013842,
+          "elastic_energy_fluid_dissipation_error": 2.710505431213761e-20,
+          "finite_volume128_256_errors_nm": [
+            0.00200875219029939,
+            0.0005021984742050734
+          ]
+        },
+        "seconds": 1.4069890419777948
+      }
+    }
+  },
+  "trapped-excitation-heat-r2": {
+    "revision": 2,
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "derivation": "The exact fluxes are j=-D grad(R*c), jE=-D grad(A*c), R=sum(r_i*p_i), A=sum(E_i*r_i*p_i). Decomposing gives jE=Ebar*j-D*R*c*Var_transport(E)*grad(T)/T^2. Local storage includes the full equilibrium mean energy and its positive heat capacity. The source drops only relative-state heat counterflow while retaining storage, mean carried energy, and total particle flux.",
+    "shortcut_passivity": "In thermodynamic forces grad(mu/T), grad(T)/T^2, the source transport matrix is the positive rank-one D*R*c*[1,Ebar] outer product plus positive Fourier conduction. Both models conserve global number/energy and produce nonnegative entropy; those aggregate checks cannot distinguish the missing channel.",
+    "reference": "Finite-volume reference evolves conserved concentration and total energy, inverts temperature, and explicitly sums the two independent state-number fluxes with energies 1 and 3. Degeneracy 9 is included in populations and entropy, and the Newton temperature derivative uses the full equilibrium energy variance.",
+    "public_spec": "State-resolved symmetric hops preserve their internal energy; fast detailed-balance conversion exchanges energy only with the local lattice. The specified fixed solid removes mechanical-work ambiguity. Uniform clamped-temperature calibration exactly matches both closures.",
+    "independent_off_grid_max_absolute_error": 8.775173621633492e-07,
+    "transport_mean_energy_derivative_identity_error": 1.5210743775639912e-10,
+    "source_sha256": {
+      "tasks/trapped-excitation-heat/environment/README.md": "710df19443dbd8b1371235d9a91f748a725345b2941d589bab5819837c4fa60d",
+      "tasks/trapped-excitation-heat/environment/model.py": "6c07b553604bcef8cb491383754e62227e2f4b30a827edabf0b1d80c5364b20f",
+      "tasks/trapped-excitation-heat/solution/model.py": "99ff7bd99377f92455dfed0151f0cacd0f74e24e3c2bab3c1c039d085b5ff468",
+      "tasks/trapped-excitation-heat/tests/reference.py": "3939f617f4ad817e78d4ab19365e3ba701cca10b6732981a61ed47778547a3b5"
+    },
+    "validation": {
+      "trapped-excitation-heat": {
+        "revision": 2,
+        "seed": 17133,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 1.1996560231997075,
+            "parameter_relative_error": 0.0002866473335769726,
+            "calibration_chi2": 1.0974611712137035,
+            "calibration_reference_max_error": 5.551115123125783e-17,
+            "hidden": {
+              "thermal_counterflow": 1.743302765151219e-05,
+              "thermal_wave": 0.00012836721232773417,
+              "concentration_heat": 4.108155442884583e-05
+            }
+          },
+          "shortcut": {
+            "parameter": 1.1996560231997075,
+            "parameter_relative_error": 0.0002866473335769726,
+            "calibration_chi2": 1.0974611712137035,
+            "calibration_reference_max_error": 5.551115123125783e-17,
+            "hidden": {
+              "thermal_counterflow": 1.3970166423413721,
+              "thermal_wave": 1.3485444478017037,
+              "concentration_heat": 1.7060469736901425
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.2672258301172876,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 1.1935520336527394,
+          "parameter_max": 1.2068920457746803,
+          "parameter_relative_error_max": 0.005743371478900361
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 0.0022904060695287695,
+            "max": 0.004574549774846766
+          },
+          "shortcut": {
+            "min": 1.3484710204258499,
+            "max": 1.7060926620503953
+          }
+        },
+        "independent_checks": {
+          "spectral_fv_relative_max": 0.00015933079228950455,
+          "fv_refinement_relative_max": 0.0024089854325905,
+          "mass_drift": 6.661338147750939e-16,
+          "energy_drift": 1.1102230246251565e-15,
+          "minimum_entropy_increase": 3.514417405092729e-06
+        },
+        "seconds": 3.6860741669952404
+      }
+    }
+  },
+  "elastohydrodynamic-film-r2": {
+    "status": "source_physics_review_pass",
+    "reviewer": "materials_candidates",
+    "revision": 2,
+    "derivation": "The oracle first-order depth system follows pointwise Lam\u00e9 elasticity: ux_z=tauxz/(mu*r)-d_x uz and uz_z=sigmazz/[(lambda+2mu)*r]-lambda/(lambda+2mu)*d_x ux. Equilibrium gives the matching derivative-of-patterned-stiffness traction block. Its compliance transfer starts from clamped bottom displacement and eliminates the shear-free top traction. The downward pressure/displacement convention keeps normal compliance positive.",
+    "relaxation": "C p_dot=-K p with K=-mobility*d_x^2; generalized eigenvectors are C-orthonormal. The modulus scales compliance inversely and rates proportionally, as in the source. Uniform pressure is the sole zero mode, and the mean of C*p, not mean pressure, is conserved.",
+    "reference": "Independent bulk strain-energy minimization has correct longitudinal/shear factors and cross-derivative blocks with patterned moduli; normal surface loading is obtained through a separate response matrix. Direct conservative propagation does not pin the pressure mean.",
+    "apparatus": "Preloaded reference gap and the subtracted balanced ambient traction remove the heterogeneous-background-shape ambiguity. The leading thin-gap/no-shear approximation and zero lower displacement are explicit.",
+    "shortcut": "Congruence scaling by the inverse square root of the local modulus preserves symmetry, positivity and uniform-coating equivalence, but is not the compliance obtained from variable-coefficient strain compatibility.",
+    "independent_off_grid_max_error_nm": 7.777787303098194e-10,
+    "seconds": 0.028853893280029297,
+    "source_sha256": {
+      "tasks/elastohydrodynamic-film/environment/README.md": "f7cfb903b0bd49d3fe94d0572b680cf20706ddf9bc74093289fd9007ba026b69",
+      "tasks/elastohydrodynamic-film/environment/model.py": "d527ad6324799394f85bc449129f30637381d3d86c0b798abe6b111a581f5216",
+      "tasks/elastohydrodynamic-film/solution/model.py": "258def78d42ee0519109b40a51d5f462811ce0ea7a997ac429dbda91d0afff86",
+      "tasks/elastohydrodynamic-film/tests/reference.py": "76bfadd99371672a2721489f92eb8e29b13148258595e6f4e7a8b9230d95eaa4"
+    },
+    "validation": {
+      "elastohydrodynamic-film": {
+        "revision": 2,
+        "seed": 15124,
+        "noise_trials": 256,
+        "controls": {
+          "oracle": {
+            "parameter": 1.0997917299014883,
+            "parameter_relative_error": 0.00018933645319252346,
+            "calibration_chi2": 1.019746919362671,
+            "calibration_reference_max_error": 3.204547738278052e-12,
+            "hidden": {
+              "mixed_harmonics": 0.00023199647567503893,
+              "pattern_spacing": 0.00024892430280931975,
+              "phase_rotation": 0.0002785093340810744
+            }
+          },
+          "shortcut": {
+            "parameter": 1.099791729901538,
+            "parameter_relative_error": 0.00018933645314733738,
+            "calibration_chi2": 1.0197469193637645,
+            "calibration_reference_max_error": 4.1673331452329876e-12,
+            "hidden": {
+              "mixed_harmonics": 0.32252912890668134,
+              "pattern_spacing": 0.48213495022105346,
+              "phase_rotation": 0.07227403675547046
+            }
+          }
+        },
+        "noise": {
+          "chi2_max": 1.4091098880167015,
+          "chi2_pass_fraction": 1.0,
+          "parameter_min": 1.0994893157018253,
+          "parameter_max": 1.1005042961254312,
+          "parameter_relative_error_max": 0.0004642584528862237
+        },
+        "hidden_parameter_extrema_check": {
+          "oracle": {
+            "min": 0.000561369029166466,
+            "max": 0.0006831275952786603
+          },
+          "shortcut": {
+            "min": 0.07193415779428589,
+            "max": 0.4825323298746149
+          }
+        },
+        "independent_checks": {
+          "variational_reference_max_error_nm": 2.5965881036427163e-06,
+          "reference33x16_to41x20_error_nm": 6.52047851268378e-08,
+          "spectral49_to65_error_nm": 1.2826628648099359e-11,
+          "homogeneous_full_wave_calibration_equivalence_nm": 6.647127293035737e-12,
+          "top_traction_degree28_error": 7.236571708535422e-08,
+          "weak_elastic_residual": 2.2382096176443156e-13,
+          "bottom_clamp_error": 0.0,
+          "reciprocity_error": 7.754818242684634e-26,
+          "minimum_compliance_eigenvalue_m_per_pa": 3.6192357672020713e-11,
+          "both_closures_mass_error_nm": 7.295733002717704e-13,
+          "both_closures_energy_dissipation_error": 2.2419903322637262e-20,
+          "both_closures_pressure_mean_change_pa": [
+            -6.987219945662809,
+            -16.537056723054064
+          ],
+          "translation_covariance_error_nm": 3.4638958368304884e-13,
+          "uniform_pressure_stationarity_error_nm": 4.166818738230943e-12,
+          "zero_force_error_nm": 0.0,
+          "parameter_and_input_corner_error_nm": 3.32500205851708e-06
+        },
+        "seconds": 3.563031833007699,
+        "local_pytest": {
+          "oracle": {
+            "exit_code": 0,
+            "stdout": ".......                                                                  [100%]\n7 passed in 0.53s\n",
+            "stderr": ""
+          },
+          "shortcut": {
+            "exit_code": 1,
+            "stdout": "....FFF                                                                  [100%]\n=================================== FAILURES ===================================\n_______________________ test_prediction[mixed_harmonics] _______________________\n\nevaluated = {'calibration_chi2': 1.0197469193637645, 'hidden': {'mixed_harmonics': 0.32252912890668134, 'pattern_spacing': 0.48213...se_rotation': 0.07227403675547046}, 'parameter': 1.099791729901538, 'parameter_relative_error': 0.00018933645314733738}\ncase = 'mixed_harmonics'\n\n    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))\n    def test_prediction(evaluated, case):\n>       assert evaluated['hidden'][case] < 0.04\nE       assert 0.32252912890668134 < 0.04\n\n/var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/elastic-film-r2-shortcut-eoo8zxo3/tests/test_hidden.py:47: AssertionError\n_______________________ test_prediction[pattern_spacing] _______________________\n\nevaluated = {'calibration_chi2': 1.0197469193637645, 'hidden': {'mixed_harmonics': 0.32252912890668134, 'pattern_spacing': 0.48213...se_rotation': 0.07227403675547046}, 'parameter': 1.099791729901538, 'parameter_relative_error': 0.00018933645314733738}\ncase = 'pattern_spacing'\n\n    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))\n    def test_prediction(evaluated, case):\n>       assert evaluated['hidden'][case] < 0.04\nE       assert 0.48213495022105346 < 0.04\n\n/var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/elastic-film-r2-shortcut-eoo8zxo3/tests/test_hidden.py:47: AssertionError\n_______________________ test_prediction[phase_rotation] ________________________\n\nevaluated = {'calibration_chi2': 1.0197469193637645, 'hidden': {'mixed_harmonics': 0.32252912890668134, 'pattern_spacing': 0.48213...se_rotation': 0.07227403675547046}, 'parameter': 1.099791729901538, 'parameter_relative_error': 0.00018933645314733738}\ncase = 'phase_rotation'\n\n    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))\n    def test_prediction(evaluated, case):\n>       assert evaluated['hidden'][case] < 0.04\nE       assert 0.07227403675547046 < 0.04\n\n/var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/elastic-film-r2-shortcut-eoo8zxo3/tests/test_hidden.py:47: AssertionError\n=========================== short test summary info ============================\nFAILED ../../../../../../../var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/elastic-film-r2-shortcut-eoo8zxo3/tests/test_hidden.py::test_prediction[mixed_harmonics]\nFAILED ../../../../../../../var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/elastic-film-r2-shortcut-eoo8zxo3/tests/test_hidden.py::test_prediction[pattern_spacing]\nFAILED ../../../../../../../var/folders/zk/5n1qblpn7gx5p2lmvqcwhny40000gn/T/elastic-film-r2-shortcut-eoo8zxo3/tests/test_hidden.py::test_prediction[phase_rotation]\n3 failed, 4 passed in 0.43s\n",
+            "stderr": ""
+          }
+        }
+      }
+    }
+  },
+  "dielectric-flow-r1": {
+    "status": "passed_source_review",
+    "candidate_status": "unevaluated_backup",
+    "findings": [
+      "The prescribed Eulerian material profiles, negligible charge convection and zero-mean-flow mechanical reaction give a closed electrical and mechanical model.",
+      "The spectral potential signs enforce div(sigma E)=0 with E=mean(E)-grad(phi). For sigma proportional to epsilon, div(epsilon E)=0 identically and the shortcut equals the physical force.",
+      "The electric body force rho_free E minus one-half E squared times grad(epsilon) equals div[epsilon(E tensor E - E squared I/2)] for the specified curl-free field. Electrostriction is an absorbed pressure term.",
+      "The independent reference solves finite-volume face currents and differentiates Maxwell stress on staggered locations; it does not copy the oracle body-force expression. Forward-gradient/backward-divergence projection and half-cell Fourier detector offsets are consistent.",
+      "The homogeneous velocity is fixed by the specified mechanical reaction. Removing its Fourier mode is valid even when the approximate DEP-only force has a nonzero mean."
+    ],
+    "off_grid_checks": {
+      "viscosity": 0.93,
+      "field": [
+        0.19,
+        -0.31
+      ],
+      "oracle_vs_fv128_richardson_max_error": 2.3490135791365274e-08,
+      "fv96_vs128_richardson_max_difference": 5.069723645056978e-08,
+      "maxwell_stress_vs_charge_dep_force_max_error": 3.760880495917718e-15
+    },
+    "source_sha256": {
+      "archives/unevaluated/tasks/dielectric-flow/environment/README.md": "4d0c5f1b0c5ea006e8b1ce677afde746b148d3444e9e6eb8ea438ab4db9d27c6",
+      "archives/unevaluated/tasks/dielectric-flow/environment/model.py": "1a531da136504cc50b4fec3705cf4ca9651db446843d52a32ad91b679a6c2092",
+      "archives/unevaluated/tasks/dielectric-flow/solution/model.py": "14e12d4170a8b80b218b9ac0807574c8fa983e05356243a07e2ff09897fbdb53",
+      "archives/unevaluated/tasks/dielectric-flow/tests/reference.py": "106bb9d2e5190ef24afa346d2a86bb53ac791f26a0f597c6a09da44dbf6ca6d7"
+    },
+    "author_validation": "jobs/dielectric-flow-validation/summary.json",
+    "archive_manifest": "archives/unevaluated/manifest.json"
+  },
+  "insulating-mhd-duct-r2": {
+    "status": "passed_source_review",
+    "findings": [
+      "The shared Dirichlet current streamfunction is driven by Bx*u_x+By*u_y and yields positive damping D_B^T(-Lap_D)^-1D_B.",
+      "The mixed overlap is d(r,m)*d(n,s)/lambda(r,n), plus its transpose. Array transpose and denominator broadcasting match that contraction.",
+      "Modes with m+n even form the invariant sector driven by uniform pressure; the cross term couples odd-odd to even-even modes, retained by the oracle.",
+      "The finite-volume sign c=By*cx-Bx*cy is minus the motional electric-field operator. Its charge block gT*c*u+gT*g*phi=0 and momentum coupling +cT*g*phi give the physical dissipative Lorentz force after elimination.",
+      "Independent-axis damping in the shortcut is positive and exactly agrees on both nonzero calibration axes but omits interference through the same electrical current field."
+    ],
+    "off_grid_check": {
+      "viscosity": 0.0123,
+      "magnetic_field": [
+        0.28,
+        -0.41
+      ],
+      "absolute_error": 1.769693827997188e-08,
+      "relative_l2_error": 0.0005673297825797017,
+      "reference": "Independent coupled velocity/electric-potential FV48x32 with Richardson correction and1200 steps"
+    },
+    "source_sha256": {
+      "tasks/insulating-mhd-duct/environment/README.md": "ce05d7392eb58a955a75c1654e2987b885333964e83691a45cee8c9cb4ef04fc",
+      "tasks/insulating-mhd-duct/environment/model.py": "2431da51b03090cd5b60b62deae876d696984a5688e0098e1226113131c3f6f6",
+      "tasks/insulating-mhd-duct/solution/model.py": "67c6d84b7699932c73b61dfcb804bdbb057a73b6d8a0804f38d730aa1c1d9d20",
+      "tasks/insulating-mhd-duct/tests/reference.py": "050313d4c62ee5868f0dbfa2799f9982ec7af18d6faf8745ca169fa4f03c1e81",
+      "tasks/insulating-mhd-duct/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62"
+    }
+  },
+  "thermoelastic-rod-r3": {
+    "status": "passed_source_review",
+    "findings": [
+      "Uniform total axial stress and fixed mean strain yield the weighted rank-one mobility R-r*rT/mean(r); the projected diagonal shortcut PRP is positive but does not maintain uniform total stress.",
+      "The generalized symmetric propagation gives c_e*theta_dot+T0*E*alpha*epsilon_dot=conduction and Kelvin-Voigt strain relaxation. The positive quadratic availability and dissipative mechanical block have consistent temperature factors.",
+      "Zero-rate initial strain is alpha*theta-mean(alpha*theta); source and oracle use the same fully relaxed preparation.",
+      "Even material profiles preserve odd insulated calibration. Its weighted mean strain-driving force vanishes, so the shortcut and physical operators agree on that entire subspace.",
+      "The independent finite-volume reference evolves entropy and mean-zero strain coordinates, determines a single algebraic stress, and includes half-cell contact resistance. Its thermal and mechanical variables are distinct from the oracle generalized eigenproblem.",
+      "Viscous heating is explicitly second order and omitted consistently with the linear apparatus."
+    ],
+    "off_grid_check": {
+      "conductivity": 173.0,
+      "contact": 0.73,
+      "oracle_vs_fv256_max_error_K": 0.00024849709699310135,
+      "fv192_vs256_max_error_K": 4.300627116760047e-06
+    },
+    "source_sha256": {
+      "tasks/thermoelastic-rod/environment/README.md": "2efdbfa102a9fea3e02a66c7fd81b925f7d2af6fc8bef9f3a419e525e6ccd8ca",
+      "tasks/thermoelastic-rod/environment/model.py": "72182d776a6db5277910ec9c8707516030abd27fe0b7d484f0c84ecd5eb5afa6",
+      "tasks/thermoelastic-rod/solution/model.py": "f7ec0636dacf14d5f158357413e106c2ff32f62509e1a46eeb9d3999ef37e4ac",
+      "tasks/thermoelastic-rod/tests/reference.py": "cf0ef298b89551f5918a940c73ee3e3de175124ee923ed8cbd4c1f875a208881",
+      "tasks/thermoelastic-rod/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "scripts/thermoelastic_rod_baseline.py": "887f74dcce1e2276e06ea3c7abc404065f68cc0857c2f1d1b21c68b5304a96c7"
+    },
+    "author_validation": "results/thermoelastic-rod-r3-validation.json"
+  },
+  "hall-bar-r3": {
+    "status": "passed_source_review",
+    "findings": [
+      "The prescribed kinetic tensor relaxation gives Pxy=-nu*u_y and Pyy=2*tau2*B*nu*u_y. The momentum equations require (nu*u_y)_y=u/mu-Ex and transverse electrochemical field B*u+(Pyy)_y.",
+      "Expanding the normal-stress divergence gives B*[u+2*tau2*(u/mu-Ex)]+2*tau2*B_y*nu*u_y. The source retains the exact homogeneous-field relation but omits the material-field-gradient term.",
+      "Uniform nonzero-field current and voltage calibration validates the source Hall stress and fixes mobility without probing the additional B_y term. Shared analytic uniform response makes both controls exactly equivalent.",
+      "The independent BVP evolves velocity and kinetic shear stress, integrates Lorentz force, and obtains the measured voltage from the end-point normal-stress difference. Its signs match the oracle and public positive-charge convention.",
+      "Specified electrochemical transverse field, defining closed moment model at walls, zero transverse flow, and no-slip boundaries remove pressure and kinetic-boundary ambiguities."
+    ],
+    "off_grid_check": {
+      "mobility": 0.79,
+      "oracle_vs_independent_BVP_max_abs": 5.778301302716837e-08,
+      "uniform_calibration_control_difference": 0.0
+    },
+    "source_sha256": {
+      "tasks/hall-bar/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/hall-bar/environment/README.md": "059d164d1bebd6572adb448b61461c41e72a3ba0ab375632d1e348a4272a7891",
+      "tasks/hall-bar/environment/model.py": "1218c5516f9db390b987431d89cc0208fa5385b079c8422766cd2b3d35f8131a",
+      "tasks/hall-bar/solution/model.py": "c1158023d0618bd1b18e58a23c8dcef3379992ef1c5fb72ae3bbb276bdbc0fda",
+      "tasks/hall-bar/tests/reference.py": "3ac679b9413e96b7df389057dad47cef381bab46aaf00cb048d43b8e80cb3612",
+      "scripts/hall_bar_baseline.py": "59ede7c77b3a40f720708e4b0902f50d5bd1d71bc631bb996ed788fd0364bb5a"
+    },
+    "author_reports_sha256": {
+      "results/hall-bar-r3-validation.json": "62c8070c709641a5304c802acb095d10281b58a8e8fb6a0407579863c03c238c",
+      "results/hall-bar-r3-local-controls.json": "f3b1ff16a8a2d5810a6d74da5bf6f824a0c3866078a04e2215f5d057b5df4393",
+      "results/hall-bar-r3-source-provenance.json": "a9ef2492e46df2770e3ad9f0e7a51f74d619208525da80716646c7d065689dfd"
+    }
+  },
+  "thermal-bodies-r12": {
+    "status": "passed_source_review",
+    "findings": [
+      "The public finite-mass couplers and link springs carry stored energy, and the stated outer calorimeter measures thermostat heat rather than spring work into the main coordinate. With signed heat into the apparatus, Q_i=W_i+Delta(E_link_i+E_coupler_i).",
+      "The full eight-dimensional stationary Langevin state is used by both controls. Calibration mode correlations are identical and stationary mean outer heat equals mean spring power, so calibration does not expose the finite-window distinction.",
+      "The oracle combines exact stationary Gaussian work variance, endpoint energy variance and work\u2013endpoint cross covariance. Its mixed terms have the correct ordering under time-lagged stationary covariance.",
+      "The independent reference evolves E[Q], E[Q*z*zT] and E[Q^2] from the direct Ito outer-heat stochastic differential. Its same-bath noise cross term and gamma*T/M Ito drift are correct.",
+      "Finite masses remove overdamped work ambiguity. The stationary joint preparation, bath index and unreduced accumulated variance are explicitly specified."
+    ],
+    "off_grid_check": {
+      "friction": 0.83,
+      "preparation": {
+        "springs": [
+          1.07,
+          1.31
+        ],
+        "coupling": 0.47,
+        "memory": 0.62,
+        "coupler_mass": 0.137,
+        "temperatures": [
+          1.71,
+          0.83
+        ]
+      },
+      "oracle_vs_direct_ito_reference_max": 9.85878045867139e-13,
+      "calibration_control_difference": 0.0,
+      "short_time_diffusive_heat_variance_relative_error": 6.100833507614161e-07
+    },
+    "source_sha256": {
+      "tasks/thermal-bodies/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/thermal-bodies/environment/README.md": "115135a396d4c10fd7d8bc7349e0f5cc7047c0fc8bf1e74ad92e24cea9e5304e",
+      "tasks/thermal-bodies/environment/model.py": "347adb361b636a2c22a84f5bc963a7b8c33714edda931bee4a7dadad1f74d79f",
+      "tasks/thermal-bodies/solution/model.py": "c770c1808ba161488cefff5d3007d6d3f0decff0a483fd9fee05fa56ca25fc36",
+      "tasks/thermal-bodies/tests/reference.py": "1e562f6ca16a609b3e5dfd97d3cbb23a7ef88743f8e357d1d1fb0f058b2e3538",
+      "scripts/thermal_colored_baseline.py": "a7956206f09e92bc618d3b28a73287bd7cc77fa325da9b299c032b5e9241829b"
+    },
+    "author_reports_sha256": {
+      "results/thermal-r12-validation.json": "987c24762a733f3aa1a53544272797d444926d5d88d9682ddcf85a7213223bd8",
+      "results/thermal-r12-local-controls.json": "88fdc1735e2e1f218a8c66c8c50ff00b80a1c8238f02a079ce7568e539458049",
+      "results/thermal-r12-source-provenance.json": "9806b2d82502aa307d99a85514fe869010d23010849baa2bb18702d5d62fddb4"
+    }
+  },
+  "superconducting-ring-r1": {
+    "status": "passed_source_review",
+    "findings": [
+      "At fixed winding and controlled external source current, subtracting external source work cancels the mutual magnetic energy. The resulting potential is (n-Phi_ext)^2/[2(Lg+Lk)], so outward force is I*Phi_ext_prime+I\u00b2*(Lg_prime+Lk_prime)/2.",
+      "Fixed wire volume gives a proportional to R^(-1/2), Lg_prime=log(8R/a)-1/2, and Lk_prime=2*kinetic_scale*R. The oracle includes the positive carrier kinetic stress; the completed shortcut omits only that contribution.",
+      "The same kinetic force follows from the centripetal acceleration of the fixed number of moving carriers: Nm*v\u00b2/R=Lk*I\u00b2/R. This agrees with the controlled-source energy derivative.",
+      "The reference uses complex virtual displacement of the full prescribed controlled-field London energy, independent of the explicit oracle force. Real finite differences and integrated mechanical work provide additional checks.",
+      "Current calibration depends on the same full fluxoid relation in both models and identifies the positive kinetic scale. The support-force sign, subtraction, fixed winding, material volume and external field are explicitly specified.",
+      "The public model now explicitly defines a uniform-current one-dimensional London approximation and claims only the supported thin-wire geometry a much smaller than R. It does not assert an unsupported penetration-depth limit. This qualification leaves the prescribed physical equations, calibration and grading unchanged."
+    ],
+    "off_grid_check": {
+      "force_vs_real_energy_derivative_max": 8.387244232466173e-10,
+      "integrated_force_energy_residual_max": 1.6566609195578508e-16,
+      "explicit_external_source_work_residual_max": 1.6566609195578508e-16,
+      "carrier_centrifugal_stress_identity_max": 5.551115123125783e-17
+    },
+    "source_sha256": {
+      "tasks/superconducting-ring/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/superconducting-ring/environment/README.md": "b7af25a82ed4113f7dfd5f56579f011113ac22ce9b6168029a1088020342996b",
+      "tasks/superconducting-ring/environment/model.py": "3347d9dd3ac48f70525a99790a8454417d3b627e700e010ac10d1af5536cedc6",
+      "tasks/superconducting-ring/solution/model.py": "a7bc431b045d00fc8e8d268858c605e2cb45ad83cc2bb191902d67f9aa809477",
+      "tasks/superconducting-ring/tests/reference.py": "14d6a6d231e8a1a35241907224b2dee86ecb0f8915b42c65b2cccd335dfc64b7",
+      "scripts/superconducting_ring_baseline.py": "c383fe54ae2ac81dfc700bfc94b083a410434f8bdf1b6abc9a90a1df55bf492c"
+    },
+    "author_reports_sha256": {
+      "results/superconducting-ring-validation.json": "e795b4d226dec1abfd71f9bc38243965f60c8be01c0d374ff3eeb1116eda6000",
+      "results/superconducting-ring-local-controls.json": "e7660c30230b131f3dabf7d8d92777efec41b42dfbb6d379fbf5064d80a8370c"
+    }
+  },
+  "quantum-residence-r1": {
+    "status": "passed_source_review",
+    "findings": [
+      "The detector is interior stationary population divided by the left incident flux, with no right incidence and no postselection. This is a distinct physical observable from the supplied incident-column scattering time delay.",
+      "The two-face phase conventions make free transmission exp(i*k*L), so both controls give L/k in calibration and identify width. The finite-energy transfer derivative includes both interior propagation and energy-dependent lead momentum.",
+      "The physical density identity is tau_dwell=Im(S_column_dagger*dS_column/dE)+Im(r)/(2E). The additional boundary term has the correct sign for the left incident/reflected interference.",
+      "The independent reference solves all four interface amplitude conditions and integrates the coherent interior wave density, divided by incident speed k. Its cosine and sine-over-q basis remains regular at the barrier top.",
+      "An independent weak negative-imaginary potential loses probability at twice its magnitude times the interior population. The extrapolated absorption loss confirms the occupancy definition and boundary-term sign.",
+      "Public wording defines the detector and phase conventions without naming the missing interference correction or requiring a scattering-derivative method. Numerical density integration and other valid representations remain allowed."
+    ],
+    "off_grid_check": {
+      "oracle_vs_interface_density_max": 1.304512053934559e-15,
+      "weak_absorption_extrapolation_max": 2.1816703998922549e-10,
+      "scattering_vs_independent_interface_amplitudes_max": 4.494014693491726e-15,
+      "frechet_vs_independent_amplitude_derivative_max": 1.9698444845228254e-10
+    },
+    "source_sha256": {
+      "tasks/quantum-residence/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/quantum-residence/environment/README.md": "d6521d78c21cdbcfc62261a8fc1ca02243b123d1fbbf9a60c4b6fadcfa06ce3a",
+      "tasks/quantum-residence/environment/model.py": "6fd37730e4a0c10aeb52e5771674ec1a0a65d66985c27e8edb4a90975c6b5b40",
+      "tasks/quantum-residence/solution/model.py": "9da0202ca27d12dded1ed65cac157bec518fe6352a0240a97a24400db92af591",
+      "tasks/quantum-residence/tests/reference.py": "9e2368ac8f05621536622ccdfd069660a675730f358fb3f8b0389eefd22a42c7",
+      "scripts/quantum_residence_baseline.py": "1e7cff689da21427626ff1dd54ab3b0e4e4875cc7fe75d87ee1d713013e949b4"
+    },
+    "author_reports_sha256": {
+      "results/quantum-residence-validation.json": "babf4e93c009c993bab96a339153f1c3cb0bc95d45b138b04f3aabb3d200495f",
+      "results/quantum-residence-local-controls.json": "fc37605af3cc1c1f446d76530b58b0589d1f0b2a9b2835ec9b968e99d62b467c"
+    }
+  },
+  "emitter-lifetime-r1": {
+    "status": "passed_source_review",
+    "findings": [
+      "The observable is unconditioned excited-state population. In the stated weak-coupling zero-temperature limit its decay counts both radiative escape and irreversible transfer to the passive substrate.",
+      "The Fresnel Green-tensor factors have the correct normal and tangential dipole weights. The w-to-v continuation of the vacuum longitudinal wavevector gives positive-imaginary evanescent integrands with the stated exp(-i omega t) convention.",
+      "For real positive epsilon<=1 the vacuum-evanescent sector is also evanescent in the material, so its Fresnel reflection is real and its decay contribution is exactly zero. The transparent calibration therefore remains exactly shared while testing nontrivial propagating interference.",
+      "The independent reference constructs transmitted TE/TM electric fields, integrates material Joule heating through the half-space depth, and adds upward radiation. Its direct/reflected polarization signs and azimuthal normalization agree with Maxwell boundary conditions.",
+      "The public specification fixes the local material response, no separate surface sheet, zero bath temperature, leading exponential limit and population detector. It neither supplies the missing sector formula nor mandates a numerical representation."
+    ],
+    "off_grid_check": {
+      "oracle_vs_independent_energy_flux_max": 2.842170943040401e-14,
+      "omitted_green_sector_vs_evanescent_joule_power_max": 1.7053025658242404e-13,
+      "minimum_positive_power_channel": 0.021714160237888684
+    },
+    "source_sha256": {
+      "tasks/emitter-lifetime/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/emitter-lifetime/environment/README.md": "036414c648d6c977075af8ce04470522517e06ad6b0e59ebdae06e1226d1455a",
+      "tasks/emitter-lifetime/environment/model.py": "21a488969cb7f26f5286301261fee353475a4e0bd8d7a9087b53152691d0af6d",
+      "tasks/emitter-lifetime/solution/model.py": "1bcee7144698eec20cd0f89ef5781347b2cb2d8775c2a6e4bf5fb19765728435",
+      "tasks/emitter-lifetime/tests/reference.py": "7dfe471f54b1a181b11e42bf77abeaba974112a60d4ea94b9675040d56d46483",
+      "scripts/emitter_lifetime_baseline.py": "2d182ee2d550ebde0e622c0ab4a9754a5426b21c45c745f6465232682cac6881"
+    },
+    "author_reports_sha256": {
+      "results/emitter-lifetime-validation.json": "69e54e5c3856aeb28c656551b4b59c6f4364a67cf363e80e13014ca32cdd3cf6",
+      "results/emitter-lifetime-local-controls.json": "12db4666aeb8aa2e318fb1dddaa455250946ef78985787dec96c33e359b93ea2"
+    }
+  },
+  "circular-detector-r1": {
+    "status": "passed_source_review",
+    "findings": [
+      "Both prescribed trajectories are timelike with tau proper time and stationary vacuum pullback. The cusp interval is s^2+a^2*s^4/12; the circle interval contains its full periodic chord dependence.",
+      "Subtracting the inertial vacuum singularity gives the oracle regular cosine transform, with dimensionless time a*s and the correct factor a/(2*pi^2). The inertial spontaneous-emission term gap/(2*pi) is added only for de-excitation.",
+      "The source is the positive Pad\u00e9-separation closure: its squared separation matches circular motion through s^6, reduces exactly to the cusp case, and preserves the vacuum transition-rate commutator. Its error concerns the full trajectory correlation, not an acceleration or Lorentz-time conversion bug.",
+      "The independent cylindrical plane-wave mode sum has threshold omega=m*Omega-gap/gamma>0, angular Bessel weights and the proper-time delta-function Jacobian1/gamma. Both signs of the gap are evaluated directly, independently confirming the commutator.",
+      "The public detector Hamiltonian, Minkowski positive-frequency vacuum, proper-time normalization and smoothly switched stationary weak-coupling limit close the problem without prescribing a trajectory approximation or giving the missing response formula."
+    ],
+    "off_grid_check": {
+      "off_grid_proper_time_vs_cylindrical_mode_rate_max": 4.161926879520106e-15,
+      "off_grid_mode_commutator_error": 2.220446049250313e-16,
+      "off_grid_cusp_control_difference": 8.673617379884035e-19,
+      "cusp_stationary_interval_error": 3.191891195797325e-16,
+      "cusp_unit_proper_velocity_error": 1.7763568394002505e-15,
+      "minimum_off_grid_rate": 1.029820005621891e-05
+    },
+    "source_sha256": {
+      "tasks/circular-detector/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/circular-detector/environment/README.md": "2b8bc41538c6b4a6ef38d67a0313036cd595437803704e36a6a218e98f73b174",
+      "tasks/circular-detector/environment/model.py": "039bebd7184faa8badeb167d2dc6ecee752366c7131a5d845ee449bf78adf1cd",
+      "tasks/circular-detector/solution/model.py": "7781c642b16ac73fe949fbcabe64b7e068c0872bf75f9dc57f1b5fb57a739757",
+      "tasks/circular-detector/tests/reference.py": "7e59d82c229ce0263826d930d5c8be99d4e5734634aeb83bb3be31c6da6144fc",
+      "scripts/circular_detector_baseline.py": "122f97e6d3f6613a55c1801924d9ff0117e849b5f8822f571247b9a32c5a48c5"
+    },
+    "author_reports_sha256": {
+      "results/circular-detector-validation.json": "a0b31a9a937802361d388ccc73c53c87a73fd7efdbea4eedfdfd064accd33856",
+      "results/circular-detector-local-controls.json": "cf36ca2033178d26776ec3a001a60e01c968033dd2d88d5f7f3d4e0cbda614dd"
+    }
+  },
+  "optical-torque-r1": {
+    "status": "passed_final_source_and_report_review",
+    "findings": [
+      "The real orthogonal body rotation and independently radiation-dressed principal polarizabilities obey the tensor lossless optical theorem.",
+      "The plane-wave force coefficient and field-induced torque have the correct exp(-it) signs. The radiated angular momentum subtracts Im(p* cross p)/(12*pi); it is separate from radiation reaction in the polarizability.",
+      "The public apparatus fixes torque about the particle center and a held orientation. It supplies the full point-dipole response without the missing torque formula.",
+      "The independent total Maxwell-stress surface integral includes both incident/scattered interference and the pure scattered angular momentum. Calibration uses nonzero force and identifies the scalar strength, while all principal-axis torques vanish."
+    ],
+    "off_grid_checks": {
+      "cases": 96,
+      "max_oracle_stress_error": 4.538036613155327e-15,
+      "max_radius_change": 4.6629367034256575e-15,
+      "max_tensor_optical_theorem_residual": 4.440892098500626e-16
+    },
+    "source_sha256": {
+      "tasks/optical-torque/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/optical-torque/environment/README.md": "40e86854a54bb3845d804678eff54376f2fbb37c96342492bd9fea3b640bb5bf",
+      "tasks/optical-torque/environment/model.py": "affce0d1ba3c47f7cbf1bb83395134b9395d662be57f2b99aeefb32ad322fa4e",
+      "tasks/optical-torque/solution/model.py": "d364b14bd739e666ee2440bdc6386c1ed80176831eeabd3b195e2de21ac74525",
+      "tasks/optical-torque/tests/reference.py": "297d9a050127d2b6dc603715cd0cd44cfc47a11969c5d0c2f7da7a1915cf0eef",
+      "scripts/optical_torque_baseline.py": "2ab29262902256526e7b8cf2ae215a7e92d318375f3d3bcc73c5b1c540bfe41f"
+    },
+    "report_sha256": {
+      "results/optical-torque-validation.json": "4a0a1338f27a42ca5af692d72447e808097a4f8d52a74d1b9fbaba44181e06e8",
+      "results/optical-torque-local-controls.json": "0bfc4ac63766995889f390f66a9bfabf7d71d43d053277ec07d4d71781e30341",
+      "results/optical-torque-source-provenance.json": "2a4fa379f3c782fdb2a9cac207e9266ff557e735de41ee7c7af192209d50edff"
+    }
+  },
+  "quantum-calorimetry-r1": {
+    "status": "passed_final_source_and_report_review",
+    "findings": [
+      "The calorimeter definition compares heat into two complete equilibrium devices at fixed mechanical and coupling controls. The blank is the identical uncoupled bath, and finite-device subtraction precedes the continuum limit. This fixes the physical observable without prescribing a correction formula or numerical solver.",
+      "The stated completed-square Hamiltonian fixes the counterterm and natural frequency. The spectral density convention J=(pi/2)sum c_j^2/(m_j*omega_j)delta implies the finite-bath coupling c_j^2=2*J(omega_j)*omega_j*weight_j/pi at unit bath masses. The reference retains this exact counterterm and its stiffness is positive.",
+      "The Drude susceptibility follows from the same Hamiltonian. The supplied predictor correctly computes both coordinate and momentum Gibbs covariances and their temperature derivatives; its readout is the derivative of local oscillator energy, a distinct observable from the specified excess calorimeter capacity.",
+      "The phase-shift oracle uses Im[-D_prime/D]/pi with the retarded sign convention. The reference instead diagonalizes a finite coupled Hamiltonian, subtracting bare-bath oscillator heat capacities. Their agreement is independent of the local-energy approximation.",
+      "Zero coupling makes the excess and local heat capacities identical at every calibration temperature. The oscillator heat capacity decreases strictly with positive natural frequency, making the sole unknown identifiable. Fixed sigma carries no noiseless-response information.",
+      "The public instruction is unchanged and neutral. Public text supplies quantum statistics, Gibbs preparation, finite subtraction order, spectral normalization, and fixed controls; it does not mandate a mean-force Hamiltonian, phase-shift derivation, or specific solver. Private tests constrain the documented output and fitted parameter, not an internal implementation."
+    ],
+    "off_grid_check_report": "results/materials-quantum-calorimetry-checks.json",
+    "off_grid_checks": {
+      "off_grid_cases": [
+        {
+          "frequency": 0.81,
+          "temperature": 0.11,
+          "damping": 1.1,
+          "cutoff": 3.7,
+          "oracle": 0.19368911425314458,
+          "reference": 0.1936891010251287,
+          "refined_reference": 0.19368910952574936,
+          "error": 4.727395225279096e-09,
+          "reference_refinement": 8.500620651830104e-09
+        },
+        {
+          "frequency": 0.87,
+          "temperature": 0.91,
+          "damping": 2.8,
+          "cutoff": 1.1,
+          "oracle": 0.7602249769357126,
+          "reference": 0.7602249523449416,
+          "refined_reference": 0.7602249696605838,
+          "error": 7.275128721673241e-09,
+          "reference_refinement": 1.7315642253379337e-08
+        },
+        {
+          "frequency": 1.19,
+          "temperature": 0.17,
+          "damping": 1.2,
+          "cutoff": 3.9,
+          "oracle": 0.16908031173109428,
+          "reference": 0.16908029473684394,
+          "refined_reference": 0.16908030629659265,
+          "error": 5.434501626488952e-09,
+          "reference_refinement": 1.1559748713807494e-08
+        },
+        {
+          "frequency": 1.14,
+          "temperature": 0.47,
+          "damping": 2.2,
+          "cutoff": 2.6,
+          "oracle": 0.4585891866170377,
+          "reference": 0.45858902876608454,
+          "refined_reference": 0.45858913979461136,
+          "error": 4.682242632503275e-08,
+          "reference_refinement": 1.1102852681688091e-07
+        },
+        {
+          "frequency": 0.93,
+          "temperature": 0.35,
+          "damping": 2.4,
+          "cutoff": 1.2,
+          "oracle": 0.3831406186927824,
+          "reference": 0.3831405720084575,
+          "refined_reference": 0.38314060485259915,
+          "error": 1.3840183221702773e-08,
+          "reference_refinement": 3.2844141628629586e-08
+        },
+        {
+          "frequency": 1.07,
+          "temperature": 0.63,
+          "damping": 1.7,
+          "cutoff": 2.1,
+          "oracle": 0.6177976622140477,
+          "reference": 0.6177974964514021,
+          "refined_reference": 0.6177976131025957,
+          "error": 4.9111452016248336e-08,
+          "reference_refinement": 1.1665119359349774e-07
+        }
+      ],
+      "max_oracle_refined_reference_error": 4.9111452016248336e-08,
+      "max_reference_refinement": 1.1665119359349774e-07,
+      "thermal_energy_finite_difference_max_error": 4.249048857207782e-08,
+      "local_FDT_derivative_finite_bath_max_error": 1.62246426504975e-06,
+      "finite_bath_Laplace_friction_normalization_error": 9.397915718967198e-07,
+      "minimum_finite_stiffness_eigenvalue": 9.0210270894399e-10
+    },
+    "primary_background": "https://doi.org/10.1103/PhysRevE.79.061105",
+    "source_sha256": {
+      "tasks/quantum-calorimetry/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "tasks/quantum-calorimetry/environment/README.md": "c368d359f31e6cd6dac3776a025f4baadc86f37f12ecb4c2f2970cff195e3b16",
+      "tasks/quantum-calorimetry/environment/model.py": "cf1997dd01b856d9c78f2d1b9f01b47bd814139c679f1d9036a0d08392777326",
+      "tasks/quantum-calorimetry/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "tasks/quantum-calorimetry/solution/model.py": "047f6ce7ed17deb315e8f2bd00b7042d2b1f779b4a260fac930e8b3c0f221963",
+      "tasks/quantum-calorimetry/tests/reference.py": "d42de523aaab23de046a68c9d408281a1ce478bc9a69cc86ff84e24721af506a",
+      "tasks/quantum-calorimetry/tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a",
+      "tasks/quantum-calorimetry/environment/test_public.py": "e882f487f253b4862083fbdeb36868368df72a131ba03eabc82f1e0a35854cbb",
+      "scripts/quantum_calorimetry_baseline.py": "83d0c21d780d1c209884dd59105f6d388b2b4ccc7770d85de9b621c85f86aa09"
+    },
+    "report_sha256": {
+      "results/materials-quantum-calorimetry-checks.json": "bae9f4298bae60f6d35eccb336925c778d5346882073862d779878d30d685c2a",
+      "results/quantum-calorimetry-validation.json": "41c00e80a298e17e0843504256b8f9048717d816cff36aa8c84a5f1abc76c7b4",
+      "results/quantum-calorimetry-local-controls.json": "f149d53c65d0ceef35ffb063212cc21710860e823f10307bff8cceb8ca20c4e5",
+      "results/quantum-calorimetry-source-provenance.json": "6ce728ed12d7f7f60a628965691445f538f67fa8b846d76d22e249123a980455"
+    }
+  }
+}

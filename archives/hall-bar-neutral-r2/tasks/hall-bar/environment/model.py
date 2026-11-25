@@ -1,0 +1,41 @@
+import numpy as np
+from scipy.integrate import cumulative_trapezoid
+from scipy.linalg import solve_banded
+from scipy.optimize import minimize_scalar
+
+TAU2 = 0.4
+
+
+def response(experiment, mobility):
+    e = experiment
+    width, ex = e['width'], e['electric_field']
+    y = np.linspace(-width/2, width/2, 801)
+    face = (y[:-1]+y[1:])/2
+    dy = y[1]-y[0]
+    def field(z):
+        return (e['magnetic_field']+e['field_gradient']*2*z/width
+                + e['field_modulation']*np.cos(2*np.pi*z/width))
+    bf = field(face)
+    viscosity = TAU2/(1+(2*TAU2*bf)**2)
+    band = np.zeros((3, len(y)-2))
+    band[1] = 1/mobility+(viscosity[:-1]+viscosity[1:])/dy**2
+    band[0, 1:] = -viscosity[1:-1]/dy**2
+    band[2, :-1] = -viscosity[1:-1]/dy**2
+    velocity = np.r_[0., solve_banded((1,1), band, np.full(len(y)-2, ex)), 0.]
+    if e['observable'] == 'current':
+        return np.trapezoid(velocity, y)/width
+    a, b = np.asarray(e['contacts'])*width/2
+    primitive = cumulative_trapezoid(field(y)*velocity, y, initial=0)
+    voltage = np.interp(b, y, primitive)-np.interp(a, y, primitive)
+    return float(voltage)
+
+
+class Model:
+    def __init__(self):
+        self.mobility = None
+
+    def fit(self, records):
+        raise NotImplementedError
+
+    def predict(self, experiments):
+        return np.array([response(e, self.mobility) for e in experiments])

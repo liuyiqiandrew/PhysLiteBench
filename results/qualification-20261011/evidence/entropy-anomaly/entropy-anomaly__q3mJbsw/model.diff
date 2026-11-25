@@ -1,0 +1,59 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,54 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Estimate the common friction from the calibration observations.
++
++        The calibration values are independent measurements with supplied
++        standard uncertainties, so the natural fit is a one-dimensional
++        weighted least-squares problem.  Keeping the optimization here
++        dependency-free is useful in the grading/runtime environment; the
++        objective is smooth on the physically allowed interval.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments=[record['input'] for record in records]
++        observed=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if (not np.isfinite(observed).all() or
++                not np.isfinite(sigma).all() or np.any(sigma<=0)):
++            raise ValueError("calibration values and uncertainties must be finite")
++
++        def objective(f):
++            residual=(coefficients(experiments,float(f))-observed)/sigma
++            return float(residual@residual)
++
++        # Golden-section search is sufficient here: friction is scalar and
++        # the calibration objective is smooth and unimodal over its stated
++        # physical range.  Evaluate the endpoints as well so a valid result
++        # is produced even for an unusually small or uninformative dataset.
++        left,right=.7,1.6
++        phi=(1+np.sqrt(5.))/2
++        x1=right-(right-left)/phi
++        x2=left+(right-left)/phi
++        f1,f2=objective(x1),objective(x2)
++        for _ in range(64):
++            if f1>f2:
++                left=x1
++                x1=x2; f1=f2
++                x2=left+(right-left)/phi
++                f2=objective(x2)
++            else:
++                right=x2
++                x2=x1; f2=f1
++                x1=right-(right-left)/phi
++                f1=objective(x1)
++        candidates=(.7,1.6,(left+right)/2,x1,x2)
++        self.friction=float(min(candidates,key=objective))
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("fit must be called before predict")
++        return coefficients(experiments,self.friction)

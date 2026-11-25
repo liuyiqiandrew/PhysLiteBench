@@ -1,0 +1,105 @@
+--- starter/model.py
++++ submission/model.py
+@@ -30,6 +30,8 @@
+     a=np.kron(q,np.eye(degree+1))
+     for s in range(count):
+         for i,(p,n) in enumerate(basis):
++            # This is the *forward* generator on velocity moments.  Both
++            # components are damped; the magnetic terms only rotate them.
+             row=s*(degree+1)+i;a[row,row]-=p*gx[s]+n*gy[s]
+             if p:a[row,s*(degree+1)+lookup[p-1,n+1]]+=p*magnetic
+             if n:a[row,s*(degree+1)+lookup[p+1,n-1]]-=n*magnetic
+@@ -48,6 +50,28 @@
+             if higher is not None:source[s,i]-=derivative@higher[p+1,n][s]
+     value=np.linalg.solve(a,-source.reshape(count*(degree+1),points)).reshape(count,degree+1,points)
+     return {pair:value[:,i] for i,pair in enumerate(basis)}
++
++def conditional_population_correction(q, first, derivative):
++    """Return the zero-sum, order-m population correction of each contact.
++
++    The contact process and the velocity relaxation live on the same fast
++    time scale.  Consequently its correction is not obtained by assigning
++    the stationary contact probabilities pointwise.  At this order the
++    forward population Poisson equation is
++
++        q n = d_x M_x,       1^T n = 0,
++
++    where ``q`` is the complete forward valve generator.  The constraint
++    fixes the null-space ambiguity and, importantly, retains the directed
++    three-contact cycle.
++    """
++    rhs=(derivative@first[1,0].T).T
++    states,points=rhs.shape
++    augmented=np.empty((states+1,states))
++    augmented[:states]=q
++    augmented[states]=1.
++    target=np.vstack((rhs,np.zeros((1,points))))
++    return np.linalg.lstsq(augmented,target,rcond=None)[0]
+ 
+ def limiting_state(e,friction,points=129):
+     phase,d=spatial_grid(points);d=d*e['wavenumber'];dx=2*np.pi/points
+@@ -71,8 +95,10 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # Although the leading populations are the stationary valve weights,
++    # their first finite-mass correction is position dependent.  It must be
++    # retained in the calorimetric cancellation with the matched background.
++    density_correction={(0,0):conditional_population_correction(q,first,d)}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +119,49 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        records=list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        experiments=[r['input'] for r in records]
++        observed=np.asarray([r['value'] for r in records],dtype=float)
++        sigma=np.asarray([r['sigma'] for r in records],dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma<=0)):
++            raise ValueError("calibration values and sigmas must be finite, with positive sigma")
++
++        # The supplied calibration protocol has identical contacts and no
++        # magnetic field.  Its stationary density is friction-independent and
++        # the complete limiting readout scales exactly as 1/friction.  Using
++        # that identity avoids turning a one-parameter fit into hundreds of
++        # redundant cell solves.
++        simple=all(e.get('bath_contrast',0.)==0. and e.get('magnetic',0.)==0.
++                   and 'valve_cycle' not in e for e in experiments)
++        if simple:
++            unit=coefficients(experiments,1.)
++            inverse=np.sum(unit*observed/sigma**2)/np.sum(unit**2/sigma**2)
++            self.friction=float(np.clip(1./inverse,.7,1.6))
++            return self
++
++        def loss(friction):
++            residual=(coefficients(experiments,float(friction))-observed)/sigma
++            return float(residual@residual)
++
++        # Bounded golden-section minimization keeps this module dependency
++        # free while remaining more than adequate for a single smooth scalar.
++        lo,hi=.7,1.6
++        ratio=(5**.5-1)/2
++        left=hi-ratio*(hi-lo);right=lo+ratio*(hi-lo)
++        fleft=loss(left);fright=loss(right)
++        for _ in range(28):
++            if fleft<=fright:
++                hi,right,fright=right,left,fleft
++                left=hi-ratio*(hi-lo);fleft=loss(left)
++            else:
++                lo,left,fleft=left,right,fright
++                right=lo+ratio*(hi-lo);fright=loss(right)
++        self.friction=float((lo+hi)/2)
++        return self
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        return coefficients(experiments,self.friction)

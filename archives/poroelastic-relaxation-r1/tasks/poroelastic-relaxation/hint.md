@@ -1,0 +1,1 @@
+A spatially varying strain must come from a single displacement field. Apply mechanical equilibrium and this compatibility condition together before converting pore pressure to fluid storage; zero mean stress does not imply zero stress at every point.

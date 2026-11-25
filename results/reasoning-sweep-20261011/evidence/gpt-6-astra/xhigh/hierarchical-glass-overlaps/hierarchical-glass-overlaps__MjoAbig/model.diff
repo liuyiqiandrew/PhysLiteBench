@@ -1,0 +1,93 @@
+--- starter/model.py
++++ submission/model.py
+@@ -14,16 +14,28 @@
+ 
+ 
+ def participation(m, replicas):
++    """Disorder-averaged coincidence for Poisson--Dirichlet weights PD(m, 0)."""
+     result = 1.0
+     for j in range(1, replicas):
+         result *= (j-m)/j
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def leaf_partition(q, alpha, blocks):
++    """Joint probability of one parent and the specified labelled leaf blocks.
++
++    In the two-level Gibbs cascade, parent masses have law PD(q, 0).
++    Their internal leaf weights have law PD(alpha, -q): weighting a parent
++    by its partition function tilts the leaf distribution. Multiplying its
++    partition probability by the parent coincidence cancels the factors
++    (1-q), ..., (n-1-q), giving the expression below. At alpha=1 the leaves
++    are diffuse, so only the all-singleton partition survives.
++    """
+     n = sum(blocks)
+     k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0/math.factorial(n-1)
++    for j in range(1, k):
++        result *= j*alpha-q
+     for size in blocks:
+         for j in range(1,size):
+             result *= j-alpha
+@@ -33,12 +45,18 @@
+ def coincidence(beta, replicas, observable, width, blocks=None):
+     q = level_parameter(beta,width,0)
+     alpha = level_parameter(beta,width,1)
+-    parent = participation(q,replicas)
+     if observable == 'parent_collision':
+-        return parent
++        return participation(q,replicas)
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        return participation(alpha,replicas)
++    return leaf_partition(q,alpha,blocks)
++
++
++def calibration_beta(row):
++    beta = float(row['input']['beta'])
++    if not math.isfinite(beta) or not .2 <= beta <= .6:
++        raise ValueError('Outside the stated calibration inverse-temperature range.')
++    return beta
+ 
+ 
+ class Model:
+@@ -54,11 +72,34 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit width by constrained Gaussian maximum likelihood.
++
++        All calibration temperatures are above both freezing temperatures,
++        even at width=1.2. The mean energy per size is therefore -beta*width²,
++        so weighted least squares is linear in width².
++        """
++        readings = []
++        for row in records:
++            beta = calibration_beta(row)
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if not math.isfinite(measured) or not math.isfinite(sigma) or sigma <= 0:
++                raise ValueError('Calibration values must be finite and sigma positive and finite.')
++            readings.append((beta, measured, sigma))
++        if not readings:
++            raise ValueError('Supply at least one calibration record to fit width.')
++
++        beta, measured, sigma = np.asarray(readings, dtype=float).T
++        # Rescaling all inverse variances equally leaves the optimum unchanged.
++        weights = (np.min(sigma)/sigma)**2
++        squared_width = -np.dot(weights*beta, measured)/np.dot(weights, beta*beta)
++        low, high = WIDTH_INTERVAL
++        self.width = math.sqrt(float(np.clip(squared_width, low*low, high*high)))
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        return np.asarray([-calibration_beta(row)*value*value for row in records],dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

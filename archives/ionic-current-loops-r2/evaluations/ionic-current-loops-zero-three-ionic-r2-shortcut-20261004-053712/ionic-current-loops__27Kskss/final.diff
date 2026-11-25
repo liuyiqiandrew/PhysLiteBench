@@ -1,0 +1,14 @@
+--- before/model.py
++++ after/model.py
+@@ -35,6 +35,10 @@
+     def __init__(self):self.diffusivity=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        inputs=[r['input'] for r in records]
++        values=np.array([r['value'] for r in records]);sigma=np.array([r['sigma'] for r in records])
++        coefficient=predict_at(inputs,1.)
++        self.diffusivity=float(np.sum(coefficient*values/sigma**2)/np.sum(coefficient**2/sigma**2))
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.diffusivity)

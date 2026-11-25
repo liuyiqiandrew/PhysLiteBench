@@ -1,0 +1,1 @@
+The measured position belongs to the complete freely suspended body. Compare its final motion with the optical energy-centroid delay using conservation of the isolated system’s center of energy. Distinguish canonical wave momentum from the kinetic momentum paired with the body’s mechanical motion.

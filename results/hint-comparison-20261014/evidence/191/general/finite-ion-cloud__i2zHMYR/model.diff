@@ -1,0 +1,36 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,7 +33,32 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        # The calibration records are independent measurements with known
++        # standard deviations, so fit the single shared coupling by weighted
++        # least squares.  In particular, do not fit a separate coupling for
++        # each temperature: Gamma is the product u*g.
++        calibration = [record for record in records
++                       if record['input']['ion_count'] in (1, 2)]
++        if not calibration:
++            raise ValueError('at least one one- or two-ion calibration record is required')
++
++        values = np.asarray([record['value'] for record in calibration], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in calibration], dtype=float)
++        if np.any(~np.isfinite(values)) or np.any(~np.isfinite(sigmas)) or np.any(sigmas <= 0):
++            raise ValueError('calibration values and sigmas must be finite, with positive sigmas')
++
++        inputs = [record['input'] for record in calibration]
++
++        def objective(g):
++            residual = (predict_at(inputs, g) - values) / sigmas
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(objective, bounds=(0.7, 1.4), method='bounded',
++                                 options={'xatol': 1e-12, 'maxiter': 200})
++        if not result.success or not np.isfinite(result.fun):
++            raise RuntimeError('unable to fit the reference electrostatic coupling')
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.coupling)

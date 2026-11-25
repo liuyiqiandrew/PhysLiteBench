@@ -1,0 +1,141 @@
+{
+  "status": "source_review_pending_no_execution",
+  "scope": "One fixed half-filled periodic exclusion-current screen. No task, calibration or model trials.",
+  "rates": "D exp(+/- E/L), fixed N=L/2, even L; current is total signed jumps/L; SCGF is lim_L L lim_t log E exp(lambda Q_t)/t.",
+  "normalization": "All numerical screen values use D=1. The generator and SCGF scale exactly linearly with D at every finite L and in the specified limit.",
+  "physical_distinction": "Homogeneous current-conditioned density versus a stationary nonuniform profile. At half filling the optimal published profile has zero wave speed.",
+  "fields": [
+    10.0,
+    12.0
+  ],
+  "cases": [
+    [
+      10.0,
+      -0.5
+    ],
+    [
+      10.0,
+      -0.75
+    ],
+    [
+      10.0,
+      -1.0
+    ],
+    [
+      12.0,
+      -0.5
+    ],
+    [
+      12.0,
+      -0.75
+    ],
+    [
+      12.0,
+      -1.0
+    ]
+  ],
+  "case_format": "[E, lambda/E]; each field group retains all three biases",
+  "quadrature_orders": [
+    64,
+    128
+  ],
+  "grids": [
+    64,
+    128
+  ],
+  "starts": [
+    "flat",
+    "first_mode",
+    "mixed_modes"
+  ],
+  "elliptic_branch": "Let m=k^2, K=K(m), b=4K/E, a^2=m b^2, H=Pi(a^2,m)/K. Solve |E+lambda|=E sqrt[(1-a^2)(1-b^2)] H. psi=4K^2[1-m-2 EllE(m)/K]. The upper endpoint obeys 4K=E. Outside the instability use lambda(lambda+2E)/4.",
+  "independent_reference": "Direct constrained spatial optimization with z=2rho-1=sin(phi), mean sin(phi)=0, periodic nearest-neighbor gradient. Minimize [E^2<cos^2(phi)>+<phi_prime^2>-(E+lambda)^2/<sec^2(phi)>]/4. No elliptic profile is used as an initial condition. Use phi=arcsin(2rho-1); seeds are rho=.5, rho=.5+.25*cos(2pi*x), and rho=.5+.20*cos(4pi*x)+.05*sin(2pi*x). Periodic edge differences avoid a central-difference checkerboard null mode. Evaluate the Fourier-interpolated final phi on twice the grid without reoptimization.",
+  "multistart_policy": "Exactly72 independent spatial optimizations:12 cases times2 grids times3 fixed seeds. Retain all termination flags, including failures, and select the largest SCGF among converged constrained profiles at each grid. No elliptic warm starts or extra seeds. Admissible for selection means finite, converged, mass error<1e-9, interior margin>1e-5 and normalized tangent-gradient residual<1e-6. Doubled-mesh value and mass checks are applied after selection as independent gates.",
+  "gates": {
+    "expected_spatial_runs": 72,
+    "quadrature_relative": 1e-07,
+    "fine_spatial_relative": 0.002,
+    "spatial_refinement_relative": 0.002,
+    "mass_absolute": 1e-09,
+    "bound_margin": 1e-05,
+    "symmetry_absolute": 1e-10,
+    "exact_anchor_absolute": 1e-12,
+    "map_maximum_increase": 1e-08,
+    "map_endpoint_residual": 1e-05,
+    "minimum_complete_group_source_error": 0.06,
+    "doubled_mesh_relative": 0.002,
+    "normalized_projected_gradient": 1e-06,
+    "minimum_prediction_profile_contrast": 0.01,
+    "branch_residual_absolute": 1e-05
+  },
+  "limits": [
+    "Published half-filled Bethe/MFT branch, not a new proof of global optimality or of the thermodynamic Bethe assumptions.",
+    "E<4*pi avoids a second unstable Fourier mode of the homogeneous branch; this is not itself a proof that no other profile dominates.",
+    "Independent optimization and a checked root map establish sampled numerical consistency only; no continuous-box guarantee.",
+    "Quarter-filled proposal remains deferred. This screen does not repair its unresolved reference."
+  ],
+  "primary_sources": [
+    "https://arxiv.org/pdf/1011.3590",
+    "https://ergodic.ugr.es/garrido/papers/102.pdf"
+  ],
+  "next": "Obtain independent source/plan review before execution. Stop and retain all outcomes if any declared gate fails. Passing permits a separate domain/reference assessment, not task packaging or qualification.",
+  "controls": [
+    [
+      0.0,
+      1.0
+    ],
+    [
+      4.0,
+      -2.0
+    ],
+    [
+      4.0,
+      2.0
+    ],
+    [
+      10.0,
+      -2.21265859988043
+    ],
+    [
+      10.0,
+      -2.22043816171871
+    ],
+    [
+      10.0,
+      -2.228217723556991
+    ]
+  ],
+  "exact_anchors": [
+    [
+      0.0,
+      1.0
+    ],
+    [
+      4.0,
+      -2.0
+    ],
+    [
+      4.0,
+      2.0
+    ],
+    [
+      10.0,
+      0.0
+    ],
+    [
+      10.0,
+      -20.0
+    ],
+    [
+      6.283185307179586,
+      -6.283185307179586
+    ],
+    [
+      10.0,
+      -2.22043816171871
+    ]
+  ],
+  "budget_seconds": 600,
+  "proposal_review": "results/exclusion-current-half-filled-proposal-review.json",
+  "status_policy": "Any numerical gate failure is numerical_unresolved. Insufficient_separation is assigned only when numerical gates pass but a complete group misses6%. All outcomes remain retained. Exact-anchor1e-12 checks concern analytic elliptic/flat values; spatial checks use the declared0.2% normalization."
+}

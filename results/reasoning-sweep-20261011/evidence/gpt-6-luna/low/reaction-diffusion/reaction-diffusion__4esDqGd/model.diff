@@ -1,0 +1,39 @@
+--- starter/model.py
++++ submission/model.py
+@@ -25,7 +25,24 @@
+         self.diffusivity = None
+ 
+     def fit(self,data):
+-        raise NotImplementedError('Fit the common ionic diffusion scale from calibration.')
++        # Fit in log space so the common diffusion scale stays positive.  The
++        # measurements are heteroscedastic, so use their stated Gaussian
++        # standard deviations directly in the objective.
++        x=np.asarray(data['x'],float); t=np.asarray(data['t'],float)
++        initials=np.asarray(data['initial'],float)
++        observed=np.asarray(data['concentration'],float)
++        sigma=np.asarray(data['sigma'],float)
++        def loss(logd):
++            self.diffusivity=float(np.exp(logd))
++            residual=[]
++            for r,initial in enumerate(initials):
++                pred=self.predict(t,x,initial)
++                residual.append(((pred-observed[r])/sigma[r]).ravel())
++            v=np.concatenate(residual)
++            return float(v@v)
++        result=minimize_scalar(loss,bounds=(np.log(1e-13),np.log(1e-8)),method='bounded',options={'xatol':1e-8})
++        self.diffusivity=float(np.exp(result.x))
++        return self
+ 
+     def _binary(self,t,x,initial):
+         t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)
+@@ -77,7 +94,9 @@
+ def equilibrium_correlations(t,totals,harmonic,diffusivity):
+     covariance,mobility=fluctuation_matrices(totals,diffusivity)
+     relaxation=(harmonic*np.pi/.001)**2*mobility@np.linalg.inv(covariance)
+-    initial_covariance=np.diag(totals)
++    # Equilibrium total-constituent fluctuations are the constrained ideal
++    # species covariance (association is a chemical degree of freedom).
++    initial_covariance=covariance
+     return np.array([expm(-float(time)*relaxation)@initial_covariance for time in t])
+ 
+ def correlate(self,t,totals,harmonic=1):

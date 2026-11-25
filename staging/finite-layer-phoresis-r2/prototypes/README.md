@@ -1,0 +1,1 @@
+These byte-identical historical snapshots came from `staging/finite-layer-phoresis-r2-prototype`. Its script uses paths relative to that original location; run the original script there. The packaged task and validator are self-contained within this stage. No prototype or prior result was overwritten.

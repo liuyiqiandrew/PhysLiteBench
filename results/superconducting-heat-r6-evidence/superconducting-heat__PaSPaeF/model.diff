@@ -1,0 +1,51 @@
+--- before/model.py
++++ after/model.py
+@@ -191,7 +191,41 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit conductance from the calibration records")
++        """Fit the single apparatus parameter from weighted calibration data.
++
++        The conductance is the only unknown, but the driven experiments are
++        not necessarily linear in it: changing the conductance changes the
++        stationary spin potentials, which in turn changes the measured heat.
++        Consequently the fit is done against the complete prediction model
++        rather than fitting a scale factor to a subset of the records.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        target = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        if (not np.isfinite(target).all() or not np.isfinite(sigma).all() or
++                np.any(sigma <= 0)):
++            raise ValueError("record values and uncertainties must be finite, with sigma > 0")
++
++        inputs = [record["input"] for record in records]
++
++        def residual(conductance):
++            return (predict_at(inputs, float(conductance)) - target) / sigma
++
++        # There is only one bounded parameter.  A bounded scalar search is
++        # robust for both the linear equilibrium calibration and the mildly
++        # nonlinear spin-balanced driven response.
++        from scipy.optimize import minimize_scalar
++        result = minimize_scalar(
++            lambda value: float(residual(value) @ residual(value)),
++            bounds=(20., 80.), method="bounded",
++            options={"xatol": 1e-10, "maxiter": 100})
++        candidates = [result.x, 20., 80.]
++        best = min(candidates, key=lambda value: float(residual(value) @ residual(value)))
++        self.conductance = float(np.clip(best, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -350,5 +384,3 @@
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)
+-
+-

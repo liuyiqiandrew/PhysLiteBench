@@ -1,0 +1,75 @@
+import numpy as np
+
+
+def response(e):
+    """Large-deviation rate per unit mobility for one preparation.
+
+    The heat rate is ``q_bar = 2 * mobility * stiffness * r**2``.
+    Expressing the heat current as z=q/q_bar gives the exact stationary
+    rate function below.  The unconditioned initial and final positions in
+    the heat integral restrict the tilted-generator domain, producing the
+    linear tails.  (Those tails would be absent for the circulating work.)
+    """
+    r = float(e['drive_ratio'])
+    z = float(e['relative_heat'])
+    stiffness = float(e['stiffness'])
+    r2 = r * r
+
+    # In the central region, this is the Legendre transform of
+    # psi(s)=1-sqrt(1+4*r2*s*(1-s)).
+    rate = np.sqrt((1.0 + r2) * (1.0 + r2 * z * z)) - r2 * z - 1.0
+
+    # Integrability of the final equilibrium position restricts s<1.  Its
+    # boundary gives the negative-heat tail (z < -1).
+    if z < -1.0:
+        rate = -2.0 * r2 * z
+    # At weak drive the initial-position integral also imposes a lower
+    # bound on s, and hence a positive-heat linear tail.
+    elif r2 < 1.0 / 3.0:
+        positive_tail_start = (3.0 - r2) / (1.0 - 3.0 * r2)
+        if z > positive_tail_start:
+            rate = (2.0 * r2 / (1.0 + r2)) * ((1.0 - r2) * z - 2.0)
+
+    # The analytical rate is non-negative.  Guard its zero at z=1 against
+    # roundoff from subtracting nearly equal floating-point numbers.
+    rate = max(rate, 0.0)
+    return stiffness * rate
+
+
+def predict_at(experiments, mobility):
+    return mobility*np.asarray([response(e) for e in experiments])
+
+
+class Model:
+    def __init__(self):
+        self.mobility = None
+
+    def fit(self, records):
+        """Fit the common mobility by Gaussian weighted least squares."""
+        if len(records) == 0:
+            raise ValueError('at least one calibration record is required')
+
+        unit_rates = np.asarray([response(record['input']) for record in records],
+                                dtype=float)
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
+
+        if (not np.isfinite(unit_rates).all() or not np.isfinite(values).all()
+                or not np.isfinite(sigmas).all() or np.any(sigmas <= 0.0)):
+            raise ValueError('calibration records must contain finite values and positive sigma')
+
+        weights = 1.0 / (sigmas * sigmas)
+        denominator = np.dot(weights, unit_rates * unit_rates)
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError('calibration data cannot identify mobility')
+
+        estimate = np.dot(weights * unit_rates, values) / denominator
+        # The apparatus gives a compact physically admissible parameter range;
+        # this is the constrained Gaussian maximum-likelihood estimate.
+        self.mobility = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        if self.mobility is None:
+            raise RuntimeError('fit must be called before predict')
+        return predict_at(experiments, self.mobility)

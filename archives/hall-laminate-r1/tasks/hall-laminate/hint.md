@@ -1,0 +1,1 @@
+The local Drude tensors do not determine a composite response by arithmetic averaging. Across each ideal layer interface, normal current and tangential electric field are continuous; the normal electric field and tangential current can differ between phases. Impose those conditions together with the stated average current before averaging the measured fields.

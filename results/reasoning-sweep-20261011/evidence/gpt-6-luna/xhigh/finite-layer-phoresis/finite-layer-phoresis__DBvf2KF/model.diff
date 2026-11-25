@@ -1,0 +1,66 @@
+--- starter/model.py
++++ submission/model.py
+@@ -21,11 +21,17 @@
+         raise RuntimeError(solution.message)
+     beta = slip/radius
+     drag = (1+2*beta)/(1+3*beta)
++    # Radial flow in the auxiliary unit-translation problem with the same
++    # Navier condition is (A/r + B/r**3) cos(theta).  The force-free
++    # interaction kernel uses the relative radial flow, r**2*(1-u_r/U).
++    # For zero slip this reduces to the familiar no-slip expression below.
++    aux_a = 1.5*radius*drag
++    aux_b = -0.5*radius**3/(1+3*beta)
+     def integrand(r):
+         x = (r-radius)/width
+         concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+         derivative = -2*strength*(1-x)/width
+-        weight = (r-radius)**2*(2*r+radius)/(2*r)
++        weight = r**2-aux_a*r-aux_b/r
+         return weight*concentration*derivative
+     return 2/(9*radius*drag)*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
+ 
+@@ -40,7 +46,43 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the common viscosity from calibrated response measurements.
++
++        ``response`` contains the part of the prediction that depends on the
++        experiment; the measured velocity gradient response is that quantity
++        divided by the solvent viscosity.  Thus the inverse viscosity is a
++        single linear parameter and can be fitted by weighted least squares.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        coefficients = np.asarray(
++            [response(**record['input']) for record in records], dtype=float
++        )
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if (not np.all(np.isfinite(coefficients))
++                or not np.all(np.isfinite(values))
++                or not np.all(np.isfinite(sigmas))
++                or np.any(sigmas <= 0)):
++            raise ValueError('Calibration values and uncertainties must be finite, with positive uncertainties.')
++
++        weights = 1.0 / np.square(sigmas)
++        denominator = np.sum(weights * np.square(coefficients))
++        if denominator == 0 or not np.isfinite(denominator):
++            raise ValueError('Calibration records do not contain information about viscosity.')
++
++        inverse_viscosity = np.sum(weights * coefficients * values) / denominator
++        # The apparatus specification bounds viscosity to [.8, 1.6].  Apply
++        # the corresponding parameter bound when noisy data put the fit out
++        # of range.
++        inverse_viscosity = np.clip(inverse_viscosity, 1.0 / 1.6, 1.0 / 0.8)
++        self.viscosity = float(1.0 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise ValueError('Call fit(records) before predict(experiments).')
+         return predict_at(experiments, self.viscosity)

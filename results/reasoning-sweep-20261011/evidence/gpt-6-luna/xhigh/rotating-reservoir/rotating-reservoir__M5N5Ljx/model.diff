@@ -1,0 +1,24 @@
+--- starter/model.py
++++ submission/model.py
+@@ -207,6 +207,18 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        """Estimate the common laboratory drag from the calibration records.
++
++        In this calibration the collision clock is constant, the flow target
++        is zero, and the mean heat is proportional to the temperature
++        difference.  ``fit_drag`` performs the uncertainty-weighted fit of
++        that conductance and converts it to the drag using the two-temperature
++        stationary moment equations.
++        """
++        self.drag=fit_drag(records)
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise ValueError('Call fit(records) before predict(experiments).')
++        return predict_at(experiments,self.drag)

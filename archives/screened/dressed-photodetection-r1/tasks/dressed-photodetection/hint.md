@@ -1,0 +1,1 @@
+The detector absorbs energy through its specified quadrature. Use the transitions that lower the energy of the full interacting pair; subtracting a ground-state bare occupation does not in general give those transition strengths.

@@ -43,13 +43,13 @@ scripts/
   validate_new_system.py     Data generation and scientific validation
 ```
 
-Include metadata files where the data format requires them. The three existing tasks are structural examples; the tree above is a convention, not a demand to reuse their physical models or class names.
+Include metadata files where the data format requires them. Existing tasks are structural examples; the tree above is a convention, not a demand to reuse their physical models or class names.
 
 The [runner](../scripts/run_science.py) accepts any task directory by path. There is no registry or shared base class to update. A task's environment, verifier, and solution must work without importing another task, repository-level scripts, or anything in `scratch/`.
 
 ## 3. Keep the agent and author files separate
 
-Use the existing [Dockerfile](../tasks/qubit-control/environment/Dockerfile), [task configuration](../tasks/qubit-control/task.toml), [verification script](../tasks/qubit-control/tests/test.sh), and [solution installer](../tasks/qubit-control/solution/solve.sh) as small examples.
+Use the existing [Dockerfile](../tasks/magnetic-tracer/environment/Dockerfile), [task configuration](../tasks/magnetic-tracer/task.toml), [verification script](../tasks/magnetic-tracer/tests/test.sh), and [solution installer](../tasks/magnetic-tracer/solution/solve.sh) as small examples.
 
 The Docker build context is `environment/`. Copy its public files explicitly into `/app`; keep solutions, hidden cases, true values of fitted parameters, and author explanations outside that image. The solving agent receives the task instruction and public environment. Harbor supplies `/tests` for verification and `/solution` for oracle runs. Preserve the `/app` artifact declaration in `task.toml` so final submissions and source diffs are retained.
 
@@ -59,7 +59,7 @@ Document every public input and output: function signatures, array shapes, units
 
 `solution/solve.sh` should install the correct implementation without editing tests. Keeping the implementation in `solution/model.py` also enables the runner's `--solution-model` control: that option replaces **only this file**, then runs the existing solution installer. Adapt this arrangement explicitly if a new task needs multiple solution files.
 
-Keep the current 600-second agent and 60-second verifier limits for comparable evaluations. Explain any required limit or dependency changes in the PR.
+Keep the current 600-second agent and 60-second verifier limits for comparable evaluations. Explain any required limit or dependency changes in the PR. Keep the verifier's own runtime well under the 60-second limit, so a correct but slower submission is not cut off. If the reference is expensive, freeze its hidden predictions into `tests/data/` with `scripts/freeze_hidden_truth.py`, grade against the stored values, and have the validator recompute and compare them. The script expects `tests/reference.py` to define `hidden_inputs()`, `predict(experiments, parameter)` and `TRUE_PARAMETER`.
 
 ## 4. Validate the task before measuring agent difficulty
 

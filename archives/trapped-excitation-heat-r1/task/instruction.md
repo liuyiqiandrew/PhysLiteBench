@@ -1,0 +1,1 @@
+Complete the calibration and prediction model in `/app/model.py` for the apparatus described in `/app/README.md`. Fit the shared unknown parameter from `/app/data/calibration.json`, and predict every allowed measurement. You may revise the supplied predictor. Run the public tests before finishing.

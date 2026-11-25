@@ -1,0 +1,88 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,7 +3,7 @@
+ import numpy as np
+ from numpy.polynomial.hermite import hermgauss
+ from numpy.polynomial.laguerre import laggauss
+-from scipy.linalg import solve
++from scipy.linalg import lu_factor, lu_solve, solve
+ 
+ RATE=3.6
+ 
+@@ -125,7 +125,16 @@
+     if statistic not in ['mean','noise','third_cumulant']:raise ValueError('unknown calorimeter statistic')
+     if statistic=='mean' and flux_fraction==0. and angular_speed==0.:
+         return float(calibration_mean(e,drag))
+-    return kinetic_statistics(e,drag)[statistic]
++    return kinetic_readouts(angular_speed,flip_rate,temperature_a,temperature_b,
++                            flux_fraction,relaxation_rate,drag)[statistic]
++
++
++@lru_cache(512)
++def kinetic_readouts(angular_speed,flip_rate,temperature_a,temperature_b,
++                     flux_fraction,relaxation_rate,drag):
++    e=dict(zip(FIELDS,(angular_speed,flip_rate,temperature_a,temperature_b,
++                       flux_fraction,relaxation_rate)))
++    return kinetic_statistics(e,drag)
+ 
+ 
+ RATE=3.6
+@@ -169,18 +178,36 @@
+     constant=np.zeros(size);constant[0]=1.
+     return L,V,A1,A2,p,constant
+ 
+-def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
++def angular_hermite(e,gamma=.67,degree=32):
++    """Cumulant rates from the angle-resolved tilted backward generator.
++
++    For exp(-k Y), its first two derivatives are w*A1 and w**2*A2.
++    A1 includes the mixed heat/contact derivative from the shared bath-B
++    Wiener process.  Each angular Fourier block evolves with L + i*n*h*V,
++    where V multiplies by the actual rotor velocity, retaining phase memory.
++    """
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+     w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
++    # The gain couples Fourier modes 0 and +/-1 (in units of its harmonic).
++    # First-order eigenvector responses have precisely this support.  Only
++    # these same modes of the second response can return to mode zero in
++    # the third cumulant, so no higher Fourier modes need to be solved.
++    ns=[-1,0,1];mean=p@A1@constant
++    factors={}
+     def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
++        if n not in factors:
++            system=L+1j*n*harmonic*V
++            if n==0:system[0]=p
++            factors[n]=lu_factor(system,check_finite=False)
++        rhs=rhs.copy()
++        if n==0:rhs[0]=0.
++        return lu_solve(factors[n],rhs,check_finite=False)
++    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in [0,1]}
++    r1[-1]=r1[1].conj()
+     c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
++    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in [0,1]}
++    r2[-1]=r2[1].conj()
+     c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+     return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
+ 
+@@ -207,6 +234,11 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
+-
+-    def predict(self,experiments):return predict_at(experiments,self.drag)
++        """Fit the common drag by weighted least squares in conductance."""
++        self.drag=fit_drag(records)
++        return self
++
++    def predict(self,experiments):
++        if self.drag is None:
++            raise RuntimeError('Call fit before predict.')
++        return predict_at(experiments,self.drag)

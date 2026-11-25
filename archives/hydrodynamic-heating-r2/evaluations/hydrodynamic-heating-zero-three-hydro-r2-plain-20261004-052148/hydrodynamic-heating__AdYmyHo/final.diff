@@ -1,0 +1,79 @@
+--- before/model.py
++++ after/model.py
+@@ -4,6 +4,7 @@
+ GAMMA = .06
+ VISCOSITY = .04
+ NODES, WEIGHTS = leggauss(64)
++PLASMA_BOUNDS = (.85, 1.15)
+ 
+ 
+ def mode_matrix(z, frequency, thickness, angle, plasma_frequency):
+@@ -53,7 +54,67 @@
+         self.plasma_frequency = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Implement calibration fitting.")
++        """Calibrate the common plasma frequency from weighted observations.
++
++        The detector uncertainty is supplied with each calibration record, so
++        the likelihood (up to an additive constant) is the weighted residual
++        sum of squares.  There is only one unknown parameter; a bounded
++        one-dimensional search is both more robust and less dependent on
++        optional numerical packages than a general-purpose optimizer.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records],
++                              dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records],
++                           dtype=float)
++        if (not np.isfinite(observed).all() or
++                not np.isfinite(sigma).all() or np.any(sigma <= 0)):
++            raise ValueError("calibration values and sigma must be finite, with sigma > 0")
++
++        def objective(plasma_frequency):
++            predicted = np.asarray(
++                [response(experiment, plasma_frequency)
++                 for experiment in experiments],
++                dtype=float,
++            )
++            if not np.isfinite(predicted).all():
++                return np.inf
++            residual = (predicted - observed) / sigma
++            return float(residual @ residual)
++
++        lo, hi = PLASMA_BOUNDS
++
++        # Locate a bracket for the best basin first.  This also makes the
++        # calibration behave sensibly if a future data set is not perfectly
++        # quadratic over the allowed interval.
++        grid = np.linspace(lo, hi, 33)
++        scores = np.asarray([objective(value) for value in grid])
++        best = int(np.argmin(scores))
++        if best == 0 or best == len(grid) - 1:
++            fitted = float(grid[best])
++        else:
++            left, right = float(grid[best - 1]), float(grid[best + 1])
++            golden = (np.sqrt(5.0) - 1.0) / 2.0
++            x1 = right - golden * (right - left)
++            x2 = left + golden * (right - left)
++            f1, f2 = objective(x1), objective(x2)
++            for _ in range(60):
++                if f1 <= f2:
++                    right, x2, f2 = x2, x1, f1
++                    x1 = right - golden * (right - left)
++                    f1 = objective(x1)
++                else:
++                    left, x1, f1 = x1, x2, f2
++                    x2 = left + golden * (right - left)
++                    f2 = objective(x2)
++            fitted = (left + right) / 2.0
++
++        self.plasma_frequency = float(np.clip(fitted, lo, hi))
++        return self
+ 
+     def predict(self, experiments):
+         return np.asarray([response(e, self.plasma_frequency) for e in experiments], dtype=float)

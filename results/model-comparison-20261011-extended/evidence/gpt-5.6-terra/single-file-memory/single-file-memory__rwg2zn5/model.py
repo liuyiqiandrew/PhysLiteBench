@@ -1,0 +1,103 @@
+"""Asymptotic tagged-particle covariance model.
+
+The initially fixed, equally spaced configuration is the quenched version of
+single-file diffusion. Its long-time covariance is proportional to the square
+root of the common diffusivity, so calibration is a one-parameter fit.
+"""
+
+import numpy as np
+
+
+# These are specified by the apparatus, rather than fitted hyperparameters.
+_MIN_DIFFUSIVITY = 0.8
+_MAX_DIFFUSIVITY = 1.2
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    """Return the limiting covariance coefficient for one experiment."""
+    diffusivity = float(diffusivity)
+    density = float(density)
+    time_a = float(time_a)
+    time_b = float(time_b)
+    if not (np.isfinite(diffusivity) and diffusivity >= 0.0):
+        raise ValueError("diffusivity must be finite and non-negative")
+    if not (np.isfinite(density) and density > 0.0):
+        raise ValueError("density must be finite and positive")
+    if not (np.isfinite(time_a) and time_a > 0.0 and
+            np.isfinite(time_b) and time_b > 0.0):
+        raise ValueError("times must be finite and positive")
+
+    # Quenched, deterministic initial file:
+    # sqrt(D/(2*pi))/rho * (sqrt(a) + sqrt(b) - sqrt(|a-b|)).
+    time_factor = np.sqrt(time_a) + np.sqrt(time_b) - np.sqrt(abs(time_a - time_b))
+    return np.sqrt(diffusivity / (2.0 * np.pi)) * time_factor / density
+
+
+def predict_at(experiments, diffusivity):
+    """Evaluate the documented experiment dictionaries in their input order."""
+    if diffusivity is None:
+        raise RuntimeError("Model must be fitted before prediction")
+    values = [
+        covariance(diffusivity, experiment["density"], experiment["time_a"], experiment["time_b"])
+        for experiment in experiments
+    ]
+    # Explicitly retain the required 1-D shape, including an empty input.
+    return np.asarray(values, dtype=float).reshape(-1)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Fit the shared diffusivity by inverse-variance weighted MLE.
+
+        With prediction ``q_i * sqrt(D)``, this is a weighted, zero-intercept
+        linear regression for ``sqrt(D)``. The final estimate is limited to the
+        physical diffusivity interval documented for the apparatus.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        factors = np.empty(len(records), dtype=float)
+        observations = np.empty(len(records), dtype=float)
+        sigmas = np.empty(len(records), dtype=float)
+        for index, record in enumerate(records):
+            try:
+                experiment = record["input"]
+                observations[index] = float(record["value"])
+                sigmas[index] = float(record["sigma"])
+                # The model factor q_i is covariance evaluated at D = 1.
+                factors[index] = covariance(
+                    1.0,
+                    experiment["density"],
+                    experiment["time_a"],
+                    experiment["time_b"],
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("invalid calibration record at index %d" % index) from exc
+
+        if not (np.isfinite(observations).all() and np.isfinite(sigmas).all()):
+            raise ValueError("calibration values and sigmas must be finite")
+        if np.any(sigmas <= 0.0):
+            raise ValueError("calibration sigmas must be positive")
+
+        weights = 1.0 / np.square(sigmas)
+        denominator = np.sum(weights * np.square(factors))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError("calibration records do not identify diffusivity")
+        sqrt_diffusivity = np.sum(weights * factors * observations) / denominator
+        if not np.isfinite(sqrt_diffusivity):
+            raise ValueError("calibration fit is not finite")
+
+        sqrt_diffusivity = np.clip(
+            sqrt_diffusivity,
+            np.sqrt(_MIN_DIFFUSIVITY),
+            np.sqrt(_MAX_DIFFUSIVITY),
+        )
+        self.diffusivity = float(sqrt_diffusivity * sqrt_diffusivity)
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

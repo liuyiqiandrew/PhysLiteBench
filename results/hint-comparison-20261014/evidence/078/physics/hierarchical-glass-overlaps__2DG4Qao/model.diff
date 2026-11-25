@@ -1,0 +1,107 @@
+--- starter/model.py
++++ submission/model.py
+@@ -21,12 +21,57 @@
+ 
+ 
+ def leaf_partition(alpha, blocks):
++    """Probability of a labelled block partition for ``PD(alpha, 0)``.
++
++    This remains useful as the ordinary, unselected descendant result.  The
++    hierarchy itself uses :func:`selected_leaf_partition` below.
++    """
+     n = sum(blocks)
+     k = len(blocks)
+     result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
+     for size in blocks:
+         for j in range(1,size):
+             result *= j-alpha
++    return result
++
++
++def selected_leaf_partition(q, alpha, blocks):
++    """Descendant partition after selecting a family from the full Gibbs law.
++
++    The family mass contains its descendant partition sum.  In the Poisson
++    cascade limit, selecting that family tilts its descendant stable sum by
++    its ``q``-th power.  Its normalized leaf weights therefore have the
++    ``PD(alpha, -q)`` law.  This is important even when the requested event
++    contains several distinct leaves.
++    """
++    n = sum(blocks)
++    k = len(blocks)
++    result = 1.0
++    for i in range(1, k):
++        result *= i * alpha - q
++    for j in range(1, n):
++        result /= j - q
++    for size in blocks:
++        for j in range(1, size):
++            result *= j - alpha
++    return result
++
++
++def joint_leaf_partition(q, alpha, blocks):
++    """Full Gibbs probability of a parent-and-leaf block event.
++
++    This is ``participation(q, n) * selected_leaf_partition(...)`` with the
++    common factors cancelled.  Besides being simpler, that form is finite at
++    the high-temperature boundary ``q == 1`` where conditioning on a parent
++    collision would itself be a zero-probability limiting event.
++    """
++    n = sum(blocks)
++    result = 1.0 / math.factorial(n - 1)
++    for i in range(1, len(blocks)):
++        result *= i * alpha - q
++    for size in blocks:
++        for j in range(1, size):
++            result *= j - alpha
+     return result
+ 
+ 
+@@ -37,8 +82,10 @@
+     if observable == 'parent_collision':
+         return parent
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        # The two factors below cancel the selection tilt: globally the leaf
++        # weights are PD(alpha, 0), so this is not parent * participation.
++        return participation(alpha,replicas)
++    return joint_leaf_partition(q,alpha,blocks)
+ 
+ 
+ class Model:
+@@ -54,7 +101,32 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        # In the supplied calibration range both levels are annealed, hence
++        # the limiting energy density is -beta * width**2.  Independent
++        # Gaussian reading errors make weighted least squares the MLE.
++        numerator = 0.0
++        denominator = 0.0
++        count = 0
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++                energy = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError) as error:
++                raise ValueError('Calibration records need finite beta, value, and sigma.') from error
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(energy) or not math.isfinite(sigma)
++                    or sigma <= 0.0):
++                raise ValueError('Calibration records need beta in [0.2, 0.6] and positive finite sigma.')
++            weight = 1.0/(sigma*sigma)
++            numerator -= weight*beta*energy
++            denominator += weight*beta*beta
++            count += 1
++        if count == 0:
++            raise ValueError('At least one calibration record is required to fit width.')
++        squared = min(WIDTH_INTERVAL[1]**2, max(WIDTH_INTERVAL[0]**2, numerator/denominator))
++        self.width = math.sqrt(squared)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

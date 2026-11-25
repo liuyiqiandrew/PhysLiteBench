@@ -1,0 +1,198 @@
+"""Scaled current CGF for the weakly asymmetric exclusion ring.
+
+The microscopic rate prefactor multiplies the complete generator, so it is a
+single multiplicative factor in the SCGF.  ``_unit_scgf`` consequently works
+with diffusivity one and :class:`Model` estimates that factor by weighted least
+squares.
+
+For a half-filled ring the homogeneous macroscopic-fluctuation-theory saddle
+gives ``lambda * (lambda + 2 E) / 4``.  At sufficiently large fields this
+saddle becomes unstable for biases around ``-E``.  The replacement saddle is a
+particle-hole-symmetric stationary wave.  It is evaluated below by a small
+spectral variational solve.  Keeping this branch matters in the upper part of
+the documented input domain (fields up to 12).
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+
+import numpy as np
+
+
+# The first Fourier mode on a unit ring has wave number 2*pi.  The flat saddle
+# is stable unless E**2 - (lambda + E)**2 exceeds this value squared.
+_FLAT_STABILITY_LIMIT = 4.0 * np.pi**2
+
+
+def _flat_scgf(field: float, bias: float) -> float:
+    """Unit-diffusivity homogeneous SCGF."""
+    return 0.25 * bias * (bias + 2.0 * field)
+
+
+@lru_cache(maxsize=4096)
+def _wave_scgf(field: float, offset: float) -> float:
+    """Unit-diffusivity SCGF in the symmetry-broken regime.
+
+    ``offset`` is ``bias + field``.  At density one half the optimal profile
+    is particle-hole antisymmetric.  With
+
+        rho = (1 + sin(theta)) / 2,
+
+    its variational functional is
+
+        offset**2 / (2 A) - <theta_x**2>/4
+        - field**2 <cos(theta)**2>/4,
+
+    where ``A = 2 <sec(theta)**2>``.  We parameterize an antisymmetric
+    profile as ``theta = pi/2 tanh(sum c_n sin(2*pi*(2n+1)*x))``.  The tanh
+    parameterization enforces the physical density bounds even for the
+    strongly jammed profiles near offset = 0.
+    """
+    # Import lazily: the overwhelmingly common, flat branch has no SciPy
+    # dependency or optimizer overhead.
+    from scipy.optimize import minimize
+
+    field = float(field)
+    offset = float(offset)
+
+    modes = np.arange(1, 24, 2, dtype=float)  # 12 odd Fourier modes
+    points = 256
+    x = np.arange(points, dtype=float) / points
+    sine_basis = np.sin(2.0 * np.pi * np.outer(x, modes))
+    wave_numbers = 2.0 * np.pi * np.fft.fftfreq(points, d=1.0 / points)
+    offset_squared = offset * offset
+    field_squared = field * field
+
+    def functional(coefficients: np.ndarray) -> tuple[float, np.ndarray]:
+        potential = sine_basis @ coefficients
+        # The optimizer's modest coefficient bounds make this comfortably
+        # finite, including the nearly fully occupied/empty plateaux.
+        theta = 0.5 * np.pi * np.tanh(potential)
+        theta_by_potential = 0.5 * np.pi / np.cosh(potential) ** 2
+
+        cosine = np.cos(theta)
+        secant_squared = 1.0 / (cosine * cosine)
+        tangent = np.tan(theta)
+        susceptibility_integral = 2.0 * np.mean(secant_squared)
+
+        theta_hat = np.fft.fft(theta)
+        theta_x = np.fft.ifft(1j * wave_numbers * theta_hat).real
+        theta_xx = np.fft.ifft(-(wave_numbers * wave_numbers) * theta_hat).real
+
+        value = (
+            offset_squared / (2.0 * susceptibility_integral)
+            - 0.25 * np.mean(theta_x * theta_x)
+            - 0.25 * field_squared * np.mean(cosine * cosine)
+        )
+
+        # Gradient of the functional with respect to theta, followed by the
+        # chain rule through theta(potential) and the sine expansion.
+        theta_gradient = (
+            -2.0
+            * offset_squared
+            / (susceptibility_integral * susceptibility_integral)
+            * secant_squared
+            * tangent
+            + 0.5 * theta_xx
+            + 0.25 * field_squared * np.sin(2.0 * theta)
+        )
+        coefficient_gradient = (
+            sine_basis.T @ (theta_gradient * theta_by_potential) / points
+        )
+        return float(value), coefficient_gradient
+
+    def negative_functional(coefficients: np.ndarray) -> tuple[float, np.ndarray]:
+        value, gradient = functional(coefficients)
+        return -value, -gradient
+
+    # The zero profile is unstable here.  A few amplitudes make the numerical
+    # selection insensitive to proximity to the continuous transition.
+    best_value = -np.inf
+    bounds = [(-6.0, 6.0)] * len(modes)
+    for amplitude in (0.15, 0.6, 1.5, 3.0):
+        initial = np.zeros(len(modes), dtype=float)
+        initial[0] = amplitude
+        result = minimize(
+            negative_functional,
+            initial,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={"maxiter": 800, "maxls": 60, "ftol": 1e-12, "gtol": 1e-9},
+        )
+        candidate, _ = functional(result.x)
+        if np.isfinite(candidate):
+            best_value = max(best_value, candidate)
+
+    # A finite flat value is a safe numerical fallback.  It is never selected
+    # in normal operation, because this function is called only beyond the
+    # flat-saddle stability threshold.
+    return float(best_value if np.isfinite(best_value) else (offset_squared - field_squared) / 4.0)
+
+
+def _unit_scgf(field: float, bias: float) -> float:
+    """Return the asymptotic SCGF when the rate prefactor is one."""
+    field = float(field)
+    bias = float(bias)
+    offset = bias + field
+
+    if field * field - offset * offset <= _FLAT_STABILITY_LIMIT:
+        return _flat_scgf(field, bias)
+    return _wave_scgf(field, offset)
+
+
+def predict_at(experiments, diffusivity):
+    """Predict raw SCGF values for an iterable of documented input records."""
+    experiments = list(experiments)
+    if not experiments:
+        return np.empty(0, dtype=float)
+
+    scale = float(diffusivity)
+    values = np.empty(len(experiments), dtype=float)
+    for index, experiment in enumerate(experiments):
+        values[index] = scale * _unit_scgf(experiment["field"], experiment["bias"])
+    return values
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Fit the common rate prefactor using the supplied Gaussian errors."""
+        records = list(records)
+        if not records:
+            # With no observations the neutral, valid value is preferable to
+            # an undefined estimate.
+            self.diffusivity = 1.0
+            return self
+
+        inputs = [record["input"] for record in records]
+        observations = np.asarray([record["value"] for record in records], dtype=float)
+        errors = np.asarray([record["sigma"] for record in records], dtype=float)
+        unit_prediction = predict_at(inputs, 1.0)
+
+        usable = (
+            np.isfinite(observations)
+            & np.isfinite(errors)
+            & (errors > 0.0)
+            & np.isfinite(unit_prediction)
+        )
+        if np.any(usable):
+            weights = 1.0 / np.square(errors[usable])
+            predictor = unit_prediction[usable]
+            denominator = float(np.sum(weights * predictor * predictor))
+            if denominator > 0.0 and np.isfinite(denominator):
+                estimate = float(np.sum(weights * predictor * observations[usable]) / denominator)
+                if np.isfinite(estimate):
+                    self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
+                    return self
+
+        # Degenerate records (for example all lambda = E = 0) contain no
+        # information about the prefactor.  Preserve the documented bounds.
+        self.diffusivity = 1.0
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

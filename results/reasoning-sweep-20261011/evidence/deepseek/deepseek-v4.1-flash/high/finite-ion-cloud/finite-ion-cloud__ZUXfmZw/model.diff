@@ -1,0 +1,51 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,6 +3,10 @@
+ from scipy.optimize import minimize_scalar
+ from scipy.special import exprel, hyp2f1, roots_legendre
+ from functools import lru_cache
++
++
++# Coulomb coupling range allowed by the apparatus.
++COUPLING_BOUNDS = (0.7, 1.4)
+ 
+ 
+ @lru_cache(maxsize=None)
+@@ -24,8 +28,10 @@
+ 
+ 
+ def predict_at(experiments,coupling):
+-    return np.asarray([coefficient(e['temperature_multiplier']*coupling,
+-                                  e['ion_count'],e['radius_ratio']) for e in experiments])
++    values = [coefficient(e['temperature_multiplier']*coupling,
++                          e['ion_count'],e['radius_ratio'])
++              for e in experiments]
++    return np.asarray(values,dtype=float).reshape(-1)
+ 
+ 
+ class Model:
+@@ -33,7 +39,23 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        records = list(records)
++        if not records:
++            self.coupling = float(sum(COUPLING_BOUNDS)/2)
++            return self
++        inputs = [r['input'] for r in records]
++        values = np.asarray([r['value'] for r in records],dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records],dtype=float)
++        weights = 1.0/sigma
++
++        def objective(g):
++            residual = (predict_at(inputs,g)-values)*weights
++            return float(np.dot(residual,residual))
++
++        result = minimize_scalar(objective,bounds=COUPLING_BOUNDS,method='bounded',
++                                 options={'xatol':1e-10})
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.coupling)

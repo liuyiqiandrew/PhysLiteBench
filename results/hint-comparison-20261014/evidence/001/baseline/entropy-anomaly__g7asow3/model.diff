@@ -1,0 +1,60 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,55 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Fit the common friction coefficient to the calibration readouts.
++
++        The calibration uncertainties are independent Gaussian standard
++        uncertainties, so the appropriate objective is the weighted residual
++        sum of squares.  In the calibrated (unweighted) preparation the
++        small-mass prediction is proportional to the inverse common friction;
++        keeping the fit one-dimensional also makes this robust to the
++        duplicate calibration settings in the data.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        inputs=[]
++        values=[]
++        sigmas=[]
++        for record in records:
++            try:
++                inputs.append(record['input'])
++                values.append(float(record['value']))
++                sigma=float(record['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("invalid calibration record") from exc
++            if not np.isfinite(sigma) or sigma<=0:
++                raise ValueError("calibration sigma must be finite and positive")
++            sigmas.append(sigma)
++
++        values=np.asarray(values,dtype=float)
++        sigmas=np.asarray(sigmas,dtype=float)
++
++        # The allowed interval is part of the apparatus specification.  A
++        # bounded scalar search avoids making assumptions about the data's
++        # nominal friction and cannot produce an out-of-range fit.
++        from scipy.optimize import minimize_scalar
++
++        def objective(friction):
++            prediction=coefficients(inputs,float(friction))
++            residual=(prediction-values)/sigmas
++            return float(residual@residual)
++
++        result=minimize_scalar(objective,bounds=(.7,1.6),method='bounded',
++                               options={'xatol':1e-10})
++        candidates=(result.x,.7,1.6)
++        friction=min(candidates,key=objective)
++        if not np.isfinite(friction):
++            raise ValueError("could not fit a finite friction coefficient")
++        self.friction=float(friction)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise ValueError("fit the model before predicting")
++        return coefficients(experiments,self.friction)

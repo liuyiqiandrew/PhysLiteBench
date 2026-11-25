@@ -1,0 +1,17 @@
+--- before/model.py
++++ after/model.py
+@@ -43,7 +43,13 @@
+         self.density = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        records = list(records)
++        basis = predict_at([r['input'] for r in records], 1000.)
++        values = np.array([r['value'] for r in records])
++        sigma = np.array([r['sigma'] for r in records])
++        scale = np.sum(basis*values/sigma**2) / np.sum(basis**2/sigma**2)
++        self.density = float(1000 / scale**2)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.density)

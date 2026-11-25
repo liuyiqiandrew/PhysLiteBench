@@ -1,0 +1,1 @@
+The force-controlled mean extension and the mean force measured by an axial clamp describe different equilibrium preparations for a finite chain. Derive the clamp readout from the stated Cartesian spring preparation and the measured clamp force, with the transverse endpoint coordinates free.

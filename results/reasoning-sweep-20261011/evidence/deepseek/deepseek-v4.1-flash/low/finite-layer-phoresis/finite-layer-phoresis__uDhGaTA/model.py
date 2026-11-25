@@ -1,0 +1,101 @@
+from functools import lru_cache
+import numpy as np
+from scipy.integrate import quad, solve_bvp
+
+
+@lru_cache(256)
+def _solve_profile(radius, width, strength, slip):
+    """Solve the coupled radial solute/velocity boundary-value problem.
+
+    Returns the dimensionless mobility factor that is independent of the
+    solvent viscosity; the physical response is this factor divided by
+    viscosity.
+    """
+    end = radius + width
+
+    def equations(x, y):
+        r = radius + width * x
+        return np.array([
+            y[1],
+            -(2.0 * width / r + 2.0 * strength * (1.0 - x)) * y[1]
+            + 2.0 * width ** 2 * y[0] / r ** 2,
+        ])
+
+    def boundary(left, right):
+        return np.array([
+            left[1],
+            end * right[1] / width + 2.0 * right[0] - 3.0 * end,
+        ])
+
+    grid = np.linspace(0.0, 1.0, 129)
+    r = radius + width * grid
+    initial = np.array([
+        r + radius ** 3 / (2.0 * r ** 2),
+        width * (1.0 - radius ** 3 / r ** 3),
+    ])
+    solution = solve_bvp(equations, boundary, grid, initial,
+                         tol=2e-10, max_nodes=10000)
+    if not solution.success:
+        raise RuntimeError(solution.message)
+
+    def sol(x):
+        return solution.sol(x)
+
+    return sol
+
+
+@lru_cache(256)
+def response(radius, width, strength, slip):
+    """Dimensionless (viscosity-free) signed response for one experiment."""
+    if strength == 0:
+        return 0.0
+
+    end = radius + width
+    slope = -2.0 * strength / width
+    sol = _solve_profile(radius, width, strength, slip)
+
+    def integrand(r):
+        x = (r - radius) / width
+        concentration = np.exp(-strength * (1.0 - x) ** 2) * sol(x)[0]
+        weight = (r - radius) ** 2 * (2.0 * r + radius) / (2.0 * r)
+        return weight * concentration * slope * (1.0 - x)
+
+    beta = slip / radius
+    drag = (1.0 + 2.0 * beta) / (1.0 + 3.0 * beta)
+    integral = quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
+    return 2.0 / (9.0 * radius * drag) * integral
+
+
+def predict_at(experiments, viscosity):
+    return np.array([
+        response(e['radius'], e['width'], e['strength'], e['slip'])
+        for e in experiments
+    ]) / viscosity
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        # The response is linear in 1/viscosity; each record has independent
+        # Gaussian noise with the stated sigma, so the maximum-likelihood
+        # (weighted least-squares) estimate is a closed-form ratio.
+        R = np.array([
+            response(r['input']['radius'], r['input']['width'],
+                     r['input']['strength'], r['input']['slip'])
+            for r in records
+        ])
+        V = np.array([r['value'] for r in records], dtype=float)
+        S = np.array([r.get('sigma', 3e-5) for r in records], dtype=float)
+        W = 1.0 / S ** 2
+        denominator = np.sum(W * R * V)
+        if denominator == 0.0 or not np.isfinite(denominator):
+            raise ValueError('Calibration records do not constrain viscosity.')
+        self.viscosity = float(np.sum(W * R * R) / denominator)
+        return self
+
+    def predict(self, experiments):
+        if self.viscosity is None:
+            raise RuntimeError('Call fit() before predict().')
+        return predict_at(experiments, self.viscosity)

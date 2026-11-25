@@ -1,0 +1,110 @@
+"""Linear-response model for solute-driven motion of a spherical particle."""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.integrate import quad, solve_bvp
+
+
+@lru_cache(maxsize=512)
+def response(radius, width, strength, slip):
+    """Return the viscosity-independent mobility for one preparation.
+
+    The concentration perturbation is ``exp(-U) f(r) cos(theta)``.  This
+    solves for its radial coefficient and applies reciprocal force balance.
+    Viscosity enters only as an overall inverse factor, after calibration.
+    """
+    radius, width, strength, slip = map(float, (radius, width, strength, slip))
+    if radius <= 0.0 or width <= 0.0 or slip < 0.0:
+        raise ValueError("radius and width must be positive and slip non-negative")
+    if strength == 0.0:
+        return 0.0
+
+    end = radius + width
+
+    # x=(r-a)/w. f has no normal flux at x=0 and matches r + A/r**2 outside.
+    def equations(x, y):
+        r = radius + width * x
+        return np.array([
+            y[1],
+            -(2.0 * width / r + 2.0 * strength * (1.0 - x)) * y[1]
+            + 2.0 * width**2 * y[0] / r**2,
+        ])
+
+    def boundary(left, right):
+        return np.array([left[1], end * right[1] / width + 2.0 * right[0] - 3.0 * end])
+
+    grid = np.linspace(0.0, 1.0, 129)
+    r_grid = radius + width * grid
+    initial = np.array([
+        r_grid + radius**3 / (2.0 * r_grid**2),
+        width * (1.0 - radius**3 / r_grid**3),
+    ])
+    solution = solve_bvp(equations, boundary, grid, initial, tol=2e-10, max_nodes=20000)
+    if not solution.success:
+        raise RuntimeError("concentration boundary-value solve failed: " + solution.message)
+
+    # Translating/slipping-sphere drag relative to 6*pi*eta*a.
+    lam = slip / radius
+    drag_ratio = (1.0 + 2.0 * lam) / (1.0 + 3.0 * lam)
+
+    # Radial flow h=1-A/r+B/r**3 in the reciprocal uniform-flow problem.
+    # A and B follow from Navier slip, and reduce to the no-slip form at b=0.
+    a_over = 1.5 * radius * (1.0 + 2.0 * lam) / (1.0 + 3.0 * lam)
+    b_over = 0.5 * radius**3 / (1.0 + 3.0 * lam)
+
+    def integrand(r):
+        x = (r - radius) / width
+        concentration = np.exp(-strength * (1.0 - x) ** 2) * solution.sol(x)[0]
+        d_potential_dr = -2.0 * strength * (1.0 - x) / width
+        reciprocal_weight = r**2 - a_over * r + b_over / r
+        return reciprocal_weight * concentration * d_potential_dr
+
+    integral = quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11, limit=100)[0]
+    return float(2.0 * integral / (9.0 * radius * drag_ratio))
+
+
+def predict_at(experiments, viscosity):
+    """Predict responses for experiments at a specified dynamic viscosity."""
+    viscosity = float(viscosity)
+    if not np.isfinite(viscosity) or viscosity <= 0.0:
+        raise ValueError("viscosity must be finite and positive")
+    return np.asarray([
+        response(e["radius"], e["width"], e["strength"], e["slip"])
+        for e in experiments
+    ], dtype=float) / viscosity
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        """Fit viscosity by weighted least squares to independent records."""
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        mobilities = np.asarray([
+            response(r["input"]["radius"], r["input"]["width"],
+                     r["input"]["strength"], r["input"]["slip"])
+            for r in records
+        ], dtype=float)
+        values = np.asarray([r["value"] for r in records], dtype=float)
+        sigmas = np.asarray([r["sigma"] for r in records], dtype=float)
+        if (not np.isfinite(mobilities).all() or not np.isfinite(values).all()
+                or not np.isfinite(sigmas).all() or np.any(sigmas <= 0.0)):
+            raise ValueError("calibration values and sigmas must be finite, with positive sigmas")
+
+        weights = 1.0 / sigmas**2
+        denominator = np.sum(weights * mobilities**2)
+        numerator = np.sum(weights * mobilities * values)
+        if not np.isfinite(denominator) or denominator <= 0.0 or numerator <= 0.0:
+            raise ValueError("calibration records do not identify a positive viscosity")
+        self.viscosity = float(denominator / numerator)
+        return self
+
+    def predict(self, experiments):
+        if self.viscosity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.viscosity)

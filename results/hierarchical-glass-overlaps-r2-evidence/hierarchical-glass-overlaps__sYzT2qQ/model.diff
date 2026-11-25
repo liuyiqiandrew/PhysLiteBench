@@ -1,0 +1,45 @@
+--- before/model.py
++++ after/model.py
+@@ -54,7 +54,41 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit the material scale from the calibration measurements.
++
++        Every calibration beta is below the first freezing threshold even at
++        the largest allowed width.  Consequently the thermodynamic mean
++        energy density is ``-beta * width**2``.  Writing ``x = width**2``
++        makes the weighted least-squares fit a one-parameter linear fit.
++        """
++        rows = list(records)
++        if not rows:
++            raise ValueError('At least one calibration record is required.')
++
++        beta = np.asarray([float(row['input']['beta']) for row in rows],
++                          dtype=float)
++        measured = np.asarray([float(row['value']) for row in rows],
++                              dtype=float)
++        sigma = np.asarray([float(row['sigma']) for row in rows], dtype=float)
++
++        if (not np.all(np.isfinite(beta)) or not np.all(np.isfinite(measured))
++                or not np.all(np.isfinite(sigma)) or np.any(sigma <= 0)
++                or np.any(beta < .2) or np.any(beta > .6)):
++            raise ValueError('Invalid calibration record.')
++
++        weights = 1.0 / (sigma * sigma)
++        denominator = np.sum(weights * beta * beta)
++        if not math.isfinite(float(denominator)) or denominator <= 0:
++            raise ValueError('Invalid calibration record.')
++
++        width_squared = np.sum(weights * beta * (-measured)) / denominator
++        width_squared = float(width_squared)
++        if not math.isfinite(width_squared) or width_squared <= 0:
++            raise ValueError('Calibration does not give a positive width.')
++
++        width = math.sqrt(width_squared)
++        self.width = min(WIDTH_INTERVAL[1], max(WIDTH_INTERVAL[0], width))
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

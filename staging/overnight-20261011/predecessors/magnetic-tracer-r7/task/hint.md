@@ -1,0 +1,1 @@
+A passive line integral along finite-mass paths need not equal the same Stratonovich functional of the limiting position diffusion. Retain the antisymmetric fast velocity correlations when deriving the circulation detector.

@@ -1,0 +1,33 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,7 +54,29 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        # All calibration temperatures are in the liquid phase, where the
++        # limiting energy per configuration is -beta * width**2.
++        numerator = 0.0
++        denominator = 0.0
++        count = 0
++        for row in records:
++            beta = float(row['input']['beta'])
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(measured)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Invalid calibration record.')
++            weight = 1.0 / (sigma * sigma)
++            numerator -= weight * beta * measured
++            denominator += weight * beta * beta
++            count += 1
++        if not count:
++            raise ValueError('At least one calibration record is required.')
++        squared_width = min(WIDTH_INTERVAL[1] ** 2,
++                            max(WIDTH_INTERVAL[0] ** 2, numerator / denominator))
++        self.width = math.sqrt(squared_width)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

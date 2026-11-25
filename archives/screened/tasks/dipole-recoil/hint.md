@@ -1,0 +1,1 @@
+Extinction removes momentum from the incident beam, but the total mechanical force must also account for momentum carried away by the scattered field. Combine the electric and magnetic dipole radiation amplitudes before integrating the outgoing momentum flux. Their interference can have zero net contribution to scattered power and still carry nonzero net longitudinal momentum.

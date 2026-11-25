@@ -1,0 +1,52 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -61,7 +62,40 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        """Estimate the common viscosity by weighted least squares.
++
++        The calibration values have independent, known Gaussian errors, so
++        minimizing the sum of squared residuals divided by ``sigma`` is the
++        maximum-likelihood estimate.  The physical range is supplied in the
++        apparatus description and is used directly as the search interval.
++        """
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        uncertainties = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if not experiments:
++            raise ValueError('at least one calibration record is required')
++        if (not np.all(np.isfinite(observed)) or
++                not np.all(np.isfinite(uncertainties)) or
++                np.any(uncertainties <= 0)):
++            raise ValueError('calibration values and positive sigmas must be finite')
++
++        # ``predict`` reads the model's viscosity, so keep the trial parameter
++        # local to this fit and restore the final optimum after the search.
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - observed) / uncertainties
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018), method='bounded',
++                                 options={'xatol': 1e-10, 'maxiter': 100})
++        # Include both physical endpoints in case the likelihood is minimized
++        # at a boundary (the bounded algorithm itself stays in the interior).
++        candidates = [(float(result.fun), float(result.x)),
++                      (objective(0.006), 0.006),
++                      (objective(0.018), 0.018)]
++        self.viscosity = min(candidates, key=lambda pair: pair[0])[1]
++        return self
+ 
+     def predict(self, experiments):
+         m, n, _, mean, *_ = operators()

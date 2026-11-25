@@ -1,0 +1,65 @@
+import numpy as np
+from scipy.optimize import brentq
+
+
+def response(e):
+    # Mapping the rods to point particles leaves a free length density
+    # c.  For this (annealed) two-length preparation the centre current
+    # depends on the mean occupied length, rather than on the contrast.
+    rho, mean = float(e['density']), float(e['length'])
+    if e['statistic'] == 'mean':
+        return 0.
+    if e['statistic'] == 'variance':
+        return rho*(1-rho*mean)
+    field = abs(float(e['counting_field']))
+    if field == 0.:
+        return 0.
+
+    # With s the point-particle counting field, the hard-rod coordinate
+    # change gives lambda = s + c * mean * sinh(s), while
+    # psi = c * (cosh(s) - 1).  The latter is written in its numerically
+    # well-conditioned half-angle form below.
+    c = rho/(1-rho*mean)
+    s = brentq(lambda s: s+c*mean*np.sinh(s)-field, 0., field+1, xtol=1e-14)
+    return c*2*np.sinh(s/2)**2
+
+
+def predict_at(experiments, speed):
+    return speed*np.asarray([response(e) for e in experiments])
+
+
+class Model:
+    def __init__(self):
+        self.speed = None
+
+    def fit(self, records):
+        """Fit the shared speed by Gaussian weighted least squares.
+
+        Every readout is the unit-speed response times the same speed, so
+        the likelihood has a one-parameter closed-form minimizer.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError('at least one calibration record is required')
+
+        unit_response = np.asarray([response(record['input']) for record in records],
+                                   dtype=float)
+        observed = np.asarray([record['value'] for record in records], dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
+        if (not np.isfinite(unit_response).all() or not np.isfinite(observed).all()
+                or not np.isfinite(sigma).all() or np.any(sigma <= 0.)):
+            raise ValueError('calibration records must contain finite values and positive sigma')
+
+        weights = 1.0 / sigma**2
+        denominator = np.sum(weights * unit_response**2)
+        if denominator == 0.:
+            raise ValueError('calibration contains no speed-sensitive readout')
+
+        estimate = np.sum(weights * unit_response * observed) / denominator
+        # The apparatus specifies the physical parameter range, hence this
+        # is the constrained Gaussian maximum-likelihood estimate.
+        self.speed = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.speed)

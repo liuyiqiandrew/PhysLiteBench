@@ -1,0 +1,45 @@
+--- starter/model.py
++++ submission/model.py
+@@ -33,7 +33,15 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        def loss(g):
++            return sum(((coefficient(r['input']['temperature_multiplier']*g,
++                                     r['input']['ion_count'],
++                                     r['input']['radius_ratio'])-r['value'])/
++                        r['sigma'])**2 for r in records)
++        result = minimize_scalar(loss, bounds=(0.7, 1.4), method='bounded',
++                                 options={'xatol': 1e-10})
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.coupling)
+@@ -51,9 +59,22 @@
+     d1 = np.broadcast_to((length*x)[:,None],(order,order)).ravel()
+     d2 = ((length-length*x)[:,None]*x[None,:]).ravel()
+     weights = (length*(length-length*x)[:,None]*w[:,None]*w[None,:]).ravel()
+-    angular = np.ones(len(d1))
+-    for gap in [d1,d2,d1+d2]:
+-        angular *= hyp2f1(-gamma/2,-gamma/2,1,np.exp(-2*gap))
++    # With one angle fixed, angular averaging of the three pair factors
++    # selects equal Fourier modes from all three pairs.  Multiplying their
++    # separate averages would discard the correlated modes.
++    p = gamma/2
++    gaps = (d1, d2, d1+d2)
++    radii = [np.exp(-gap) for gap in gaps]
++    squares = [r*r for r in radii]
++    zero = [hyp2f1(-p,-p,1,z) for z in squares]
++    angular = zero[0]*zero[1]*zero[2]
++    factors = [np.ones_like(r) for r in radii]
++    for mode in range(1,33):
++        for j in range(3):
++            factors[j] *= (mode-1-p)/mode*radii[j]
++        modes = [factors[j]*hyp2f1(mode-p,-p,mode+1,squares[j])
++                 for j in range(3)]
++        angular += 2*modes[0]*modes[1]*modes[2]
+     span = length-d1-d2
+     slope = 6-6*gamma
+     weight = weights*angular*np.exp((4-3*gamma)*d1+(2-gamma)*d2)

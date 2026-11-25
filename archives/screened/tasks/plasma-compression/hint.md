@@ -1,0 +1,1 @@
+The gyro motion and longitudinal bouncing retain separate adiabatic actions. Follow the two velocity variances through the radius and length changes before projecting the pressure tensor onto the detector normal. The collisionless preparation does not supply pitch-angle scattering that would maintain one isotropic pressure.

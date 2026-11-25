@@ -1,0 +1,1 @@
+The isotropic osmotic pressure is only part of the composition stress. Vary the gradient free energy under incompressible material advection, then impose Stokes force balance. One-dimensional stripes have pressure-balanced reversible forces; two-dimensional mixtures of unequal wavelengths can have a nonzero divergence-free force and advective composition flux.

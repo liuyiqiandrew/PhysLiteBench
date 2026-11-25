@@ -1,0 +1,73 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,68 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Estimate the single, common drag coefficient.
++
++        The calibration protocol deliberately uses identical contacts
++        (zero magnetic field and zero bath contrast).  In that case a change
++        of the common drag just rescales the limiting entropy rate by
++        ``1 / friction``.  Fitting that scale directly is both more accurate
++        and substantially less expensive than repeatedly solving the spatial
++        problem in a scalar optimiser.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [r['input'] for r in records]
++        observed = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values and positive sigmas must be finite")
++
++        # All supplied calibration records have the rescaling symmetry above.
++        # Keep a small generic fall-back so Model remains well behaved if a
++        # caller supplies another valid collection of records.
++        symmetric = all(
++            r.get('input', {}).get('bath_contrast') == 0
++            and r.get('input', {}).get('magnetic') == 0
++            and 'valve_cycle' not in r.get('input', {})
++            for r in records
++        )
++        if symmetric:
++            at_unit_drag = coefficients(experiments, 1.)
++            inv_drag = np.sum(at_unit_drag * observed / sigma**2) / np.sum(at_unit_drag**2 / sigma**2)
++            if not np.isfinite(inv_drag) or inv_drag <= 0:
++                raise ValueError("calibration data cannot identify a positive friction")
++            friction = 1. / inv_drag
++        else:
++            # A bounded golden-section search avoids an optional scipy
++            # dependency.  The objective is a one-dimensional weighted
++            # least-squares fit and is smooth for the allowed apparatus range.
++            def loss(friction):
++                residual = (coefficients(experiments, friction) - observed) / sigma
++                return float(residual @ residual)
++
++            left, right = .7, 1.6
++            ratio = (5**.5 - 1.) / 2.
++            x1, x2 = right - ratio * (right-left), left + ratio * (right-left)
++            y1, y2 = loss(x1), loss(x2)
++            for _ in range(28):
++                if y1 <= y2:
++                    right, x2, y2 = x2, x1, y1
++                    x1 = right - ratio * (right-left)
++                    y1 = loss(x1)
++                else:
++                    left, x1, y1 = x1, x2, y2
++                    x2 = left + ratio * (right-left)
++                    y2 = loss(x2)
++            friction = (left + right) / 2.
++
++        self.friction = float(np.clip(friction, .7, 1.6))
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        return coefficients(experiments,self.friction)

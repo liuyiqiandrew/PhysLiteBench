@@ -1,0 +1,1 @@
+The calorimeters are attached to the Cartesian Langevin reservoirs. Write the stationary energy balance for each velocity component, including every force in that component. A force that has zero total power can still exchange energy between components.

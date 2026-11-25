@@ -1,0 +1,114 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -38,17 +39,46 @@
+     return m, n, wave2, mean, qx, qy
+ 
+ 
++@lru_cache(4)
++def mixed_operator(nx=X_MODES, ny=Y_MODES):
++    """The Bx*By part of the magnetic damping operator.
++
++    A convenient way of obtaining the induced current is to introduce its
++    stream function.  If ``u`` is expanded in the sine basis, the source for
++    that stream function is ``Bx*u_x + By*u_y``.  The two diagonal pieces of
++    the resulting quadratic form are assembled in :func:`operators`; this
++    routine assembles its symmetric mixed piece.
++
++    Only stream-function modes that can couple two retained velocity modes
++    are needed here.  The diagonal pieces intentionally retain the original
++    (larger) electric-mode truncation used by ``operators``.
++    """
++    m, n, *_ = operators(nx, ny)
++    dm = derivative_overlap(m, m) / WIDTH
++    dn = derivative_overlap(n, n) / HEIGHT
++
++    # Lx.T K^-1 Ly.  For velocity modes i=(m_i,n_i) and
++    # j=(m_j,n_j), the common stream mode is (m_j,n_i).
++    k2 = (m[None, :] * np.pi / WIDTH) ** 2 + (n[:, None] * np.pi / HEIGHT) ** 2
++    one_cross = dm.T * dn / k2
++    return one_cross + one_cross.T
++
++
+ @lru_cache(64)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+     m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    magnetic = (bx*bx*qx + by*by*qy +
++                bx*by*mixed_operator(nx, ny))
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        # The mixed term couples the odd/odd pressure-driven modes to the
++        # even/even modes.  Both parity sectors therefore belong to the same
++        # block when Bx and By are present.
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,17 +91,49 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        records = list(records)
++        if not records:
++            raise ValueError('at least one calibration record is required')
++
++        experiments = [record['input'] for record in records]
++        observations = np.asarray([record['value'] for record in records],
++                                  dtype=float)
++        uncertainties = np.asarray([record['sigma'] for record in records],
++                                    dtype=float)
++        if (not np.isfinite(observations).all() or
++                not np.isfinite(uncertainties).all() or
++                np.any(uncertainties <= 0)):
++            raise ValueError('calibration values and sigmas must be finite, with positive sigmas')
++
++        def objective(viscosity):
++            prediction = self._predict(experiments, viscosity)
++            residual = (prediction - observations) / uncertainties
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018),
++                                 method='bounded',
++                                 options={'xatol': 1e-12, 'maxiter': 100})
++        if not result.success or not np.isfinite(result.x):
++            raise RuntimeError('viscosity fit did not converge')
++        self.viscosity = float(np.clip(result.x, 0.006, 0.018))
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError('fit must be called before predict')
++        return self._predict(experiments, self.viscosity)
++
++    @staticmethod
++    def _predict(experiments, viscosity):
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:
+-            bx, by = e['magnetic_x'], e['magnetic_y']
++            bx = float(e['magnetic_x'])
++            by = float(e['magnetic_y'])
+             observation = mean if e['observable'] == 'mean' else 2*np.sin(m*np.pi*e['x'])*np.sin(n*np.pi*e['y'])
+             value = 0.
+-            for ids, rates, vectors, forcing in spectrum(self.viscosity, bx, by):
++            for ids, rates, vectors, forcing in spectrum(viscosity, bx, by):
+                 amplitude = vectors@(-np.expm1(-rates*e['time'])/rates*forcing)
+                 value += observation[ids]@amplitude
+-            output.append(e['pressure_gradient']/DENSITY*value)
+-        return np.array(output)
++            output.append(float(e['pressure_gradient'])/DENSITY*value)
++        return np.asarray(output, dtype=float)

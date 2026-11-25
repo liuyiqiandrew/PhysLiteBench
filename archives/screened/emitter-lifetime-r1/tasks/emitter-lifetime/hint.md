@@ -1,0 +1,1 @@
+The measured quantity is excited-state population. Relate its weak-coupling decay to the complete electromagnetic response at the emitter, and check which energy-transfer channels are represented by a propagating plane-wave calculation.

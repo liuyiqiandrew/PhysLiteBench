@@ -1,0 +1,141 @@
+{
+  "task": "active-wall-pressure",
+  "revision": 1,
+  "reviewer": "physics_review",
+  "reviewed_utc": "2026-10-04T10:14:37.082660+00:00",
+  "status": "approved_final_source_input_science_and_local_review",
+  "blockers": [],
+  "scope": "Read actual final apparatus, starter, oracle, independent reference, completed control, validator, public/private tests, metadata, Dockerfile, AUTHOR and frozen reports. Independently checked equations and provenance; no numerical, local-control or model evaluation was rerun.",
+  "physics_findings": [
+    "The translational drift contains the spatial derivative of the entire wall potential, including orientational interaction. The n=0,\u00b11,\u00b12 Fourier coefficients have the correct factors and signs.",
+    "Angular drift tau=\u2212Dr*V_theta/T leads to Fourier couplings n*Dr*h*A*(c_(n\u22122)\u2212c_(n+2))/(2T). These match the implemented generator; its c0 normalization is integral rho dx=1 and real cn are cosine moments.",
+    "Zero positional flux gives P/loading=T*rho(0)+v*integral_0^infinity m dx. The stationary first angular moment gives Dr*integral m=v*q(0)\u2212T*m_prime(0)\u2212integral sin(theta)*tau*psi. The moment-stress source is exact at h=0 and retains finite-channel anisotropy and polarization gradients.",
+    "Since sin(theta)*sin(2theta)=(cos(theta)\u2212cos(3theta))/2, the oracle adds +v*integral h*A*(c1\u2212c3)/(2T) dx. This has the correct sign for the defined right-coating reaction.",
+    "The reference independently solves a positive position-angle Markov generator using Scharfetter\u2013Gummel potential differences and active spatial bias. It measures sum(V_x*probability) over the right wall directly rather than using the oracle moment conversion. Unit-particle normalization times the stated loading is force per y-length.",
+    "Both wall coatings carry their full potential when translated, so displacement work fixes the normal force uniquely. Negative alignment can create orientational attraction but the quartic potential still confines particles; thermal diffusion makes the stationary process well defined."
+  ],
+  "public_and_grading_review": {
+    "neutral_instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "all_implementation_replacement_permitted": true,
+    "unnecessary_repair_hint_found": false,
+    "solver_mandate_found": false,
+    "parameter_default": null,
+    "fixed_sigma": 0.001,
+    "calibration_records": 288,
+    "calibration_copies_equal": true,
+    "prediction_limit": 0.04,
+    "readout": "The actual mechanical reaction on the right coating per y-length, positive toward +x, with solvent/support background subtracted. No moment-stress or torque-correction formula appears publicly.",
+    "public_boundary": "Only README, starter, public test and calibration are copied to /app. Author, hint, reference and solution remain private.",
+    "data": "All records have only known controls, noisy value and fixed sigma. No response-shaped uncertainty or private parameter initialization.",
+    "grading": "Tests require documented output shape, finite values, fit recovery and relative observable errors; no algorithm or representation is required."
+  },
+  "science_report_review": {
+    "calibration": {
+      "records": 288,
+      "unique_inputs": 12,
+      "loading": 1.0696888893567547,
+      "relative_error": 0.0002907576105096732,
+      "chi2": 0.814149434417946,
+      "control_equivalence_max": 0.0,
+      "minimum_slope": 0.14736963031342903,
+      "fisher_information": 22675374.659334682,
+      "maximum_numerical_calibration_bias_sigma": 6.026062326913717e-05,
+      "uncertainty": "constant sigma=.001, independent of loading and response"
+    },
+    "noise256": {
+      "all_parameter_and_calibration_pass": true,
+      "all_oracle_pass": true,
+      "all_shortcut_diagnostic_fail": true,
+      "max_chi2": 1.2560750187373373,
+      "max_relative_parameter_error": 0.0005565127620918986,
+      "max_oracle_hidden_error": 0.0005571318473729512,
+      "minimum_shortcut_diagnostic_error": 0.31510978117101995,
+      "loading_range": [
+        1.0694561856744864,
+        1.0705954686554384
+      ]
+    },
+    "hidden_nominal_errors": {
+      "normal_alignment": {
+        "oracle_nrms": 0.0002901390930758583,
+        "shortcut_nrms": 0.3156457438035772,
+        "reference_signal_min": 0.3093830785732119
+      },
+      "tangential_alignment": {
+        "oracle_nrms": 0.0002908784823042093,
+        "shortcut_nrms": 0.3468154865771946,
+        "reference_signal_min": 0.20904241505878696
+      },
+      "mixed_controls": {
+        "oracle_nrms": 0.00029063541976470365,
+        "shortcut_nrms": 0.3265891225923212,
+        "reference_signal_min": 0.1836348365311022
+      },
+      "torque_free_anchors": {
+        "oracle_nrms": 0.00029069190263952946,
+        "shortcut_nrms": 0.00029069190263952946,
+        "reference_signal_min": 0.24519054651956357
+      }
+    },
+    "corner_count": 24,
+    "oracle_reference_corner_relative_error_max": 1.2524998146483915e-06,
+    "oracle_spatial_refinement_max": 1.5718345485895488e-06,
+    "reference_refinement_max": 3.3497858165534943e-07,
+    "passive_partition_relative_error_max": 7.625838275310884e-07,
+    "limitation": "Corner, refinement and passive-limit numerical evidence was reviewed as reported, not rerun or promoted to a whole-domain mathematical proof. Numerical negative density minima are roundoff scale."
+  },
+  "local_controls_review": {
+    "oracle": "7 passed",
+    "shortcut": "4 passed and exactly 3 intended hidden prediction failures",
+    "oracle_elapsed_seconds": 4.4970297499676235,
+    "shortcut_elapsed_seconds": 4.1657985000056215,
+    "warnings": "Only inability to write pytest cache on the read-only local filesystem; no scientific or model runtime error."
+  },
+  "causal_trial_guidance": "A failure qualifies as this intended physical closure only if the final model keeps torque-free moment stress despite orienting walls. If it derives the actual coating-force integral or correct angular transfer but fails in implementation, record that mathematical/implementation cause separately.",
+  "provenance": {
+    "path": "staging/active-wall-pressure-r1/results/active-wall-pressure-r1-source-provenance.json",
+    "sha256": "063fc7d236073a555e7c5ffc8ece48f98fe8efb3a0106d3dc1e9f842af32f4cb",
+    "entries_verified": 30,
+    "source_entries": 18,
+    "report_entries": 2,
+    "prototype_entries": 10,
+    "mismatches": []
+  },
+  "source_sha256": {
+    "scripts/active_wall_pressure_baseline.py": "b9db42cc585c13fde56a5d809d550fa2b2cf891473c001e43ef9b1ea5fffea6a",
+    "scripts/validate_active_wall_pressure.py": "d7026fdcbf9f4b70570777462fe0cbbf56b8c7b1b839214783ba19d7c47e2fd5",
+    "tasks/active-wall-pressure/AUTHOR.md": "4bb76cd813c9de37d67562c9845ed8d3126581cd4bec1d7a8e41cd74dc44a9cc",
+    "tasks/active-wall-pressure/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/active-wall-pressure/environment/README.md": "ff05042c68e78e45a12286317c007822727df72989c7cd8c952d5986a20787cf",
+    "tasks/active-wall-pressure/environment/data/calibration.json": "0adfc4f89ba01d1216cfb46026a2a063b337a876eee9b6d1cf4d9ebf0247884f",
+    "tasks/active-wall-pressure/environment/model.py": "f4a1582adcb5df4209248aad7835d378259d341bb2e4990aeb959b4b73479b4f",
+    "tasks/active-wall-pressure/environment/test_public.py": "774303f187401323535b01cbab5a148a4a88f4320650adeecd6925665710a999",
+    "tasks/active-wall-pressure/hint.md": "ed8d6c1e7142bf59b1ef80aa22f825bc072f9515b538fd248ea20b6f20e839e9",
+    "tasks/active-wall-pressure/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/active-wall-pressure/solution/model.py": "d5693fa50a3438552da55eb6700848595b8ecef0cb9699929d44346c8a17ff04",
+    "tasks/active-wall-pressure/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+    "tasks/active-wall-pressure/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/active-wall-pressure/tests/data/calibration.json": "0adfc4f89ba01d1216cfb46026a2a063b337a876eee9b6d1cf4d9ebf0247884f",
+    "tasks/active-wall-pressure/tests/metadata.json": "87e034698ae58debed20a9c54a61ff3c704afe5c383b08dd4afe26c4c76b863b",
+    "tasks/active-wall-pressure/tests/reference.py": "3b984be84c8cdf5b1a5e07c167e698e2cdddc6d326f175a56e16c4e2cc8f7bbf",
+    "tasks/active-wall-pressure/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+    "tasks/active-wall-pressure/tests/test_hidden.py": "27f623d472d9460dfef9806253821a8c87fbf49cad008226bddbd563f380393f"
+  },
+  "report_sha256": {
+    "results/active-wall-pressure-r1-local-controls.json": "03a0d4278136c18a959e92115e8fa15b6f52740c60211b80346c57cade1614b3",
+    "results/active-wall-pressure-r1-validation.json": "bdf792874e3e19529d133117423bb03e774627677399ce3aa867098e96b5e107"
+  },
+  "prototype_sha256": {
+    "prototype/ASSESSMENT.md": "9f3377784bc6905823e29ffe7b17ca2f1e94326e0bb10877ee9b3ed19308f618",
+    "prototype/archive-overlap.json": "010e3221ba3520084358476a582bab7e94705942f1972f2a193ba7b9c50684c4",
+    "prototype/check.py": "d2e24e3855770e3f231b3b55a99a527bd9ec729988131258f187f8a5db08dfd3",
+    "prototype/quartic-report.json": "055eb49d4e80f6dd1a3f0c74d384bb0e119ca41be5a94911831f7808c3c89a76",
+    "prototype/quartic_check.py": "c54f01c1b82ff4f8d57fe33bfd2d98bc41edc840177d6a399a511fc673162435",
+    "prototype/report.json": "a5c8b7f465f6f9b62dc7b48497022f2b1d62474479eef7af67d42aa26290e215",
+    "prototype/spectral-quartic-report.json": "265edb0180b47b0f8879a35ec726b6a6896823a409f01e90ad28342efbcf9025",
+    "prototype/spectral-report.json": "317206186c8d47521d1e1f9ac49399018e58b235eb4a389533f7df9f523516af",
+    "prototype/spectral_quartic.py": "ad615269e006b2237a58a9cbb3566549e588fdb9eb24dcd62dc01df2376253ef",
+    "prototype/spectral_reference.py": "56f64ee6aa2af2a1cb5fb1e73976bea05a7920af3f9241dbba42f3d535beb986"
+  },
+  "model_evaluations_performed_by_reviewer": 0
+}

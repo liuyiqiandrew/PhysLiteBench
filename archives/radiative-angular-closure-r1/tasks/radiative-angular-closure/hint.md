@@ -1,0 +1,1 @@
+The source evolves energy density and flux as a closed set of moments. Decide whether those moments retain the prepared angular distribution during propagation. Each specified beam has its own straight direction and removal history; derive the detector response from that microscopic transport.

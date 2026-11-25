@@ -1,0 +1,1 @@
+Identify the angular moments conserved separately by normal and resistive collisions before adding their relaxation operators. The local maximum-entropy target for momentum-conserving collisions can carry energy flux. Free propagation couples angular harmonics that are disconnected in a spatially uniform calibration.

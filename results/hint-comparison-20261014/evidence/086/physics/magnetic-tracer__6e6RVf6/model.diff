@@ -1,0 +1,143 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,6 +71,8 @@
+     # Scale the fast contact coordinate by sqrt(ratio) to balance its covariance.
+     fast=np.block([[-gamma*np.eye(2)+field*ROTATION,np.eye(2)/np.sqrt(ratio)],
+                    [-zeta/np.sqrt(ratio)*np.eye(2),-np.eye(2)/ratio]])
++    # Here the fast force coordinate is sqrt(m*ratio)*f, so its noise keeps
++    # the contact-drag factor.
+     noise=np.diag([2*gamma*temperature]*2+[2*zeta*memory_temperature/ratio]*2)
+     fast_covariance=solve_continuous_lyapunov(fast,-noise)
+     integrated=-np.linalg.solve(fast,fast_covariance.T).T[:2,:2]
+@@ -146,31 +148,103 @@
+     assert abs(energy)<1e-10 and entropy>-1e-10 and np.linalg.eigvalsh(D).min()>0
+     return M,D,drift,S,K
+ 
++def _periodic_derivatives(n):
++    """Fourier collocation derivatives on one 2*pi period."""
++    wave = np.fft.fftfreq(n, 1/n)
++    identity = np.eye(n)
++    dx = np.fft.ifft(1j*wave[:, None]*np.fft.fft(identity, axis=0), axis=0).real
++    dxx = np.fft.ifft(-wave[:, None]**2*np.fft.fft(identity, axis=0), axis=0).real
++    return dx, dxx
++
++
++@lru_cache(512)
++def _channel_coefficients(gamma,zeta,kappa,T,Tb,B0,B1,phase,V,rate,
++                          drag_contrast,temperature_contrast,n,
++                          transverse_drive,drive_phase,fluid_anisotropy,
++                          fluid_axis):
++    """Small-mass coefficients, including the corrector-induced drift.
++
++    ``K`` is deliberately retained rather than replaced by its symmetric
++    part: its antisymmetric part is the finite-mass (rough-path) correction
++    needed by the spatially weighted circulation detector.
++    """
++    x = np.arange(n)*2*np.pi/n
++    field = B0+B1*np.cos(x+phase)
++    field_prime = -B1*np.sin(x+phase)
++    drift = np.empty((n, 2)); diffusion = np.empty((n, 2, 2)); correction = np.empty((n, 2, 2))
++    for j, (b, bp, angle) in enumerate(zip(field, field_prime, x)):
++        mobility, D, induced, _, K = valve_cell(
++            gamma, zeta, kappa, T, Tb, b, rate, drag_contrast,
++            temperature_contrast, fluid_anisotropy, fluid_axis)
++        force = np.array([V*np.sin(angle),
++                          transverse_drive*np.cos(angle+drive_phase)])
++        drift[j] = mobility@force + bp*induced
++        diffusion[j] = D
++        correction[j] = K
++    return x, drift, diffusion, correction
++
++
++def _stationary_density(drift, diffusion, dx, dxx):
++    """Stationary density normalized so that its grid mean is one."""
++    n = len(drift)
++    generator = -dx@np.diag(drift[:, 0]) + dxx@np.diag(diffusion[:, 0, 0])
++    system = generator.copy()
++    rhs = np.zeros(n)
++    # The left null vector of this conservative collocation discretisation is
++    # constant.  Replacing one equation imposes sum(p)/n = 1.
++    system[0] = 1/n
++    rhs[0] = 1
++    p = np.linalg.solve(system, rhs)
++    return generator, system, p
++
++
+ @lru_cache(512)
+ def valve_moments(gamma,zeta=1.,kappa=.7,T=.5,Tb=1.4,B0=.6,B1=.9,phase=.8,V=.8,rate=.7,drag_contrast=.6,temperature_contrast=.5,n=65,transverse_drive=0.,drive_phase=0.,fluid_anisotropy=0.,fluid_axis=0.):
+-    x=np.arange(n)*2*np.pi/n;B=B0+B1*np.cos(x+phase);Bp=-B1*np.sin(x+phase);drift=[];diff=[]
+-    for b,bp,angle in zip(B,Bp,x):
+-        M,D,c,_,_=valve_cell(gamma,zeta,kappa,T,Tb,b,rate,drag_contrast,temperature_contrast,fluid_anisotropy,fluid_axis);drift.append((M@np.array([V*np.sin(angle),transverse_drive*np.cos(angle+drive_phase)])+bp*c)[0]);diff.append(D[0,0])
+-    wave=np.fft.fftfreq(n,1/n);dx=np.fft.ifft(1j*wave[:,None]*np.fft.fft(np.eye(n),axis=0),axis=0).real;dxx=np.fft.ifft(-wave[:,None]**2*np.fft.fft(np.eye(n),axis=0),axis=0).real
+-    L=-dx@np.diag(drift)+dxx@np.diag(diff);rhs=np.zeros(n);rhs[0]=1;L[0]=1/n;p=np.linalg.solve(L,rhs)
+-    assert p.min()>0
+-    return np.array([v for k in [1,2,3] for v in [np.mean(p*np.cos(k*x)),np.mean(p*np.sin(k*x))]])
++    x, drift, diffusion, _ = _channel_coefficients(
++        gamma,zeta,kappa,T,Tb,B0,B1,phase,V,rate,drag_contrast,
++        temperature_contrast,n,transverse_drive,drive_phase,
++        fluid_anisotropy,fluid_axis)
++    dx, dxx = _periodic_derivatives(n)
++    _, _, p = _stationary_density(drift, diffusion, dx, dxx)
++    return np.array([value for k in [1,2,3]
++                     for value in [np.mean(p*np.cos(k*x)), np.mean(p*np.sin(k*x))]])
++
+ 
+ @lru_cache(512)
+ def circulation(gamma,zeta=1.,kappa=.7,T=.5,Tb=1.4,B0=.6,B1=.9,phase=.8,V=.8,rate=.7,drag_contrast=.6,temperature_contrast=.5,n=65,harmonic=1,quadrature='cos',transverse_drive=0.,drive_phase=0.,fluid_anisotropy=0.,fluid_axis=0.):
+-    x=np.arange(n)*2*np.pi/n;B=B0+B1*np.cos(x+phase);Bp=-B1*np.sin(x+phase);drift=[];diff=[];g=[];h=[]
+-    weight=np.cos(harmonic*x) if quadrature=='cos' else np.sin(harmonic*x)
+-    derivative=-harmonic*np.sin(harmonic*x) if quadrature=='cos' else harmonic*np.cos(harmonic*x)
+-    for j,(b,bp,angle) in enumerate(zip(B,Bp,x)):
+-        M,D,c,S,K=valve_cell(gamma,zeta,kappa,T,Tb,b,rate,drag_contrast,temperature_contrast,fluid_anisotropy,fluid_axis)
+-        velocity=M@np.array([V*np.sin(angle),transverse_drive*np.cos(angle+drive_phase)])+bp*c
+-        drift.append(velocity[0]);diff.append(D[0,0]);g.append(weight[j]*velocity[1]+derivative[j]*K[1,0]);h.append(weight[j]**2*D[1,1])
+-    wave=np.fft.fftfreq(n,1/n);dx=np.fft.ifft(1j*wave[:,None]*np.fft.fft(np.eye(n),axis=0),axis=0).real;dxx=np.fft.ifft(-wave[:,None]**2*np.fft.fft(np.eye(n),axis=0),axis=0).real
+-    L=-dx@np.diag(drift)+dxx@np.diag(diff);system=L.copy();system[0]=1;rhs=np.zeros(n);rhs[0]=1;p=np.linalg.solve(system,rhs)
+-    A1=np.diag(g);A2=2*np.diag(h);c1=float(np.sum(A1@p))
+-    rhs=(c1*np.eye(n)-A1)@p;rhs[0]=0.;r1=np.linalg.solve(system,rhs);c2=float(np.sum(A2@p+2*A1@r1))
+-    rhs=c2*p+2*c1*r1-2*A1@r1-A2@p;rhs[0]=0.;r2=np.linalg.solve(system,rhs);c3=float(np.sum(3*A1@r2+3*A2@r1))
+-    return np.array([c1,c2,c3])
++    x, drift, diffusion, K = _channel_coefficients(
++        gamma,zeta,kappa,T,Tb,B0,B1,phase,V,rate,drag_contrast,
++        temperature_contrast,n,transverse_drive,drive_phase,
++        fluid_anisotropy,fluid_axis)
++    dx, dxx = _periodic_derivatives(n)
++    _, system, p = _stationary_density(drift, diffusion, dx, dxx)
++
++    if quadrature == 'cos':
++        weight = np.cos(harmonic*x)
++        weight_prime = -harmonic*np.sin(harmonic*x)
++    else:
++        weight = np.sin(harmonic*x)
++        weight_prime = harmonic*np.cos(harmonic*x)
++
++    # The first derivative of the tilted *forward* generator.  In addition
++    # to the finite-mass mean correction a' K_yx, it contains the mixed
++    # x/counting-field derivative -2 d_x(a D_xy .).  This term is essential
++    # when the directional fluid temperatures make D_xy nonzero.
++    mean_density = weight*drift[:, 1] + weight_prime*K[:, 1, 0]
++    mixed = -2*dx@np.diag(weight*diffusion[:, 0, 1])
++    A1 = np.diag(mean_density) + mixed
++    A2 = 2*np.diag(weight**2*diffusion[:, 1, 1])
++
++    c1 = float(np.mean(A1@p))
++    rhs = (c1*np.eye(n)-A1)@p
++    rhs[0] = 0.
++    r1 = np.linalg.solve(system, rhs)
++    c2 = float(np.mean(A2@p + 2*A1@r1))
++    rhs = c2*p + 2*c1*r1 - 2*A1@r1 - A2@p
++    rhs[0] = 0.
++    r2 = np.linalg.solve(system, rhs)
++    c3 = float(np.mean(3*A1@r2 + 3*A2@r1))
++    return np.array([c1, c2, c3])
+ 
+ def channel_prediction(e,friction):
+     observable=e.get('observable','density')
+@@ -208,5 +282,6 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        self.friction = fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

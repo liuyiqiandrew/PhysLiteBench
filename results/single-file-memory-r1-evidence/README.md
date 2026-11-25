@@ -1,0 +1,3 @@
+# Single-file memory r1 evaluation evidence
+
+Three completed unhinted Luna-high trials failed for the reviewed physical reason. One original NVM TLS setup failure is preserved separately with null reward and no model execution. Exactly one replacement was declared for that unstarted attempt; neither completed original score was replaced. Both controls passed their expected gates. The original matrix and replacement catalog are copied here; raw-evidence-sha256.json records all nongenerated files under the original ignored jobs/<job>/ paths. Full raw jobs remain unchanged there, following repository policy. Source provenance, plans, all four trial reviews and the fixed-parameter causal diagnostic are in the parent results directory.

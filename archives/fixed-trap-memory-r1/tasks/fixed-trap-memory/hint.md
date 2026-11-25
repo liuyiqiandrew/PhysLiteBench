@@ -1,0 +1,1 @@
+The preparation fixes each site's escape rate for the entire repetition. A returned particle encounters the same site parameter, while independent exponential waiting clocks still run at each visit. Keep the distinction between averaging first-passage raw moments over specimens and averaging conditional variances within specimens.

@@ -1,0 +1,1 @@
+For a gas observed on a simultaneous laboratory slice, transform the phase-space sampling measure as well as each particle four-momentum. The conserved number current and the stress-energy tensor give independent checks of the energy per selected particle. The subsequent analysis-frame transformation does not change which particles were selected.

@@ -1,0 +1,37 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,33 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the common viscosity from independent calibration records.
++
++        The response is inversely proportional to viscosity, so the weighted
++        least-squares estimate has a closed form.  Writing the model response
++        as ``a_i / viscosity``, minimize sum(((a_i / viscosity-y_i)/sigma_i)**2).
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        experiments = [record['input'] for record in records]
++        measured = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record.get('sigma', 1.0) for record in records], dtype=float)
++        if np.any(~np.isfinite(measured)) or np.any(~np.isfinite(sigma)) or np.any(sigma <= 0):
++            raise ValueError('Calibration values and uncertainties must be finite, with positive uncertainties.')
++
++        unit_viscosity_response = predict_at(experiments, 1.0)
++        weights = 1.0 / sigma**2
++        numerator = np.sum(weights * unit_viscosity_response**2)
++        denominator = np.sum(weights * unit_viscosity_response * measured)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records do not identify a positive viscosity.')
++        viscosity = numerator / denominator
++        if not np.isfinite(viscosity) or viscosity <= 0:
++            raise ValueError('Calibration records do not identify a positive viscosity.')
++        self.viscosity = float(viscosity)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

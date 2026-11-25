@@ -1,0 +1,1 @@
+Retain the joint rotor, gas, and motor process when computing heat statistics. The Wiener noise in the calorimeter and the gas velocity is shared. Derivatives of the tilted generator determine long-time cumulants; a Gaussian approximation to integrated heat loses the third cumulant.

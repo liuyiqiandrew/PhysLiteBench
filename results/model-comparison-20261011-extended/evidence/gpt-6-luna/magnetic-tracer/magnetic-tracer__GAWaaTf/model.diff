@@ -1,0 +1,15 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,11 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Fit the common fluid friction from the weighted calibration data.
++
++        Calibration uncertainties are independent and fixed, so the maximum
++        likelihood estimate is the bounded weighted least-squares minimum.
++        """
++        self.friction=fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

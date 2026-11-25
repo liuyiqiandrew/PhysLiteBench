@@ -1,0 +1,1 @@
+The magnetic moment also carries spin angular momentum. Apply angular momentum balance to the spin and the clamped body separately when relating the calculated magnetic response to the torque transmitted to the support.

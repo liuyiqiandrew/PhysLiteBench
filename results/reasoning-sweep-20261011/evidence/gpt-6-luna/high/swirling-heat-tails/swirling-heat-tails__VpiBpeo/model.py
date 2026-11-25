@@ -1,0 +1,54 @@
+import numpy as np
+
+
+def response(e):
+    """Return the dimensionless heat rate function for one preparation."""
+    r = float(e['drive_ratio'])
+    z = float(e['relative_heat'])
+
+    # This is algebraically equal to
+    # sqrt((1 + r**2) * (1 + (r*z)**2)) - 1 - r**2*z,
+    # but rationalization avoids loss of precision near the minimum at z=1.
+    root = np.sqrt((1.0 + r * r) * (1.0 + (r * z) ** 2))
+    numerator = (r * (z - 1.0)) ** 2
+    return float(numerator / (root + 1.0 + r * r * z))
+
+
+def predict_at(experiments, mobility):
+    return mobility * np.asarray([
+        float(e['stiffness']) * response(e) for e in experiments
+    ], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.mobility = None
+
+    def fit(self, records):
+        """Fit the common mobility by weighted least squares."""
+        records = list(records)
+        if not records:
+            raise ValueError('At least one calibration record is required.')
+
+        shape = np.asarray([
+            float(record['input']['stiffness']) * response(record['input'])
+            for record in records
+        ], dtype=float)
+        values = np.asarray([float(record['value']) for record in records], dtype=float)
+        sigma = np.asarray([float(record['sigma']) for record in records], dtype=float)
+        if (not np.all(np.isfinite(shape)) or not np.all(np.isfinite(values))
+                or not np.all(np.isfinite(sigma)) or np.any(sigma <= 0.0)):
+            raise ValueError('Calibration values and positive uncertainties must be finite.')
+
+        weights = 1.0 / sigma**2
+        denominator = np.dot(weights * shape, shape)
+        if denominator <= 0.0:
+            raise ValueError('Calibration records do not constrain mobility.')
+        estimate = np.dot(weights * shape, values) / denominator
+        self.mobility = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        if self.mobility is None:
+            raise RuntimeError('Call fit(records) before predict(experiments).')
+        return predict_at(experiments, self.mobility)

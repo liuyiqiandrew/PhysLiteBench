@@ -1,0 +1,87 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,16 +1,58 @@
+ import numpy as np
+ from scipy.optimize import brentq
++from scipy.special import expit
++
++
++def _binary_relative_entropy(p):
++    """Relative entropy of a Bernoulli(p) mark fraction from one half."""
++    if p <= 0.0 or p >= 1.0:
++        return np.log(2.0)
++    return np.log(2.0) + p*np.log(p) + (1.0-p)*np.log1p(-p)
+ 
+ 
+ def response(e):
+-    rho, mean = e['density'], e['length']
+-    if e['statistic'] == 'mean':
++    rho, mean, contrast = e['density'], e['length'], e['contrast']
++    statistic = e['statistic']
++    if statistic == 'mean':
+         return 0.
+-    if e['statistic'] == 'variance':
++    if statistic == 'variance':
+         return rho*(1-rho*mean)
++
++    if statistic != 'scgf':
++        raise ValueError("statistic must be 'mean', 'variance', or 'scgf'")
++
+     field = abs(e['counting_field'])
++    if field == 0.0:
++        return 0.
++
++    # Removing the rods' occupied lengths maps their centers to point
++    # particles with density c.  The physical origin then moves through this
++    # free coordinate by the sum of lengths of the rods counted by the
++    # current.  For a mixture, a current large deviation can favor an atypical
++    # fraction p of long rods.  Its cost per crossed rod is the Bernoulli
++    # relative entropy below.
+     c = rho/(1-rho*mean)
+-    s = brentq(lambda s: s+c*mean*np.sinh(s)-field, 0., field+1, xtol=1e-14)
++    short = mean*(1.0-contrast)
++    delta = 2.0*mean*contrast
++
++    if contrast == 0.0:
++        # Equal length rods have no mark-sequence large deviation.
++        s = brentq(lambda s: s+c*mean*np.sinh(s)-field,
++                   0.0, field, xtol=1e-14)
++    else:
++        # At the saddle, the fraction of long rods is exponentially tilted
++        # toward shorter rods for a positive current.  The equation is
++        # monotone in s; its derivative is 1 + c*a(s)*cosh(s).
++        def tilted_field(s):
++            p_long = expit(-c*delta*np.sinh(s))
++            avg_length = short + delta*p_long
++            return (s + c*avg_length*np.sinh(s)
++                    + _binary_relative_entropy(p_long))
++
++        s = brentq(lambda s: tilted_field(s)-field,
++                   0.0, field, xtol=1e-14)
++
++    # c * (cosh(s) - 1), written in a form that remains accurate near zero.
+     return c*2*np.sinh(s/2)**2
+ 
+ 
+@@ -23,7 +65,20 @@
+         self.speed = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the common speed from calibration records.')
++        baseline = np.asarray([response(r['input']) for r in records], dtype=float)
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++
++        weights = 1.0/sigma**2
++        denominator = np.sum(weights*baseline**2)
++        if not np.isfinite(denominator) or denominator <= 0.0:
++            raise ValueError('Calibration records must include a nonzero readout.')
++
++        # Every readout is linear in the common speed.  This is the Gaussian
++        # maximum-likelihood estimate, constrained to the apparatus range.
++        estimate = np.sum(weights*baseline*values)/denominator
++        self.speed = float(np.clip(estimate, 0.8, 1.3))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.speed)

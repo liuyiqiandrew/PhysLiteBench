@@ -1,0 +1,1 @@
+Identify the current in the external voltage-source wire from charge conservation at each electrode, including the charge induced on its junction capacitor when the island charge changes. Then apply the Markov noise calculation to that measured current.

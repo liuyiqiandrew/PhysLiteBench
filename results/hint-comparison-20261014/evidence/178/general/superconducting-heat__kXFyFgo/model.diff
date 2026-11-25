@@ -1,0 +1,62 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,48 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        # The calibration set is deliberately taken in the unmodulated,
++        # oscillator-decoupled limit, where the heat current is linear in the
++        # normal-state conductance.  Keep the fit weighted by the reported
++        # independent Gaussian errors (and do not fit any of the dynamical
++        # state variables).
++        if not records:
++            raise ValueError('records must not be empty')
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if not np.isfinite(values).all() or not np.isfinite(sigmas).all() or np.any(sigmas <= 0):
++            raise ValueError('calibration values and sigmas must be finite, positive numbers')
++        weights = 1. / sigmas**2
++        simple = all(
++            item.get('statistic', 'mean') == 'mean'
++            and item.get('amplitude', 0.) == 0.
++            and item.get('oscillator_coupling', 0.) == 0.
++            and item.get('secondary_coupling', 0.) == 0.
++            and item.get('quadratic_coupling', 0.) == 0.
++            and item.get('momentum_coupling', 0.) == 0.
++            for item in inputs
++        )
++        if simple:
++            basis = np.asarray([mean_heat(dict(item, statistic='mean'), 1.) for item in inputs])
++            denominator = float(np.dot(weights * basis, basis))
++            if not np.isfinite(denominator) or denominator <= 0:
++                raise ValueError('calibration records do not identify conductance')
++            estimate = np.dot(weights * basis, values) / denominator
++        else:
++            # Non-default records can include spin-polarizing drive or
++            # oscillator exchange, so their prediction is not generally
++            # linear in conductance.  Fit the same scalar parameter through
++            # the public prediction path in that case.
++            def residual(parameter):
++                prediction = predict_at(inputs, float(parameter[0]))
++                return (prediction - values) / sigmas
++            estimate = least_squares(residual, [45.], bounds=([20.], [80.]),
++                                     xtol=1e-12, ftol=1e-12, gtol=1e-12).x[0]
++        self.conductance = float(np.clip(estimate, 20., 80.))
++        if not np.isfinite(self.conductance):
++            raise ValueError('could not fit a finite conductance')
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,6 +453,9 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
++            # The contrast uses a second preparation whose pairing phase is
++            # shifted by pi (not merely wrapped back into the principal
++            # interval).
+             other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)

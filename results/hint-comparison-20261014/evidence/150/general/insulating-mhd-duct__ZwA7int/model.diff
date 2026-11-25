@@ -1,0 +1,225 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,77 +1,164 @@
++"""Transient duct-flow model with insulating electrical boundaries."""
++
+ from functools import lru_cache
++
+ import numpy as np
+ from scipy.linalg import eigh
+-
+-WIDTH, HEIGHT = .012, .008
+-DENSITY, CONDUCTIVITY = 1000., 1e5
+-X_MODES, Y_MODES = 40, 56
++from scipy.optimize import minimize_scalar
+ 
+ 
+-def derivative_overlap(target, source):
+-    """Integral of normalized sine(target) times derivative of sine(source)."""
+-    p, m = np.asarray(target, float)[:, None], np.asarray(source, float)[None, :]
+-    denominator = p*p-m*m
+-    return np.divide(4*p*m, denominator, out=np.zeros_like(denominator),
+-                     where=((p+m) % 2 == 1))
++WIDTH, HEIGHT = 0.012, 0.008
++DENSITY, CONDUCTIVITY = 1000.0, 1.0e5
++X_MODES, Y_MODES = 40, 56
++ELECTRIC_MODES = 400
+ 
+ 
+-@lru_cache(4)
+-def operators(nx=X_MODES, ny=Y_MODES):
+-    m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+-    keep = (m+n) % 2 == 0
+-    m, n = m[keep], n[keep]
+-    wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+-    mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+-    qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+-    electric = np.arange(1, 401)
+-    for fixed in np.unique(n):
+-        ids = np.flatnonzero(n == fixed)
+-        d = derivative_overlap(electric, m[ids])/WIDTH
+-        k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+-        qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+-    for fixed in np.unique(m):
+-        ids = np.flatnonzero(m == fixed)
+-        d = derivative_overlap(electric, n[ids])/HEIGHT
+-        k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+-        qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+-
+-    return m, n, wave2, mean, qx, qy
++def _sine_cosine_overlap(limit, modes):
++    """Return <normalised cosine_p, normalised sine_m> on a unit interval."""
++    p = np.arange(limit + 1, dtype=float)[:, None]
++    m = np.arange(modes + 1, dtype=float)[None, :]
++    answer = np.zeros((limit + 1, modes + 1), dtype=float)
++    p_full = np.broadcast_to(p, answer.shape)
++    m_full = np.broadcast_to(m, answer.shape)
++    zero_mode = (p == 0) & (m > 0) & ((m.astype(int) & 1) == 1)
++    answer[zero_mode] = 2.0 * np.sqrt(2.0) / (np.pi * m_full[zero_mode])
++    valid = (p > 0) & (m > 0) & (((p.astype(int) + m.astype(int)) & 1) == 1)
++    answer[valid] = 4.0 * m_full[valid] / (
++        np.pi * (m_full[valid] ** 2 - p_full[valid] ** 2)
++    )
++    return answer
+ 
+ 
+-@lru_cache(64)
+-def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
+-    operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+-    if bx == 0.:
+-        groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+-    elif by == 0.:
+-        groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
++@lru_cache(maxsize=1)
++def operators():
++    """Build the velocity modes and insulating-wall magnetic operator pieces.
++
++    Charge conservation gives ``(-laplacian) phi = By*u_x - Bx*u_y``.
++    Hence the Lorentz force is ``-sigma*K*u``, with
++    ``K = |B|^2 I - D.T*(-laplacian)^-1*D`` and ``D = By*C_x - Bx*C_y``.
++    """
++    grid_m, grid_n = np.meshgrid(
++        np.arange(1, X_MODES + 1), np.arange(1, Y_MODES + 1), indexing="ij"
++    )
++    keep = (grid_m + grid_n) % 2 == 0
++    m, n = grid_m[keep], grid_n[keep]
++    wave2 = (m * np.pi / WIDTH) ** 2 + (n * np.pi / HEIGHT) ** 2
++    forcing = np.where(
++        (m % 2 == 1) & (n % 2 == 1), 8.0 / (np.pi**2 * m * n), 0.0
++    )
++
++    overlap_x = _sine_cosine_overlap(ELECTRIC_MODES, X_MODES)
++    overlap_y = _sine_cosine_overlap(ELECTRIC_MODES, Y_MODES)
++    size = len(m)
++    qx = np.zeros((size, size), dtype=float)
++    qy = np.zeros((size, size), dtype=float)
++
++    electric_y = np.arange(ELECTRIC_MODES + 1, dtype=float)
++    for fixed_m in np.unique(m):
++        ids = np.flatnonzero(m == fixed_m)
++        coupling = overlap_y[:, n[ids]]
++        denominator = (fixed_m * np.pi / WIDTH) ** 2 + (electric_y * np.pi / HEIGHT) ** 2
++        qx[np.ix_(ids, ids)] = (fixed_m * np.pi / WIDTH) ** 2 * (
++            coupling.T @ (coupling / denominator[:, None])
++        )
++
++    electric_x = np.arange(ELECTRIC_MODES + 1, dtype=float)
++    for fixed_n in np.unique(n):
++        ids = np.flatnonzero(n == fixed_n)
++        coupling = overlap_x[:, m[ids]]
++        denominator = (electric_x * np.pi / WIDTH) ** 2 + (fixed_n * np.pi / HEIGHT) ** 2
++        qy[np.ix_(ids, ids)] = (fixed_n * np.pi / HEIGHT) ** 2 * (
++            coupling.T @ (coupling / denominator[:, None])
++        )
++
++    # C_x.T L^-1 C_y: its potential mode is exactly (p, q) = (m_i, n_j).
++    mi, mj = m[:, None], m[None, :]
++    ni, nj = n[:, None], n[None, :]
++    cross = (
++        (mi * np.pi / WIDTH) * (nj * np.pi / HEIGHT)
++        / ((mi * np.pi / WIDTH) ** 2 + (nj * np.pi / HEIGHT) ** 2)
++        * overlap_y[nj, ni]
++        * overlap_x[mi, mj]
++    )
++    return m, n, wave2, forcing, qx, qy, cross + cross.T
++
++
++@lru_cache(maxsize=64)
++def spectrum(viscosity, bx, by):
++    """Eigenpairs of the decay operator; aligned fields split into blocks."""
++    m, n, wave2, forcing, qx, qy, cross = operators()
++    base = viscosity / DENSITY * wave2
++    bx, by = float(bx), float(by)
++    magnetic_scale = CONDUCTIVITY / DENSITY
++
++    if bx == 0.0 and by == 0.0:
++        return ((np.arange(len(m)), base, None, forcing),)
++    if bx == 0.0:
++        blocks = [np.flatnonzero(m == fixed) for fixed in np.unique(m)]
++        magnetic = by * by * (np.eye(len(m)) - qx)
++    elif by == 0.0:
++        blocks = [np.flatnonzero(n == fixed) for fixed in np.unique(n)]
++        magnetic = bx * bx * (np.eye(len(m)) - qy)
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
+-    result = []
+-    for ids in groups:
+-        values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+-        result.append((ids, values, vectors, vectors.T@mean[ids]))
+-    return result
++        blocks = [np.arange(len(m))]
++        magnetic = (bx * bx + by * by) * np.eye(len(m)) - by * by * qx - bx * bx * qy + bx * by * cross
++
++    answer = []
++    for ids in blocks:
++        matrix = magnetic_scale * magnetic[np.ix_(ids, ids)]
++        matrix.flat[:: len(ids) + 1] += base[ids]
++        rates, vectors = eigh(matrix, check_finite=False)
++        answer.append((ids, rates, vectors, vectors.T @ forcing[ids]))
++    return tuple(answer)
+ 
+ 
+ class Model:
+     def __init__(self):
+         self.viscosity = None
+ 
++    @staticmethod
++    def _predict_with_viscosity(viscosity, experiments):
++        m, n, _, forcing, *_ = operators()
++        result = np.empty(len(experiments), dtype=float)
++        prepared = {}
++        for index, experiment in enumerate(experiments):
++            bx = float(experiment["magnetic_x"])
++            by = float(experiment["magnetic_y"])
++            key = (bx, by)
++            if key not in prepared:
++                prepared[key] = spectrum(float(viscosity), bx, by)
++            t = float(experiment["time"])
++            observation = forcing if experiment["observable"] == "mean" else (
++                2.0 * np.sin(m * np.pi * float(experiment["x"]))
++                * np.sin(n * np.pi * float(experiment["y"]))
++            )
++            response = 0.0
++            for ids, rates, vectors, projected_force in prepared[key]:
++                factor = -np.expm1(-rates * t) / rates
++                amplitude = factor * projected_force if vectors is None else vectors @ (factor * projected_force)
++                response += observation[ids] @ amplitude
++            result[index] = float(experiment["pressure_gradient"]) / DENSITY * response
++        return result
++
+     def fit(self, records):
+-        raise NotImplementedError
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        experiments = [record["input"] for record in records]
++        values = np.asarray([record["value"] for record in records], dtype=float)
++        deviations = np.asarray([record["sigma"] for record in records], dtype=float)
++        if not np.isfinite(values).all() or not np.isfinite(deviations).all() or np.any(deviations <= 0.0):
++            raise ValueError("calibration values and sigma must be finite, with sigma > 0")
++
++        def loss(viscosity):
++            residual = (self._predict_with_viscosity(viscosity, experiments) - values) / deviations
++            return float(residual @ residual)
++
++        optimum = minimize_scalar(loss, bounds=(0.006, 0.018), method="bounded", options={"xatol": 2e-8})
++        self.viscosity = float(optimum.x)
++        return self
+ 
+     def predict(self, experiments):
+-        m, n, _, mean, *_ = operators()
+-        output = []
+-        for e in experiments:
+-            bx, by = e['magnetic_x'], e['magnetic_y']
+-            observation = mean if e['observable'] == 'mean' else 2*np.sin(m*np.pi*e['x'])*np.sin(n*np.pi*e['y'])
+-            value = 0.
+-            for ids, rates, vectors, forcing in spectrum(self.viscosity, bx, by):
+-                amplitude = vectors@(-np.expm1(-rates*e['time'])/rates*forcing)
+-                value += observation[ids]@amplitude
+-            output.append(e['pressure_gradient']/DENSITY*value)
+-        return np.array(output)
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
++        return self._predict_with_viscosity(self.viscosity, list(experiments))

@@ -1,0 +1,1 @@
+The collision clock depends on the instantaneous relative velocity. Averaging that clock before evolving the joint retained-contact process can change calorimeter fluctuations, even when its self-consistent mean collision rate and calibration are correct.

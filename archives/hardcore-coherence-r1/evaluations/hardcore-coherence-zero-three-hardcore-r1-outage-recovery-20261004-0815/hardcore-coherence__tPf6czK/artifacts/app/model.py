@@ -1,0 +1,179 @@
+"""Model for expansion of hard-core bosons on an eight-site chain."""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.linalg import eigh
+from scipy.optimize import minimize_scalar
+
+
+SITES = 8
+PARTICLES = 3
+OCCUPIED = (2, 3, 4)
+POSITIONS = np.arange(SITES, dtype=float) - 3.5
+
+
+def hamiltonian(hopping, trap, tilt):
+    """Return the one-particle Hamiltonian specified in the README."""
+    diagonal = trap * POSITIONS**2 + tilt * POSITIONS
+    matrix = np.diag(diagonal.astype(float))
+    matrix += np.diag(np.full(SITES - 1, -hopping, dtype=float), 1)
+    matrix += np.diag(np.full(SITES - 1, -hopping, dtype=float), -1)
+    return matrix
+
+
+@lru_cache(maxsize=8192)
+def correlation_matrix(hopping, trap, tilt, duration):
+    """Return ``<c_i^dagger c_j>`` for the equivalent free fermions.
+
+    The Jordan-Wigner mapping makes the site occupations of hard-core bosons
+    equal to free-fermion occupations.  This matrix is therefore sufficient
+    for density readout, but not for momentum readout (which needs the
+    hard-core boson string factors).
+    """
+    energies, vectors = eigh(hamiltonian(hopping, trap, tilt))
+    propagator = (vectors * np.exp(-1j * energies * duration)) @ vectors.conj().T
+    occupied = propagator[:, OCCUPIED]
+    return occupied.conj() @ occupied.T
+
+
+def _make_basis():
+    """Make all three-particle occupation states and an index lookup."""
+    basis = []
+    for mask in range(1 << SITES):
+        if mask.bit_count() == PARTICLES:
+            basis.append(mask)
+    return tuple(basis), {mask: index for index, mask in enumerate(basis)}
+
+
+BASIS, BASIS_INDEX = _make_basis()
+INITIAL_STATE = sum(1 << site for site in OCCUPIED)
+
+
+@lru_cache(maxsize=4096)
+def _many_body_hamiltonian(hopping, trap, tilt):
+    """Return the hard-core-boson Hamiltonian in the occupation basis."""
+    size = len(BASIS)
+    matrix = np.zeros((size, size), dtype=float)
+    onsite = trap * POSITIONS**2 + tilt * POSITIONS
+
+    for row, state in enumerate(BASIS):
+        occupied_sites = [site for site in range(SITES) if state & (1 << site)]
+        matrix[row, row] = sum(onsite[site] for site in occupied_sites)
+
+        # A nearest-neighbour hop has no fermionic sign for hard-core bosons.
+        for site in range(SITES - 1):
+            left = bool(state & (1 << site))
+            right = bool(state & (1 << (site + 1)))
+            if left == right:
+                continue
+            destination = state ^ (1 << site) ^ (1 << (site + 1))
+            column = BASIS_INDEX[destination]
+            matrix[row, column] = -hopping
+
+    return matrix
+
+
+@lru_cache(maxsize=4096)
+def boson_correlation_matrix(hopping, trap, tilt, duration):
+    """Return the hard-core-boson one-body matrix ``<b_i^dagger b_j>``.
+
+    Unlike the density matrix of the Jordan-Wigner fermions, this matrix
+    includes the string/sign information needed by time-of-flight momentum
+    measurements.  The system is small (56 states), so direct exact
+    diagonalization is both simple and numerically stable.
+    """
+    energies, vectors = eigh(_many_body_hamiltonian(hopping, trap, tilt))
+    initial_index = BASIS_INDEX[INITIAL_STATE]
+    coefficients = vectors[initial_index, :].conj() * np.exp(-1j * energies * duration)
+    state = vectors @ coefficients
+
+    matrix = np.zeros((SITES, SITES), dtype=complex)
+    for source_index, source in enumerate(BASIS):
+        source_amplitude = state[source_index]
+        for site_j in range(SITES):
+            if not (source & (1 << site_j)):
+                continue
+            after_annihilation = source ^ (1 << site_j)
+            for site_i in range(SITES):
+                if after_annihilation & (1 << site_i):
+                    continue
+                destination = after_annihilation | (1 << site_i)
+                destination_index = BASIS_INDEX[destination]
+                matrix[site_i, site_j] += (
+                    state[destination_index].conj() * source_amplitude
+                )
+    return matrix
+
+
+def predict_at(experiments, hopping):
+    """Evaluate experiments in their input order for a given hopping."""
+    if hopping is None or not np.isfinite(hopping):
+        raise ValueError("Model must be fit before prediction.")
+
+    hopping = float(hopping)
+    result = []
+    for experiment in experiments:
+        trap = float(experiment["trap"])
+        tilt = float(experiment["tilt"])
+        duration = float(experiment["duration"])
+        observable = experiment["observable"]
+
+        if observable == "density":
+            site = int(experiment["site"])
+            if not 0 <= site < SITES:
+                raise ValueError("density site must be an integer from 0 through 7")
+            matrix = correlation_matrix(hopping, trap, tilt, duration)
+            value = matrix[site, site].real
+        elif observable == "momentum":
+            wave_number = float(experiment["wave_number"])
+            matrix = boson_correlation_matrix(hopping, trap, tilt, duration)
+            mode = np.exp(-1j * wave_number * POSITIONS)
+            value = np.vdot(mode, matrix @ mode).real / SITES
+        else:
+            raise ValueError("observable must be 'density' or 'momentum'")
+        result.append(float(value))
+
+    # Explicitly request the documented output shape and dtype, including for
+    # an empty experiment list.
+    return np.asarray(result, dtype=float).reshape(-1)
+
+
+class Model:
+    def __init__(self):
+        self.hopping = None
+
+    def fit(self, records):
+        """Fit the common hopping to the supplied Gaussian calibration data."""
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        experiments = [record["input"] for record in records]
+        values = np.asarray([float(record["value"]) for record in records])
+        sigmas = np.asarray([float(record.get("sigma", 0.001)) for record in records])
+        if not np.all(np.isfinite(values)) or not np.all(np.isfinite(sigmas)):
+            raise ValueError("calibration values and uncertainties must be finite")
+        if np.any(sigmas <= 0):
+            raise ValueError("calibration uncertainties must be positive")
+
+        def objective(hopping):
+            residual = (predict_at(experiments, hopping) - values) / sigmas
+            return float(np.dot(residual, residual))
+
+        # The README bounds the unknown hopping.  A bounded scalar fit is
+        # sufficient here because all records constrain the same parameter.
+        result = minimize_scalar(
+            objective,
+            bounds=(0.8, 1.2),
+            method="bounded",
+            options={"xatol": 1e-12},
+        )
+        if not result.success or not np.isfinite(result.x):
+            raise RuntimeError("could not fit the hopping parameter")
+        self.hopping = float(np.clip(result.x, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.hopping)
+

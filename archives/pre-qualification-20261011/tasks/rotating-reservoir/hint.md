@@ -1,0 +1,3 @@
+Track the retained gas contact as part of the joint dynamical state. Elastic random swaps preserve total kinetic energy but need not produce a joint Gaussian stationary law when the two baths differ. Mean calibration alone constrains low-order moments.
+
+The calorimeter's Wiener increment is shared with the contact dynamics. A heat-noise calculation must include that cross correlation and the temporal response to the heat current, as well as the direct thermal noise. At a constant collision clock polynomial moments close by degree; relative-speed collision selection generally couples them to further kinetic information.

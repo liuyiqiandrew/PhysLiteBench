@@ -1,0 +1,29 @@
+--- starter/model.py
++++ submission/model.py
+@@ -207,6 +207,25 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        """Fit the single unknown laboratory drag from calibration records.
++
++        For the calibration preparation the collision process has a constant
++        rate, and the stationary second-moment equations give
++
++            E[Q_B]/t = K (temperature_a - temperature_b),
++
++        where
++
++            K = drag * relaxation_rate * RATE /
++                (2 * drag * relaxation_rate
++                 + RATE * (drag + relaxation_rate)).
++
++        Thus the records are a weighted, zero-intercept estimate of K.  The
++        calibration specifies a common relaxation rate and independent
++        Gaussian uncertainties, so inverse-variance weighting is the maximum
++        likelihood estimate.  Inverting K then gives the common drag.
++        """
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

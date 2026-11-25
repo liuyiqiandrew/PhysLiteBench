@@ -1,0 +1,26 @@
+--- starter/model.py
++++ submission/model.py
+@@ -206,7 +206,20 @@
+ 
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        self.friction = None
++
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
+-    def predict(self,experiments):return predict_at(experiments,self.friction)
++        """Estimate the common fluid friction from the calibration records.
++
++        The calibration protocol deliberately has no retained contact and no
++        magnetic field, so its likelihood is a one-dimensional weighted least
++        squares problem.  Keeping that calculation separate also avoids
++        introducing an unnecessary approximation from the more general
++        predictors into the fitted parameter.
++        """
++        self.friction = fit_friction(records)
++        return self
++
++    def predict(self,experiments):
++        return predict_at(experiments,self.friction)

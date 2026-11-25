@@ -1,0 +1,136 @@
+{
+  "review": "Independent analytical review of the explicit half-filled exclusion-current scope",
+  "created_utc": "2026-10-06T09:18:19.231035+00:00",
+  "reviewer": "crystal_plan_review",
+  "verdict": "A small fixed feasibility study is justified, conditional on the published half-filled thermodynamic branch. No package or gold is validated yet.",
+  "scope": {
+    "density": "N=L/2, even L, fixed canonical sector, uniform stationary initial distribution",
+    "rates": "D exp(+/-E/L), with D>0; all successful signed jumps across all bonds count",
+    "observable": "psi=lim_(L->infinity) L lim_(t->infinity) t^(-1) log E[exp(lambda Q_t)], Q_t=total signed successful jumps/L, microscopic clock t",
+    "physical_omission": "Homogeneous conditioned density versus a stationary spatially nonuniform conditioned density. The half-filled optimum has zero propagation speed; do not call it a moving wave.",
+    "work_performed": "Primary-source reading and independent analytical derivation only. No numerical science, model execution, task creation or source edits.",
+    "quarter_filled_review_preserved": {
+      "path": "results/exclusion-current-bounded-proposal-review.json",
+      "sha256": "2d3cb68fddea5d2e8980d3062d421dc21752a850646ba11fc151470d292611b9"
+    }
+  },
+  "primary_source_assessment": [
+    {
+      "source": "Simon (2011), arXiv:1011.3590, Sections II, III, IV.D-E and Appendix A",
+      "url": "https://arxiv.org/abs/1011.3590",
+      "finding": "IV.D maps the half-filled stationary MFT polynomial exactly to the selected microscopic Bethe branch via g=U/(U+1). Two integral constraints suffice and both descriptions give the same eigenvalue. This removes the general-density mapping difficulty. However, the thermodynamic resolvent is Assumption III.1; IV.E leaves more complicated hybrid-cut possibilities open. The mapping is not a new rigorous global-optimality theorem."
+    },
+    {
+      "source": "Espigares, Garrido and Hurtado, PRE 87, 032115 (2013)",
+      "url": "https://ergodic.ugr.es/garrido/papers/102.pdf",
+      "finding": "The half-filled conditioned profile has zero mean velocity for all current fluctuations. The paper gives the field/bias instability and fluctuation symmetry and compares the branch with microscopic cloning at E=10, including half filling. It supports the physical branch, while its general traveling-profile variational restriction is stated conditionally."
+    }
+  ],
+  "normalization": {
+    "mapping_to_Simon": "Divide all microscopic rates by 2D: (1/2)exp(+/-E/L)=1/2 +/- E/(2L)+O(L^-2). Thus nu=E, gamma=lambda, s=lambda/L and psi=2D times the paper's rescaled eigenvalue. The exponential rates must remain the public microscopic model; a linearized rate formula can become negative at small L.",
+    "tilted_generator": "Off-diagonal successful jump rates acquire exp(+/-lambda/L); original escape diagonals remain unchanged. At finite L its Perron eigenvalue alpha_L gives psi=lim L alpha_L.",
+    "flat_source": "psi_flat=D lambda(lambda+2E)/4 = D[(lambda+E)^2-E^2]/4.",
+    "critical_regime": "E_c=2pi. For E>2pi the nonuniform branch occurs at |lambda+E|<sqrt(E^2-4pi^2); the critical SCGF is -D pi^2.",
+    "exact_identities": [
+      "psi(D,E,lambda)=D psi(1,E,lambda).",
+      "psi(E,lambda)=psi(E,-2E-lambda).",
+      "psi(0)=psi(-2E)=0; d psi/d lambda at zero=DE/2; psi is convex.",
+      "At lambda=-E the current vanishes, but the SCGF is nonzero. This is not an SCGF endpoint or a small-denominator selection."
+    ]
+  },
+  "independent_derivation": {
+    "definitions": "Work at D=1, E>0, eta=E+lambda, z=2rho-1, H=<1/(1-z^2)>, where <> is the integral over the unit periodic ring. Mean z=0.",
+    "direct_functional": "F[z]=eta^2/(4H)-E^2<1-z^2>/4-<z'^2/(1-z^2)>/4. The constant current after optimization is q=eta/(2H). This follows by expanding the stationary MFT action, integrating the periodic derivative cross terms to zero and maximizing its quadratic dependence on q.",
+    "first_integral": "For the symmetric one-period stationary profile, z'^2=E^2(a^2-z^2)(b^2-z^2), 0<=a<=b<=1. Its current is q=sign(eta) E sqrt((1-a^2)(1-b^2))/2.",
+    "elliptic_convention": "k=a/b is the modulus; software ellipk/ellipe normally take parameter m=k^2. Define K=integral_0^(pi/2) (1-k^2 sin^2 t)^(-1/2) dt, Eell=integral_0^(pi/2) sqrt(1-k^2 sin^2 t) dt, and Pi(n,k)=integral_0^(pi/2) [(1-n sin^2 t)sqrt(1-k^2 sin^2 t)]^(-1) dt.",
+    "period_and_bias": "b=4K/E, a=kb, H=Pi(a^2,k)/K, and |eta|=E sqrt((1-a^2)(1-b^2)) Pi(a^2,k)/K. The physical interval is 0<=k<=kmax, with K(kmax)=E/4.",
+    "value": "<z^2>=b^2(1-Eell/K); psi/D=E^2(2<z^2>-a^2-b^2)/4 = 4K^2(1-k^2-2Eell/K). This expression uses the first integral and eliminates the current term; it need not share the direct-grid objective code.",
+    "limits": "At k=0, b=2pi/E, |eta|=sqrt(E^2-4pi^2) and psi/D=-pi^2. At k=kmax, b=1, eta=q=0. Use these endpoint limits explicitly rather than dividing by q or numerically subtracting two nearly equal current terms.",
+    "sign_and_factor_verdict": "The proposed root reduction, current, period and SCGF factors are correct. Multiply the final value and physical current by D, not by D/2 or 2D again.",
+    "monotonicity_status": "The endpoint range is verified analytically. Strict monotonicity of eta(k) was not proved in this review and should not be stated as an established theorem. Bracketed root finding itself does not require monotonicity; a fixed mesh can detect branch anomalies, and agreement with direct maximization checks the selected value."
+  },
+  "minimal_reference_pair": {
+    "primary": "Scalar elliptic root and closed SCGF expression above, with an independent real quadrature for Pi. The substitution z=a sin(t) removes the turning-point singularity. This avoids microscopic system-size extrapolation and a complex Bethe-root solver.",
+    "independent_numerical_check": "Maximize the direct stationary functional on the full periodic spatial grid with the mean-density constraint. Do not impose the elliptic shape or particle-hole/half-period symmetry, and do not initialize from the elliptic profile. Retain an independent implementation of its objective and derivatives. The known Bethe mapping supplies theoretical support beyond agreement between two implementations of an arbitrary ansatz.",
+    "practicality": "One scalar solve and small one-dimensional constrained optimization are a reasonable bounded implementation. A cloning campaign, large finite rings and a full complex Bethe solver are unnecessary for this initial screen.",
+    "independence_limit": "This is an independent numerical solution of the stationary functional checked against a published microscopic-branch correspondence. It is not a fresh microscopic numerical computation, a uniform error bound, or a proof excluding every unrestricted time-dependent history."
+  },
+  "fixed_feasibility_plan": {
+    "status": "Proposed only; freeze and static-review source before execution.",
+    "D": 1,
+    "prediction_cases": [
+      {
+        "E": 10,
+        "lambda_over_E": -0.5
+      },
+      {
+        "E": 10,
+        "lambda_over_E": -0.75
+      },
+      {
+        "E": 10,
+        "lambda_over_E": -1.0
+      },
+      {
+        "E": 12,
+        "lambda_over_E": -0.5
+      },
+      {
+        "E": 12,
+        "lambda_over_E": -0.75
+      },
+      {
+        "E": 12,
+        "lambda_over_E": -1.0
+      }
+    ],
+    "grouping": "Two predeclared groups, one for each E, retaining all three raw SCGF values. No subtraction of the flat baseline, group selection or endpoint normalization. Both E values are below 4pi, the next homogeneous spatial-mode threshold; this reduces complexity but is not a proof excluding all other branches.",
+    "controls": [
+      {
+        "E": 0,
+        "lambda": 1
+      },
+      {
+        "E": 4,
+        "lambda": -2
+      },
+      {
+        "E": 4,
+        "lambda": 2
+      },
+      {
+        "E": 10,
+        "lambda": "-10+sqrt(100-4pi^2)*1.001"
+      },
+      {
+        "E": 10,
+        "lambda": "-10+sqrt(100-4pi^2)"
+      },
+      {
+        "E": 10,
+        "lambda": "-10+sqrt(100-4pi^2)*0.999"
+      }
+    ],
+    "direct_spatial_grids": [
+      64,
+      128
+    ],
+    "direct_starts": "At each grid and all 12 cases use precisely three mean-half seeds: rho=1/2; rho=1/2+0.25 cos(2pi x); rho=1/2+0.20 cos(4pi x)+0.05 sin(2pi x). Retain every termination/result and use the best converged objective, never an unconverged result. This is at most 72 optimization attempts.",
+    "direct_implementation": "Use a smooth periodic derivative, fixed mean rho=1/2 and 1e-8<=rho<=1-1e-8. For a collocation implementation, also evaluate the returned interpolated profile on the doubled integration mesh without reoptimizing to detect quadrature aliasing. No elliptic warm starts or post-result extra seeds.",
+    "elliptic_accuracy": "Evaluate all cases at absolute/relative quadrature tolerances 1e-9 and 1e-11 and root tolerance 1e-11. Use analytic flat/critical branches where appropriate. Retain root residuals and a fixed 33-point k mesh per E to check the eta map and bracket multiplicity; a materially nonmonotone map or multiple value branches stops the screen for diagnosis.",
+    "symmetry_and_time_scale": "Evaluate GC mirrors of the six prediction inputs and the exact D rescaling at D=0.8 and 1.2. These require no additional spatial optimization. Also test the exact SCGF zeros as controls only. Check positivity of the specified exponential microscopic rates; do not substitute linearized rates.",
+    "budget": "One bounded study, at most 10 minutes and 2000 optimizer iterations per attempt. Retain timeouts and failures. Exceeding this budget means implementation/reference feasibility is unresolved, not physical rejection."
+  },
+  "acceptance_and_stop_gates": {
+    "numerical_agreement": "For every prediction/control case, |psi_grid128-psi_elliptic|/max(1,|psi_elliptic|)<=0.002. The 64-to-128 and doubled-integration-mesh differences must separately meet the same 0.002 bound. Tightening elliptic tolerances must change psi by at most 1e-7*max(1,|psi|).",
+    "stationary_constraints": "The selected direct-grid result must converge, conserve mean density to 1e-9, remain strictly interior to the imposed density bounds, and have normalized projected first-variation residual <=1e-6. For rho-grid coordinates use M*max|grad F-mean(grad F)|/max(1,E^2). Prediction cases must have resolved nonzero profile contrast; near-critical controls need not resolve an arbitrarily small contrast.",
+    "exact_checks": "Flat controls and the exact critical value must agree with their formulas to 1e-6*max(1,|psi|). GC, exact zeros and D scaling must agree to 1e-9*max(1,|psi|). Across the critical bracket the values must be continuous and the nonuniform value cannot lie below the feasible flat value beyond numerical tolerance. The near-critical excess should tend to zero; it is not a separation case.",
+    "ordinary_separation": "For each fixed E group compute e=sqrt(sum((psi_flat-psi_gold)^2)/sum(psi_gold^2)). Require e>0.06 for both full three-point groups as a predeclared margin above the intended 4% prediction threshold. Also report every point error and the same group statistic with each refined reference. This margin is an evidence gate, not a rigorous error bound.",
+    "stop_rules": [
+      "If numerical/reference gates fail, retain all data and classify the outcome as unresolved; do not weaken gates, add seeds or enlarge the domain during this study.",
+      "If numerics pass but either fixed group has <=4% ordinary error, reject this fixed screen for insufficient separation. Values between 4% and 6% do not establish the required robust margin and stop package work.",
+      "If all gates pass, permit only a later package/domain/calibration review. Do not label this a universal global-optimum proof or immediately launch model trials."
+    ]
+  },
+  "conclusion": "Unlike the quarter-filled proposal, the half-filled reference has a short implementable reduction with a concrete numerical cross-check. A single fixed study can test accuracy and ordinary separation without a large research effort. All quantitative feasibility results remain unknown until that study; the accepted published-branch assumption must remain explicit."
+}

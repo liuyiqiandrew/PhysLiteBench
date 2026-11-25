@@ -1,0 +1,237 @@
+{
+  "updated_at": "2026-10-02T20:47:03.820672+00:00",
+  "scope": "Read-only input review of magnetic-bilayer, hydrodynamic-heating and circular-detector. Full public instructions, README, starter, public tests, data keys and Docker boundary were read, with private grading inspected for extra implementation restrictions. No task source was changed.",
+  "previous_snapshot": "results/neutrality-independent-input-audit-20261002-195414.json",
+  "previous_snapshot_sha256": "241aeeb6453f6e7ef92e4a206fb6acf03f5bbc285f3eb6c449c5f31c56e66be3",
+  "limits": [
+    "This audits source packaging and stated physics, not adversarial container isolation or every possible statistical side channel.",
+    "A completed predictor with a fit-only placeholder can still anchor an agent; the identical neutral instruction explicitly permits replacing all helpers. Behavioral neutrality is not guaranteed.",
+    "Required fitted attributes, API, units, preparation ranges and output accuracy remain legitimate restrictions. No solver, basis, discretization or internal model form is tested.",
+    "Native prompt evidence is included only if a matching current-source session exists at this snapshot; running-session hashes are provisional until the terminal trial audit."
+  ],
+  "tasks": {
+    "magnetic-bilayer": {
+      "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "instruction_exactly_neutral": true,
+      "public_sha256": {
+        "Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+        "model.py": "6f0c3951de85bf7c95c4b751f21272a3363b4e1aa5cb7f0c045eb3a4a6661d94",
+        "README.md": "bec7adabac19c4e19a2a29d4d7b526b5a3a72655f47adee9f30c928428c1418b",
+        "test_public.py": "af90c2d92fdb495723adb41ae539da10259f3b5babfd0e55025d43619b01ed0e",
+        "data/calibration.json": "74fbaf502f7bb89d488c5a20afd5b838f6cde97e5abce74734c943f1295fca4c"
+      },
+      "public_symlinks": [],
+      "docker_copy_lines": [
+        "2: COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /usr/local/bin/uv",
+        "6: COPY README.md model.py test_public.py ./",
+        "7: COPY data/ ./data/"
+      ],
+      "manual": {
+        "necessary": [
+          "environment/README.md:3 fixes the precession sign, damping, geometry and magnetic units.",
+          "environment/README.md:5 specifies material energy and magnetostatic boundary conditions.",
+          "environment/README.md:7 defines the physical thickness projection; it excludes a different physical model, not a numerical solver.",
+          "environment/README.md:9 fixes the complex Fourier convention, initial transverse perturbations, measured component and domain."
+        ],
+        "answer_check": "No volume/surface cross-energy term, corrective tensor or numerical solver is supplied. The block-diagonal energy in the starter can be replaced under instruction.md:3.",
+        "source": "environment/model.py:5 defines the supplied energy approximation; its helper names/comments/imports do not disclose the omitted mixed interaction.",
+        "sigma": "Fixed instrument sigma .00003, independent of gyro_rate or response; scripts/validate_magnetic_bilayer.py:76 and :113-114.",
+        "uniqueness": "Linear LLG, projected magnetostatic boundary problem, all local energies and Fourier phase determine the requested a_z quadrature. The fixed thickness-mode projection is needed to define this continuum experiment."
+      },
+      "native_sessions": [
+        {
+          "path": "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__v2ZuS48/agent/sessions/2026/10/02/rollout-2026-10-02T20-51-37-01a0fe63-0631-77a1-b164-9f92b1ab9033.jsonl",
+          "sha256": "7170b11c26b5a20cbbf5af1de9a4d36d42ced15570b06d42cf3b1a3f3b0a02f7",
+          "task_prompt_count": 1,
+          "all_task_prompts_exactly_neutral": true,
+          "terminal_result_exists": true
+        },
+        {
+          "path": "jobs/magnetic-bilayer-neutral-r1-followup-plain-20261002-205011/magnetic-bilayer__oHHbXvn/agent/sessions/2026/10/02/rollout-2026-10-02T20-51-53-01a0fe63-4423-7981-b255-ac8a25ca9dbf.jsonl",
+          "sha256": "4af226ced3634e28757e18a70e7b2a8494fe60c8557a9aba1d648ef2ac7f759a",
+          "task_prompt_count": 1,
+          "all_task_prompts_exactly_neutral": true,
+          "terminal_result_exists": true
+        },
+        {
+          "path": "jobs/magnetic-bilayer-neutral-r1-initial-plain-20261002-204303/magnetic-bilayer__tkYHEyj/agent/sessions/2026/10/02/rollout-2026-10-02T20-44-31-01a0fe5c-847f-7fb1-b25e-79f9e2d77fbb.jsonl",
+          "sha256": "4d823952493686547f86b6c219f5e442d26e3ba264bd833388d0e2bf86ec5d4c",
+          "task_prompt_count": 1,
+          "all_task_prompts_exactly_neutral": true,
+          "terminal_result_exists": true
+        }
+      ],
+      "data_keys": [
+        "input",
+        "sigma",
+        "value"
+      ],
+      "input_keys": [
+        "gap",
+        "initial_imag",
+        "initial_real",
+        "layer",
+        "quadrature",
+        "time",
+        "wavevector"
+      ],
+      "record_count": 192,
+      "sigma_unique_count": 1,
+      "sigma_range": [
+        3e-05,
+        3e-05
+      ],
+      "public_private_calibration_identical": true,
+      "native_prompt_checked": true,
+      "grader_evidence": "tests/test_hidden.py:19-33 checks documented fit return, scalar parameter, NumPy shape/finiteness and numerical predictions; final tests apply calibration chi-square <1.5, parameter relative error <.03 and group prediction tolerance. No source/helper/algorithm inspection.",
+      "current_findings": [],
+      "proposed_wording_changes": []
+    },
+    "hydrodynamic-heating": {
+      "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "instruction_exactly_neutral": true,
+      "public_sha256": {
+        "Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+        "model.py": "b04cdd91a5834d23276d1ffbf465b73c0c986fc46ba4edcc736618e6455d45fd",
+        "README.md": "ac8076db6c7abd7618575a5bd0de0b25bac132c9d1bacf1832416ae56347887a",
+        "test_public.py": "06f4872e594223fe3e8d03af99668e5d46ffeefabc8b693c58ab22dca5663836",
+        "data/calibration.json": "f8b2bb036510a94f2efa15b486259f1465ba9f0d17dd1fbc4267ce617ac290b3"
+      },
+      "public_symlinks": [],
+      "docker_copy_lines": [
+        "2: COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /usr/local/bin/uv",
+        "6: COPY README.md model.py test_public.py ./",
+        "7: COPY data/ ./data/"
+      ],
+      "manual": {
+        "necessary": [
+          "environment/README.md:3-9 specifies the electron-fluid and Maxwell dynamics.",
+          "environment/README.md:11 supplies the current/velocity normalization and identifies mechanical friction against the ionic bath.",
+          "environment/README.md:13 fixes the additional hard-wall boundary condition for the pressure mode and the ideal constitutive model.",
+          "environment/README.md:15-17 specifies the incident wave, periodic state and spatial calorimeter; downstream heat conduction is outside the defined observable."
+        ],
+        "answer_check": "The public text does not provide the correct current-based dissipation density or diagnose the electric-field heating approximation. The mechanical friction and calorimeter definition are necessary to select the measured heat.",
+        "source": "environment/model.py:48-53 computes the supplied local dielectric-loss readout from its full field solution. It contains no corrective formula or diagnosis comment.",
+        "sigma": "Fixed instrument sigma .00001, independent of plasma_frequency or response; environment/README.md:19 and scripts/validate_hydrodynamic_heating.py:127.",
+        "uniqueness": "The stated fluid equations, tangential fields, hard-wall J_z condition, incident wave and bath location uniquely define the linear steady fields and frictional power. No unspecified thermal transport or microscopic correction is required."
+      },
+      "native_sessions": [
+        {
+          "path": "jobs/hydrodynamic-heating-neutral-r1-initial-plain-20261002-204303/hydrodynamic-heating__gmC7qhE/agent/sessions/2026/10/02/rollout-2026-10-02T20-44-15-01a0fe5c-462d-72b2-a9db-51d0622c50b1.jsonl",
+          "sha256": "0e766656c13108177eac82352f1502822f714c6f3df24e222b86df5336cbdd41",
+          "task_prompt_count": 1,
+          "all_task_prompts_exactly_neutral": true,
+          "terminal_result_exists": true
+        }
+      ],
+      "data_keys": [
+        "input",
+        "sigma",
+        "value"
+      ],
+      "input_keys": [
+        "angle",
+        "frequency",
+        "thickness",
+        "window"
+      ],
+      "record_count": 192,
+      "sigma_unique_count": 1,
+      "sigma_range": [
+        1e-05,
+        1e-05
+      ],
+      "public_private_calibration_identical": true,
+      "native_prompt_checked": true,
+      "grader_evidence": "tests/test_hidden.py:19-33 checks documented fit return, scalar parameter, NumPy shape/finiteness and numerical predictions; final tests apply calibration chi-square <1.5, parameter relative error <.03 and group prediction tolerance. No source/helper/algorithm inspection.",
+      "current_findings": [],
+      "proposed_wording_changes": []
+    },
+    "circular-detector": {
+      "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "instruction_exactly_neutral": true,
+      "public_sha256": {
+        "Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+        "model.py": "039bebd7184faa8badeb167d2dc6ecee752366c7131a5d845ee449bf78adf1cd",
+        "README.md": "2b8bc41538c6b4a6ef38d67a0313036cd595437803704e36a6a218e98f73b174",
+        "test_public.py": "fc2885393f36ebcba7fb2de0c42a4a0635646f9df9aaf781ebafc6efa89e39f9",
+        "data/calibration.json": "ba8e7fd01a89be647ec08eeb3ee92aefdf1718022a8d05a2a63f8cc2a936e2e0"
+      },
+      "public_symlinks": [],
+      "docker_copy_lines": [
+        "2: COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /usr/local/bin/uv",
+        "6: COPY README.md model.py test_public.py ./",
+        "7: COPY data/ ./data/"
+      ],
+      "manual": {
+        "necessary": [
+          "environment/README.md:3 fixes the scalar field normalization, monopole coupling and transition matrix element.",
+          "environment/README.md:7-8 gives the actual worldlines, including proper/laboratory time conversion.",
+          "environment/README.md:10 fixes the inertial vacuum and absence of other fields/boundaries.",
+          "environment/README.md:12 specifies stationary proper-time transition rates, leading weak-coupling order and smooth switching."
+        ],
+        "answer_check": "No stationary interval, Wightman transform, cylindrical mode sum or correction to the local-correlation approximation is supplied. The complete worldlines and rate limit are necessary apparatus definitions.",
+        "source": "environment/model.py:4-12 supplies a coherent rate approximation and spontaneous transition contribution without a diagnosis comment. No solution method is mandated.",
+        "sigma": "Fixed instrument sigma 5e-7, independent of coupling or response; scripts/validate_circular_detector.py:22-25 and environment/README.md:14.",
+        "uniqueness": "The canonical scalar action, inertial vacuum, complete trajectories, proper-time normalization and stationary weak-coupling prescription uniquely determine both transition rates; no detector bandwidth or switching transient is part of the readout."
+      },
+      "native_sessions": [
+        {
+          "path": "jobs/circular-detector-neutral-r1-followup-plain-20261002-205031/circular-detector__LU3xbLy/agent/sessions/2026/10/02/rollout-2026-10-02T20-52-01-01a0fe63-619e-76f3-afcc-ba05354fe30f.jsonl",
+          "sha256": "96b34c57e32dcc2fc02c193cfe3afde9884bb11281e1a4bdf18f0613a0f3b1cb",
+          "task_prompt_count": 1,
+          "all_task_prompts_exactly_neutral": true,
+          "terminal_result_exists": true
+        },
+        {
+          "path": "jobs/circular-detector-neutral-r1-followup-plain-20261002-205031/circular-detector__nypp8Mg/agent/sessions/2026/10/02/rollout-2026-10-02T20-52-08-01a0fe63-8065-7d91-bc82-217753f4a0f4.jsonl",
+          "sha256": "0864517d27d5b1851f6c82d428e0ffabb6e236fd4253b1b0a362ffb4bf752196",
+          "task_prompt_count": 1,
+          "all_task_prompts_exactly_neutral": true,
+          "terminal_result_exists": true
+        },
+        {
+          "path": "jobs/circular-detector-neutral-r1-initial-plain-20261002-204303/circular-detector__kLHbQtP/agent/sessions/2026/10/02/rollout-2026-10-02T20-44-29-01a0fe5c-7c50-7453-93b2-f425a394746a.jsonl",
+          "sha256": "51352fa990627aa20169ca71bfc349d6bbfc2e6c46da2df34e87acb126833511",
+          "task_prompt_count": 1,
+          "all_task_prompts_exactly_neutral": true,
+          "terminal_result_exists": true
+        }
+      ],
+      "data_keys": [
+        "input",
+        "sigma",
+        "value"
+      ],
+      "input_keys": [
+        "acceleration",
+        "gap",
+        "readout",
+        "trajectory"
+      ],
+      "record_count": 144,
+      "sigma_unique_count": 1,
+      "sigma_range": [
+        5e-07,
+        5e-07
+      ],
+      "public_private_calibration_identical": true,
+      "native_prompt_checked": true,
+      "grader_evidence": "tests/test_hidden.py:19-33 checks documented fit return, scalar parameter, NumPy shape/finiteness and numerical predictions; final tests apply calibration chi-square <1.5, parameter relative error <.03 and group prediction tolerance. No source/helper/algorithm inspection.",
+      "current_findings": [],
+      "proposed_wording_changes": []
+    }
+  },
+  "conclusion": "No answer-bearing hints, corrective formulas, solver mandates or demonstrated public parameter leakage were found in these three packages. Keep their apparatus equations, boundary conditions and measurement definitions; no wording change is proposed.",
+  "reviewer_authorship_disclosure": [
+    "The reviewer authored circular-detector. Its scientific source was independently reviewed by materials_candidates in results/materials-hardening-physics-review.json; this is an additional packaging/input audit, not a claim of independent authorship."
+  ],
+  "native_refresh_at": "2026-10-02T21:05:10.215992+00:00",
+  "post_snapshot_changes": [
+    {
+      "task": "circular-detector",
+      "status": "screened out after3/3 reviewed physical passes",
+      "archive": "archives/screened/circular-detector-r1/manifest.json"
+    }
+  ]
+}

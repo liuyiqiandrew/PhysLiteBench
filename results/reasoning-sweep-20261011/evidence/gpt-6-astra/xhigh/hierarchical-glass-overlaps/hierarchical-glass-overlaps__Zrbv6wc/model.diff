@@ -1,0 +1,95 @@
+--- starter/model.py
++++ submission/model.py
+@@ -20,10 +20,25 @@
+     return result
+ 
+ 
+-def leaf_partition(alpha, blocks):
++def leaf_partition(q, alpha, blocks):
++    """Probability of one labelled leaf partition within a common family.
++
++    The two freezing thresholds are ordered, so the limiting Gibbs weights
++    form a two-level Poisson cascade. Family masses have law PD(q, 0).
++    Their internal weights have the tilted law PD(alpha, -q), rather than
++    PD(alpha, 0): a family's internal partition sum also affects its mass.
++    Multiplying that partition law by the family participation cancels
++    the (1-q) rising factorial, giving the product below.
++
++    The formula extends to alpha=1 (diffuse leaves) and q=alpha=1
++    (diffuse families). Blocks are fixed replica sets, so no combinatorial
++    multiplicity is included.
++    """
+     n = sum(blocks)
+     k = len(blocks)
+-    result = alpha**(k-1)*math.factorial(k-1)/math.factorial(n-1)
++    result = 1.0/math.factorial(n-1)
++    for j in range(1, k):
++        result *= j*alpha-q
+     for size in blocks:
+         for j in range(1,size):
+             result *= j-alpha
+@@ -33,12 +48,18 @@
+ def coincidence(beta, replicas, observable, width, blocks=None):
+     q = level_parameter(beta,width,0)
+     alpha = level_parameter(beta,width,1)
+-    parent = participation(q,replicas)
+     if observable == 'parent_collision':
+-        return parent
++        return participation(q,replicas)
+     if observable == 'state_collision':
+-        return parent*participation(alpha,replicas)
+-    return parent*leaf_partition(alpha,blocks)
++        return participation(alpha,replicas)
++    return leaf_partition(q,alpha,blocks)
++
++
++def calibration_beta(row):
++    beta = float(row['input']['beta'])
++    if not math.isfinite(beta) or not .2 <= beta <= .6:
++        raise ValueError('Outside the stated calibration inverse-temperature range.')
++    return beta
+ 
+ 
+ class Model:
+@@ -54,11 +75,39 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit width by constrained Gaussian maximum likelihood.
++
++        All calibration temperatures are above both freezing temperatures,
++        even at width=1.2. Thus the energy per size is -beta*width**2,
++        and weighted least squares is linear in the squared width.
++        """
++        readings = []
++        for row in records:
++            beta = calibration_beta(row)
++            measured = float(row['value'])
++            sigma = float(row['sigma'])
++            if not math.isfinite(measured) or not math.isfinite(sigma) or sigma <= 0:
++                raise ValueError('Calibration values must be finite and sigma positive and finite.')
++            readings.append((beta, measured, sigma))
++        if not readings:
++            raise ValueError('Supply at least one calibration record.')
++
++        # A common rescaling of inverse variances leaves the fit unchanged
++        # and avoids overflow when measurement uncertainties are very small.
++        scale = min(sigma for _, _, sigma in readings)
++        weights = [(scale/sigma)**2 for _, _, sigma in readings]
++        numerator = math.fsum(-weight*beta*measured
++                              for (beta, measured, _), weight in zip(readings, weights))
++        denominator = math.fsum(weight*beta*beta
++                                for (beta, _, _), weight in zip(readings, weights))
++        squared_width = numerator/denominator
++        lower, upper = WIDTH_INTERVAL
++        self.width = math.sqrt(max(lower*lower, min(upper*upper, squared_width)))
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        return np.asarray([-calibration_beta(row)*value*value for row in records],dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

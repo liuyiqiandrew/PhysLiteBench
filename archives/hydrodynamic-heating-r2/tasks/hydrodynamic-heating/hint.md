@@ -1,0 +1,1 @@
+Distinguish local internal heat production from mechanical work by a spatially varying viscous force. Derive the local energy balance of the incompressible Newtonian fluid, including the stress energy flux. The full-slab and restricted-window calorimeters need not make the same attribution.

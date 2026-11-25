@@ -1,0 +1,33 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,20 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if np.any(~np.isfinite(values)) or np.any(~np.isfinite(sigma)) or np.any(sigma <= 0):
++            raise ValueError('Calibration values must be finite and uncertainties positive.')
++        experiments = [r['input'] for r in records]
++        def residual(log_g):
++            return (predict_at(experiments, float(np.exp(log_g))) - values) / sigma
++        result = least_squares(residual, np.log(45.), bounds=(np.log(20.), np.log(80.)),
++                               xtol=1e-12, ftol=1e-12, gtol=1e-12)
++        self.conductance = float(np.exp(result.x[0]))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,7 +425,7 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            other=dict(e,phase=e['phase']+np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)

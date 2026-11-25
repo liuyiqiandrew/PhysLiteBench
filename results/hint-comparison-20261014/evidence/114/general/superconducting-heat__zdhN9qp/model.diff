@@ -1,0 +1,56 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,52 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the (normal-state) conductance from the calibration records.
++
++        The supplied calibration set is deliberately restricted to the
++        unmodulated, oscillator-decoupled contact.  In that limit every
++        predicted heat current is proportional to the conductance, so the
++        weighted least-squares estimate has a closed form.  Keeping the fit
++        here linear also avoids letting the numerical spin solver influence
++        the calibration of a parameter for which it is not needed.
++        """
++        if not records:
++            raise ValueError('records must not be empty')
++
++        coefficients = []
++        values = []
++        sigmas = []
++        for record in records:
++            experiment = record['input']
++            statistic = experiment.get('statistic', 'mean')
++            if statistic != 'mean':
++                raise ValueError('calibration records must use statistic="mean"')
++            if (experiment.get('amplitude', 0.) or
++                    experiment.get('oscillator_coupling', 0.) or
++                    experiment.get('secondary_coupling', 0.) or
++                    experiment.get('quadratic_coupling', 0.) or
++                    experiment.get('momentum_coupling', 0.)):
++                raise ValueError('calibration records must be unmodulated')
++            coefficients.append(power_per_conductance(
++                experiment['left_temperature'], experiment['right_temperature'],
++                experiment['phase'], 0., experiment.get('drive_energy', .3)))
++            values.append(record['value'])
++            sigmas.append(record['sigma'])
++
++        coefficients = np.asarray(coefficients, dtype=float)
++        values = np.asarray(values, dtype=float)
++        sigmas = np.asarray(sigmas, dtype=float)
++        if (not np.isfinite(coefficients).all() or
++                not np.isfinite(values).all() or
++                not np.isfinite(sigmas).all() or np.any(sigmas <= 0)):
++            raise ValueError('records contain non-finite values or invalid uncertainties')
++        weights = 1. / sigmas**2
++        denominator = np.sum(weights * coefficients**2)
++        if denominator <= 0 or not np.isfinite(denominator):
++            raise ValueError('calibration records do not identify conductance')
++        estimate = np.sum(weights * coefficients * values) / denominator
++        self.conductance = float(np.clip(estimate, 20., 80.))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)

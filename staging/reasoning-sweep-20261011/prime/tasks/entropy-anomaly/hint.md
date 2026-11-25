@@ -1,0 +1,1 @@
+For the directed valve, solve the conditional population Poisson equation using its full forward generator. Equal stationary valve probabilities do not imply equal position-conditioned residence at the first finite-mass correction. With state-dependent drag, derive effective positional mobility and diffusion from the velocity cell equations.

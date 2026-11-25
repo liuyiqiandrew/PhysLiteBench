@@ -1,0 +1,86 @@
+--- before/model.py
++++ after/model.py
+@@ -42,17 +42,12 @@
+         return result.reshape(points, points)
+     laplacian = np.fft.ifft2(-k2*np.fft.fft2(diffusion_charge)).real
+     electric = -gradient(solve(laplacian))
+-    charge_current = -gradient(diffusion_charge)+conductivity*electric
+-    responses = []
+-    for axis in range(2):
+-        basis = np.zeros((2, points, points))
+-        basis[axis] = 1.
+-        basis -= gradient(solve(-gradient(conductivity)[axis]))
+-        responses.append(basis)
+-    response_matrix = np.stack([(conductivity*basis).mean(axis=(1,2))
+-                                for basis in responses], axis=1)
+-    offset = np.linalg.solve(response_matrix, -charge_current.mean(axis=(1,2)))
+-    electric += np.einsum('i,ijab->jab', offset, np.array(responses))
++
++    # The periodic electroquasistatic field has no harmonic component:
++    # zero changing magnetic flux and no applied voltage imply zero
++    # circulation around either periodic cycle.  The Poisson solve above
++    # therefore supplies the complete field.  Its mean is zero by
++    # construction, while the local charge-current divergence is zero.
+     gradients = np.array([gradient(value) for value in concentrations])
+     flux = -ratios[:,None,None,None]*gradients
+     flux += (ratios*charges)[:,None,None,None]*concentrations[:,None]*electric
+@@ -78,7 +73,58 @@
+         self.diffusivity = 1.
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Fit the common diffusion coefficient to calibration records.
++
++        The transport equations are linear in the common coefficient ``D``:
++        the electric field is determined by the concentration profiles and
++        the ratios of the individual diffusion coefficients, while every
++        ionic flux (and hence every measured rate) is proportional to ``D``.
++        Thus, for a record with unit-D prediction ``u``, the observation is
++
++            value = D * u + Gaussian noise.
++
++        The maximum-likelihood estimate for independent uncertainties is the
++        weighted one-parameter least-squares estimate below.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        unit_values = np.asarray(
++            [
++                unit_signal(
++                    tuple(record['input']['amplitudes']),
++                    record['input']['phase'],
++                    record['input']['species'],
++                    tuple(record['input']['detector']),
++                )
++                for record in records
++            ],
++            dtype=float,
++        )
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if not (
++            np.isfinite(unit_values).all()
++            and np.isfinite(values).all()
++            and np.isfinite(sigma).all()
++            and np.all(sigma > 0)
++        ):
++            raise ValueError('Calibration values and uncertainties must be finite; sigma must be positive.')
++
++        weights = 1. / (sigma * sigma)
++        denominator = np.sum(weights * unit_values * unit_values)
++        if denominator <= 0 or not np.isfinite(denominator):
++            raise ValueError('Calibration records do not constrain diffusivity.')
++
++        diffusivity = np.sum(weights * unit_values * values) / denominator
++        if not np.isfinite(diffusivity):
++            raise ValueError('Could not determine a finite diffusivity.')
++
++        # The apparatus description gives the physical admissible interval.
++        self.diffusivity = float(np.clip(diffusivity, 0.5, 2.0))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

@@ -1,0 +1,1 @@
+The interaction transfers momentum to both the fluid and the sphere. Determine the force-free translation using the curved no-slip Stokes flow, including the direct reaction of the solute potential. A planar interaction-layer relation need not hold when the interaction width is comparable with the radius.

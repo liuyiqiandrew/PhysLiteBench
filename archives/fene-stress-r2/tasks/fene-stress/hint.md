@@ -1,0 +1,1 @@
+The bead-level force law determines an average of a nonlinear connector force over the stationary configuration distribution. Check whether the conformation closure remains exact for finite connectors under the full imposed flow.

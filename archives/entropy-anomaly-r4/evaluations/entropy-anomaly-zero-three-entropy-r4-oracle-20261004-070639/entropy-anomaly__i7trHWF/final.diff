@@ -1,0 +1,27 @@
+--- before/model.py
++++ after/model.py
+@@ -23,7 +23,7 @@
+     potential = np.fft.ifft(potential).real
+     potential -= density@potential
+     variance = float(2*density@((local_rate-mean)*potential))
+-    return mean, variance
++    return mean, variance+2*mean
+ 
+ 
+ class Model:
+@@ -31,8 +31,13 @@
+         self.friction = 1.0
+ 
+     def fit(self, records):
+-        # TODO: infer friction from the calibration records.
+-        raise NotImplementedError
++        inputs = [r['input'] for r in records]
++        unit = np.asarray([_rates(e, 1.0)[0] for e in inputs])
++        measured = np.asarray([r['value'] for r in records])
++        sigma = np.asarray([r['sigma'] for r in records])
++        inverse = np.sum(unit*measured/sigma**2)/np.sum(unit**2/sigma**2)
++        self.friction = float(np.clip(1/inverse, .7, 1.6))
++        return self
+ 
+     def predict(self, experiments):
+         values = []

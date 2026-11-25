@@ -1,0 +1,37 @@
+--- starter/model.py
++++ submission/model.py
+@@ -92,6 +92,32 @@
+ 
+ class Model:
+     def __init__(self):self.friction=None
++
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        experiments=[r['input'] for r in records]
++        values=np.array([r['value'] for r in records],dtype=float)
++        sigmas=np.array([r['sigma'] for r in records],dtype=float)
++        weights=1.0/sigmas
++        def objective(friction):
++            prediction=coefficients(experiments,float(friction))
++            residual=(prediction-values)*weights
++            return float(residual@residual)
++        lo,hi=0.7,1.6
++        # Coarse scan to bracket the global minimum, then refine.
++        grid=np.linspace(lo,hi,91)
++        scores=np.array([objective(f) for f in grid])
++        index=int(np.argmin(scores))
++        left=grid[max(index-1,0)];right=grid[min(index+1,len(grid)-1)]
++        for _ in range(40):
++            third=(right-left)/3.0
++            mid_left=left+third;mid_right=right-third
++            if objective(mid_left)<objective(mid_right):right=mid_right
++            else:left=mid_left
++            if right-left<1e-10:break
++        best=0.5*(left+right)
++        if objective(best)>objective(grid[index]):best=float(grid[index])
++        self.friction=float(min(max(best,lo),hi))
++        return self
++
++    def predict(self,experiments):
++        return coefficients(experiments,self.friction)

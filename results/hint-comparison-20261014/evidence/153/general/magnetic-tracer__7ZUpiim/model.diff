@@ -1,0 +1,14 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,10 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        # The calibration records contain independent Gaussian measurements,
++        # so the maximum-likelihood estimate is the weighted least-squares
++        # minimizer used by ``fit_friction``.  Keep the fitted value on the
++        # instance because prediction deliberately has no mass parameter.
++        self.friction=fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

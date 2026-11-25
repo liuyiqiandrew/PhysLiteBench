@@ -1,0 +1,106 @@
+[
+  {
+    "slide": 1,
+    "seconds": 50,
+    "body": "PhysLiteBench studies whether a coding agent can build a physical model, rather than only fit the data it is given. Think of calibration as training data: it measures the system under a limited set of conditions. The hidden tests ask for predictions at other settings, where an incorrect physical assumption can become visible. Each agent receives a description of the physical setup, starter code, measurements with known noise, and public tests. It can replace the predictor as well as fit the unknown parameters. The evaluator checks calibration, parameter accuracy, hidden predictions, and completion within a fixed time budget. Our frozen suite has thirteen tasks. We selected them using GPT-5.6 Luna, so the results describe a deliberately challenging suite rather than a random sample of physics. I will use one particle experiment throughout the talk.",
+    "sources": [
+      "README.md",
+      "docs/BENCHMARK.md",
+      "results/task-roster.json"
+    ]
+  },
+  {
+    "slide": 2,
+    "seconds": 100,
+    "body": "Imagine beads in a channel so narrow that they cannot pass. The actual mathematical model uses point particles on an infinite line, but the channel picture captures the constraint. Each independent experimental repeat begins from exactly the same evenly spaced positions. We release the particles and track the orange one as random thermal motion moves it around. The order of the particles never changes. The unknown parameter D sets the movement scale. The calibration measures the orange particle's spread at a single time. The hidden task measures how its positions at two different times vary together across repetitions, called covariance or shared motion here. This is about statistical memory, not whether an individual trajectory looks plausible. The plot compares two formulas using the same fitted movement scale. They agree exactly when the two measurement times coincide. That is all calibration probes. When the times differ, the starter predicts substantially more shared motion than the correct model. The difficulty is that fixed starting positions leave a memory of the release time. The starter instead assumes stationary increments: the statistics of a displacement over a time window depend only on that window's length. An agent can therefore fit every calibration setting and still keep the wrong memory model. The curves show analytic normalized long-time coefficients, not finite-time measurements or simulated trajectories. Here the earlier multiplier is 0.5 and the later one ranges from 0.5 to 4, within the documented domain.",
+    "sources": [
+      "tasks/single-file-memory/environment/README.md",
+      "tasks/single-file-memory/instruction.md",
+      "tasks/single-file-memory/environment/model.py",
+      "tasks/single-file-memory/solution/model.py",
+      "tasks/single-file-memory/AUTHOR.md"
+    ]
+  },
+  {
+    "slide": 3,
+    "seconds": 65,
+    "body": "We compare three prompt conditions while holding model and configured effort fixed. With no hint, the agent gets the original implementation request and public files. The general hint is exactly the sentence shown: check the implementation and test correctness before finishing. It asks for more care, without pointing to a particular physical mechanism. The physics hint is task-specific. For the particles, it says that fixed preparation does not imply stationary increments and suggests deriving the two-time covariance from correlated crossings of independent Brownian paths. In plain terms, the same random path contributes to both measurements, so the preparation and shared history matter. The row paraphrases that cue for this audience. It does not provide the final covariance formula or hidden answers. The little flow diagram is the conceptual relationship the hint asks the agent to consider. We have not yet established that the hint improves outcomes.",
+    "sources": [
+      "results/hint-comparison-20261014/plan.json",
+      "tasks/single-file-memory/hint.md"
+    ]
+  },
+  {
+    "slide": 4,
+    "seconds": 55,
+    "body": "There are two distinct experiment cohorts. The completed no-hint sweep has fifteen model-effort settings, each covering thirteen tasks and three repeats, or five hundred eighty-five attempts. The hint study fixes effort at High for GPT-5.6 Luna, GPT-5.6 Terra, and DeepSeek V4.1 Flash. Nine model-condition settings make three hundred fifty-one logical observations. Those are different Luna generations, so their results should not be silently pooled. Both studies use the Harbor harness and a Codex agent, with ten minutes for the agent and one minute for verification. The files and grading stay frozen across the hint conditions. Thirty-eight Luna baselines were imported from historical matching-task runs with an older client and different concurrency. Thus the Luna hint comparison is descriptive and does not isolate a causal hint effect. Costs are API-equivalent estimates, not subscription usage.",
+    "sources": [
+      "results/reasoning-sweep-20261011/README.md",
+      "results/hint-comparison-20261014/plan.json",
+      "results/hint-comparison-20261014/friend-reuse-amendment-20261015.json"
+    ]
+  },
+  {
+    "slide": 5,
+    "seconds": 75,
+    "body": "This is the observed no-hint cost-success frontier. Every point contains thirty-nine attempts. Higher is better success, and left is lower estimated cost. A Pareto point is one that no other eligible setting beats on both quantities. The dashed line connects those non-dominated settings. GPT-6 Luna Low passes four of thirty-nine at about four tenths of a cent per attempt. Luna Extra High passes twelve at about one point three cents. GPT-6 Sol Low passes thirty-seven at about seven point seven cents. Sol High passes all thirty-nine at about nineteen point eight cents. The exact coordinates in the table help distinguish the low-cost points clustered near the origin. More expensive settings do not exceed that maximum observed score. DeepSeek costs are lower bounds because interrupted requests can have incomplete accounting, so those points do not determine the exact-cost frontier. This comparison describes the selected tasks and fixed runtime budget. Three repeats per task are too few to infer a universal model ranking.",
+    "sources": [
+      "results/reasoning-sweep-20261011/summary.csv",
+      "output/reasoning-sweep-20261011/pareto-frontier.json"
+    ]
+  },
+  {
+    "slide": 6,
+    "seconds": 15,
+    "body": "This slot will compare the three prompt conditions in the High-effort cohort. The full hint study and cost audit are still pending, so I am leaving the results blank.",
+    "sources": [
+      "results/hint-comparison-20261014/status.json",
+      "results/hint-comparison-20261014/plan.json"
+    ]
+  },
+  {
+    "slide": 7,
+    "seconds": 55,
+    "body": "Here we hold each model fixed and compare its effort settings on the same task suite. Terra increases from four to nine to nineteen completed passes. Luna rises substantially at Extra High, although its Low-to-High change goes the other way. Sol already succeeds on almost every attempt at Low. The Astra Extra High setting loses two completed passes because of timeouts. Both saved checkpoints pass the verifier afterward, but completion within the allowed budget is part of the score. These are descriptive comparisons: each point has only three repeats per task, and the High settings include earlier matching observations. Configuring more reasoning can improve a model's predictions, but it can also consume its execution budget, so completed success need not increase monotonically.",
+    "sources": [
+      "results/reasoning-sweep-20261011/summary.csv",
+      "results/trajectory-analysis-20261014/analysis.json"
+    ]
+  },
+  {
+    "slide": 8,
+    "seconds": 55,
+    "body": "The trajectory analysis combines recorded tool actions, final programs, and verifier outcomes. It does not expose private reasoning. Each bar contains one hundred seventeen attempts across three efforts for that model. Of one hundred ninety-one normally completed failures, one hundred eighty-six fail only hidden prediction checks. At least one hundred forty-one of those also show public-test passes in the recorded actions. This is the calibration-to-prediction gap illustrated by the particle task. DeepSeek has a different dominant bottleneck: one hundred five of its one hundred seventeen attempts end with execution errors, including eighty-three timeouts. A zero overall pass rate therefore cannot be interpreted as one hundred seventeen physics mistakes. The aggregate categories tell us where failures appear. A saved program and a targeted intervention are needed to diagnose a particular physical mistake.",
+    "sources": [
+      "results/trajectory-analysis-20261014/analysis.json",
+      "output/trajectory-analysis-20261014/report.html"
+    ]
+  },
+  {
+    "slide": 9,
+    "seconds": 95,
+    "body": "Return to the particles. This is one saved GPT-5.6 Terra High attempt without a hint, lasting about eighty seconds. The recorded actions show it reading the setup, accepting the starter covariance, fitting the movement scale, and running the public test. At step eight it writes, \"The supplied covariance expression matches the deterministic (quenched) single-file limit.\" The source diff shows that it adds input validation and comments naming the fixed preparation but retains exactly the original time dependence. That is the red box in the flowchart. Its fitted movement parameter is accurate to about 0.0055 percent, and its public test passes. Equal-time hidden anchors are also accurate. Yet the errors grow to roughly thirty-seven, seventy-eight, and one hundred thirty-six percent when the later measurement is two, four, and eight times the earlier one. The four-percent prediction threshold is exceeded in each of these groups. This matches the task's intended trap: a familiar stationary-increment formula can reproduce all equal-time calibration while missing preparation-dependent memory. To test the diagnosis, the analyst replaces only the covariance formula in an in-memory copy and keeps the fitted parameter fixed. The largest group error falls to about 0.0028 percent. This intervention supports the identified source-level omission. It is not a hint-study outcome, and the original agent attempt still counts as a failure.",
+    "sources": [
+      "results/trajectory-analysis-20261014/cases/single-file-memory__PC6LumP/review.json",
+      "results/trajectory-analysis-20261014/cases/single-file-memory__PC6LumP/model.diff",
+      "results/trajectory-analysis-20261014/cases/single-file-memory__PC6LumP/metrics.json",
+      "results/trajectory-analysis-20261014/diagnostic-repairs.json",
+      "jobs/pareto-gpt-5.6-terra-single-file-memory-20261011-135517/single-file-memory__PC6LumP/agent/trajectory.json",
+      "tasks/single-file-memory/environment/README.md",
+      "tasks/single-file-memory/instruction.md",
+      "tasks/single-file-memory/environment/model.py",
+      "tasks/single-file-memory/solution/model.py",
+      "tasks/single-file-memory/AUTHOR.md"
+    ]
+  },
+  {
+    "slide": 10,
+    "seconds": 35,
+    "body": "The particle example shows why calibration accuracy alone cannot establish that a physical predictor is correct. The aggregate results reveal substantial differences in success per dollar, while the effort comparison shows that more reasoning also interacts with a fixed execution budget. The saved Terra program gives a concrete failure mechanism: the parameter fit is excellent, but the model retains the wrong temporal memory. The remaining experiment asks whether a targeted physics cue changes these outcomes more than a general request to check the code. That result stays open until the hint study is complete.",
+    "sources": [
+      "results/reasoning-sweep-20261011/summary.csv",
+      "results/trajectory-analysis-20261014/analysis.json",
+      "results/hint-comparison-20261014/plan.json"
+    ]
+  }
+]

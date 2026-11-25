@@ -1,0 +1,82 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,75 @@
+-"""Current SCGF model and calibration interface."""
++"""Current SCGF model and calibration interface.
++
++For the symmetric exclusion process on a ring of L sites with L/2 particles and
++biased jump rates r_pm = D*exp(+-E/L), the scaled cumulant generating function of
++the current Q_t = (J_+ - J_-)/L, tilted by a counting parameter lambda, is exactly
++the quadratic form
++
++    psi(E, lambda; D) = D * lambda * (lambda + 2 E) / 4
++
++in inverse microscopic time units.  (The long-time limit is taken at fixed L and
++the L -> infinity limit then yields this closed form; equivalently it is the
++diffusive Gaussian-fluctuation result  D * [(lambda+E)^2 - E^2] / 4.)
++
++Only the common rate prefactor D (the diffusivity) is unknown; the field E and the
++counting parameter lambda are inputs.  ``fit`` estimates D from the calibration
++records by inverse-variance weighted least squares; ``predict`` evaluates psi.
++"""
+ import numpy as np
+ 
++# The calibrated observable is linear in D, with this input-dependent factor.
++def _feature(field, bias):
++    return bias * (bias + 2.0 * field) / 4.0
++
++
+ def predict_at(experiments, diffusivity):
++    """Return psi for a list of {field, bias} dicts at a given diffusivity."""
++    if len(experiments) == 0:
++        return np.zeros(0, dtype=float)
+     field = np.asarray([e["field"] for e in experiments], dtype=float)
+     bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    return diffusivity * _feature(field, bias)
+ 
+ 
+ class Model:
++    # Valid range for the unknown diffusivity.
++    BOUNDS = (0.8, 1.2)
++
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Estimate the diffusivity from calibration records.
++
++        Each record is {"input": {"field": E, "bias": lambda}, "value": psi,
++        "sigma": sd}.  Because psi is linear in D, the weighted least-squares
++        estimate is available in closed form.
++        """
++        lo, hi = self.BOUNDS
++        if len(records) == 0:
++            self.diffusivity = float(np.clip(1.0, lo, hi))
++            return self
++
++        field = np.asarray([r["input"]["field"] for r in records], dtype=float)
++        bias = np.asarray([r["input"]["bias"] for r in records], dtype=float)
++        value = np.asarray([r["value"] for r in records], dtype=float)
++        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
++
++        g = _feature(field, bias)
++        w = 1.0 / np.square(sigma)
++
++        denom = float(np.sum(w * g * g))
++        if denom > 0.0:
++            estimate = float(np.sum(w * g * value) / denom)
++        else:
++            # No informative inputs: fall back to the midpoint of the range.
++            estimate = 0.5 * (lo + hi)
++
++        if not np.isfinite(estimate):
++            estimate = float(np.clip(1.0, lo, hi))
++
++        self.diffusivity = float(np.clip(estimate, lo, hi))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

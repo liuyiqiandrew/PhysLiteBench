@@ -1,0 +1,62 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,9 +191,47 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the sole apparatus parameter by weighted least squares.
++
++        Conductance is expressed in microSiemens everywhere in this module.
++        Although the original calibration is linear in conductance, driven
++        records need not be: their stationary spin potentials also depend on
++        it.  Fitting through the public predictor keeps both cases consistent.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        try:
++            experiments = [record["input"] for record in records]
++            observed = np.asarray([record["value"] for record in records], dtype=float)
++            sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        except (KeyError, TypeError) as error:
++            raise ValueError("each calibration record needs input, value, and sigma") from error
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values must be finite and sigmas must be positive")
++
++        def residual(parameter):
++            calculated = predict_at(experiments, float(parameter[0]))
++            if not np.isfinite(calculated).all():
++                # A finite residual lets the bounded optimizer move away from
++                # a numerically unsuitable trial point.
++                return np.full_like(observed, 1.e100)
++            return (calculated - observed) / sigma
++
++        result = least_squares(
++            residual, x0=np.array([50.0]), bounds=(np.array([20.0]), np.array([80.0])),
++            xtol=1.e-12, ftol=1.e-12, gtol=1.e-12, max_nfev=100,
++        )
++        if not result.success or not np.isfinite(result.x[0]):
++            raise RuntimeError("conductance fit did not converge")
++        self.conductance = float(result.x[0])
++        return self
+ 
+     def predict(self, experiments):
++        if self.conductance is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.conductance)
+ 
+ 
+@@ -412,7 +450,9 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            # Do not reuse the first preparation's spin state: mean_heat
++            # obtains a fresh stationary solution at the shifted phase.
++            other=dict(e,phase=e['phase'] + np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)

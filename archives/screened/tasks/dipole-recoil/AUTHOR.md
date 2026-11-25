@@ -1,0 +1,11 @@
+# Dipole recoil, revision 1
+
+The starter evaluates the exact extinction force for the stated radiatively dressed electric and magnetic polarizabilities. Extinction is sufficient for either dipole alone: its scattered radiation has zero net momentum. Calibration includes both isolated response types over wavelength and weight and uniquely identifies the shared scale. With both moments excited coherently, their radiation interferes. This interference integrates to zero in total power but not in longitudinal momentum. The physical force is k Im(alpha_e+alpha_m)/2 - k^4 Re(alpha_e alpha_m*)/(12 pi), with the public units and field amplitude. No material absorption or higher multipoles are involved.
+
+The shortcut is a complete lossless energy-conserving extinction model. It uses all inputs and includes radiation reaction correctly; its physical failure is equating all removed incident momentum with mechanical momentum. The oracle uses the analytic interference recoil. The independent reference solves the six dipole response components then integrates the full coherent far-field momentum over solid angle. Its force is the integral of (1-n_z) times radiated power, using losslessness. Validation checks the optical theorem, angular convergence, isolated dipole symmetry, and the equal-response g=1/2 limit. Hidden RMS relative error limit is .04, while calibration standard deviation is .006 times the maximum force.
+
+This is distinct from the archived induced-dipole candidate: that was the internal energy cost of induced polarization in an inhomogeneous static field. Here the issue is momentum carried away by coherent electric/magnetic optical radiation.
+
+Primary sources: [Nieto-Vesperinas et al., Optical forces on small magnetodielectric particles](https://doi.org/10.1364/OE.18.011428) and [Gomez-Medina et al., Electric and magnetic dipolar response of Germanium spheres](https://arxiv.org/abs/1104.3363). The ideal controlled polarizability family is specified directly rather than inferring a material's optical properties.
+
+Validation: `uv run --python 3.13 --with numpy==2.3.3 --with scipy==1.16.3 --with pytest==8.4.2 python scripts/validate_dipole_recoil.py --noise-trials 256`. Explicit --generate creates the fixed calibration. Peer review and Luna evaluation pending.

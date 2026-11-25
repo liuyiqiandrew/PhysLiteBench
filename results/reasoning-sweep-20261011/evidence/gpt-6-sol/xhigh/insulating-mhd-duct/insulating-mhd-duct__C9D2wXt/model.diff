@@ -1,0 +1,71 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -35,20 +36,29 @@
+         k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+         qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+ 
+-    return m, n, wave2, mean, qx, qy
++    # The mixed part of (Bx*d/dx + By*d/dy)^T (-Laplace_D)^-1
++    # (Bx*d/dx + By*d/dy).  A derivative in x preserves the y
++    # sine index, while a derivative in y preserves the x index.
++    dx = derivative_overlap(m, m)/WIDTH
++    dy = derivative_overlap(n, n)/HEIGHT
++    electric_wave2 = (m[None, :]*np.pi/WIDTH)**2 + (n[:, None]*np.pi/HEIGHT)**2
++    mixed = dx.T*dy/electric_wave2
++    cross = mixed + mixed.T
++
++    return m, n, wave2, mean, qx, qy, cross
+ 
+ 
+-@lru_cache(64)
++@lru_cache(16)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    m, n, wave2, mean, qx, qy, cross = operators(nx, ny)
++    magnetic = bx*bx*qx+by*by*qy+bx*by*cross
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,7 +71,24 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required')
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        def loss(viscosity):
++            self.viscosity = viscosity
++            residual = (self.predict(experiments)-values)/sigmas
++            return float(residual@residual)
++
++        result = minimize_scalar(loss, bounds=(0.006, 0.018), method='bounded',
++                                 options={'xatol': 1e-10})
++        if not result.success:
++            raise RuntimeError('Viscosity fit failed')
++        self.viscosity = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
+         m, n, _, mean, *_ = operators()

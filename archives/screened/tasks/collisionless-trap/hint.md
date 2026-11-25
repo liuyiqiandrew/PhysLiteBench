@@ -1,0 +1,1 @@
+Slow isolation does not keep a collisionless gas at a single Gibbs temperature. Each nondegenerate harmonic mode conserves its own action E/omega as the trap changes. Follow those modes through the prescribed rotation, then compute the measured final position covariance; a single entropy-conserving temperature loses the separate mode populations.

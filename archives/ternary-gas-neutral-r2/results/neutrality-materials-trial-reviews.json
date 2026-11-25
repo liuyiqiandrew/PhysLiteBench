@@ -1,0 +1,117 @@
+{
+  "ternary-gas__yvTBR5M": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "ternary-gas-neutral-r2-initial-plain-20261002-183830",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source recomputes the Maxwell-Stefan friction matrix from the local evolving face composition, enforces zero total flux and conservative sealed boundaries, and fits diffusivity from binary calibration. Public trajectory either explicitly rejects the frozen mean composition or derives the local mixture transport equations. All mixed hidden groups pass. Temporary reduced-matrix, DCT or sparsity errors were corrected before final submission; this is a substantive physical solution.",
+    "metrics": {
+      "parameter": 0.03514892631315001,
+      "parameter_relative_error": 0.004255037518571703,
+      "calibration_chi2": 0.9854613899385063,
+      "hidden": {
+        "mixture_0": 0.00123528488412222,
+        "mixture_1": 0.0013696450167516242,
+        "mixture_2": 0.0013841597754696545
+      }
+    },
+    "source_sha256": "ba89d8c9245adfe498094fdc019b9d4747494ca65d08d83c73d11e2f7c5813c3",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/agent/codex.txt",
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-r2-initial-plain-20261002-183830/ternary-gas__yvTBR5M/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and existing model implementation, then derive and validate the prediction logic against the documented interface.",
+      "The calibration contains three binary preparations, so the common diffusivity can be estimated directly from the exact Neumann diffusion solution. For mixed-gas predictions I\u2019m implementing the local Maxwell\u2013Stefan flux equations, with zero-flux boundaries and a stiff method-of-lines integrator.",
+      "The public calibration test now passes and estimates a diffusivity near the expected scale. I\u2019m doing an additional ternary smoke test because that path is not exercised by the supplied public records; it needs to remain practical and numerically stable for hidden mixed-gas cases.",
+      "The ternary smoke test exposed and I corrected two numerical issues: the reduced Maxwell\u2013Stefan matrix had one cross-term indexed by the wrong species, and the sparse Jacobian pattern omitted the neighboring component coupling. The mixed-gas path is now fast, finite, and conserves the mole-fraction sum.",
+      "Implemented `/app/model.py` with:\n\n- Diffusivity fitting from calibration data.\n- Exact binary Neumann diffusion solutions.\n- Ternary Maxwell\u2013Stefan transport with zero-flux boundaries.\n- Stiff sparse method-of-lines integration.\n- Input validation and documented prediction shapes.\n\nVerification: `python -m pytest -q test_public.py` passes."
+    ],
+    "public_tool_count": 24,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 3/3 passes."
+  },
+  "ternary-gas__2vbmVkE": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "ternary-gas-neutral-r2-followup-plain-20261002-184842",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source recomputes the Maxwell-Stefan friction matrix from the local evolving face composition, enforces zero total flux and conservative sealed boundaries, and fits diffusivity from binary calibration. Public trajectory either explicitly rejects the frozen mean composition or derives the local mixture transport equations. All mixed hidden groups pass. Temporary reduced-matrix, DCT or sparsity errors were corrected before final submission; this is a substantive physical solution.",
+    "metrics": {
+      "parameter": 0.035148926112505335,
+      "parameter_relative_error": 0.004255031785866725,
+      "calibration_chi2": 0.9854613899384947,
+      "hidden": {
+        "mixture_0": 0.00123528322567035,
+        "mixture_1": 0.0013696491251582365,
+        "mixture_2": 0.0013841564570375247
+      }
+    },
+    "source_sha256": "01532e3135158d3d0d5db22f81dfb6f572e4e4168f6ece940d7e4afc9758d82e",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/agent/codex.txt",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__2vbmVkE/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current implementation, then derive and test the prediction model against the documented interface.",
+      "The calibration consists of three binary preparations, so the scale can be fit exactly with the Neumann diffusion modes. For arbitrary ternary predictions I\u2019m implementing the constant-density Maxwell\u2013Stefan equations, with composition-dependent face fluxes and a stiff time integrator.",
+      "The public calibration test now passes, and the fitted scale is finite and positive. I also checked a genuinely ternary profile: the solver returns the required shape, stays finite, preserves the local mole-fraction sum, and conserves each species\u2019 total amount.",
+      "Implemented `/app/model.py` with:\n\n- Diffusivity fitting from calibration data.\n- Exact binary Neumann diffusion solutions.\n- Ternary Maxwell\u2013Stefan transport solver.\n- Conservation and mole-fraction constraints.\n- Robust handling of absent species and zero-time predictions.\n\nValidation passed:\n\n```text\n1 passed\n```\n\nFitted diffusivity: `0.0351489261 mm\u00b2/s`."
+    ],
+    "public_tool_count": 14,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 3/3 passes."
+  },
+  "ternary-gas__8KdtWrp": {
+    "task": "ternary-gas",
+    "revision_label": "neutral-r2",
+    "scientific_revision": 2,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "ternary-gas-neutral-r2-followup-plain-20261002-184842",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source recomputes the Maxwell-Stefan friction matrix from the local evolving face composition, enforces zero total flux and conservative sealed boundaries, and fits diffusivity from binary calibration. Public trajectory either explicitly rejects the frozen mean composition or derives the local mixture transport equations. All mixed hidden groups pass. Temporary reduced-matrix, DCT or sparsity errors were corrected before final submission; this is a substantive physical solution.",
+    "metrics": {
+      "parameter": 0.035148926112505335,
+      "parameter_relative_error": 0.004255031785866725,
+      "calibration_chi2": 0.9854613899384947,
+      "hidden": {
+        "mixture_0": 0.0012352832264053311,
+        "mixture_1": 0.0013696491251581865,
+        "mixture_2": 0.0013841564570380737
+      }
+    },
+    "source_sha256": "bfce732a39e310f9d830531ebbd06949062c73a1b0cce48b0a2d1a453ebcecef",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/artifacts/app/model.py",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/agent/trajectory.json",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/agent/codex.txt",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/verifier/metrics.json",
+      "jobs/ternary-gas-neutral-r2-followup-plain-20261002-184842/ternary-gas__8KdtWrp/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement and validate the model against the documented behavior.",
+      "The current implementation has two clear issues: `fit` is unimplemented, and the ternary solver freezes composition to a global average instead of using local face composition. I\u2019m checking the calibration trajectories and deriving a stable Maxwell\u2013Stefan discretization so the fitted scale is physically consistent across binary and ternary preparations.",
+      "The first validation exposed a normalization subtlety in SciPy\u2019s orthonormal DCT-I: it does not represent the endpoint-weighted Neumann eigenbasis used by this mesh. I\u2019m correcting the binary spectral branch to the unnormalized DCT-I convention used by the finite-volume endpoint stencil, then rerunning calibration and ternary sanity checks.",
+      "Implemented `/app/model.py` with:\n\n- Gaussian-weighted diffusivity fitting\n- Binary analytic no-flux diffusion\n- Ternary Maxwell\u2013Stefan finite-volume solver\n- Conservative fluxes and impermeable boundaries\n- Input validation and documented output shapes\n\nValidation: `python -m pytest -q test_public.py` passes. Fitted diffusivity is approximately `0.03515 mm\u00b2/s`."
+    ],
+    "public_tool_count": 19,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 3/3 passes."
+  }
+}

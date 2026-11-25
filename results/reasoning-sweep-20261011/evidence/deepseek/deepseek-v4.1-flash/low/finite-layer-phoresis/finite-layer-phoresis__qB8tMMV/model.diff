@@ -1,0 +1,26 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,22 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        inputs = [r['input'] for r in records]
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigmas = np.asarray([r['sigma'] for r in records], dtype=float)
++        basis = np.asarray([response(e['radius'], e['width'], e['strength'], e['slip'])
++                            for e in inputs], dtype=float)
++        weights = 1.0/sigmas**2
++        denom = float(np.sum(weights*basis**2))
++        if denom <= 0.0:
++            raise ValueError('calibration records carry no information about viscosity')
++        slope = float(np.sum(weights*basis*values))/denom
++        if slope <= 0.0:
++            raise ValueError('calibration records are inconsistent with the model')
++        self.viscosity = 1.0/slope
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise ValueError('call fit() before predict()')
+         return predict_at(experiments, self.viscosity)

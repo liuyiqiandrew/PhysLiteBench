@@ -1,0 +1,63 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,58 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Estimate the (common) drag coefficient by weighted least squares.
++
++        The calibration preparation has no magnetic field and its two contacts
++        have the same temperature.  In that case the limiting rate is exactly
++        proportional to ``1 / friction``.  Exploiting that identity is both
++        more accurate and substantially less expensive than repeatedly solving
++        the spatial problem during the one-parameter fit.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values and sigmas must be finite, with positive sigma")
++
++        # All supplied calibration records use this preparation (as specified
++        # in README).  Keep a general bounded scalar fit as a useful fallback
++        # for callers supplying compatible, but more general, records.
++        simple = all(e.get('bath_contrast', 0.) == 0.
++                     and e.get('magnetic', 0.) == 0.
++                     and 'valve_cycle' not in e for e in experiments)
++        if simple:
++            at_unit_drag = coefficients(experiments, 1.)
++            inv_drag = np.sum(at_unit_drag * observed / sigma**2) / np.sum(at_unit_drag**2 / sigma**2)
++            self.friction = float(np.clip(1. / inv_drag, .7, 1.6))
++            return self
++
++        # Golden-section search avoids adding a SciPy dependency to the model.
++        def loss(drag):
++            residual = (coefficients(experiments, drag) - observed) / sigma
++            return float(residual @ residual)
++        lo, hi = .7, 1.6
++        ratio = (5**.5 - 1.) / 2.
++        left = hi - ratio * (hi - lo)
++        right = lo + ratio * (hi - lo)
++        f_left, f_right = loss(left), loss(right)
++        for _ in range(32):
++            if f_left <= f_right:
++                hi, right, f_right = right, left, f_left
++                left = hi - ratio * (hi - lo)
++                f_left = loss(left)
++            else:
++                lo, left, f_left = left, right, f_right
++                right = lo + ratio * (hi - lo)
++                f_right = loss(right)
++        self.friction = float((lo + hi) / 2.)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        return coefficients(experiments, self.friction)

@@ -1,0 +1,71 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,7 +3,7 @@
+ import numpy as np
+ from numpy.polynomial.hermite import hermgauss
+ from numpy.polynomial.laguerre import laggauss
+-from scipy.linalg import solve
++from scipy.linalg import solve, lu_factor, lu_solve
+ 
+ RATE=3.6
+ 
+@@ -170,14 +170,35 @@
+     return L,V,A1,A2,p,constant
+ 
+ def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
++    """Cumulant perturbation of the joint angle/velocity generator.
++
++    Fourier mode n has backward generator L + i*n*harmonic*V.
++    Through third order only modes 0 and +/-1 of the eigenvector are
++    needed: the final contraction with the gain cannot see mode +/-2.
++    The velocity-dependent angular transport must remain in the resolvent;
++    replacing it with independent phase mixing loses heat correlations.
++    A1 uses the exp(-k Y) convention, hence the odd-cumulant signs below.
++    """
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+     w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
++    ns=[0] if averaged or eps==0. else [-1,0,1]
++    mean=p@A1@constant
++    factors={}
+     def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
++        # Negative Fourier modes are conjugates of positive ones.
++        mode=abs(n)
++        if mode not in factors:
++            if mode:
++                system=L+1j*mode*harmonic*V-phase_mixing_rate*(mode*harmonic)**2*np.eye(len(p))
++            else:
++                system=L.astype(complex);system[0]=p
++            factors[mode]=lu_factor(system,check_finite=False)
++        rhs=rhs.copy()
++        if not n:rhs[0]=0.
++        if n<0:rhs=rhs.conjugate()
++        solution=lu_solve(factors[mode],rhs,check_finite=False)
++        return solution.conjugate() if n<0 else solution
+     r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+     c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+     r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+@@ -196,6 +217,10 @@
+     for e in experiments:
+         if e.get('detector_contrast',0.)!=0.:
+             if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
++            # Uniform stationary angle makes the mean gain exactly one.
++            if e.get('statistic','mean')=='mean':
++                result.append(readout(*(float(e[f]) for f in FIELDS),'mean',float(drag)))
++                continue
+             values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
+                 float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+             result.append(values[e.get('statistic','mean')])
+@@ -207,6 +232,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

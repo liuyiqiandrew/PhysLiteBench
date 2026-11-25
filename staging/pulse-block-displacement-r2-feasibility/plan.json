@@ -1,0 +1,85 @@
+{
+  "status": "predeclared_bounded_feasibility_before_scientific_execution",
+  "authority": "results/pulse-block-r2-bounded-feasibility-decision.json",
+  "scope": "One numerical study only. Preserve every case and development failure. No domain selection after gaps, full package, model, Docker, Git or canonical edits.",
+  "units": "c=epsilon0=mu0=Omega0=illuminated area=Mtotal=1; equal masses 1/2; k=Omega_m^2/4",
+  "incident_pulse": "Real positive-frequency amplitude proportional to (1-u^2)^4 for |u|<1, zero outside, zero spectral phase, conjugate negative frequencies. Normalize integral e(t)^2 dt=1. Incident energy centroid at t=0.",
+  "calibration_sign": "Positive forward radiation load, equal to magnitude of opposing support force in a separate held-sheet harmonic preparation.",
+  "domain": {
+    "strength": [0.2, 0.4],
+    "center": [1.5, 1.8],
+    "width": [0.04, 0.1],
+    "mechanical_frequency_over_width": [0.5, 4.0],
+    "clock_times_width": [1.0, 4.0]
+  },
+  "survey": {
+    "tensor_strength": [0.2, 0.25, 0.3, 0.35, 0.4],
+    "tensor_center": [1.5, 1.6, 1.7, 1.8],
+    "tensor_width": [0.04, 0.07, 0.1],
+    "tensor_mechanical_ratio": [0.5, 1.5, 2.5, 4.0],
+    "tensor_clock": [1.0, 2.0, 3.0, 4.0],
+    "tensor_cases": 960,
+    "interior_cases": 128,
+    "interior_seed": 614021,
+    "record_all": true,
+    "weak_case_definition": "Record every physical |z|<0.05, source |z|<0.05, relative discrepancy<0.04, sign difference, and cancellation; flags are reporting only, not filters. Also report group RMS and absolute gaps. No minimum threshold will be changed after execution."
+  },
+  "diagnostic_groups": {
+    "centers": [1.5, 1.65, 1.8],
+    "widths": [0.04, 0.07, 0.1],
+    "mechanical_ratios": [1.0, 2.0, 4.0],
+    "clocks": [1.0, 2.5, 4.0],
+    "construction": "For each center and every width index i and mechanical-ratio index j, use clock index (i+j)%3. Nine rows per center, 27 total, fixed before gaps.",
+    "strength_grid": "41 equally spaced strengths over [0.2,0.4]",
+    "prediction_gate": 0.04,
+    "ordinary_group_signal_check": "Every group's true RMS must exceed 0.05; all individual weaker rows remain included."
+  },
+  "oracle": {
+    "optics": "Frequency-domain retarded sheet susceptibility, FFT reconstruction of real e,P,P_dot,e_dot. Physical force P_dot*e; completed source -P*e_dot.",
+    "mechanics": "Direct Simpson integration of the equal-mass Green function, preserving the finite clock and both translation and relative mode.",
+    "base_dt": 0.125,
+    "base_minimum_half_window_times_width": 32.0,
+    "sample_count": "Smallest power of two with N*dt>=2*half_window/width; use t in [-N*dt/2,N*dt/2).",
+    "separate_temporal_refinement": "dt=0.0625 at unchanged minimum half-window 32",
+    "separate_tail_spectral_refinement": "minimum half-window=64 at unchanged dt=0.125",
+    "tail_qualification": "Period extension also refines optical frequency spacing; report this explicitly, not as an independent fixed-spacing spectral test."
+  },
+  "independent_reference": {
+    "implementation": "Analytic real incident pulse via compact-profile Fourier-Bessel identity; integrate oscillator in time using Maxwell characteristic jumps, exterior E/B stress difference as force, and both Newton equations. Never insert P_dot*e or source force as mechanical input.",
+    "full_time_interval": "[-32/width,+32/width] for base, evaluate prescribed finite clock with dense output",
+    "base_solver": "DOP853, rtol=2e-9, atol=2e-11, max_step=0.4",
+    "temporal_refinement": "DOP853, rtol=2e-11, atol=2e-13, max_step=0.2, same time interval",
+    "tail_refinement": "[-64/width,+64/width], original tolerances and step bound",
+    "case_set": "All 32 corners of the five-dimensional domain plus first eight seeded survey interiors: 40 base cases.",
+    "refinement_case_set": "First eight lexicographic corners plus first four seeded interiors: 12 cases. Apply both oracle refinements and both reference refinements separately.",
+    "agreement_check": "Absolute difference normalized by max(0.05,abs(truth)) < 0.0002; this author numerical check is separate from unchanged 0.04 benchmark gate."
+  },
+  "calibration_noise": {
+    "frequencies": [1.5, 1.65, 1.8],
+    "intensities": [0.5, 1.0, 2.0],
+    "independent_repeats_each": 16,
+    "records_each_dataset": 144,
+    "sigma": 0.0005,
+    "nominal_strength": 0.31,
+    "fixed_dataset_seed": 614023,
+    "noise_datasets": 256,
+    "noise_strengths": "First128 at0.31; remaining128 equally spaced over[0.2,0.4] including endpoints.",
+    "noise_seed": 614027,
+    "fit": "Bounded scalar weighted least squares on[0.2,0.4], xatol1e-12; compare endpoints. Both controls share this fit after stationary equality check.",
+    "parameter_gate": 0.03,
+    "reduced_chi2_gate": 1.5,
+    "prediction_gate": 0.04,
+    "noiseless_identification_check": "41 equally spaced strengths, the same full calibration settings."
+  },
+  "additional_checks": [
+    "Positive oscillator energy; instantaneous jump/stress/energy identities and integrated optical energy balance",
+    "Complete-pulse impulse equals twice reflected energy; source impulse equals physical after tails vanish",
+    "Stationary optical unitarity and exact equality of gradient/Lorentz mean forces with reflection calibration over 41 strengths and all calibration frequencies/intensities",
+    "At nominal center1.65,width0.07,strength0.31,ratio2,clock2.5: reference amplitudes0.5,1,2 test weak-equation scaling; not a finite-amplitude moving-body claim",
+    "Zero-strength optical limit and Omega_m=0 inert component exactly at rest",
+    "Nominal pulse at mechanical ratios0.01 and0.02 checks inert-component small-frequency quadratic scaling; ratios40 and80 check the analytic rigid-limit bound abs(z-Xcm)<=integral(abs(F))/Omega_m",
+    "Newton mechanical kinetic+spring energy equals integrated force*frame_velocity; independent from optical leading-order energy",
+    "Record wall-clock costs, all numerical/refinement mismatches, every gate failure and all weak cases"
+  ],
+  "execution": "Write section checkpoints as results become available. Freeze and hash the script before executing. Preserve a copy of each executed script and logs even if it fails. Stop at the bounded report; do not tune domains or continue into packaging automatically."
+}

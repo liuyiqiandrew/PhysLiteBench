@@ -1,0 +1,9 @@
+# Thermoelastic rod, revision 4
+
+Archived after three genuine physical passes out of three scored Luna-high trials. The original matrix produced two passes and one unstarted DNS/dependency-installation failure. Exactly one predeclared replacement produced the third pass. There are four container attempts, three actual model executions, zero scored exceptions and zero physical failures. The unstarted attempt retains a null reward and is never counted as a scored failure.
+
+All three saved solutions derive entropy from the full Helmholtz free energy and retain the internal-strain caloric contribution. Their transient scratch/patch and observable-normalization issues are preserved in the sealed trial reviews. Original oracle and completed shortcut controls score1/1 and0/1 respectively. No scored outcome was repeated or replaced. The original matrix and separate retrospective single-recovery catalog remain unchanged; the catalog did not launch another matrix.
+
+All39 frozen stage payloads plus the original manifest are preserved byte for byte. The three untracked Python caches are separately hash-inventoried and excluded. Plans, source/launch/setup/network/monitor reviews, original two-pass and final three-pass ledgers, both catalogs, all trial/control results and metrics, timing records and exhaustive four-job/two-catalog hashes are attached. The preliminary family review and its earlier ledger snapshot remain unchanged and keep their original scope.
+
+Raw jobs, native sessions, original indexes, canonical sources and shared status/candidate files remain untouched. No model, scientific or Git operation formed part of archival. Only the staging duplicate is removed after exact source-copy and evidence-hash verification. Its historical references resolve to these identical archived bytes; original pre-evaluation status documents are not rewritten.

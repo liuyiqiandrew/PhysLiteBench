@@ -1,0 +1,136 @@
+"""Linear diffusiophoretic response of a Navier-slip sphere.
+
+The concentration calculation is independent of viscosity.  ``response``
+therefore returns the mobility multiplied by viscosity; the observable is
+that value divided by the fitted viscosity.
+"""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.integrate import quad, solve_bvp
+
+
+@lru_cache(maxsize=512)
+def response(radius, width, strength, slip):
+    """Return viscosity times the velocity response for one preparation.
+
+    Write the concentration perturbation as
+    ``c_1 = exp(-U) f(r) cos(theta)`` (per unit imposed gradient).  The
+    no-flux condition is ``f'(a)=0`` and outside the potential range f is a
+    harmonic l=1 field.  The reciprocal-theorem force balance gives the
+    integral below.
+
+    In particular, the radial component of the *stationary sphere in a
+    uniform auxiliary flow* is
+
+        w(r) = 1 - A a/r + a**3/[2(1+3b/a) r**3],
+
+    where A = 3(1+2b/a)/[2(1+3b/a)].  The subtraction of the sphere's
+    auxiliary velocity is important: it is the reaction force from the
+    solute potential carried by the sphere.  It also makes w(a)=0.
+    """
+    a = float(radius)
+    w = float(width)
+    s = float(strength)
+    b = float(slip)
+    if not (a > 0.0 and w > 0.0 and b >= 0.0):
+        raise ValueError("radius and width must be positive and slip non-negative")
+    if s == 0.0:
+        return 0.0
+
+    outer = a + w
+
+    # The independent variable x=(r-a)/w keeps the BVP well scaled for both
+    # narrow and extended interaction layers.
+    def equations(x, y):
+        r = a + w * x
+        # U'(r)=-2*s*(1-x)/w and
+        # f'' + (2/r-U') f' - 2 f/r**2 = 0.
+        return np.array((
+            y[1],
+            -(2.0 * w / r + 2.0 * s * (1.0 - x)) * y[1]
+            + 2.0 * w * w * y[0] / (r * r),
+        ))
+
+    def boundary(left, right):
+        # At outer, match f=r+C/r**2: r f' + 2 f = 3 r.
+        return np.array((left[1], outer * right[1] / w + 2.0 * right[0] - 3.0 * outer))
+
+    grid = np.linspace(0.0, 1.0, 129)
+    r_grid = a + w * grid
+    # A smooth exact initial guess for U=0.
+    initial = np.array((
+        r_grid + a**3 / (2.0 * r_grid**2),
+        w * (1.0 - a**3 / r_grid**3),
+    ))
+    solution = solve_bvp(equations, boundary, grid, initial, tol=2e-10, max_nodes=10000)
+    if not solution.success:
+        raise RuntimeError("concentration boundary-value solve failed: " + solution.message)
+
+    beta = b / a
+    denominator = 1.0 + 3.0 * beta
+    drag_ratio = (1.0 + 2.0 * beta) / denominator
+    radial_flow_coefficient = 3.0 * (1.0 + 2.0 * beta) / (2.0 * denominator)
+
+    def integrand(r):
+        x = (r - a) / w
+        c1_amplitude = np.exp(-s * (1.0 - x) ** 2) * solution.sol(x)[0]
+        potential_derivative = -2.0 * s * (1.0 - x) / w
+        auxiliary_relative_radial_flow = (
+            1.0
+            - radial_flow_coefficient * a / r
+            + a**3 / (2.0 * denominator * r**3)
+        )
+        return r * r * auxiliary_relative_radial_flow * c1_amplitude * potential_derivative
+
+    integral, _ = quad(integrand, a, outer, epsabs=2e-11, epsrel=2e-11, limit=150)
+    return 2.0 * integral / (9.0 * a * drag_ratio)
+
+
+def predict_at(experiments, viscosity):
+    """Predict responses in input order for a known dynamic viscosity."""
+    eta = float(viscosity)
+    if not np.isfinite(eta) or eta <= 0.0:
+        raise ValueError("viscosity must be finite and positive")
+    return np.asarray(
+        [response(e["radius"], e["width"], e["strength"], e["slip"]) for e in experiments],
+        dtype=float,
+    ) / eta
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        """Fit viscosity by Gaussian weighted least squares and return self."""
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        inputs = [record["input"] for record in records]
+        mobility_times_viscosity = predict_at(inputs, 1.0)
+        observed = np.asarray([record["value"] for record in records], dtype=float)
+        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
+        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all() or np.any(sigma <= 0.0)):
+            raise ValueError("calibration values must be finite and sigma must be positive")
+
+        # The model is linear in inverse viscosity.  This is the exact MLE
+        # for the independent Gaussian errors specified by the interface.
+        weights = 1.0 / sigma**2
+        normalizer = np.sum(weights * mobility_times_viscosity**2)
+        if not np.isfinite(normalizer) or normalizer <= 0.0:
+            raise ValueError("calibration data do not identify viscosity")
+        inverse_viscosity = np.sum(weights * mobility_times_viscosity * observed) / normalizer
+        if not np.isfinite(inverse_viscosity) or inverse_viscosity <= 0.0:
+            raise ValueError("calibration fit produced a non-positive viscosity")
+
+        # Viscosity is part of the stated physical model, so impose its known
+        # interval if noisy data would otherwise place the MLE outside it.
+        self.viscosity = float(np.clip(1.0 / inverse_viscosity, 0.8, 1.6))
+        return self
+
+    def predict(self, experiments):
+        if self.viscosity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.viscosity)

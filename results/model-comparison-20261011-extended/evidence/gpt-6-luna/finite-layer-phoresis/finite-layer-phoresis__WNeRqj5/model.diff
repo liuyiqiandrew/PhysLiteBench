@@ -1,0 +1,48 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,44 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the common viscosity from independent calibration records.
++
++        The response computed by :func:`response` is the response at unit
++        viscosity. Since Stokes flow is linear in the stress scale, the
++        predicted response is that value divided by the uniform viscosity.
++        Fit inverse viscosity as a weighted scale factor.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError('At least one calibration record is required.')
++
++        unit_response = np.asarray(
++            [response(**record['input']) for record in records], dtype=float
++        )
++        measured = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++
++        if (not np.isfinite(unit_response).all()
++                or not np.isfinite(measured).all()
++                or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError('Calibration values and positive uncertainties must be finite.')
++
++        # Minimize sum(((alpha * response - measured) / sigma)**2), where
++        # alpha = 1 / viscosity. Scaling first improves numerical stability.
++        design = unit_response / sigma
++        target = measured / sigma
++        denominator = np.dot(design, design)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records do not constrain viscosity.')
++        inverse_viscosity = np.dot(design, target) / denominator
++
++        # Constrain the fit to the documented viscosity range [.8, 1.6].
++        inverse_viscosity = np.clip(inverse_viscosity, 1.0 / 1.6, 1.0 / 0.8)
++        self.viscosity = float(1.0 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise ValueError('Call fit(records) before predict(experiments).')
+         return predict_at(experiments, self.viscosity)

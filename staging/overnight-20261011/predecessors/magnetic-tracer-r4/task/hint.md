@@ -1,0 +1,1 @@
+For contact relaxation proportional to mass, solve the coupled fast velocity/contact covariance problem before taking the limit. The antisymmetric part of the one-sided velocity covariance integral enters mechanical area and need not equal the area anomaly of the effective position diffusion.

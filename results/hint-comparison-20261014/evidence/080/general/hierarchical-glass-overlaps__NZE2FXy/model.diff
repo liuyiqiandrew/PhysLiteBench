@@ -1,0 +1,52 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,7 +54,48 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        # Throughout the calibration range beta is below the first possible
++        # freezing point, even at the largest allowed width.  Both levels are
++        # therefore in their Gaussian (high-temperature) phase, and the
++        # limiting equilibrium energy density is
++        #
++        #     E[E_eq]/N = -beta * (0.7 + 0.3) * width**2.
++        #
++        # Fit t = width**2 from y = -beta*t.  The sigma fields describe
++        # independent Gaussian errors, so inverse-variance weighting gives
++        # the maximum-likelihood estimate.
++        numerator = 0.0
++        denominator = 0.0
++        count = 0
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++                measured = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError) as error:
++                raise ValueError('Calibration records must contain numeric input, value, and sigma fields.') from error
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(measured)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Calibration records must be finite and within the stated ranges.')
++            weight = 1.0/(sigma*sigma)
++            numerator += weight * (-beta) * measured
++            denominator += weight * beta * beta
++            count += 1
++
++        if count == 0 or denominator == 0.0:
++            raise ValueError('At least one calibration record is required.')
++
++        fitted_variance = numerator/denominator
++        lower, upper = (bound*bound for bound in WIDTH_INTERVAL)
++        if not math.isfinite(fitted_variance):
++            raise ValueError('Calibration fit is not finite.')
++        # The parameter is physically constrained to the stated interval. A
++        # constrained least-squares fit lands on an endpoint when noisy or
++        # synthetic data place the unconstrained estimate outside it.
++        fitted_variance = min(upper, max(lower, fitted_variance))
++        self.width = math.sqrt(fitted_variance)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

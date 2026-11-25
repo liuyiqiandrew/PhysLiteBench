@@ -1,0 +1,22 @@
+--- before/model.py
++++ after/model.py
+@@ -41,8 +41,17 @@
+         self.coupling_scale = .8
+ 
+     def fit(self, records):
+-        # TODO: infer coupling_scale from the calibration records.
+-        raise NotImplementedError
++        from scipy.optimize import minimize_scalar
++        inputs = [r['input'] for r in records]
++        values = np.asarray([r['value'] for r in records])
++        sigmas = np.asarray([r['sigma'] for r in records])
++        def loss(scale):
++            predicted = np.asarray([_occupation(e['orbital_energy'], e['temperature'],
++                                    scale*e['contact_multiplier']) for e in inputs])
++            return float(np.sum(((predicted-values)/sigmas)**2))
++        self.coupling_scale = float(minimize_scalar(loss, bounds=(.65,.95),
++                                                   method='bounded', options={'xatol':1e-12}).x)
++        return self
+ 
+     def predict(self, experiments):
+         return np.asarray([_occupation(e['orbital_energy'], e['temperature'],

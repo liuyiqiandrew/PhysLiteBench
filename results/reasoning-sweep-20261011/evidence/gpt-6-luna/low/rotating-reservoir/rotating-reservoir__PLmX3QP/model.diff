@@ -1,0 +1,33 @@
+--- starter/model.py
++++ submission/model.py
+@@ -173,14 +173,17 @@
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+     w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
++    # Fourier modes of the detector phase.  The README specifies the limit
++    # of independently rapidly mixed phase, so only mode zero contributes to
++    # long-time cumulants.  Keep the gain harmonics in the tilt operators.
+     ns=[0];mean=p@A1@constant
+     def invert(n,rhs):
+         if n:
+             return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+         system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
++    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w.get(n,0.)*(A1@constant)) for n in ns}
+     c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
++    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2.get(n,0.)*(A2@constant)) for n in ns}
+     c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+     return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
+ 
+@@ -207,6 +210,9 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

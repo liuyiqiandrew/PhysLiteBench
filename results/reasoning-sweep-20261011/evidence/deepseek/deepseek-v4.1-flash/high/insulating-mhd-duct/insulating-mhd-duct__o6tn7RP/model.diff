@@ -1,0 +1,46 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,10 +1,13 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+ X_MODES, Y_MODES = 40, 56
++
++VISCOSITY_MIN, VISCOSITY_MAX = 0.006, 0.018
+ 
+ 
+ def derivative_overlap(target, source):
+@@ -60,9 +63,6 @@
+     def __init__(self):
+         self.viscosity = None
+ 
+-    def fit(self, records):
+-        raise NotImplementedError
+-
+     def predict(self, experiments):
+         m, n, _, mean, *_ = operators()
+         output = []
+@@ -75,3 +75,19 @@
+                 value += observation[ids]@amplitude
+             output.append(e['pressure_gradient']/DENSITY*value)
+         return np.array(output)
++
++    def fit(self, records):
++        inputs = [r['input'] for r in records]
++        values = np.asarray([r['value'] for r in records], float)
++        sigma = np.asarray([r['sigma'] for r in records], float)
++
++        def cost(viscosity):
++            self.viscosity = viscosity
++            residual = (self.predict(inputs)-values)/sigma
++            return residual@residual
++
++        result = minimize_scalar(cost, bounds=(VISCOSITY_MIN, VISCOSITY_MAX),
++                                 method='bounded',
++                                 options={'xatol': 1e-12})
++        self.viscosity = float(result.x)
++        return self

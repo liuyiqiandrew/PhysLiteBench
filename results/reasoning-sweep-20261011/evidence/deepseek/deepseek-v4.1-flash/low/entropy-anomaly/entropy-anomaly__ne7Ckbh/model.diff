@@ -1,0 +1,57 @@
+--- starter/model.py
++++ submission/model.py
+@@ -90,8 +90,52 @@
+ def coefficients(experiments,friction=1.):
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+ 
++_FRICTION_BOUNDS=(0.7,1.6)
++
++def _golden_section(objective,lo,hi,tol=1e-10,max_iter=200):
++    ratio=(np.sqrt(5.)-1.)/2.
++    left=hi-ratio*(hi-lo);right=lo+ratio*(hi-lo)
++    f_left=objective(left);f_right=objective(right)
++    for _ in range(max_iter):
++        if hi-lo<tol:break
++        if f_left<f_right:
++            hi,right,f_right=right,left,f_left
++            left=hi-ratio*(hi-lo);f_left=objective(left)
++        else:
++            lo,left,f_left=left,right,f_right
++            right=lo+ratio*(hi-lo);f_right=objective(right)
++    return 0.5*(lo+hi)
++
++def fit_friction(records):
++    """Weighted least-squares estimate of the single common friction."""
++    experiments=[r['input'] for r in records]
++    value=np.array([float(r['value']) for r in records],dtype=float)
++    sigma=np.array([float(r['sigma']) for r in records],dtype=float)
++    lo,hi=_FRICTION_BOUNDS
++    def objective(friction):
++        residual=(np.asarray(coefficients(experiments,float(friction)),dtype=float)-value)/sigma
++        return float(residual@residual)
++    try:
++        from scipy.optimize import minimize_scalar
++        result=minimize_scalar(objective,bounds=(lo,hi),method='bounded',
++                               options={'xatol':1e-10})
++        friction=float(result.x)
++        if not np.isfinite(friction):
++            friction=_golden_section(objective,lo,hi)
++    except Exception:
++        friction=_golden_section(objective,lo,hi)
++    # Keep the estimate strictly inside the documented range.
++    friction=float(np.clip(friction,lo,hi))
++    if not np.isfinite(objective(friction)):
++        friction=float(np.clip(_golden_section(objective,lo,hi),lo,hi))
++    return friction
++
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        self.friction=fit_friction(records)
++        return self
++    def predict(self,experiments):
++        if self.friction is None:
++            raise ValueError("Model.predict called before Model.fit.")
++        return np.asarray(coefficients(experiments,self.friction),dtype=float)

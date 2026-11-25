@@ -1,0 +1,1 @@
+The readout is supplied reversible work when the boundary orientation changes. Terms that leave an interior equilibrium equation unchanged can still contribute to that work. Consider the full stated constitutive energy while changing the anchoring angle.

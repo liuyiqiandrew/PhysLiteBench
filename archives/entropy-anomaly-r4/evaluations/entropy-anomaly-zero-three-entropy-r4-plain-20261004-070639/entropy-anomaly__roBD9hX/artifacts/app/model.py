@@ -1,0 +1,125 @@
+"""Prediction model for the entropy records described in ``README.md``."""
+
+from functools import lru_cache
+
+import numpy as np
+
+
+_GRID_SIZE = 512
+_FRICTION_MIN = 0.7
+_FRICTION_MAX = 1.6
+
+
+def _rates(experiment, friction):
+    """Return the asymptotic mean and centered variance rates."""
+
+    return _rates_at(
+        float(experiment["temperature"]),
+        float(experiment["contrast"]),
+        int(experiment["wavenumber"]),
+        float(friction),
+    )
+
+
+@lru_cache(maxsize=256)
+def _rates_at(base, contrast, wave, friction):
+    """Evaluate both rates for one apparatus setting on the periodic ring."""
+
+    n = _GRID_SIZE
+    theta = np.arange(n, dtype=float) * (2.0 * np.pi / n)
+    modes = np.fft.fftfreq(n, d=1.0 / n)
+
+    temperature = base * (1.0 + contrast * np.cos(theta))
+    # Derivatives with respect to the physical coordinate x.
+    gradient = -base * contrast * wave * np.sin(theta)
+    curvature = -base * contrast * wave * wave * np.cos(theta)
+
+    stationary = 1.0 / temperature
+    stationary /= stationary.sum()
+
+    local_mean = gradient * gradient / (2.0 * friction * temperature)
+    mean = float(stationary @ local_mean)
+
+    # The first-order tilted position operator.  Its stationary average is
+    # the same mean, while its zero-mean part enters the slow variance.
+    b = (-1.5 * curvature + 2.0 * gradient * gradient / temperature) / friction
+
+    # Solve -L phi = b - mean, with L=(T/gamma)d^2/dx^2.  In theta,
+    # phi'' = -gamma*(b-mean)/(wave^2*T).
+    rhs = -friction * (b - mean) / (wave * wave * temperature)
+    transformed = np.fft.fft(rhs)
+    potential = np.zeros(n, dtype=complex)
+    nonzero = modes != 0
+    potential[nonzero] = -transformed[nonzero] / (modes[nonzero] ** 2)
+    potential = np.fft.ifft(potential).real
+    potential -= stationary @ potential
+
+    potential_gradient = np.fft.ifft(
+        1j * modes * np.fft.fft(potential)
+    ).real * wave
+
+    # Fast velocity fluctuations survive the m -> 0 limit.  The coefficient
+    # 11/4 is the cubic Ornstein-Uhlenbeck covariance contribution.
+    fast_variance_density = 11.0 * gradient * gradient / (
+        4.0 * friction * temperature
+    )
+    slow_tilt_density = (
+        -3.0 * gradient * potential_gradient / friction + b * potential
+    )
+    variance = float(
+        2.0 * stationary @ (slow_tilt_density + fast_variance_density)
+    )
+
+    return mean, variance
+
+
+class Model:
+    def __init__(self):
+        self.friction = 1.0
+
+    def fit(self, records):
+        """Fit the friction and return this model.
+
+        Both documented rates are proportional to the reciprocal friction,
+        so weighted least squares is linear in ``1/friction``.
+        """
+
+        coefficients = []
+        values = []
+        weights = []
+        for record in records:
+            experiment = record["input"]
+            mean, variance = _rates(experiment, 1.0)
+            coefficient = mean if experiment["statistic"] == "mean" else variance
+            value = float(record["value"])
+            sigma = float(record["sigma"])
+            if np.isfinite(coefficient) and np.isfinite(value) and sigma > 0.0:
+                coefficients.append(coefficient)
+                values.append(value)
+                weights.append(1.0 / (sigma * sigma))
+
+        if coefficients:
+            coefficient = np.asarray(coefficients, dtype=float)
+            value = np.asarray(values, dtype=float)
+            weight = np.asarray(weights, dtype=float)
+            reciprocal = np.sum(weight * coefficient * value) / np.sum(
+                weight * coefficient * coefficient
+            )
+            if reciprocal > 0.0 and np.isfinite(reciprocal):
+                fitted = 1.0 / reciprocal
+                self.friction = float(
+                    np.clip(fitted, _FRICTION_MIN, _FRICTION_MAX)
+                )
+        return self
+
+    def predict(self, experiments):
+        values = []
+        for experiment in experiments:
+            mean, variance = _rates(experiment, self.friction)
+            values.append(
+                mean if experiment["statistic"] == "mean" else variance
+            )
+        result = np.asarray(values, dtype=float).reshape(-1)
+        if not np.isfinite(result).all():
+            raise FloatingPointError("non-finite prediction")
+        return result

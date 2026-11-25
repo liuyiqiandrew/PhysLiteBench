@@ -1,0 +1,1 @@
+The two transverse magnetization components generate different parts of the same magnetostatic source. Construct the magnetic potential for their combined source before computing its energy or torque. The magnetostatic energy can contain interference terms even when each isolated film's corresponding thickness-averaged self term cancels.

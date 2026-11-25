@@ -1,0 +1,141 @@
+{
+  "rotating-layer__4GxwvGR": {
+    "task": "rotating-layer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "initial",
+    "job": "rotating-layer-neutral-r1-initial-plain-20261002-184632",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source evolves the complete coupled height and two-velocity shallow-water system with drag on each velocity. One implementation uses the correct cubic characteristic polynomial; the other uses the equivalent three-state eigenpropagator. Both preserve the physical drag-curl feedback rather than assigning independent exponential decay to the balanced component. Public messages explicitly reject the starter closure. All hidden groups pass with the correct fitted drag.",
+    "metrics": {
+      "parameters": {
+        "drag_rate": 0.1401201509599786
+      },
+      "parameter_relative_error_max": 0.0008582211427041742,
+      "calibration_chi2": 1.0622298786481073,
+      "hidden": {
+        "balanced_release": 6.488891345605971e-08,
+        "mixed_release": 4.197176657237935e-08,
+        "transverse_release": 2.7531639167749706e-08
+      }
+    },
+    "source_sha256": "a0cddabc44ee71134a8adcafd5d1d99ddfcc8bc243b809d369d6d6f177d7024c",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/artifacts/app/model.py",
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/agent/trajectory.json",
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/agent/codex.txt",
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/verifier/metrics.json",
+      "jobs/rotating-layer-neutral-r1-initial-plain-20261002-184632/rotating-layer__4GxwvGR/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README, calibration data, and current implementation, then derive the apparatus model, implement it, and run the available checks against the documented interface.",
+      "The existing formula assumes a decoupled exponentially relaxing balanced mode, but the stated uniform drag on both horizontal velocity components leads to a coupled three-state linear system. I\u2019m checking the calibration numerically to determine the exact convention/signs and then will replace the closed form with the physically consistent solution.",
+      "The implementation is in place and the public calibration tests pass. The fitted common drag rate is about `0.14012015 s^-1`; I also cross-checked the closed-form response against direct matrix exponentiation over randomized rotations and inputs.",
+      "Implemented the shallow-water rotating-layer model in [model.py](/app/model.py).\n\n- Added the coupled linear dynamics with uniform velocity drag.\n- Implemented weighted least-squares fitting for `drag_rate`.\n- Preserved `Model.fit()` and `Model.predict()` APIs.\n- Verified against calibration: `pytest -q` \u2192 `2 passed`.\n- Fitted drag rate: approximately `0.14012015 s\u207b\u00b9`."
+    ],
+    "public_tool_count": 11,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 2/3 passes."
+  },
+  "rotating-layer__6cyS5cX": {
+    "task": "rotating-layer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "rotating-layer-neutral-r1-followup-plain-20261002-185146",
+    "classification": "physics_model_failure",
+    "reward": 0.0,
+    "reason": "The submitted predictor retains the supplied direct potential-vorticity relaxation closure, Pdot=-r*P, and fits only the drag rate. Its public source explicitly claims that the entire potential-vorticity perturbation decays at the bottom-drag rate, and the trajectory accepts a separately decaying balanced component. Actual velocity drag damps relative vorticity, giving Pdot=-r*(P+f*h/H). Thus it implements the intended wrong physical closure. The source also prints the correct velocity equations but incorrectly claims the retained closed form follows from them; this algebraic inconsistency is recorded, rather than attributing the failure to an independent numerical or fitting defect.",
+    "metrics": {
+      "parameters": {
+        "drag_rate": 0.14012015130106825
+      },
+      "parameter_relative_error_max": 0.0008582235790588477,
+      "calibration_chi2": 1.0622298786483844,
+      "hidden": {
+        "balanced_release": 0.0001324757977888526,
+        "mixed_release": 6.993286618544205e-05,
+        "transverse_release": 4.638776384058257e-05
+      }
+    },
+    "source_sha256": "b236011b785102f3410b8268478861dbe091347a87a58fbc166d26c24f9694be",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/artifacts/app/model.py",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/agent/trajectory.json",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/agent/codex.txt",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/verifier/metrics.json",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__6cyS5cX/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing API first, then implement the model and run the available checks against the documented interface.",
+      "The governing modal equations reduce to a damped shallow-water oscillator plus a decaying balanced component. The existing prediction formula matches that structure; the missing piece is a statistically correct one-parameter fit, along with numerical safeguards and a clean implementation of the documented API.",
+      "Implementation is complete. The fitted drag rate is `0.1401201513 s\u207b\u00b9`; the calibration reduced chi-square is `1.062`, and the public interface tests pass. I\u2019m doing one final edge-case check for output shape and finiteness across the allowed input ranges.",
+      "Implemented `/app/model.py` with:\n\n- Linear rotating shallow-water prediction model\n- Weighted least-squares fitting of `drag_rate`\n- Bounded, dependency-free scalar optimization\n- Input-order-preserving NumPy predictions\n- Validation and finite-output safeguards\n\nVerification:\n\n- `pytest -q`: 2 passed\n- Fitted `drag_rate`: `0.1401201513 s\u207b\u00b9`\n- Reduced calibration \u03c7\u00b2: `1.062`\n- Random allowed-range predictions are finite and correctly shaped\n\n[model.py](/app/model.py)"
+    ],
+    "public_tool_count": 9,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 2/3 passes.",
+    "fixed_parameter_repair": {
+      "parameter_name": "drag_rate",
+      "parameter": 0.14012015130106825,
+      "change": "Replace only height() in an in-memory copy with the coupled height/velocity propagator; keep fitted drag, fit, API and all retained artifacts unchanged. This restores the bottom-drag curl constraint.",
+      "before": {
+        "balanced_release": 0.0001324757977888526,
+        "mixed_release": 6.993286618544204e-05,
+        "transverse_release": 4.6387763840582536e-05
+      },
+      "after": {
+        "balanced_release": 6.488909760091616e-08,
+        "mixed_release": 4.197188568968962e-08,
+        "transverse_release": 2.75317172963687e-08
+      },
+      "calibration_prediction_max_change": 4.377466271410224e-18,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "execution": "In-memory copy only; no retained artifact was edited."
+    }
+  },
+  "rotating-layer__qfbJh38": {
+    "task": "rotating-layer",
+    "revision_label": "neutral-r1",
+    "scientific_revision": 1,
+    "condition": "plain",
+    "stage": "followup",
+    "job": "rotating-layer-neutral-r1-followup-plain-20261002-185146",
+    "classification": "pass",
+    "reward": 1.0,
+    "reason": "The final source evolves the complete coupled height and two-velocity shallow-water system with drag on each velocity. One implementation uses the correct cubic characteristic polynomial; the other uses the equivalent three-state eigenpropagator. Both preserve the physical drag-curl feedback rather than assigning independent exponential decay to the balanced component. Public messages explicitly reject the starter closure. All hidden groups pass with the correct fitted drag.",
+    "metrics": {
+      "parameters": {
+        "drag_rate": 0.14012015117809978
+      },
+      "parameter_relative_error_max": 0.0008582227007125631,
+      "calibration_chi2": 1.0622298786483375,
+      "hidden": {
+        "balanced_release": 6.488903121359971e-08,
+        "mixed_release": 4.1971842746056935e-08,
+        "transverse_release": 2.753168912952975e-08
+      }
+    },
+    "source_sha256": "a5208d832fd135994d5653bd2ef5cfb46c0f64f843db40491307eb416d70322e",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "reviewed_sources": [
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/artifacts/app/model.py",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/agent/trajectory.json",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/agent/codex.txt",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/verifier/metrics.json",
+      "jobs/rotating-layer-neutral-r1-followup-plain-20261002-185146/rotating-layer__qfbJh38/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and the existing prediction API, then implement and test the model against the documented behavior.",
+      "The documented equations reduce to a three-variable linear system for the cosine surface amplitude and the two sine velocity amplitudes. The existing formula only matches the zero-rotation calibration case; I\u2019m replacing it with the full damped rotating shallow-water evolution and fitting the single drag parameter by weighted least squares.",
+      "The implementation is in place and the public calibration tests pass. The fitted common drag rate is approximately `0.1401201512 s\u207b\u00b9`; I\u2019m doing a final numerical/API sanity check across the full documented input range.",
+      "Implemented `/app/model.py` with:\n\n- Full damped rotating shallow-water dynamics\n- Correct Coriolis and drag terms\n- Weighted least-squares calibration of `drag_rate`\n- Documented `fit`/`predict` API and finite NumPy outputs\n\nValidation: all public tests pass (`2 passed`)."
+    ],
+    "public_tool_count": 9,
+    "aggregation_note": "Retain the initial trial and both policy-triggered follow-ups; combined result is 2/3 passes."
+  }
+}

@@ -1,0 +1,22 @@
+--- starter/model.py
++++ submission/model.py
+@@ -23,7 +23,18 @@
+         self.speed = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the common speed from calibration records.')
++        # Every readout is proportional to the common ballistic speed.  The
++        # variance and generating-function calibrations therefore give a
++        # single weighted least-squares estimate of that speed.
++        base = np.asarray([response(r['input']) for r in records], dtype=float)
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        weights = 1.0 / np.square(sigma)
++        denom = np.sum(weights * np.square(base))
++        if not np.isfinite(denom) or denom <= 0:
++            raise ValueError('Calibration records do not identify a speed.')
++        self.speed = float(np.sum(weights * base * values) / denom)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.speed)

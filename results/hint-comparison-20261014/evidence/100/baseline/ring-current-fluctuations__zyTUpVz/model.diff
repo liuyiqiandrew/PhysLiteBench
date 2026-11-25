@@ -1,0 +1,113 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,104 @@
+-"""Current SCGF model and calibration interface."""
++"""Large-ring current SCGF for the half-filled weakly asymmetric SEP.
++
++The hydrodynamic SCGF only depends on ``c = bias * (bias + 2 * field)``.
++For ``c >= -4*pi**2`` its optimal density is uniform.  Below that value the
++optimal history is a single travelling wave.  At half filling its value is
++given by the standard elliptic-integral parametrisation used below.
++"""
++
++from __future__ import annotations
++
+ import numpy as np
++from scipy.optimize import brentq
++from scipy.special import ellipk, ellipe
++
++
++_CRITICAL_C = -4.0 * np.pi**2
++
++
++def _wave_scgf(c: np.ndarray) -> np.ndarray:
++    """Return the SCGF with diffusivity one for the broken-symmetry branch.
++
++    Write ``g=sqrt(-c)`` and choose the elliptic parameter ``m`` from
++    ``4 K(m)=g``.  The average over the corresponding ``sn`` density wave is
++    elementary in terms of K and E.
++    """
++    result = np.empty_like(c, dtype=float)
++    for index, value in np.ndenumerate(c):
++        g = float(np.sqrt(-value))
++        # The branch is only called for g > 2*pi.  Leaving a little room from
++        # one keeps the elliptic functions well conditioned.
++        target = g / 4.0
++        m = brentq(lambda x: ellipk(x) - target, 0.0, 1.0 - 1.0e-14)
++        k_complete = ellipk(m)
++        e_complete = ellipe(m)
++
++        # <1 - m_amp^2 sn^2> over one period.  (Here m is the elliptic
++        # parameter, rather than the modulus.)
++        density_factor = (e_complete / k_complete + m - 1.0) / m
++        result[index] = (
++            -0.5 * g * g * density_factor
++            + 0.25 * g * g * (1.0 - m)
++        )
++    return result
++
++
++def _unit_diffusivity_prediction(field: np.ndarray, bias: np.ndarray) -> np.ndarray:
++    """SCGF in inverse time units when the microscopic diffusivity is one."""
++    c = bias * (bias + 2.0 * field)
++    values = c / 4.0
++    wave = c < _CRITICAL_C
++    if np.any(wave):
++        values = np.asarray(values, dtype=float).copy()
++        values[wave] = _wave_scgf(c[wave])
++    return np.asarray(values, dtype=float)
++
+ 
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    """Evaluate raw asymptotic SCGF values for input experiment dictionaries."""
++    if not experiments:
++        return np.empty(0, dtype=float)
++    field = np.asarray([experiment["field"] for experiment in experiments], dtype=float)
++    bias = np.asarray([experiment["bias"] for experiment in experiments], dtype=float)
++    return float(diffusivity) * _unit_diffusivity_prediction(field, bias)
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Fit D by inverse-variance weighted least squares.
++
++        The SCGF is linear in D, so this is also the Gaussian maximum-
++        likelihood estimate for the independent measurements.  Restricting
++        it to the known physical interval prevents an ill-conditioned input
++        set from producing an invalid public parameter.
++        """
++        if not records:
++            # There is no information to update the documented default.
++            self.diffusivity = 1.0
++            return self
++
++        inputs = [record["input"] for record in records]
++        response = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        design = predict_at(inputs, 1.0)
++
++        valid = (
++            np.isfinite(design)
++            & np.isfinite(response)
++            & np.isfinite(sigma)
++            & (sigma > 0.0)
++        )
++        if np.any(valid):
++            weights = 1.0 / np.square(sigma[valid])
++            denominator = float(np.dot(weights, np.square(design[valid])))
++            if denominator > 0.0 and np.isfinite(denominator):
++                estimate = float(np.dot(weights * design[valid], response[valid]) / denominator)
++                if np.isfinite(estimate):
++                    self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

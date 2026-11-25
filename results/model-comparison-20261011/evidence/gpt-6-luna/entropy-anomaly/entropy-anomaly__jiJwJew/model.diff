@@ -1,0 +1,73 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,68 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Fit the shared friction by weighted least squares.
++
++        The calibration uncertainties are independent Gaussian standard
++        uncertainties, so the appropriate one-parameter objective is the sum
++        of squared residuals divided by sigma squared.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++        experiments=[record['input'] for record in records]
++        observed=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if observed.ndim!=1 or sigma.shape!=observed.shape or not np.isfinite(observed).all():
++            raise ValueError("Calibration values and uncertainties must be finite scalars.")
++        if not np.isfinite(sigma).all() or np.any(sigma<=0):
++            raise ValueError("Calibration uncertainties must be positive and finite.")
++
++        def objective(friction):
++            predicted=coefficients(experiments,float(friction))
++            residual=(predicted-observed)/sigma
++            return float(residual@residual)
++
++        # The supplied calibration is force driven with equal contact
++        # temperatures (bath_contrast=0) and no magnetic field. In this case
++        # the limiting rates scale exactly as 1/friction, so the weighted
++        # least-squares fit has a closed form in z=1/friction.
++        if all(float(e['bath_contrast'])==0. and float(e['magnetic'])==0.
++               and 'valve_cycle' not in e for e in experiments):
++            at_unit_friction=coefficients(experiments,1.)
++            weights=1./sigma**2
++            denominator=float(np.dot(weights,at_unit_friction**2))
++            if denominator>0.:
++                z=float(np.dot(weights*at_unit_friction,observed)/denominator)
++                if z>0. and np.isfinite(z):
++                    self.friction=float(np.clip(1./z,0.7,1.6))
++                    return self
++
++        # Golden-section minimization on the documented friction interval.
++        # Include endpoints in the final comparison so a boundary optimum is
++        # handled exactly.
++        left,right=0.7,1.6
++        ratio=(np.sqrt(5.)-1.)/2.
++        x1=right-ratio*(right-left)
++        x2=left+ratio*(right-left)
++        f1,f2=objective(x1),objective(x2)
++        for _ in range(64):
++            if f1<=f2:
++                right,x2,f2=x2,x1,f1
++                x1=right-ratio*(right-left)
++                f1=objective(x1)
++            else:
++                left,x1,f1=x1,x2,f2
++                x2=left+ratio*(right-left)
++                f2=objective(x2)
++        candidates=(0.7,1.6,(left+right)/2.)
++        self.friction=min(candidates,key=objective)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("Call fit(records) before predict(experiments).")
++        experiments=list(experiments)
++        result=coefficients(experiments,float(self.friction))
++        # Keep the public result contract explicit, including the empty batch.
++        return np.asarray(result,dtype=float).reshape(len(experiments))

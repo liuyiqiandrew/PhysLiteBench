@@ -1,0 +1,1 @@
+For position statistics, retain the full inverse of the local drag-plus-Lorentz matrix when eliminating momentum. Its antisymmetric part has zero density divergence for uniform magnetic field but need not do so for a field gradient. A correct uniform equilibrium does not determine the transient transport operator.

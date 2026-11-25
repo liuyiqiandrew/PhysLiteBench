@@ -1,0 +1,62 @@
+--- starter/model.py
++++ submission/model.py
+@@ -40,7 +40,58 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Estimate the (common) viscosity from independent measurements.
++
++        For a given preparation the response calculated by ``response`` is
++        inversely proportional to viscosity.  Writing that relationship as
++        ``value = base * q`` with ``q = 1 / viscosity`` makes the Gaussian
++        maximum-likelihood estimate a one-parameter weighted least-squares
++        problem.  This is both more accurate than averaging per-record
++        viscosity estimates and remains well behaved for weak interactions.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        bases = []
++        values = []
++        weights = []
++        for record in records:
++            try:
++                experiment = record["input"]
++                value = float(record["value"])
++                sigma = float(record["sigma"])
++                base = response(
++                    float(experiment["radius"]),
++                    float(experiment["width"]),
++                    float(experiment["strength"]),
++                    float(experiment["slip"]),
++                )
++            except (KeyError, TypeError, ValueError) as error:
++                raise ValueError("invalid calibration record") from error
++
++            if not (np.isfinite(value) and np.isfinite(sigma) and sigma > 0
++                    and np.isfinite(base)):
++                raise ValueError("calibration values and uncertainties must be finite; sigma must be positive")
++            bases.append(base)
++            values.append(value)
++            weights.append(1.0 / sigma**2)
++
++        bases = np.asarray(bases, dtype=float)
++        values = np.asarray(values, dtype=float)
++        weights = np.asarray(weights, dtype=float)
++        denominator = np.dot(weights, bases * bases)
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError("calibration records do not identify viscosity")
++
++        inverse_viscosity = np.dot(weights, bases * values) / denominator
++        # The stated apparatus constrains the unknown to this interval.  The
++        # constrained MLE is therefore the clipped estimate in q-space.
++        inverse_viscosity = np.clip(inverse_viscosity, 1.0 / 1.6, 1.0 / 0.8)
++        self.viscosity = float(1.0 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.viscosity)

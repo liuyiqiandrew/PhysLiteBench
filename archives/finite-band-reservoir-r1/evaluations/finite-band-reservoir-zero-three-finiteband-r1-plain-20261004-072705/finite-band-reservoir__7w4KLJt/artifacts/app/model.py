@@ -1,0 +1,117 @@
+from functools import lru_cache
+import numpy as np
+from scipy.optimize import brentq
+from scipy.optimize import minimize_scalar
+from scipy.special import expit
+
+
+@lru_cache(maxsize=1)
+def _grid():
+    # The integrands are smooth in the angular variable, including at the
+    # band edges.  A moderately large fixed grid keeps prediction cheap while
+    # avoiding any dependence on an adaptive integrator's tolerances.
+    nodes, weights = np.polynomial.legendre.leggauss(256)
+    angles = np.pi*(nodes+1)/2
+    return angles, weights*np.pi/2
+
+
+@lru_cache(512)
+def _occupation(energy, temperature, contact):
+    """Long-time averaged occupation for one set of physical parameters.
+
+    The continuum part is the final orbital spectral density weighted by the
+    initial Fermi occupation.  For contacts strong enough to produce poles
+    outside the chain band, those poles do not dephase.  Their occupation has
+    to include both the initially occupied orbital and the initial chain
+    covariance projected onto the bound state.
+    """
+    energy = float(energy)
+    temperature = float(temperature)
+    contact = float(contact)
+    angles, weights = _grid()
+    band_energy = -2*np.cos(angles)
+    sine = np.sin(angles)
+    filling = expit(-band_energy/temperature)
+    surface = (band_energy-2j*sine)/2
+    denominator = band_energy-energy-contact**2*surface
+    spectral = -np.imag(1/denominator)/np.pi
+    result = float(weights@(2*sine*spectral*filling))
+
+    def surface_outside(value):
+        return (value-np.sign(value)*np.sqrt(value**2-4))/2
+
+    def denominator(value):
+        return value-energy-contact**2*surface_outside(value)
+
+    poles = []
+    if contact**2 > 2-energy:
+        poles.append(brentq(denominator, 2+1e-12, 2+abs(energy)+2*contact))
+    if contact**2 > 2+energy:
+        poles.append(brentq(denominator, -2-abs(energy)-2*contact, -2-1e-12))
+
+    for pole in poles:
+        # w is the probability carried by the orbital in this normalized
+        # bound state.  Since g'(E) is negative, this is 1/(1-V^2 g'(E)).
+        derivative = (1-abs(pole)/np.sqrt(pole**2-4))/2
+        weight = 1/(1-contact**2*derivative)
+
+        # The chain part of the bound state is V*sqrt(w)*(E-h_chain)^-1|1>.
+        # Its initial occupation is therefore the following surface spectral
+        # integral.  In angular coordinates rho(E)dE = 2 sin(theta)^2/pi dtheta.
+        chain_occupation = contact**2*weight*float(
+            weights@(
+                (2*sine**2/np.pi)
+                * filling/(pole-band_energy)**2
+            )
+        )
+        result += weight*(weight+chain_occupation)
+    return float(result)
+
+
+class Model:
+    def __init__(self):
+        self.coupling_scale = .8
+
+    def fit(self, records):
+        records = list(records)
+        if not records:
+            raise ValueError("records must contain at least one calibration measurement")
+
+        inputs = [record['input'] for record in records]
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigmas = np.asarray([record.get('sigma', 0.0005) for record in records],
+                            dtype=float)
+        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all()
+                or np.any(sigmas <= 0)):
+            raise ValueError("calibration values and uncertainties must be finite and positive")
+
+        def chi_squared(scale):
+            prediction = np.asarray([
+                _occupation(item['orbital_energy'], item['temperature'],
+                            scale*item['contact_multiplier'])
+                for item in inputs
+            ])
+            residual = (prediction-values)/sigmas
+            return float(residual@residual)
+
+        lower, upper = 0.65, 0.95
+        result = minimize_scalar(
+            chi_squared, bounds=(lower, upper), method='bounded',
+            options={'xatol': 1e-11}
+        )
+
+        # ``bounded`` does not evaluate the endpoints.  Including them makes
+        # the documented parameter interval genuinely closed.
+        candidates = [(float(result.fun), float(result.x)),
+                      (chi_squared(lower), lower),
+                      (chi_squared(upper), upper)]
+        self.coupling_scale = min(candidates, key=lambda item: item[0])[1]
+        return self
+
+    def predict(self, experiments):
+        prediction = np.asarray([
+            _occupation(e['orbital_energy'], e['temperature'],
+                        self.coupling_scale*e['contact_multiplier'])
+            for e in experiments
+        ], dtype=float)
+        return prediction.reshape(-1)

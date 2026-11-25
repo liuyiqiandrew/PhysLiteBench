@@ -1,0 +1,108 @@
+--- starter/model.py
++++ submission/model.py
+@@ -3,7 +3,7 @@
+ import numpy as np
+ from numpy.polynomial.hermite import hermgauss
+ from numpy.polynomial.laguerre import laggauss
+-from scipy.linalg import solve
++from scipy.linalg import solve, lu_factor, lu_solve
+ 
+ RATE=3.6
+ 
+@@ -93,7 +93,7 @@
+         first=2*lam*tb*(multiply-omega*identity)@derivative-lam*(relative_square-tb*identity)
+         second=2*lam*tb*relative_square
+         first=first[np.ix_(retained,retained)];second=second[np.ix_(retained,retained)]
+-        drift=-first[:,0];constant=np.zeros(size);constant[0]=1.
++        constant=np.zeros(size);constant[0]=1.
+         tilted_mean=float(moments@first[:,0]);system=matrix.copy();system[0]=moments
+         rhs=tilted_mean*constant-first[:,0];rhs[0]=0.
+         r1=solve(system,rhs,check_finite=False)
+@@ -120,15 +120,19 @@
+ 
+ 
+ @lru_cache(4096)
++def kinetic_readouts(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate,drag):
++    e=dict(zip(FIELDS,(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate)))
++    return kinetic_statistics(e,drag)
++
++
+ def readout(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate,statistic,drag):
+-    e=dict(zip(FIELDS,(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate)))
+     if statistic not in ['mean','noise','third_cumulant']:raise ValueError('unknown calorimeter statistic')
+     if statistic=='mean' and flux_fraction==0. and angular_speed==0.:
++        e=dict(zip(FIELDS,(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate)))
+         return float(calibration_mean(e,drag))
+-    return kinetic_statistics(e,drag)[statistic]
+-
+-
+-RATE=3.6
++    return kinetic_readouts(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate,drag)[statistic]
++
++
+ FIELDS=('angular_speed','flip_rate','temperature_a','temperature_b','flux_fraction','relaxation_rate')
+ 
+ 
+@@ -169,20 +173,43 @@
+     constant=np.zeros(size);constant[0]=1.
+     return L,V,A1,A2,p,constant
+ 
+-def angular_hermite(e,gamma=.67,degree=32,averaged=False,phase_mixing_rate=0.):
++def angular_hermite(e,gamma=.67,degree=32):
++    """Heat cumulants with the detector angle retained as a Fourier coordinate."""
+     L,V,A1,A2,p,constant=hermite_operators(e,gamma,degree)
+     eps=e.get('detector_contrast',0.);harmonic=e.get('detector_harmonic',1)
+     w={0:1.,-1:eps/2,1:eps/2};w2={0:1+eps*eps/2,-1:eps,1:eps,-2:eps*eps/4,2:eps*eps/4}
+-    ns=[0];mean=p@A1@constant
++    # Fourier modes of the tilted backward generator.  Multiplication by w
++    # couples adjacent modes.  The first derivative has |n| <= 1; only the
++    # |n| <= 1 part of the second derivative enters the third cumulant.
++    # Negative modes are conjugates of positive ones.
++    a1c=A1@constant;a2c=A2@constant
++    c1=float(p@a1c)
++    zero=L.copy();zero[0]=p
++    lu0=lu_factor(zero,check_finite=False)
++    lus={}
+     def invert(n,rhs):
+-        if n:
+-            return solve(L+1j*n*harmonic*V-phase_mixing_rate*(n*harmonic)**2*np.eye(len(p)),rhs,check_finite=False)
+-        system=L.astype(complex);system[0]=p;rhs=rhs.copy();rhs[0]=0.;return solve(system,rhs,check_finite=False)
+-    r1={n:invert(n,(mean*constant if n==0 else np.zeros(len(p)))-w[n]*(A1@constant)) for n in ns}
+-    c2=float(np.real(p@(w2[0]*(A2@constant)+2*sum(w[-n]*(A1@r1[n]) for n in ns))))
+-    r2={n:invert(n,(c2*constant if n==0 else np.zeros(len(p)))+2*mean*r1[n]-2*sum(w.get(n-m,0.)*(A1@r1[m]) for m in ns)-w2[n]*(A2@constant)) for n in ns}
+-    c3=float(np.real(3*p@sum(w[-n]*(A1@r2[n])+w2[-n]*(A2@r1[n]) for n in ns)))
+-    return dict(mean=-float(mean),noise=c2,third_cumulant=-c3)
++        if n==0:
++            rhs=rhs.copy();rhs[0]=0.
++            return lu_solve(lu0,rhs,check_finite=False)
++        if n not in lus:
++            generator=L+1j*n*harmonic*V
++            lus[n]=lu_factor(generator,check_finite=False)
++        return lu_solve(lus[n],rhs,check_finite=False)
++    r1={0:invert(0,c1*constant-a1c)}
++    r1[1]=invert(1,-w[1]*a1c)
++    r1[-1]=r1[1].conj()
++    a1r1={n:A1@r for n,r in r1.items()}
++    c2=float(np.real(p@(w2[0]*a2c+2*sum(w[-n]*a1r1[n] for n in r1))))
++    r2={}
++    for n in (0,1):
++        rhs=(c2*constant if n==0 else np.zeros(len(p))).astype(complex)+2*c1*r1.get(n,0.)
++        rhs-=2*sum(w.get(n-m,0.)*a1r1[m] for m in r1)
++        rhs-=w2[n]*a2c
++        r2[n]=invert(n,rhs.real if n==0 else rhs)
++    r2[-1]=r2[1].conj()
++    c3=float(np.real(3*p@(sum(w.get(-n,0.)*(A1@r) for n,r in r2.items())
++                            +sum(w2.get(-n,0.)*(A2@r) for n,r in r1.items()))))
++    return dict(mean=-c1,noise=c2,third_cumulant=-c3)
+ 
+ 
+ @lru_cache(512)
+@@ -207,6 +234,7 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

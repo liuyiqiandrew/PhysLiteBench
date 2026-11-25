@@ -1,0 +1,62 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,25 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # The order-m correction to the position/contact density is not zero in
++    # general.  The zeroth velocity moment of the stationary equation gives
++    # (with the forward generator convention used by q)
++    #
++    #       q rho_2 = d_x M_{1,x}^{(1)} .
++    #
++    # Only the state-dependent part is needed here.  A common addition to all
++    # contact populations is the next correction to the positional density;
++    # its contribution is exactly removed by the matched background times the
++    # measured residence.  Fix that irrelevant null-space part by requiring
++    # the correction to sum to zero at every x.  In particular, this must be
++    # solved with the full forward q for a directed three-contact valve.
++    rhs=first[(1,0)]@d.T
++    aug=np.zeros((count+1,count+1));aug[:count,:count]=q
++    aug[:count,count]=1.;aug[count,:count]=1.
++    density_correction={(0,0):np.column_stack([
++        np.linalg.solve(aug,np.r_[rhs[:,j],0.])[:count]
++        for j in range(points)
++    ])}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +110,30 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Fit the common drag from the (unweighted) calibration records.
++
++        In the calibration preparation the two contacts are dynamically
++        identical (zero bath contrast and zero magnetic field).  Rescaling
++        the fast velocity cell problem shows that the limiting readout is
++        proportional to the inverse common friction.  Thus the weighted
++        least-squares fit is linear in ``1/friction`` rather than requiring a
++        separate nonlinear solve for every trial value.
++        """
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        experiments=[r['input'] for r in records]
++        observed=np.asarray([r['value'] for r in records],dtype=float)
++        sigma=np.asarray([r.get('sigma',1.) for r in records],dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma<=0)):
++            raise ValueError("calibration values and uncertainties must be finite")
++        unit=coefficients(experiments,1.)
++        weight=1./sigma**2
++        inverse_friction=float(np.sum(weight*unit*observed)/
++                               np.sum(weight*unit*unit))
++        # The documented calibration identifies a friction in this interval.
++        # Clipping also keeps a malformed/noisy record set from producing an
++        # unusable prediction model.
++        self.friction=float(np.clip(1./inverse_friction,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

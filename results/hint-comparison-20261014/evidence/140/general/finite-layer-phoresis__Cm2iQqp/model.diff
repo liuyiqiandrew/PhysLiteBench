@@ -1,0 +1,189 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,38 +1,114 @@
++"""Prediction model for solute-driven motion of a Navier-slip sphere."""
++
+ from functools import lru_cache
++
+ import numpy as np
+-from scipy.integrate import quad, solve_bvp
++from scipy.integrate import quad
++from scipy.integrate import solve_bvp
+ 
+ 
+-@lru_cache(256)
++@lru_cache(maxsize=256)
+ def response(radius, width, strength, slip):
+-    if strength == 0:
+-        return 0.
+-    end = radius+width
++    """Return the response multiplied by viscosity.
++
++    The concentration disturbance is written as
++    ``c_1/G = exp(-U) f(r) cos(theta)``. Solute conservation gives the
++    radial boundary-value problem below, with zero normal flux at the sphere
++    and the imposed linear concentration profile at infinity.
++
++    A reciprocal-theorem calculation then gives the translational velocity.
++    ``stokeslet_length`` and ``source_dipole`` are the two coefficients of
++    the translating Navier-slip sphere's auxiliary flow. Retaining both is
++    important: for nonzero slip the reciprocal-theorem kernel has a term
++    linear in distance from the surface.
++    """
++    radius = float(radius)
++    width = float(width)
++    strength = float(strength)
++    slip = float(slip)
++
++    if not (np.isfinite(radius) and np.isfinite(width)
++            and np.isfinite(strength) and np.isfinite(slip)):
++        raise ValueError("sphere parameters must be finite")
++    if radius <= 0.0 or width <= 0.0 or slip < 0.0:
++        raise ValueError("radius and width must be positive and slip nonnegative")
++    if strength == 0.0:
++        return 0.0
++
++    outer_radius = radius + width
++
++    # x = (r - radius) / width and y = (f, df/dx).
+     def equations(x, y):
+-        r = radius+width*x
+-        return np.array([y[1], -(2*width/r+2*strength*(1-x))*y[1]+2*width**2*y[0]/r**2])
++        r = radius + width * x
++        return np.array((
++            y[1],
++            -(2.0 * width / r + 2.0 * strength * (1.0 - x)) * y[1]
++            + 2.0 * width**2 * y[0] / r**2,
++        ))
++
+     def boundary(left, right):
+-        return np.array([left[1], end*right[1]/width+2*right[0]-3*end])
+-    grid = np.linspace(0., 1., 129)
+-    r = radius+width*grid
+-    initial = np.array([r+radius**3/(2*r**2), width*(1-radius**3/r**3)])
+-    solution = solve_bvp(equations, boundary, grid, initial, tol=2e-10, max_nodes=10000)
++        # f'(a) = 0 and f(r) = r + A/r^2 outside the interaction layer.
++        return np.array((
++            left[1],
++            outer_radius * right[1] / width + 2.0 * right[0]
++            - 3.0 * outer_radius,
++        ))
++
++    grid = np.linspace(0.0, 1.0, 129)
++    r_grid = radius + width * grid
++    # The exact U=0 solution is an excellent starting solution.
++    initial = np.array((
++        r_grid + radius**3 / (2.0 * r_grid**2),
++        width * (1.0 - radius**3 / r_grid**3),
++    ))
++    solution = solve_bvp(
++        equations, boundary, grid, initial, tol=2e-10, max_nodes=10000
++    )
+     if not solution.success:
+-        raise RuntimeError(solution.message)
+-    beta = slip/radius
+-    drag = (1+2*beta)/(1+3*beta)
++        raise RuntimeError("concentration boundary-value solve failed: " + solution.message)
++
++    beta = slip / radius
++    drag_ratio = (1.0 + 2.0 * beta) / (1.0 + 3.0 * beta)
++    # u_r/V = stokeslet_length/r + source_dipole/r**3 for the auxiliary
++    # translating sphere. Impermeability sets their sum at r=a to one.
++    stokeslet_length = 1.5 * radius * drag_ratio
++    source_dipole = radius**3 * (1.0 - stokeslet_length / radius)
++
+     def integrand(r):
+-        x = (r-radius)/width
+-        concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+-        derivative = -2*strength*(1-x)/width
+-        weight = (r-radius)**2*(2*r+radius)/(2*r)
+-        return weight*concentration*derivative
+-    return 2/(9*radius*drag)*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
++        x = (r - radius) / width
++        concentration_mode = np.exp(-strength * (1.0 - x)**2) * solution.sol(x)[0]
++        potential_derivative = -2.0 * strength * (1.0 - x) / width
++        # [1-u_r^(aux)/V] r^2 /(3 A), where A is the Stokeslet length.
++        reciprocal_kernel = (
++            r**2 - stokeslet_length * r - source_dipole / r
++        ) / (3.0 * stokeslet_length)
++        return reciprocal_kernel * concentration_mode * potential_derivative
++
++    value, _ = quad(
++        integrand, radius, outer_radius, epsabs=2e-11, epsrel=2e-11,
++        limit=200,
++    )
++    return float(value)
++
++
++def _parameters(experiment):
++    """Extract the documented parameters as cacheable scalar floats."""
++    try:
++        return tuple(float(experiment[name]) for name in
++                     ("radius", "width", "strength", "slip"))
++    except (KeyError, TypeError, ValueError) as exc:
++        raise ValueError(
++            "each experiment needs numeric radius, width, strength, and slip"
++        ) from exc
+ 
+ 
+ def predict_at(experiments, viscosity):
+-    return np.array([response(e['radius'], e['width'], e['strength'], e['slip'])
+-                     for e in experiments])/viscosity
++    """Predict responses for an iterable of documented experiment mappings."""
++    viscosity = float(viscosity)
++    if not np.isfinite(viscosity) or viscosity <= 0.0:
++        raise ValueError("viscosity must be a positive finite number")
++    return np.asarray([response(*_parameters(experiment)) / viscosity
++                       for experiment in experiments], dtype=float)
+ 
+ 
+ class Model:
+@@ -40,7 +116,47 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer the common viscosity using the stated Gaussian uncertainties.
++
++        With ``q_i`` denoting the response from :func:`response`, the model
++        is ``value_i = q_i / viscosity + noise``. It is linear in inverse
++        viscosity, so its weighted least-squares maximum-likelihood estimate
++        has a closed form. The known viscosity interval is imposed as a bound
++        on that estimate.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        amplitudes = np.empty(len(records), dtype=float)
++        values = np.empty(len(records), dtype=float)
++        sigmas = np.empty(len(records), dtype=float)
++        for index, record in enumerate(records):
++            try:
++                amplitudes[index] = response(*_parameters(record["input"]))
++                values[index] = float(record["value"])
++                sigmas[index] = float(record["sigma"])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError(
++                    "each calibration record needs input, value, and sigma"
++                ) from exc
++
++        if (not np.isfinite(amplitudes).all() or not np.isfinite(values).all()
++                or not np.isfinite(sigmas).all() or np.any(sigmas <= 0.0)):
++            raise ValueError("calibration values must be finite and sigma must be positive")
++
++        weights = 1.0 / sigmas**2
++        denominator = np.dot(weights, amplitudes**2)
++        if not np.isfinite(denominator) or denominator <= 0.0:
++            raise ValueError("calibration records contain no viscosity information")
++
++        inverse_viscosity = np.dot(weights * amplitudes, values) / denominator
++        # viscosity in [0.8, 1.6] means inverse viscosity in [1/1.6, 1/0.8].
++        inverse_viscosity = np.clip(inverse_viscosity, 1.0 / 1.6, 1.0 / 0.8)
++        self.viscosity = float(1.0 / inverse_viscosity)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.viscosity)

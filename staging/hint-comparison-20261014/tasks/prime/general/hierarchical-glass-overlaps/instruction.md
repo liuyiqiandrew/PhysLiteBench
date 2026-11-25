@@ -1,0 +1,4 @@
+Update /app/model.py for the configurational system described in /app/README.md. Fit its material parameter from /app/data/calibration.json and predict the stated equilibrium coincidence and joint partition probabilities. You may replace any helper or algorithm while preserving the Model API and ordered finite outputs.
+
+Additional guidance:
+Check your implementation carefully and test its correctness before finishing.

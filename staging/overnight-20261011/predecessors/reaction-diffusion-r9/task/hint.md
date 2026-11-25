@@ -1,0 +1,1 @@
+The measured concentrations include free and bound constituents. Local chemical equilibrium changes their storage, while the stated neutral-cluster diffusion also transports both measured constituents.

@@ -1,0 +1,102 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,93 @@
+-"""Current SCGF model and calibration interface."""
++"""Hydrodynamic current SCGF for the half-filled weakly asymmetric ring.
++
++Time is microscopic, so the entire limiting SCGF (including the density-wave
++branch) scales linearly with the rate prefactor D.
++"""
++from functools import lru_cache
++
+ import numpy as np
++from scipy.optimize import minimize
++
++
++@lru_cache(maxsize=4)
++def _basis(modes):
++    # Reflection symmetry fixes the arbitrary position of the wave. Odd
++    # harmonics impose rho(x + 1/2) = 1 - rho(x), hence exact half filling.
++    x = np.arange( max(256, 16 * modes), dtype=float) / max(256, 16 * modes)
++    frequencies = 2 * np.pi * np.arange(1, 2 * modes, 2)
++    phase = frequencies[:, None] * x
++    return np.cos(phase), -frequencies[:, None] * np.sin(phase)
++
++
++def _wave_solution(field, shifted_bias, modes=24):
++    """Maximize the stationary macroscopic fluctuation theory functional.
++
++    At half filling the optimal traveling wave has zero velocity. Writing
++    2 rho - 1 = tanh(u) enforces 0 < rho < 1. Eliminating the constant current
++    gives 4 psi/D = k^2/<cosh(u)^2> - E^2<sech(u)^2>
++                         - <sech(u)^2 u'^2>, where k = E + lambda.
++    """
++    basis, derivative = _basis(modes)
++    e2, k2 = field * field, shifted_bias * shifted_bias
++
++    def objective(coefficients):
++        u = coefficients @ basis
++        du = coefficients @ derivative
++        m = np.tanh(u)
++        s = 1 / np.cosh(u) ** 2
++        inverse_mobility = np.mean(1 / s)
++        value = e2 * np.mean(s) + np.mean(s * du * du) - k2 / inverse_mobility
++        local = -2 * s * m * (e2 + du * du)
++        local += k2 / inverse_mobility**2 * np.sinh(2 * u)
++        gradient = (basis @ local + derivative @ (2 * s * du)) / u.size
++        return value, gradient
++
++    initial = np.zeros(modes)
++    initial[0] = max(0.05, np.sqrt(e2 - k2 - 4 * np.pi**2) / np.pi)
++    result = minimize(objective, initial, jac=True, method="L-BFGS-B",
++                      options={"ftol": 2e-14, "gtol": 2e-9,
++                               "maxiter": 2500, "maxls": 40})
++    return -result.fun / 4
++
++
++@lru_cache(maxsize=4096)
++def _unit_scgf(field, bias):
++    flat = bias * (bias + 2 * field) / 4
++    # The first ring Fourier mode becomes unstable at E^2-k^2 = (2 pi)^2.
++    if -4 * flat <= 4 * np.pi**2:
++        return flat
++    return max(flat, _wave_solution(field, abs(field + bias)))
++
+ 
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    """Return raw SCGF values in inverse microscopic time units."""
++    return diffusivity * np.asarray([
++        _unit_scgf(float(e["field"]), float(e["bias"]))
++        for e in experiments
++    ], dtype=float)
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Bounded Gaussian maximum-likelihood estimate of the common D."""
++        records = list(records)
++        if not records:
++            return self
++        unit = predict_at([r["input"] for r in records], 1.0)
++        values = np.asarray([r["value"] for r in records], dtype=float)
++        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
++        if (not np.all(np.isfinite(values)) or
++                not np.all(np.isfinite(sigma)) or np.any(sigma <= 0)):
++            raise ValueError("Calibration values must be finite and sigma positive.")
++        weighted = unit / sigma
++        information = weighted @ weighted
++        if information > 0:
++            estimate = (weighted @ (values / sigma)) / information
++            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

@@ -1,0 +1,48 @@
+--- starter/model.py
++++ submission/model.py
+@@ -158,18 +158,31 @@
+ 
+ @lru_cache(512)
+ def circulation(gamma,zeta=1.,kappa=.7,T=.5,Tb=1.4,B0=.6,B1=.9,phase=.8,V=.8,rate=.7,drag_contrast=.6,temperature_contrast=.5,n=65,harmonic=1,quadrature='cos',transverse_drive=0.,drive_phase=0.,fluid_anisotropy=0.,fluid_axis=0.):
+-    x=np.arange(n)*2*np.pi/n;B=B0+B1*np.cos(x+phase);Bp=-B1*np.sin(x+phase);drift=[];diff=[];g=[];h=[]
++    x=np.arange(n)*2*np.pi/n;B=B0+B1*np.cos(x+phase);Bp=-B1*np.sin(x+phase);drift=[];diff=[];g=[];h=[];cross=[]
+     weight=np.cos(harmonic*x) if quadrature=='cos' else np.sin(harmonic*x)
+     derivative=-harmonic*np.sin(harmonic*x) if quadrature=='cos' else harmonic*np.cos(harmonic*x)
+     for j,(b,bp,angle) in enumerate(zip(B,Bp,x)):
+         M,D,c,S,K=valve_cell(gamma,zeta,kappa,T,Tb,b,rate,drag_contrast,temperature_contrast,fluid_anisotropy,fluid_axis)
+         velocity=M@np.array([V*np.sin(angle),transverse_drive*np.cos(angle+drive_phase)])+bp*c
+-        drift.append(velocity[0]);diff.append(D[0,0]);g.append(weight[j]*velocity[1]+derivative[j]*K[1,0]);h.append(weight[j]**2*D[1,1])
++        drift.append(velocity[0]);diff.append(D[0,0]);g.append(weight[j]*velocity[1]+derivative[j]*K[1,0]);h.append(weight[j]**2*D[1,1]);cross.append(weight[j]*D[0,1])
+     wave=np.fft.fftfreq(n,1/n);dx=np.fft.ifft(1j*wave[:,None]*np.fft.fft(np.eye(n),axis=0),axis=0).real;dxx=np.fft.ifft(-wave[:,None]**2*np.fft.fft(np.eye(n),axis=0),axis=0).real
+-    L=-dx@np.diag(drift)+dxx@np.diag(diff);system=L.copy();system[0]=1;rhs=np.zeros(n);rhs[0]=1;p=np.linalg.solve(system,rhs)
+-    A1=np.diag(g);A2=2*np.diag(h);c1=float(np.sum(A1@p))
+-    rhs=(c1*np.eye(n)-A1)@p;rhs[0]=0.;r1=np.linalg.solve(system,rhs);c2=float(np.sum(A2@p+2*A1@r1))
+-    rhs=c2*p+2*c1*r1-2*A1@r1-A2@p;rhs[0]=0.;r2=np.linalg.solve(system,rhs);c3=float(np.sum(3*A1@r2+3*A2@r1))
++    # The limiting pair (x,Y) is a diffusion.  Its x and detector increments
++    # share the same fast velocity fluctuations, including after valve jumps.
++    # The adjoint tilted generator is L + k*A1 + k**2*A2/2.  In particular the
++    # derivative in A1 is essential for the second and third cumulants.
++    L=-dx@np.diag(drift)+dxx@np.diag(diff)
++    A1=np.diag(g)-2*dx@np.diag(cross)
++    A2=2*np.diag(h)
++    system=L.copy();system[0]=1/n
++    rhs=np.zeros(n);rhs[0]=1
++    p=np.linalg.solve(system,rhs)
++    c1=float(np.mean(A1@p))
++    rhs=c1*p-A1@p;rhs[0]=0.
++    r1=np.linalg.solve(system,rhs)
++    c2=float(np.mean(A2@p+2*A1@r1))
++    rhs=c2*p+2*c1*r1-2*A1@r1-A2@p;rhs[0]=0.
++    r2=np.linalg.solve(system,rhs)
++    c3=float(np.mean(3*A1@r2+3*A2@r1))
+     return np.array([c1,c2,c3])
+ 
+ def channel_prediction(e,friction):
+@@ -208,5 +221,6 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        self.friction=fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

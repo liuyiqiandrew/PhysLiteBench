@@ -1,0 +1,89 @@
+"""Tagged-particle covariance model for single-file hard-core diffusion.
+
+Particles perform identical Brownian motion with common diffusivity ``D`` and
+cannot pass each other, so the marked particle's position is a single-file
+tracer.  The tracer converges, over the joint time rescaling of the limiting
+experiment, to fractional Brownian motion with Hurst exponent ``H = 1/4``.
+Its limiting covariance coefficient is
+
+    Cov[X(ta), X(tb)] = sqrt(D / (2*pi)) / density
+                        * (sqrt(ta) + sqrt(tb) - sqrt(|ta - tb|)),
+
+which is exactly the fractional-Brownian-motion covariance kernel
+``(sigma^2 / 2) * (ta^H... )`` written in terms of the two fixed times.
+"""
+
+import numpy as np
+
+
+def _shape_factor(density, time_a, time_b):
+    """Return the D-independent factor of the limiting covariance."""
+    density = np.asarray(density, dtype=float)
+    time_a = np.asarray(time_a, dtype=float)
+    time_b = np.asarray(time_b, dtype=float)
+    return (np.sqrt(time_a) + np.sqrt(time_b)
+            - np.sqrt(np.abs(time_a - time_b))) / density
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    """Limiting covariance coefficient for a single experiment."""
+    amplitude = np.sqrt(float(diffusivity) / (2.0 * np.pi))
+    return amplitude * _shape_factor(density, time_a, time_b)
+
+
+def predict_at(experiments, diffusivity):
+    """Vectorized evaluation of :func:`covariance` over experiments."""
+    density = np.array([float(e["density"]) for e in experiments], dtype=float)
+    time_a = np.array([float(e["time_a"]) for e in experiments], dtype=float)
+    time_b = np.array([float(e["time_b"]) for e in experiments], dtype=float)
+    return covariance(diffusivity, density, time_a, time_b)
+
+
+class Model:
+    """Fit the common diffusivity and predict limiting covariance coefficients."""
+
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Infer the common diffusivity from Gaussian calibration records.
+
+        Each record provides an ``input`` dict, a noisy ``value`` of the
+        limiting covariance coefficient, and a known ``sigma``.  Because the
+        model is linear in ``sqrt(D)`` this is a weighted least-squares fit,
+        which coincides with the maximum-likelihood estimate under the stated
+        independent Gaussian instrument error.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError("Model.fit requires at least one calibration record.")
+
+        density = np.array([float(r["input"]["density"]) for r in records])
+        time_a = np.array([float(r["input"]["time_a"]) for r in records])
+        time_b = np.array([float(r["input"]["time_b"]) for r in records])
+        value = np.array([float(r["value"]) for r in records])
+        sigma = np.array([float(r.get("sigma", 0.002)) for r in records])
+
+        base = _shape_factor(density, time_a, time_b)
+        weights = 1.0 / sigma ** 2
+
+        denom = np.sum(weights * base ** 2)
+        if denom <= 0.0:
+            raise ValueError("Calibration records carry no usable signal.")
+
+        # value = sqrt(D / (2*pi)) * base + noise
+        amplitude = np.sum(weights * value * base) / denom
+        diffusivity = 2.0 * np.pi * amplitude ** 2
+
+        # The stated prior restricts the common diffusivity to [0.8, 1.2].
+        self.diffusivity = float(np.clip(diffusivity, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        """Return limiting covariance coefficients in input order."""
+        if self.diffusivity is None:
+            raise ValueError("Model.predict called before Model.fit.")
+        experiments = list(experiments)
+        if not experiments:
+            return np.zeros(0, dtype=float)
+        return predict_at(experiments, self.diffusivity)

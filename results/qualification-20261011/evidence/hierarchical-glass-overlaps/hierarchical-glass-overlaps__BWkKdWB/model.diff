@@ -1,0 +1,60 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,11 +54,55 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        # Throughout the calibration interval the system is in the
++        # high-temperature phase at both levels, even at the largest allowed
++        # width.  The limiting mean energy is therefore
++        #
++        #     <E>/N = -beta * (0.7 + 0.3) * width**2.
++        #
++        # Fit theta = width**2 by the stated Gaussian measurement model.  Do
++        # not update the object until all records have been checked, so a bad
++        # fit cannot silently replace an already usable parameter.
++        numerator = 0.0
++        denominator = 0.0
++        count = 0
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++                measured = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError, OverflowError) as exc:
++                raise ValueError('Each calibration record must contain beta, value, and sigma.') from exc
++            if (not math.isfinite(beta) or not 0.2 <= beta <= 0.6
++                    or not math.isfinite(measured)
++                    or not math.isfinite(sigma) or sigma <= 0.0):
++                raise ValueError('Calibration records are outside the stated ranges.')
++            weight = 1.0/(sigma*sigma)
++            numerator -= beta*measured*weight
++            denominator += beta*beta*weight
++            count += 1
++
++        if count == 0 or denominator == 0.0:
++            raise ValueError('At least one calibration record is required.')
++
++        theta = numerator/denominator
++        # The material parameter is constrained by the problem statement.
++        theta = min(WIDTH_INTERVAL[1]**2, max(WIDTH_INTERVAL[0]**2, theta))
++        self.width = math.sqrt(theta)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        result = []
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++            except (KeyError, TypeError, ValueError, OverflowError) as exc:
++                raise ValueError('Each calibration record must contain beta.') from exc
++            if not math.isfinite(beta) or not 0.2 <= beta <= 0.6:
++                raise ValueError('Outside the stated calibration inverse-temperature range.')
++            result.append(-beta*value*value)
++        return np.asarray(result, dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

@@ -1,0 +1,101 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,25 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At second order the contacts need not retain equal conditional
++    # populations.  The density moment equation is
++    #
++    #     q P_2 = d_x M_{x,1} .
++    #
++    # Its component parallel to the stationary contact distribution is the
++    # (irrelevant here) common positional-density correction: it cancels
++    # exactly against B_m R_m.  Set that component to zero, while retaining
++    # the conditional part, which is essential when bath temperatures or
++    # contact drags differ.
++    density_rhs=np.array([d@first[1,0][s] for s in range(count)])
++    augmented=np.zeros((count+1,count+1))
++    augmented[:count,:count]=q
++    augmented[:count,count]=1.
++    augmented[count,:count]=1.
++    density_conditional=np.linalg.solve(
++        augmented,np.vstack((density_rhs,np.zeros((1,points))))
++    )[:count]
++    density_correction={(0,0):density_conditional}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -91,7 +108,67 @@
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    """Calibrated predictor for the limiting excess calorimetry rate.
++
++    ``friction`` is deliberately the only fitted parameter.  The quantities in
++    a calibration record are noisy measurements of independent experiments, so
++    fitting is a (one dimensional) weighted least-squares problem.
++    """
++    def __init__(self):
++        self.friction=None
++
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Estimate the common drag from calibration records and return ``self``.
++
++        A small self-contained golden-section search is used instead of making
++        the public model depend on a particular optimisation package.  Keeping
++        the endpoints in the search also makes the documented, closed fitting
++        range meaningful when a data set favours a boundary value.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        try:
++            experiments=[record['input'] for record in records]
++            observed=np.asarray([record['value'] for record in records],dtype=float)
++            sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        except (KeyError, TypeError, ValueError) as exc:
++            raise ValueError("each record must contain input, value, and sigma") from exc
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values must be finite and sigmas positive")
++
++        def loss(friction):
++            prediction=coefficients(experiments,float(friction))
++            residual=(prediction-observed)/sigma
++            return float(residual@residual)
++
++        # The likelihood is smooth on the physical interval.  70 iterations
++        # leaves an interval far below double precision at this scale.
++        lo,hi=0.7,1.6
++        ratio=(np.sqrt(5.0)-1.0)/2.0
++        left=hi-ratio*(hi-lo)
++        right=lo+ratio*(hi-lo)
++        f_left,f_right=loss(left),loss(right)
++        for _ in range(70):
++            if f_left <= f_right:
++                hi,right,f_right=right,left,f_left
++                left=hi-ratio*(hi-lo)
++                f_left=loss(left)
++            else:
++                lo,left,f_left=left,right,f_right
++                right=lo+ratio*(hi-lo)
++                f_right=loss(right)
++
++        candidates=(0.7,1.6,lo,(lo+hi)/2.0,hi)
++        self.friction=float(min(candidates,key=loss))
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        result=coefficients(list(experiments),self.friction)
++        if not np.isfinite(result).all():
++            raise FloatingPointError("non-finite calorimetry prediction")
++        return result

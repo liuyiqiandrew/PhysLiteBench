@@ -1,0 +1,107 @@
+--- before/model.py
++++ after/model.py
+@@ -90,13 +90,32 @@
+                                 contrast, wavenumber, bath_contrast, switch_rate)))
+     state=limiting_state(e,friction)
+     if detector_phase is None:
+-        return state['value']
+-    weight=(1+np.cos(state['phase']-detector_phase))/2
+-    n0=state['density_correction'][0,0]
+-    n2=state['second_correction']
+-    temperatures=state['temperatures']
+-    local=np.sum(friction*(n2[2,0]/temperatures-n0)+friction*drag_ratio*(n2[0,2]/temperatures-n0),axis=0)
+-    return float(state['dx']*weight@local)
++        weight = None
++    else:
++        weight=(1+np.cos(state['phase']-detector_phase))/2
++
++    # The finite part of the background preparation is normally zero (the
++    # uniform, force-free particle has no spatial or mechanical driving), but
++    # subtract it explicitly.  This is also useful numerically: it keeps the
++    # implementation tied to the experiment definition rather than relying on
++    # that special-case cancellation.
++    background = dict(e)
++    background.update(force_x=0., force_y=0., contrast=0.)
++    background_value = limiting_state(background, friction)['value']
++
++    if weight is None:
++        residence = 1.
++        result = state['value']
++    else:
++        residence = float(state['dx']*weight@state['density'])
++        n0=state['density_correction'][0,0]
++        n2=state['second_correction']
++        temperatures=state['temperatures']
++        local=np.sum(friction*(n2[2,0]/temperatures-n0)+
++                     friction*drag_ratio*(n2[0,2]/temperatures-n0),axis=0)
++        result = float(state['dx']*weight@local)
++
++    return float(result-background_value*residence)
+ 
+ 
+ def coefficients(experiments, friction=1.):
+@@ -108,7 +127,63 @@
+         self.friction = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        """Fit the one shared friction coefficient from calibration records.
++
++        In the documented calibration set, bath_contrast and magnetic are
++        both zero.  In that case the limiting entropy rate has the exact
++        scaling ``rate(friction) = rate(1) / friction``.  The weighted
++        least-squares fit can therefore be done directly in the variable
++        ``1 / friction`` instead of repeatedly solving the moment system.
++        A small bounded one-dimensional fallback keeps the method useful for
++        otherwise well-formed records too.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all() or
++                np.any(sigmas <= 0)):
++            raise ValueError("calibration values and uncertainties must be finite")
++
++        documented = all(float(item['magnetic']) == 0. and
++                         float(item['bath_contrast']) == 0.
++                         for item in inputs)
++        if documented:
++            unit_rates = coefficients(inputs, 1.)
++            weights = 1. / (sigmas*sigmas)
++            denominator = float(np.sum(weights*unit_rates*unit_rates))
++            if denominator > 0. and np.isfinite(denominator):
++                inverse_friction = float(np.sum(weights*unit_rates*values) / denominator)
++                if np.isfinite(inverse_friction) and inverse_friction > 0.:
++                    self.friction = float(np.clip(1./inverse_friction, .7, 1.6))
++                    return self
++
++        # Generic bounded weighted least squares for nonstandard records.
++        def objective(friction):
++            prediction = coefficients(inputs, friction)
++            return float(np.sum(((prediction-values)/sigmas)**2))
++
++        lo, hi = .7, 1.6
++        # Golden-section search is sufficient because this is a single shared
++        # scalar and avoids adding a dependency just for fitting it.
++        golden = (np.sqrt(5.)-1.)/2.
++        a, b = lo, hi
++        c, d = b-golden*(b-a), a+golden*(b-a)
++        fc, fd = objective(c), objective(d)
++        for _ in range(60):
++            if fc < fd:
++                b, d, fd = d, c, fc
++                c = b-golden*(b-a)
++                fc = objective(c)
++            else:
++                a, c, fc = c, d, fd
++                d = a+golden*(b-a)
++                fd = objective(d)
++        self.friction = float((a+b)/2.)
++        return self
+ 
+     def predict(self, experiments):
+         return coefficients(experiments, self.friction)

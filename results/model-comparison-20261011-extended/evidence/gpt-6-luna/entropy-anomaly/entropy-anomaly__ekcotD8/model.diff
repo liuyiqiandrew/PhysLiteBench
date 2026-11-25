@@ -1,0 +1,48 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,43 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Fit the shared friction coefficient from the calibration measurements.
++
++        The calibration preparation has zero bath contrast and zero magnetic
++        field.  In that case the small-mass excess rate is inversely
++        proportional to the common friction.  Evaluate the prediction once at
++        unit friction and solve the resulting weighted one-parameter least
++        squares problem analytically.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++        experiments=[record['input'] for record in records]
++        observed=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if (not np.all(np.isfinite(observed)) or not np.all(np.isfinite(sigma))
++                or np.any(sigma<=0)):
++            raise ValueError("Calibration values must be finite and uncertainties positive.")
++        # Keep the fit tied to the documented calibration preparation: these
++        # properties are what make the exact inverse-friction scaling hold.
++        for e in experiments:
++            if e.get('bath_contrast',0.) != 0. or e.get('magnetic',0.) != 0. or 'valve_cycle' in e:
++                raise ValueError("Calibration records must use the documented two-contact preparation with zero bath contrast and magnetic field.")
++        unit=coefficients(experiments,1.)
++        weights=1./(sigma*sigma)
++        # y(friction) = unit / friction.  Fit alpha=1/friction by weighted LS.
++        denominator=float(np.sum(weights*unit*unit))
++        if not np.isfinite(denominator) or denominator<=0:
++            raise ValueError("Calibration predictions do not identify friction.")
++        alpha=float(np.sum(weights*unit*observed)/denominator)
++        if not np.isfinite(alpha) or alpha<=0:
++            raise ValueError("Calibration records imply a nonpositive friction.")
++        self.friction=float(np.clip(1./alpha,.7,1.6))
++        return self
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("Call fit(records) before predict(experiments).")
++        result=coefficients(experiments,self.friction)
++        if result.shape!=(len(experiments),) or not np.all(np.isfinite(result)):
++            raise FloatingPointError("The model produced a non-finite prediction.")
++        return result

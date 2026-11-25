@@ -1,0 +1,114 @@
+from functools import lru_cache
+import numpy as np
+from scipy.integrate import quad, solve_bvp
+
+
+@lru_cache(256)
+def response(radius, width, strength, slip):
+    """Return the viscosity-one velocity response for one experiment.
+
+    The solute electrochemical potential is ``log(c) + U``.  Writing its
+    dipolar far-field solution as ``c = exp(-U) f(r) cos(theta)`` leaves a
+    one dimensional boundary value problem for ``f``.  The final integral is
+    the reciprocal-theorem force balance for a force-free sphere.
+    """
+    radius = float(radius)
+    width = float(width)
+    strength = float(strength)
+    slip = float(slip)
+    if radius <= 0 or width <= 0 or slip < 0:
+        raise ValueError("radius and width must be positive and slip non-negative")
+    if strength == 0.0:
+        return 0.0
+
+    end = radius + width
+
+    def equations(x, y):
+        r = radius + width*x
+        # f'' + (2 w/r - U_x) f' - 2 w^2 f/r^2 = 0,
+        # where U_x = -2 strength (1-x).
+        return np.array([
+            y[1],
+            -(2.0*width/r + 2.0*strength*(1.0-x))*y[1]
+            + 2.0*width**2*y[0]/r**2,
+        ])
+
+    def boundary(left, right):
+        # Zero normal solute flux at r=a and matching to r+A/r^2 at r=R.
+        return np.array([left[1], end*right[1]/width + 2.0*right[0] - 3.0*end])
+
+    grid = np.linspace(0., 1., 129)
+    r = radius + width*grid
+    # Exact solution used as an excellent initial guess when U=0.
+    initial = np.array([r + radius**3/(2.0*r**2),
+                        width*(1.0 - radius**3/r**3)])
+    solution = solve_bvp(equations, boundary, grid, initial, tol=2e-10, max_nodes=10000)
+    if not solution.success:
+        raise RuntimeError(solution.message)
+
+    beta = slip / radius
+    # Translation flow around a slipping sphere has radial coefficient
+    # A a/r + B a^3/r^3.  Its drag is 6*pi*eta*a*drag.
+    drag = (1.0 + 2.0*beta) / (1.0 + 3.0*beta)
+    A = 1.5 * drag
+    B = 1.0 - A
+
+    def integrand(r):
+        x = (r - radius) / width
+        concentration = np.exp(-strength*(1.0-x)**2) * solution.sol(x)[0]
+        derivative = -2.0*strength*(1.0-x) / width
+        # r^2 times one minus the radial auxiliary translation velocity.
+        # This reduces to (r-a)^2(2r+a)/(2r) for no slip.
+        weight = r**2 * (1.0 - A*radius/r - B*radius**3/r**3)
+        return weight*concentration*derivative
+
+    integral = quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
+    return 2.0 / (9.0*radius*drag) * integral
+
+
+def predict_at(experiments, viscosity):
+    viscosity = float(viscosity)
+    if not np.isfinite(viscosity) or viscosity <= 0.0:
+        raise ValueError("viscosity must be a finite positive number")
+    return np.asarray([
+        response(e['radius'], e['width'], e['strength'], e['slip'])
+        for e in experiments
+    ], dtype=float) / viscosity
+
+
+class Model:
+    def __init__(self):
+        self.viscosity = None
+
+    def fit(self, records):
+        """Estimate the common viscosity by Gaussian weighted least squares."""
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        responses = np.asarray([
+            response(record['input']['radius'], record['input']['width'],
+                     record['input']['strength'], record['input']['slip'])
+            for record in records
+        ], dtype=float)
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
+        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all()
+                or np.any(sigmas <= 0.0)):
+            raise ValueError("calibration values must be finite and sigmas positive")
+
+        # The response is q/eta, so this is a one-parameter linear Gaussian
+        # fit in inverse viscosity.  Restrict to the stated physical range.
+        weights = 1.0 / sigmas**2
+        denominator = np.sum(weights * responses**2)
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError("calibration records contain no viscosity information")
+        inverse_viscosity = np.sum(weights * responses * values) / denominator
+        inverse_viscosity = np.clip(inverse_viscosity, 1.0/1.6, 1.0/0.8)
+        self.viscosity = float(1.0 / inverse_viscosity)
+        return self
+
+    def predict(self, experiments):
+        if self.viscosity is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments, self.viscosity)

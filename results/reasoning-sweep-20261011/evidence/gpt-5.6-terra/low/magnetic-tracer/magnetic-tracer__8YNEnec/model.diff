@@ -1,0 +1,17 @@
+--- starter/model.py
++++ submission/model.py
+@@ -208,5 +208,13 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Fit the single common ordinary-fluid drag coefficient.
++
++        Calibration records deliberately use the no-memory, zero-field setup,
++        for which ``zero_field_calibration`` is the exact small-mass result.
++        Weighting by the supplied independent standard uncertainties makes this
++        the Gaussian maximum-likelihood estimate.
++        """
++        self.friction = fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

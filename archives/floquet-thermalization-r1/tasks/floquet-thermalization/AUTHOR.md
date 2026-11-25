@@ -1,0 +1,13 @@
+# Floquet thermalization, revision 1
+
+The starter solves a complete positive Pauli equation with instantaneous thermal rates, integrating one drive cycle then composing its affine propagator. It obeys detailed balance for each instantaneous splitting and includes drive frequency, amplitude and phase dependence. For every undriven calibration it is exactly correct. Its physical assumption is adiabatic bath rate selection, which the stated nonadiabatic weak-coupling hierarchy does not justify.
+
+For the microscopic longitudinal drive and transverse bath coupling, the transition phase contains exp[-i t-i(A/Omega)sin(Omega t)]. Weak stationary bath transitions sample frequencies 1+n Omega, with weights J_n(A/Omega)^2. Up/down rates sum those weights against G(-omega)/G(omega), respectively. The controlled weak-coupling limit at fixed drive parameters selects these frequencies; taking an adiabatic limit before coupling is a different physical approximation. Since all drive Hamiltonians commute and only populations are measured, neither a Lamb shift nor coherent micromotion changes the observable.
+
+The oracle sums Bessel weights. The independent reference Fourier transforms the exact accumulated transition phase and evaluates the two-sided bath spectrum using Bose occupations. Validation checks Fourier refinement, sideband normalization/tails, KMS detailed balance, positive populations and independent adaptive integration of the shortcut's own instantaneous-rate ODE. Thus a shortcut failure is not an inaccurate period integrator. Calibration uniquely fits the shared coupling through undriven exponential relaxation from both above and below equilibrium.
+
+Public order of limits is explicit. Time is long compared with bath correlations, rates are small compared with nonzero drive frequency, and predictions mean leading weak-coupling dynamics. No approximation of a slow drive is prescribed. The task is distinct from the archived driven-spin-pair task, which concerned shared classical field correlations.
+
+Primary context: [Szczygielski, Gelbwaser-Klimovsky and Alicki, Markovian master equation and thermodynamics of a two-level system in a strong laser field](https://arxiv.org/abs/1211.5665). This task uses the explicitly specified commuting sinusoidal Hamiltonian and spectrum, not that paper's full apparatus.
+
+Hidden group RMS relative error limit .04; calibration errors .006 of maximum population. Validator: `uv run --python 3.13 --with numpy==2.3.3 --with scipy==1.16.3 --with pytest==8.4.2 python scripts/validate_floquet_thermalization.py --noise-trials 256`. Explicit --generate regenerates data. Final peer review and evaluation pending.

@@ -1,0 +1,295 @@
+{
+  "nonreciprocal-cavity__ABS23B2": {
+    "task": "nonreciprocal-cavity",
+    "revision": 1,
+    "condition": "plain",
+    "job": "nonreciprocal-cavity-hardening-r1-plain-20261002-081058",
+    "classification": "physics_model_failure",
+    "reason": "The submission fits the loss rate accurately but retains incoming absorptivity diag(I-S\u2020S) as the same-port thermal emission. That reciprocal directional-emission closure is invalid for the specified statically biased circuit; internal Langevin fluctuations produce diag(I-SS\u2020). Total output calibration remains exactly equivalent. Public trajectory accepts the supplied thermal forward model and focuses on fitting and interface behavior, with no attempted outgoing-noise derivation or evidence of a coding error in that derivation.",
+    "metrics": {
+      "parameters": {
+        "loss_rate": 0.2700431312670722
+      },
+      "parameter_relative_error_max": 0.0001597454336006443,
+      "calibration_chi2": 0.9023136677896271,
+      "hidden": {
+        "clockwise_ports": 0.1311414660853776,
+        "reversed_bias": 0.1936775434590603,
+        "thermal_background": 0.1594835923969479
+      }
+    },
+    "source_sha256": "937d6c76a84dbb913b6ffbd185f066cb8a988fc50730c781096f74374c170ca0",
+    "reviewed_sources": [
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__ABS23B2/artifacts/app/model.py",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__ABS23B2/agent/codex.txt",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__ABS23B2/agent/trajectory.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__ABS23B2/verifier/metrics.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__ABS23B2/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README and existing model implementation, then implement `fit` and `predict` to match the specified interface and run the available tests or checks.",
+      "The apparatus already contains the scattering and thermal-output equations. I\u2019m adding a bounded, sigma-weighted one-parameter fit and a guarded prediction path, while preserving the required NumPy array shape and `fit` return value.",
+      "Implemented `Model.fit` and `Model.predict` in [model.py](/app/model.py).\n\n- Fits `loss_rate` via bounded sigma-weighted least squares.\n- Returns `self` from `fit`.\n- Ensures predictions are finite NumPy arrays with the required shape.\n- Added validation for calibration inputs and pre-fit prediction errors.\n\nAll tests pass: `2 passed`."
+    ],
+    "public_tool_count": 5,
+    "fixed_parameter_repair": {
+      "parameter_name": "loss_rate",
+      "parameter": 0.2700431312670722,
+      "change": "Replace only the emission closure from incoming absorptivity (column power deficit) to the outgoing Langevin-noise covariance (row power deficit). Keep submitted loss rate, full scattering matrix, external-background propagation, and all other code unchanged.",
+      "before_line": "emission=1-np.sum(powers,axis=1)",
+      "after_line": "emission=1-np.sum(powers,axis=2)",
+      "before": {
+        "clockwise_ports": 0.13114146608537758,
+        "reversed_bias": 0.19367754345906033,
+        "thermal_background": 0.159483592396948
+      },
+      "after": {
+        "clockwise_ports": 4.0544503843553816e-05,
+        "reversed_bias": 6.169824455263691e-05,
+        "thermal_background": 4.082424853614206e-05
+      },
+      "calibration_prediction_max_change": 6.661338147750939e-16,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "repair_execution": "Compiled and evaluated an in-memory copy; no retained job artifacts were edited."
+    }
+  },
+  "nonreciprocal-cavity__PAJJGkh": {
+    "task": "nonreciprocal-cavity",
+    "revision": 1,
+    "condition": "plain",
+    "job": "nonreciprocal-cavity-hardening-r1-plain-20261002-081058",
+    "classification": "physics_model_failure",
+    "reason": "The submission fits the loss rate accurately but retains incoming absorptivity diag(I-S\u2020S) as the same-port thermal emission. That reciprocal directional-emission closure is invalid for the specified statically biased circuit; internal Langevin fluctuations produce diag(I-SS\u2020). Total output calibration remains exactly equivalent. Public trajectory accepts the supplied thermal forward model and focuses on fitting and interface behavior, with no attempted outgoing-noise derivation or evidence of a coding error in that derivation.",
+    "metrics": {
+      "parameters": {
+        "loss_rate": 0.2700431312670722
+      },
+      "parameter_relative_error_max": 0.0001597454336006443,
+      "calibration_chi2": 0.9023136677896271,
+      "hidden": {
+        "clockwise_ports": 0.1311414660853776,
+        "reversed_bias": 0.1936775434590603,
+        "thermal_background": 0.1594835923969479
+      }
+    },
+    "source_sha256": "36c06a5269cbd6ec2863f58e1036c793ec3ab6b94bfae6f555cd9a1fcef05d7f",
+    "reviewed_sources": [
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__PAJJGkh/artifacts/app/model.py",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__PAJJGkh/agent/codex.txt",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__PAJJGkh/agent/trajectory.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__PAJJGkh/verifier/metrics.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__PAJJGkh/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README and existing model implementation, then implement `fit` and `predict` to match the specified apparatus and run the available tests or checks.",
+      "The apparatus already computes the scattering response and thermal output; the missing piece is a bounded, uncertainty-weighted one-parameter calibration. I\u2019m checking edge cases in the existing helper before patching so `predict` remains finite and preserves input order.",
+      "`fit` now minimizes the calibration chi-square over the allowed loss-rate interval, stores the fitted scalar, and returns the same model instance. I\u2019ve left the physical prediction apparatus intact and am running the public checks plus a couple of interface probes.",
+      "Implemented `Model.fit` in `/app/model.py`:\n\n- Performs bounded, sigma-weighted chi-square fitting over `loss_rate \u2208 [0.1, 0.6]`\n- Stores the fitted rate\n- Returns `self`\n\n`Model.predict` uses the existing apparatus and passes all tests.\n\nResult: `2 passed`; fitted `loss_rate \u2248 0.27004`."
+    ],
+    "public_tool_count": 7,
+    "fixed_parameter_repair": {
+      "parameter_name": "loss_rate",
+      "parameter": 0.2700431312670722,
+      "change": "Replace only the emission closure from incoming absorptivity (column power deficit) to the outgoing Langevin-noise covariance (row power deficit). Keep submitted loss rate, full scattering matrix, external-background propagation, and all other code unchanged.",
+      "before_line": "emission=1-np.sum(powers,axis=1)",
+      "after_line": "emission=1-np.sum(powers,axis=2)",
+      "before": {
+        "clockwise_ports": 0.13114146608537758,
+        "reversed_bias": 0.19367754345906033,
+        "thermal_background": 0.159483592396948
+      },
+      "after": {
+        "clockwise_ports": 4.0544503843553816e-05,
+        "reversed_bias": 6.169824455263691e-05,
+        "thermal_background": 4.082424853614206e-05
+      },
+      "calibration_prediction_max_change": 6.661338147750939e-16,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "repair_execution": "Compiled and evaluated an in-memory copy; no retained job artifacts were edited."
+    }
+  },
+  "nonreciprocal-cavity__xujzLdy": {
+    "task": "nonreciprocal-cavity",
+    "revision": 1,
+    "condition": "plain",
+    "job": "nonreciprocal-cavity-hardening-r1-plain-20261002-081058",
+    "classification": "physics_model_failure",
+    "reason": "The submission fits the loss rate accurately but retains incoming absorptivity diag(I-S\u2020S) as the same-port thermal emission. That reciprocal directional-emission closure is invalid for the specified statically biased circuit; internal Langevin fluctuations produce diag(I-SS\u2020). Total output calibration remains exactly equivalent. Public trajectory accepts the supplied thermal forward model and focuses on fitting and interface behavior, with no attempted outgoing-noise derivation or evidence of a coding error in that derivation.",
+    "metrics": {
+      "parameters": {
+        "loss_rate": 0.2700427989863407
+      },
+      "parameter_relative_error_max": 0.00015851476422468203,
+      "calibration_chi2": 0.9023136465489543,
+      "hidden": {
+        "clockwise_ports": 0.131141413672621,
+        "reversed_bias": 0.19367749255556865,
+        "thermal_background": 0.159483508299608
+      }
+    },
+    "source_sha256": "256ea4d59ddef9b0f1b8b350a9b89b6050c83e41a42f74031df8c6dc69bd46c0",
+    "reviewed_sources": [
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__xujzLdy/artifacts/app/model.py",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__xujzLdy/agent/codex.txt",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__xujzLdy/agent/trajectory.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__xujzLdy/verifier/metrics.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-plain-20261002-081058/nonreciprocal-cavity__xujzLdy/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the README and existing model implementation, then complete both methods and run the repository\u2019s available tests or checks.",
+      "The forward model is already implemented; the missing work is the bounded, uncertainty-weighted calibration objective and a safe prediction interface. I\u2019m checking the calibration scale and edge cases before patching so hidden tests around empty inputs and generator-like iterables behave sensibly.",
+      "The implementation now minimizes the calibration chi-square over the allowed loss-rate interval, explicitly checks valid uncertainties, returns `self`, and makes prediction accept any iterable while guaranteeing a NumPy array. I\u2019m running the public tests and a couple of interface sanity checks now.",
+      "Implemented both methods in [model.py](/app/model.py):\n\n- `fit()` performs bounded, sigma-weighted chi-square calibration and returns `self`.\n- `predict()` supports iterable inputs, empty inputs, and returns a NumPy array.\n- Added validation for calibration values and uncertainties.\n\nAll tests pass: `2 passed`."
+    ],
+    "public_tool_count": 7,
+    "fixed_parameter_repair": {
+      "parameter_name": "loss_rate",
+      "parameter": 0.2700427989863407,
+      "change": "Replace only the emission closure from incoming absorptivity (column power deficit) to the outgoing Langevin-noise covariance (row power deficit). Keep submitted loss rate, full scattering matrix, external-background propagation, and all other code unchanged.",
+      "before_line": "emission=1-np.sum(powers,axis=1)",
+      "after_line": "emission=1-np.sum(powers,axis=2)",
+      "before": {
+        "clockwise_ports": 0.13114141367262103,
+        "reversed_bias": 0.19367749255556851,
+        "thermal_background": 0.15948350829960806
+      },
+      "after": {
+        "clockwise_ports": 4.023216752561143e-05,
+        "reversed_bias": 6.122294909928791e-05,
+        "thermal_background": 4.050975713482082e-05
+      },
+      "calibration_prediction_max_change": 8.881784197001252e-16,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "repair_execution": "Compiled and evaluated an in-memory copy; no retained job artifacts were edited."
+    }
+  },
+  "nonreciprocal-cavity__znb48ey": {
+    "task": "nonreciprocal-cavity",
+    "revision": 1,
+    "condition": "hint",
+    "job": "nonreciprocal-cavity-hardening-r1-hint-20261002-081058",
+    "classification": "implementation_failure",
+    "reason": "The agent explicitly identifies the correct outgoing noise defect I-SS\u2020 in public messages, but misreads axis=1 on a batched (experiment, output, input) power array as a row sum. The retained axis=1 actually gives incoming absorptivity. Its numerical self-check repeats exactly the same axis operation and labels it row defects, so it does not test the stated physical law. This is an array-axis implementation error after recognizing the correct physics.",
+    "metrics": {
+      "parameters": {
+        "loss_rate": 0.2700427989863407
+      },
+      "parameter_relative_error_max": 0.00015851476422468203,
+      "calibration_chi2": 0.9023136465489543,
+      "hidden": {
+        "clockwise_ports": 0.131141413672621,
+        "reversed_bias": 0.19367749255556865,
+        "thermal_background": 0.159483508299608
+      }
+    },
+    "source_sha256": "6ff54d9de79774dc4f4361231d1f6e4f615028105496ce2cd53e545e1d8ea178",
+    "reviewed_sources": [
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__znb48ey/artifacts/app/model.py",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__znb48ey/agent/codex.txt",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__znb48ey/agent/trajectory.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__znb48ey/verifier/metrics.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__znb48ey/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the model interface, README, and any tests or related modules, then implement and run the available checks.",
+      "The scattering calculation already has the key nonreciprocal detail: thermal emission at outgoing port `i` must use the row defect `1 - (S S\u2020)ii`, not the corresponding incoming-port absorptivity. I\u2019ll preserve that behavior, implement weighted Gaussian fitting over the bounded loss rate, and then verify calibration and physics-sensitive cases.",
+      "The implementation now fits successfully: the recovered `loss_rate` is about `0.27004`, and the calibration weighted residual is `\u03c7\u00b2/DOF \u2248 0.902`, with all public tests passing. I\u2019m doing one final source review for edge cases and the nonreciprocal thermal-emission indexing.",
+      "Implemented `Model.fit` in [model.py](/app/model.py:38):\n\n- Performs bounded weighted least-squares fitting using calibration uncertainties.\n- Sets `self.loss_rate` and returns `self`.\n- Handles empty records safely.\n\nThe existing prediction logic correctly uses the outgoing scattering defect for thermal emission, preserving nonreciprocal behavior.\n\nValidation: `2 passed`; fitted `loss_rate \u2248 0.27004`, `\u03c7\u00b2/DOF \u2248 0.902`."
+    ],
+    "public_tool_count": 7,
+    "fixed_parameter_repair": {
+      "parameter_name": "loss_rate",
+      "parameter": 0.2700427989863407,
+      "change": "Replace only the emission closure from incoming absorptivity (column power deficit) to the outgoing Langevin-noise covariance (row power deficit). Keep submitted loss rate, full scattering matrix, external-background propagation, and all other code unchanged.",
+      "before_line": "emission=1-np.sum(powers,axis=1)",
+      "after_line": "emission=1-np.sum(powers,axis=2)",
+      "before": {
+        "clockwise_ports": 0.13114141367262103,
+        "reversed_bias": 0.19367749255556851,
+        "thermal_background": 0.15948350829960806
+      },
+      "after": {
+        "clockwise_ports": 4.023216752561143e-05,
+        "reversed_bias": 6.122294909928791e-05,
+        "thermal_background": 4.050975713482082e-05
+      },
+      "calibration_prediction_max_change": 8.881784197001252e-16,
+      "all_hidden_groups_pass": true,
+      "retained_artifact_unchanged": true,
+      "repair_execution": "Compiled and evaluated an in-memory copy; no retained job artifacts were edited."
+    }
+  },
+  "nonreciprocal-cavity__NQVXbUM": {
+    "task": "nonreciprocal-cavity",
+    "revision": 1,
+    "condition": "hint",
+    "job": "nonreciprocal-cavity-hardening-r1-hint-20261002-081058",
+    "classification": "pass",
+    "reason": "The final submission explicitly propagates each independent internal Langevin bath through the cavity resolvent to the outgoing ports and sums its power over input channels. Public messages correctly distinguish outgoing emission from same-port incoming absorption. The fitted loss rate and all hidden groups pass; the implemented transfer covariance equals the correct outgoing scattering defect.",
+    "metrics": {
+      "parameters": {
+        "loss_rate": 0.2700431312670724
+      },
+      "parameter_relative_error_max": 0.00015974543360153248,
+      "calibration_chi2": 0.9023136677896261,
+      "hidden": {
+        "clockwise_ports": 4.0544503843779845e-05,
+        "reversed_bias": 6.169824455286684e-05,
+        "thermal_background": 4.082424853613813e-05
+      }
+    },
+    "source_sha256": "6562e6a70581a4b992bab23e18cdc6f424ad0e90d3284ec03f5cd7fca715f330",
+    "reviewed_sources": [
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__NQVXbUM/artifacts/app/model.py",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__NQVXbUM/agent/codex.txt",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__NQVXbUM/agent/trajectory.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__NQVXbUM/verifier/metrics.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__NQVXbUM/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the model interface and README, then implement `fit` and `predict` and run the available tests or validation checks.",
+      "The key correction is the thermal term: each output port must receive the propagated internal Langevin noise, `W R sqrt(L)`, rather than inferring it from an incoming-port absorptivity. I\u2019ll also fit the single bounded parameter by the stated sigma-weighted Gaussian objective.",
+      "Implementation is in place, and the public suite passes (`2 passed`). I\u2019m doing one final sanity check on the fitted parameter and the directional thermal-emission calculation before handing it back.",
+      "Implemented `/app/model.py`.\n\n- Added sigma-weighted bounded fitting for `loss_rate`.\n- Correctly propagated internal thermal Langevin noise through the nonreciprocal circuit.\n- Preserved output-port selection and total-output behavior.\n- Verified with tests: `2 passed`.\n- Fitted `loss_rate \u2248 0.27004`."
+    ],
+    "public_tool_count": 5
+  },
+  "nonreciprocal-cavity__oUJEEgt": {
+    "task": "nonreciprocal-cavity",
+    "revision": 1,
+    "condition": "hint",
+    "job": "nonreciprocal-cavity-hardening-r1-hint-20261002-081058",
+    "classification": "pass",
+    "reason": "The final submission explicitly propagates each independent internal Langevin bath through the cavity resolvent to the outgoing ports and sums its power over input channels. Public messages correctly distinguish outgoing emission from same-port incoming absorption. The fitted loss rate and all hidden groups pass; the implemented transfer covariance equals the correct outgoing scattering defect.",
+    "metrics": {
+      "parameters": {
+        "loss_rate": 0.2700431312670724
+      },
+      "parameter_relative_error_max": 0.00015974543360153248,
+      "calibration_chi2": 0.9023136677896261,
+      "hidden": {
+        "clockwise_ports": 4.0544503843779845e-05,
+        "reversed_bias": 6.169824455286684e-05,
+        "thermal_background": 4.082424853613813e-05
+      }
+    },
+    "source_sha256": "66832f9cc7ba2b147310ed4c1c0d7d455de6b46aa822ef5fbdc82f19f4ddf989",
+    "reviewed_sources": [
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__oUJEEgt/artifacts/app/model.py",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__oUJEEgt/agent/codex.txt",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__oUJEEgt/agent/trajectory.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__oUJEEgt/verifier/metrics.json",
+      "jobs/nonreciprocal-cavity-hardening-r1-hint-20261002-081058/nonreciprocal-cavity__oUJEEgt/result.json"
+    ],
+    "public_messages": [
+      "I\u2019ll inspect the interface, existing model code, and any tests, then implement `fit` and `predict` and run the available checks.",
+      "The existing scattering matrix convention is consistent with the README. The key correction is to compute thermal emission per outgoing port from the internal Langevin transfer matrix (equivalently the row defect \\(I-SS^\\dagger\\)); using the same-numbered incoming-port absorptivity would be wrong for this nonreciprocal circuit. I\u2019ll implement that explicitly and fit the single parameter with the stated Gaussian weighting and bounds.",
+      "Implementation is in place and the public test suite passes. I\u2019m doing a final sanity check on the fluctuation-dissipation identity and edge cases such as empty prediction input before handing it back.",
+      "Implemented `Model.fit` and `Model.predict` in [model.py](/app/model.py).\n\n- Fits `loss_rate` via bounded weighted chi-squared minimization.\n- Propagates internal Langevin inputs explicitly for thermal emission.\n- Supports selected ports and total output.\n- Handles empty predictions.\n- Verified fluctuation-dissipation identity and `pytest`: **2 passed**."
+    ],
+    "public_tool_count": 7
+  }
+}

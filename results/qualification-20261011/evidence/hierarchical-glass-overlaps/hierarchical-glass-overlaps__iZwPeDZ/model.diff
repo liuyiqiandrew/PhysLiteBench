@@ -1,0 +1,52 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,7 +54,48 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit the material scale from the asymptotic calibration readings.
++
++        Every calibration beta in the supplied range is below the first
++        transition for every allowed width.  Consequently the limiting
++        equilibrium energy density is ``-beta * width**2``.  The measured
++        values have known, independent Gaussian errors, so the maximum
++        likelihood estimate is a weighted least-squares estimate of
++        ``width**2``.
++        """
++        beta_values = []
++        measured = []
++        sigmas = []
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++                value = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError, OverflowError) as exc:
++                raise ValueError('Invalid calibration record.') from exc
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(value)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Invalid calibration record.')
++            beta_values.append(beta)
++            measured.append(value)
++            sigmas.append(sigma)
++
++        if not beta_values:
++            raise ValueError('At least one calibration record is required.')
++
++        beta_values = np.asarray(beta_values, dtype=float)
++        measured = np.asarray(measured, dtype=float)
++        sigmas = np.asarray(sigmas, dtype=float)
++        weights = 1.0 / (sigmas * sigmas)
++        squared_width = np.sum(weights * beta_values * (-measured)) / np.sum(
++            weights * beta_values * beta_values
++        )
++        squared_width = float(np.clip(squared_width,
++                                      WIDTH_INTERVAL[0] ** 2,
++                                      WIDTH_INTERVAL[1] ** 2))
++        self.width = math.sqrt(squared_width)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)

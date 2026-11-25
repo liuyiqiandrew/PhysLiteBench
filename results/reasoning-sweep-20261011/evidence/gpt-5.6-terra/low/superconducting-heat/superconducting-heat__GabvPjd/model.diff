@@ -1,0 +1,50 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,35 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the one apparatus parameter by independent Gaussian WLS.
++
++        Keeping the fit here (rather than assuming that every calibration
++        point is an unmodulated point) also makes the documented optional
++        readouts usable in calibration data.
++        """
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        inputs = [r['input'] for r in records]
++        observed = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError('calibration values must be finite and sigma positive')
++
++        # For the supplied (unmodulated) calibration this objective is exactly
++        # quadratic.  The bounded scalar minimization remains correct for
++        # driven records, where stationary spin accumulation makes it mildly
++        # nonlinear in conductance.
++        from scipy.optimize import minimize_scalar
++        def objective(conductance):
++            predicted = predict_at(inputs, float(conductance))
++            residual = (predicted - observed) / sigma
++            return float(residual @ residual)
++
++        answer = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                 options={'xatol': 1e-10})
++        self.conductance = float(answer.x)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,7 +440,9 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            # The two preparations differ by pi, not merely by a canonical
++            # rewrapping of the original phase.
++            other=dict(e,phase=(e['phase']+np.pi+np.pi)%(2*np.pi)-np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)

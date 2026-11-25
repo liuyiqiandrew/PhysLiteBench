@@ -1,0 +1,80 @@
+import numpy as np
+from scipy.optimize import brentq
+
+
+def response(e):
+    """Return the long-time readout at unit speed.
+
+    Removing the rods' occupied lengths gives a Poisson point gas of
+    density c. For positive current j, the crossed rods occupy distance
+    j times their sample mean length. Averaging over that fixed random
+    sequence contributes its length Laplace transform, so the auxiliary
+    field s solves
+
+        |field| = s - log E_length[exp(-c * rod_length * sinh(s))].
+
+    The unit-speed SCGF is c * (cosh(s) - 1). For the two equally likely
+    lengths, the logarithm gives the log-cosh term below. Replacing the
+    random lengths by their mean would miss this annealed contribution.
+    """
+    rho, length = e['density'], e['length']
+    statistic = e['statistic']
+    if statistic == 'mean':
+        return 0.0
+    if statistic == 'variance':
+        return rho * (1.0 - rho * length)
+    if statistic != 'scgf':
+        raise ValueError(f"Unknown statistic: {statistic!r}")
+
+    field = abs(e['counting_field'])
+    if field == 0.0:
+        return 0.0
+    c = rho / (1.0 - rho * length)
+    contrast = e['contrast']
+
+    def field_equation(s):
+        occupied = c * length * np.sinh(s)
+        z = contrast * occupied
+        # log(cosh(z)) without cancellation near zero. Throughout the
+        # input domain, |z| < 53, including the root bracket endpoints.
+        log_cosh = np.log1p(2.0 * np.sinh(z / 2.0)**2)
+        return s + occupied - log_cosh - field
+
+    # All rod lengths are positive, so the field map is strictly
+    # increasing and its unique root lies between zero and |field|.
+    # A tiny absolute tolerance preserves accuracy for fields near zero.
+    s = brentq(field_equation, 0.0, field,
+               xtol=np.finfo(float).tiny, rtol=4.0 * np.finfo(float).eps)
+    return float(c * 2.0 * np.sinh(s / 2.0)**2)
+
+
+def predict_at(experiments, speed):
+    return speed * np.asarray([response(e) for e in experiments], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.speed = None
+
+    def fit(self, records):
+        """Fit the shared speed by constrained Gaussian maximum likelihood."""
+        records = list(records)
+        values = np.asarray([r['value'] for r in records], dtype=float)
+        sigmas = np.asarray([r['sigma'] for r in records], dtype=float)
+        if (not np.isfinite(values).all() or
+                not np.isfinite(sigmas).all() or np.any(sigmas <= 0.0)):
+            raise ValueError('Calibration values must be finite and sigmas positive.')
+
+        unit_response = predict_at([r['input'] for r in records], 1.0)
+        design = unit_response / sigmas
+        information = np.dot(design, design)
+        if not np.isfinite(information) or information <= 0.0:
+            raise ValueError('Calibration must contain a nonzero response.')
+        speed = np.dot(design, values / sigmas) / information
+        self.speed = float(np.clip(speed, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        if self.speed is None:
+            raise ValueError('Fit the model before predicting.')
+        return predict_at(experiments, self.speed)

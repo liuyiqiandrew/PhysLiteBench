@@ -1,0 +1,60 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,11 +54,55 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        """Fit the material scale by weighted least squares.
++
++        Throughout the calibration interval both levels are in their
++        high-temperature phase for every allowed width.  The limiting mean
++        energy density is therefore ``-beta * width**2``.  Since the model is
++        linear in width squared, its unconstrained weighted least-squares
++        estimate has a closed form; the physical interval is imposed on that
++        estimate before taking its square root.
++        """
++        rows = list(records)
++        if not rows:
++            raise ValueError('At least one calibration record is required.')
++
++        numerator = 0.0
++        denominator = 0.0
++        for row in rows:
++            try:
++                beta = float(row['input']['beta'])
++                observed = float(row['value'])
++                sigma = float(row['sigma'])
++            except (KeyError, TypeError, ValueError, OverflowError) as exc:
++                raise ValueError('Each calibration record needs beta, value, and sigma.') from exc
++            if (not math.isfinite(beta) or not .2 <= beta <= .6
++                    or not math.isfinite(observed)
++                    or not math.isfinite(sigma) or sigma <= 0):
++                raise ValueError('Calibration values must be finite and within their stated ranges.')
++            weight = 1.0 / (sigma * sigma)
++            numerator += weight * beta * (-observed)
++            denominator += weight * beta * beta
++
++        if denominator <= 0 or not math.isfinite(numerator) or not math.isfinite(denominator):
++            raise ValueError('Calibration records do not define a finite fit.')
++        low_sq, high_sq = (bound * bound for bound in WIDTH_INTERVAL)
++        width_sq = min(high_sq, max(low_sq, numerator / denominator))
++        self.width = math.sqrt(width_sq)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        predictions = []
++        for row in records:
++            try:
++                beta = float(row['input']['beta'])
++            except (KeyError, TypeError, ValueError, OverflowError) as exc:
++                raise ValueError('Each calibration record needs an input beta.') from exc
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Calibration beta must be in [0.2,0.6].')
++            predictions.append(-beta * value * value)
++        return np.asarray(predictions, dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

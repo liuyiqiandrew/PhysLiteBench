@@ -1,0 +1,24 @@
+--- starter/model.py
++++ submission/model.py
+@@ -207,6 +207,20 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        """Estimate the shared drag from the mean-heat calibration records.
++
++        In the calibration preparation the flow target is zero and collisions
++        have a constant rate.  The stationary mean heat is therefore linear
++        in ``temperature_a - temperature_b`` with conductance
++
++            drag * relaxation_rate * RATE /
++            (2 * drag * relaxation_rate + RATE * (drag + relaxation_rate)).
++
++        The record uncertainties are independent and known, so fit that
++        conductance by weighted least squares before inverting the expression
++        for drag.
++        """
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

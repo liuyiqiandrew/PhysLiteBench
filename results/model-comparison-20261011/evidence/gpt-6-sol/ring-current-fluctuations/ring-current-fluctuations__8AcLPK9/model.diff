@@ -1,0 +1,87 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,80 @@
+-"""Current SCGF model and calibration interface."""
++"""Asymptotic current SCGF for the half-filled weakly asymmetric ring."""
++
+ import numpy as np
++from scipy.optimize import brentq
++from scipy.special import ellipe, ellipk, elliprf, elliprj
++
++
++_CRITICAL_FIELD = 2.0 * np.pi
++
++
++def _elliptic_pi(n, m):
++    """Complete elliptic integral of the third kind, with parameter ``m``."""
++    return elliprf(0.0, 1.0 - m, 1.0) + n * elliprj(
++        0.0, 1.0 - m, 1.0, 1.0 - n
++    ) / 3.0
++
++
++def _wave_scgf(field, shifted_bias):
++    """Unit-diffusivity SCGF on the phase-separated branch.
++
++    At half filling the optimal density wave is stationary. Writing its
++    density as (1 + u)/2 gives u = sqrt(m) sn(4 K(p) x | p), with m = p b
++    and b = (4 K(p)/field)^2. The period and counting-field conditions fix
++    p; the resulting SCGF reduces to the expression below.
++    """
++    target = abs(shifted_bias)
++    end = brentq(lambda p: 4.0 * ellipk(p) - field, 0.0, 1.0 - 1e-14)
++
++    def counting_field(p):
++        k = ellipk(p)
++        b = (4.0 * k / field) ** 2
++        m = p * b
++        integral = _elliptic_pi(m, p) / k
++        return field * np.sqrt(max(0.0, (1.0 - m) * (1.0 - b))) * integral
++
++    if target == 0.0:
++        p = end
++    else:
++        p = brentq(lambda p: counting_field(p) - target, 0.0, end)
++
++    k = ellipk(p)
++    b = (4.0 * k / field) ** 2
++    m = p * b
++    mean_u_squared = b * (k - ellipe(p)) / k
++    return field**2 * (2.0 * mean_u_squared - m - b) / 4.0
++
+ 
+ def predict_at(experiments, diffusivity):
++    """Return raw infinite-ring SCGF values for the given experiments."""
+     field = np.asarray([e["field"] for e in experiments], dtype=float)
+     bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    values = bias * (bias + 2.0 * field) / 4.0
++
++    # The uniform profile loses stability when E^2 - (lambda+E)^2 > 4 pi^2.
++    wave = field**2 - (bias + field) ** 2 > _CRITICAL_FIELD**2
++    for i in np.flatnonzero(wave):
++        values[i] = _wave_scgf(field[i], bias[i] + field[i])
++    return diffusivity * values
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Maximum-likelihood fit for the common rate prefactor."""
++        if not records:
++            return self
++        basis = predict_at([r["input"] for r in records], 1.0)
++        values = np.asarray([r["value"] for r in records], dtype=float)
++        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
++        weights = 1.0 / sigma**2
++        denominator = np.dot(weights * basis, basis)
++        if denominator > 0.0:
++            estimate = np.dot(weights * basis, values) / denominator
++            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

@@ -1,0 +1,1 @@
+Uniform pressure cannot reveal how neighboring parts of a bonded elastic layer share a patterned load. Determine its surface displacement from mechanical equilibrium and compatibility at each spatial wavenumber, then couple that response to liquid-volume conservation. Uniform-column stiffness need not apply to a pressure wave.

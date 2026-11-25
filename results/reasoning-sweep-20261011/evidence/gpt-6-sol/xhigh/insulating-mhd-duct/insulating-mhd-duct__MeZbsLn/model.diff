@@ -1,0 +1,78 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -35,20 +36,29 @@
+         k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+         qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+ 
+-    return m, n, wave2, mean, qx, qy
++    # With an insulating wall the in-plane current has a streamfunction which
++    # vanishes at the boundary.  Its forcing is B . grad(u).  The two terms
++    # below are the mixed part of (B . grad)^T (-Laplacian_D)^-1 (B . grad).
++    dx = derivative_overlap(np.arange(1, nx+1), np.arange(1, nx+1))/WIDTH
++    dy = derivative_overlap(np.arange(1, ny+1), np.arange(1, ny+1))/HEIGHT
++    mixed = dx[m[None, :]-1, m[:, None]-1] * dy[n[:, None]-1, n[None, :]-1]
++    intermediate = (m[None, :]*np.pi/WIDTH)**2 + (n[:, None]*np.pi/HEIGHT)**2
++    qxy = mixed * (1/intermediate + 1/intermediate.T)
++
++    return m, n, wave2, mean, qx, qy, qxy
+ 
+ 
+-@lru_cache(64)
++@lru_cache(16)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    m, n, wave2, mean, qx, qy, qxy = operators(nx, ny)
++    magnetic = bx*bx*qx + by*by*qy + bx*by*qxy
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,12 +71,31 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        records = list(records)
++        if not records:
++            self.viscosity = 0.012
++            return self
++        experiments = [record['input'] for record in records]
++        values = np.array([record['value'] for record in records], dtype=float)
++        sigma = np.array([record['sigma'] for record in records], dtype=float)
++
++        def loss(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - values)/sigma
++            return float(residual @ residual)
++
++        result = minimize_scalar(loss, bounds=(0.006, 0.018), method='bounded',
++                                 options={'xatol': 1e-11})
++        self.viscosity = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:
++            if e['time'] == 0 or e['pressure_gradient'] == 0:
++                output.append(0.)
++                continue
+             bx, by = e['magnetic_x'], e['magnetic_y']
+             observation = mean if e['observable'] == 'mean' else 2*np.sin(m*np.pi*e['x'])*np.sin(n*np.pi*e['y'])
+             value = 0.

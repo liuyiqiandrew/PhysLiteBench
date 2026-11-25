@@ -1,0 +1,1 @@
+The calorimeter records the reservoir's internal thermal heat. In a moving reservoir, separate that heat from the mechanical work associated with maintaining its mean motion. Use the force and thermal noise of reservoir B consistently when evaluating the stationary energy and torque balances.

@@ -1,0 +1,40 @@
+Traceback (most recent call last):
+  File "/Users/andrewliu/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/trial/trial.py", line 375, in run
+    await self._prepare()
+  File "/Users/andrewliu/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/trial/trial.py", line 413, in _prepare
+    await self._setup_agent()
+  File "/Users/andrewliu/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/trial/trial.py", line 1242, in _setup_agent
+    await asyncio.wait_for(
+    ...<2 lines>...
+    )
+  File "/Users/andrewliu/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/tasks.py", line 507, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/andrewliu/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/base.py", line 939, in setup
+    await self.install(environment)
+  File "/Users/andrewliu/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/codex.py", line 350, in install
+    await self.ensure_system_dependencies(
+        environment, ("curl", "bash", "nodejs", "npm", "ripgrep")
+    )
+  File "/Users/andrewliu/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/base.py", line 676, in ensure_system_dependencies
+    await self.exec_as_root(environment, command=command, env=env)
+  File "/Users/andrewliu/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/base.py", line 871, in exec_as_root
+    return await self._exec(
+           ^^^^^^^^^^^^^^^^^
+        environment, command, user="root", env=env, cwd=cwd, timeout_sec=timeout_sec
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/andrewliu/.local/share/uv/tools/harbor/lib/python3.13/site-packages/harbor/agents/installed/base.py", line 851, in _exec
+    raise self._classify_exec_error(command, result)
+harbor.agents.installed.base.NetworkConnectionError: Command failed (exit 100): apt-get update && apt-get install -y curl bash nodejs npm ripgrep
+stdout: Get:1 http://deb.debian.org/debian bookworm InRelease [151 kB]
+Get:2 http://deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:3 http://deb.debian.org/debian-security bookworm-security InRelease [34.8 kB]
+Get:4 http://deb.debian.org/debia ... [279193 chars truncated] ... : Failed to fetch http://deb.debian.org/debian/pool/main/x/xauth/xauth_1.1.2-1_arm64.deb  Unable to connect to deb.debian.org:http: [IP: 146.75.30.132 80]
+E: Failed to fetch http://deb.debian.org/debian/pool/main/x/xdg-user-dirs/xdg-user-dirs_0.18-1_arm64.deb  Unable to connect to deb.debian.org:http: [IP: 146.75.30.132 80]
+E: Failed to fetch http://deb.debian.org/debian/pool/main/libg/libglvnd/libegl1_1.6.0-1_arm64.deb  Unable to connect to deb.debian.org:http: [IP: 146.75.30.132 80]
+E: Failed to fetch http://deb.debian.org/debian/pool/main/z/zutty/zutty_0.14.0.20230218%2bdfsg1-1_arm64.deb  Unable to connect to deb.debian.org:http: [IP: 146.75.30.132 80]
+E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
+
+stderr: None

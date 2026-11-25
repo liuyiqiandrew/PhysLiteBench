@@ -1,0 +1,182 @@
+{
+  "task": "magnetic-bath-transfer",
+  "revision": 1,
+  "reviewer": "physics_review",
+  "reviewed_utc": "2026-10-03T05:12:18.905265+00:00",
+  "status": "passed_final_source_input_grading_and_report_review",
+  "blockers": [],
+  "scope": "Read-only independent derivation and source/public-input/author/grading review, with exact verification of existing frozen science/local/provenance hashes. No scientific or model run was launched.",
+  "evaluation_status": "Staged and unevaluated. No empirical model-difficulty claim.",
+  "physics_review": [
+    "The stochastic equations describe separate stationary laboratory reservoirs acting on Cartesian velocities, with independent force covariance 2*gamma*diag(Tx,Ty). The supplied drift and diffusion blocks have the correct mass factors and Lorentz signs for J(vx,vy)=(vy,-vx). Positive stiffness and positive damping ensure a unique stationary covariance.",
+    "The calorimeter reports reservoir energy lost into the particle. For its specified Stratonovich bath force, the mean random-force power is gamma*T_i/m; the measured rate is gamma*(T_i/m-<v_i^2>). The oracle uses this sign and normalization.",
+    "Stationary kinetic-energy balance gives Qx=(K*<x v^T>)xx-B*<vx*vy>, Qy=(K*<x v^T>)yy+B*<vx*vy>. Lorentz power cancels in the sum but transfers energy between the coordinate channels. The source computes the trap channel exactly from the full covariance yet misidentifies it as the bath readout.",
+    "For the exp(-i*omega*t) convention, the displacement response inverse is K-m*omega^2*I-i*gamma*omega*I+i*B*omega*J. Its off-diagonal squared modulus is (h^2+B^2*omega^2)/abs((k-m*omega^2-i*gamma*omega)^2-h^2-B^2*omega^2)^2, as in the reference.",
+    "Subtracting the equal-temperature equilibrium spectral identity gives Qx=2*gamma^2*(Tx-Ty)/pi times the positive-frequency integral of omega^2*abs(Gxy)^2. This independently checks the reference prefactor and heat-flow sign; the reference shares no covariance solver with the oracle.",
+    "At zero field, both controls equal gamma*h^2*(Tx-Ty)/(2*(k*gamma^2+m*h^2)). Calibration selects the hot bath, so the derivative in gamma is strictly negative because k*gamma^2-m*h^2>=.15 throughout the public domain. The unknown drag is globally identifiable.",
+    "The symmetric tilted trap keeps both controls positive in the hot-to-cold direction and even under field reversal. Both retain all field-dependent Gaussian mechanics and total heat balance. Their differing predictions require a physical reservoir attribution, not a broken numerical state solver."
+  ],
+  "input_and_packaging": {
+    "neutral_instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "apparatus_sufficiency": "Finite positive mass, exact SDE, independent laboratory baths, static field, stationary preparation, separate calorimeters, heat sign and Stratonovich convention determine the readout.",
+    "unearned_clues": "Public text supplies no Lorentz channel-balance correction, zero-total-work warning or prescribed covariance/spectral solution. The common neutral instruction allows replacement of all implementation functions.",
+    "calibration": "288 independent observations; constant sigma=.0006 independent of drag/response; public/private copies byte-identical.",
+    "image_boundary": "Docker copies only README, model, public tests and data from environment. AUTHOR, private reference/metadata/oracle and hint remain outside the ordinary image.",
+    "runtime": "Pinned dependencies and unchanged agent600s/verifier60s.",
+    "grading": "Calibration/API/finite outputs, drag recovery within3%, reduced chi-square<1.5 and hidden group relative RMS<.04. No internal method or model-form restriction.",
+    "hidden_coverage": "36 finite-field experiments across three groups, both bath signs and temperature orderings, all inside the public domain; nonzero reservoir heat.",
+    "minor_harness_limitation": "Exact output shape is asserted on public calibration predictions. Private hidden predictions are checked via finite numerical errors but lack a separate per-group shape assertion. This does not affect the reviewed controls; it is not an added implementation restriction or scientific blocker.",
+    "regeneration": "Both calibration copies change only under explicit --generate."
+  },
+  "overlap_and_trial_classification": {
+    "overlap": "The Lorentz mechanism relates to retained entropy-anomaly and magnetic-tracer, but this task has fixed positive mass, no spatial temperature gradient, no singular elimination and no area observable. It is also related to rotating-reservoir calorimetry, but has stationary laboratory baths and no motor or rotating-frame work.",
+    "physical_failure": "A completed covariance solver that retains the trap-power-to-bath-heat identification can establish the intended physical error after a fixed-drag repair check.",
+    "nonphysical_failure": "If a trial identifies the reservoir heat correctly but errs in sign, noise factor, matrix indexing or numerical solution, classify that separately; reward alone is not evidence."
+  },
+  "existing_evidence": {
+    "nominal": {
+      "oracle": {
+        "friction": 1.130109587281383,
+        "chi2": 1.0664531442983378,
+        "hidden": {
+          "moderate_fields": 5.785567133485054e-05,
+          "inertial_exchange": 3.533057223199378e-05,
+          "bath_reversal": 3.6425827925415174e-05
+        }
+      },
+      "shortcut": {
+        "friction": 1.130109587278887,
+        "chi2": 1.066453144298334,
+        "hidden": {
+          "moderate_fields": 0.8203114515403419,
+          "inertial_exchange": 0.964237313048079,
+          "bath_reversal": 0.8789100388766365
+        }
+      }
+    },
+    "noise_summary": {
+      "count": 256,
+      "calibration_passes": 256,
+      "oracle_passes": 256,
+      "shortcut_rejections": 256,
+      "max_oracle_error": 0.0009259636610560548,
+      "min_shortcut_error": 0.8201352973265953,
+      "max_chi2": 1.2451128115638308
+    },
+    "coherent_offset_checks": [
+      {
+        "offset_sigma": -3,
+        "friction": [
+          1.1597270270872058,
+          1.1597270270889188
+        ],
+        "hidden": [
+          {
+            "moderate_fields": 0.015572140846644182,
+            "inertial_exchange": 0.009661244204329194,
+            "bath_reversal": 0.0099206218894793
+          },
+          {
+            "moderate_fields": 0.823091056027894,
+            "inertial_exchange": 0.9644592642502429,
+            "bath_reversal": 0.8802050209693009
+          }
+        ]
+      },
+      {
+        "offset_sigma": 3,
+        "friction": [
+          1.101481946107954,
+          1.1014819461062124
+        ],
+        "hidden": [
+          {
+            "moderate_fields": 0.015163150375138837,
+            "inertial_exchange": 0.009110967896832132,
+            "bath_reversal": 0.009434724570100195
+          },
+          {
+            "moderate_fields": 0.8175877104537357,
+            "inertial_exchange": 0.9640370862032377,
+            "bath_reversal": 0.8776741088324792
+          }
+        ]
+      }
+    ],
+    "physical_checks": {
+      "frequency_reference_max_error": 1.529332216421153e-14,
+      "closed_moment_max_error": 1.5334955527634975e-14,
+      "first_law_and_channel_balance_max_error": 1.687538997430238e-14,
+      "field_reversal_max_error": 2.1690982343613996e-14,
+      "equal_temperature_max_error": 1.1998053948039322e-14,
+      "zero_field_calibration_max_difference": 2.1126329852183545e-14,
+      "minimum_covariance_eigenvalue": 0.28832663729308183,
+      "largest_drift_real_part": -0.24172981000043245,
+      "minimum_entropy_production": 1.3762768241436012e-05,
+      "global_calibration_slope_margin": 0.1499999999999999,
+      "maximum_noiseless_parameter_error_41_values": 2.9564712455965036e-08
+    },
+    "local_controls": {
+      "oracle": {
+        "exit_code": 0,
+        "metrics": {
+          "parameter_relative_error": 9.697989502943649e-05,
+          "calibration_chi2": 1.0664531442983378,
+          "hidden": {
+            "moderate_fields": 5.785567133485054e-05,
+            "inertial_exchange": 3.533057223199378e-05,
+            "bath_reversal": 3.6425827925415174e-05
+          },
+          "parameter": 1.130109587281383
+        }
+      },
+      "shortcut": {
+        "exit_code": 1,
+        "metrics": {
+          "parameter_relative_error": 9.697989282053676e-05,
+          "calibration_chi2": 1.066453144298334,
+          "hidden": {
+            "moderate_fields": 0.8203114515403419,
+            "inertial_exchange": 0.964237313048079,
+            "bath_reversal": 0.8789100388766365
+          },
+          "parameter": 1.130109587278887
+        }
+      }
+    },
+    "local_outcomes": "Oracle8/8 in.53s; shortcut5pass/3intended prediction failures in.44s. Cache-write permission warnings did not stop tests or indicate model errors.",
+    "limits": "The96 off-grid cases,41 noiseless drag recoveries and256 noisy fits are finite controls. No new validation was repeated by this reviewer and no model difficulty is established."
+  },
+  "author_review": "Final AUTHOR consistently gives the measured heat sign, channel balance, full-domain calibration monotonicity, prototype history and staged unevaluated status.",
+  "source_sha256": {
+    "scripts/magnetic_bath_transfer_baseline.py": "6dee2eb0c8f0687d177d0a65af2079a237a651ddc6c545e65d830a0969fe5727",
+    "scripts/validate_magnetic_bath_transfer.py": "64fceb375b16b00b96e79a3d9c72f1a9cde6d84994fdef932353bebc1c8c5d8e",
+    "tasks/magnetic-bath-transfer/AUTHOR.md": "87195ad47d3949305e07e9d62a3fc9877041cf6989916f3ba2a832453eb800aa",
+    "tasks/magnetic-bath-transfer/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/magnetic-bath-transfer/environment/README.md": "4531fcbef9d2a98c23710170d1101f59bc4d9dc829141cb52dfa4dd5072084f4",
+    "tasks/magnetic-bath-transfer/environment/data/calibration.json": "fc30e2f3f8904e112910de6910d2ffe95c863b3132e486877d242964a922017f",
+    "tasks/magnetic-bath-transfer/environment/model.py": "4ecd3f0f1db0d2b954104b50211fbc01bd2065f635ef554ee8039291a68d7092",
+    "tasks/magnetic-bath-transfer/environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+    "tasks/magnetic-bath-transfer/hint.md": "64e17f02e250f2598073067005a583daef0744fc18a980ee405a3d4328e78218",
+    "tasks/magnetic-bath-transfer/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/magnetic-bath-transfer/solution/model.py": "871edfa0667a8c551d80a0174f765445fb887d98dde33f5468dba4cc7f2c245d",
+    "tasks/magnetic-bath-transfer/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+    "tasks/magnetic-bath-transfer/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/magnetic-bath-transfer/tests/data/calibration.json": "fc30e2f3f8904e112910de6910d2ffe95c863b3132e486877d242964a922017f",
+    "tasks/magnetic-bath-transfer/tests/metadata.json": "c5f084b9c14dec3b45ce174b254f90990c68411843fa654cd38a9273d7e036c0",
+    "tasks/magnetic-bath-transfer/tests/reference.py": "dff276585ab9f20d9edd1e0a46783623c95d019b49b721a34aa7c59bb8fff266",
+    "tasks/magnetic-bath-transfer/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+    "tasks/magnetic-bath-transfer/tests/test_hidden.py": "0fa39e2454e8269d3e087e9c94ee19d733aa0cde581cf3e97e6f3aebbd65a8c1"
+  },
+  "report_sha256": {
+    "results/magnetic-bath-transfer-validation.json": "36f472180b420a01fed6729c6b7ce1c806e03adedc5643878a448928019556a5",
+    "results/magnetic-bath-transfer-provenance.json": "036a3dfb6546e81fad905c614ed7c1ff9353bd08be31ece2dc72641c49d29794"
+  },
+  "hash_verification": {
+    "all18_source_control_files": true,
+    "validation_source_hashes": true,
+    "validation_hash_matches_provenance": true,
+    "public_private_calibration": true
+  },
+  "primary_background": "https://arxiv.org/abs/2110.05284; the task-specific signs, symmetric-trap formula and normalization were independently derived from its supplied equations."
+}

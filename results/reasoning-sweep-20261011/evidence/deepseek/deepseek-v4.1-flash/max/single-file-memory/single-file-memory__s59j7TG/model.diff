@@ -1,0 +1,125 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,16 +1,74 @@
++"""Tagged-particle covariance model.
++
++Identical Brownian point particles with common diffusivity ``D`` start on the
++lattice ``j / density`` and cannot pass each other.  In the scaling limit
++(``time -> lambda * time`` with ``lambda -> infinity``) the displacement of the
++marked particle converges to a fractional Brownian motion with Hurst exponent
++``1/4``.  Its variance is the classic single-file result
++
++    Var[X(t)] = sqrt(2 * D * t / pi) / density,
++
++so for two fixed times ``a <= b`` the limiting covariance coefficient is
++
++    Cov[X(a), X(b)] = sqrt(D / (2*pi)) / density
++                      * (sqrt(a) + sqrt(b) - sqrt(b - a)) .
++
++That expression is symmetric in ``a`` and ``b``, hence the ``|a - b|`` below.
++"""
++
+ import numpy as np
++
++_DEFAULT_SIGMA = 0.002
+ 
+ 
+ def covariance(diffusivity, density, time_a, time_b):
+-    return np.sqrt(diffusivity/(2*np.pi))/density * (np.sqrt(time_a)+np.sqrt(time_b)-np.sqrt(abs(time_a-time_b)))
++    """Limiting covariance coefficient for one experiment (scalar or array)."""
++    diffusivity = np.asarray(diffusivity, dtype=float)
++    density = np.asarray(density, dtype=float)
++    time_a = np.asarray(time_a, dtype=float)
++    time_b = np.asarray(time_b, dtype=float)
++
++    if np.any(diffusivity < 0.0):
++        raise ValueError("diffusivity must be non-negative")
++    if np.any(density <= 0.0):
++        raise ValueError("density must be positive")
++    if np.any(time_a < 0.0) or np.any(time_b < 0.0):
++        raise ValueError("times must be non-negative")
++
++    return (
++        np.sqrt(diffusivity / (2.0 * np.pi))
++        / density
++        * (np.sqrt(time_a) + np.sqrt(time_b) - np.sqrt(np.abs(time_a - time_b)))
++    )
++
++
++def _record_input(record):
++    """Return the (density, time_a, time_b) control tuple of a record."""
++    source = record.get("input", record) if isinstance(record, dict) else record
++    if isinstance(source, dict):
++        return (float(source["density"]), float(source["time_a"]),
++                float(source["time_b"]))
++    density, time_a, time_b = source
++    return float(density), float(time_a), float(time_b)
+ 
+ 
+ def predict_at(experiments, diffusivity):
+-    return np.asarray([
+-        covariance(float(diffusivity), float(e["density"]),
+-                   float(e["time_a"]), float(e["time_b"]))
+-        for e in experiments
+-    ], dtype=float)
++    """Predict the limiting covariance coefficient for each experiment."""
++    if diffusivity is None:
++        raise ValueError("diffusivity has not been fitted yet")
++    controls = [_record_input(experiment) for experiment in experiments]
++    return np.asarray(
++        [covariance(diffusivity, density, time_a, time_b)
++         for density, time_a, time_b in controls],
++        dtype=float,
++    ).reshape(-1)
++
++
++def _design(density, time_a, time_b):
++    """Basis function f with covariance = sqrt(D) * f for fixed controls."""
++    return (
++        np.sqrt(time_a) + np.sqrt(time_b) - np.sqrt(np.abs(time_a - time_b))
++    ) / (density * np.sqrt(2.0 * np.pi))
+ 
+ 
+ class Model:
+@@ -18,7 +76,40 @@
+         self.diffusivity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common diffusivity from the calibration records.")
++        """Infer the common diffusivity from noisy calibration records.
++
++        With the covariance proportional to ``sqrt(D)`` and additive Gaussian
++        instrument noise of known variance, the maximum-likelihood estimate is
++        the weighted least-squares solution for ``sqrt(D)``.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        f = np.empty(len(records), dtype=float)
++        y = np.empty(len(records), dtype=float)
++        w = np.empty(len(records), dtype=float)
++        for i, record in enumerate(records):
++            density, time_a, time_b = _record_input(record)
++            f[i] = _design(density, time_a, time_b)
++            y[i] = float(record["value"])
++            sigma = float(record.get("sigma", _DEFAULT_SIGMA))
++            if not np.isfinite(sigma) or sigma <= 0.0:
++                sigma = _DEFAULT_SIGMA
++            w[i] = 1.0 / sigma ** 2
++
++        if not (np.isfinite(f).all() and np.isfinite(y).all()):
++            raise ValueError("calibration records must contain finite values")
++
++        denominator = float(np.sum(w * f * f))
++        if denominator <= 0.0:
++            raise ValueError("calibration records carry no usable information")
++
++        sqrt_diffusivity = float(np.sum(w * f * y) / denominator)
++        if sqrt_diffusivity < 0.0:
++            sqrt_diffusivity = 0.0
++        self.diffusivity = sqrt_diffusivity ** 2
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

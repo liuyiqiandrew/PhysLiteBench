@@ -1,0 +1,19 @@
+--- before/model.py
++++ after/model.py
+@@ -12,8 +12,14 @@
+ 
+ def coefficients(e):
+     k = 2 * np.pi / LENGTH * np.asarray(e['mode'], dtype=float)
+-    strain = np.linalg.solve(ELASTICITY, ALPHA * TRACE)
+-    storage = 1 / BULK + ALPHA * TRACE @ strain
++    if np.linalg.norm(k) == 0:
++        strain = np.linalg.solve(ELASTICITY, ALPHA * TRACE)
++        storage = 1 / BULK + ALPHA * TRACE @ strain
++    else:
++        gradient = np.array([[k[0], 0.], [0., k[1]], [k[1], k[0]]])
++        divergence = gradient.T @ TRACE
++        displacement = np.linalg.solve(gradient.T @ ELASTICITY @ gradient, ALPHA * divergence)
++        storage = 1 / BULK + ALPHA * divergence @ displacement
+     conductance = k @ PERMEABILITY @ k + LEAKAGE
+     return float(storage), float(conductance)
+ 

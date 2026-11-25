@@ -1,0 +1,29 @@
+--- starter/model.py
++++ submission/model.py
+@@ -189,7 +189,10 @@
+ 
+ 
+ def predict_at(experiments,friction):
+-    if not experiments:return np.empty(0)
++    # `experiments` is documented as a list, but using its length also makes
++    # the harmless NumPy-array case unambiguous (``if not array`` is not).
++    if len(experiments) == 0:
++        return np.empty(0, dtype=float)
+     out=[]
+     for e in experiments:
+         if e.get('geometry','harmonic')=='periodic_channel':
+@@ -208,5 +211,13 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
++        """Fit the common ordinary-fluid friction from calibration records.
++
++        Calibration deliberately contains only the zero-field, no-retained-
++        contact preparation.  In that setting the analytic small-mass result
++        in :func:`zero_field_calibration` is exact, so independent Gaussian
++        readout errors make a weighted least-squares fit the likelihood MLE.
++        """
++        self.friction = fit_friction(records)
++        return self
+     def predict(self,experiments):return predict_at(experiments,self.friction)

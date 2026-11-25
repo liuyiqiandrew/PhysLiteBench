@@ -1,0 +1,38 @@
+--- starter/model.py
++++ submission/model.py
+@@ -20,14 +20,16 @@
+     if not solution.success:
+         raise RuntimeError(solution.message)
+     beta = slip/radius
+-    drag = (1+2*beta)/(1+3*beta)
+     def integrand(r):
+         x = (r-radius)/width
+         concentration = np.exp(-strength*(1-x)**2)*solution.sol(x)[0]
+         derivative = -2*strength*(1-x)/width
+-        weight = (r-radius)**2*(2*r+radius)/(2*r)
++        # Reciprocal-flow kernel, including Navier slip and its drag factor.
++        # This factored form vanishes exactly at the impermeable surface.
++        gap = r-radius
++        weight = gap*(gap*(2*r+radius)/(2*r)+3*beta*r)
+         return weight*concentration*derivative
+-    return 2/(9*radius*drag)*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
++    return 2/(9*radius*(1+2*beta))*quad(integrand, radius, end, epsabs=2e-11, epsrel=2e-11)[0]
+ 
+ 
+ def predict_at(experiments, viscosity):
+@@ -40,7 +42,14 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        experiments = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        unscaled = predict_at(experiments, 1.)
++        weights = 1./sigmas**2
++        inverse_viscosity = np.sum(weights*unscaled*values)/np.sum(weights*unscaled**2)
++        self.viscosity = 1./inverse_viscosity
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

@@ -1,0 +1,38 @@
+{
+  "review": "Static review of the 37-case half-filled exclusion-current domain study",
+  "created_utc": "2026-10-06T09:47:17.270789+00:00",
+  "reviewer": "crystal_plan_review",
+  "verdict": "clear_for_one_frozen_bounded_domain_study",
+  "hashes": {
+    "staging/exclusion-current-half-filled-feasibility/domain.py": "edd45dfde737da09ebf47766836d9cb76523b541709c7fa91a28b993b7aee468",
+    "staging/exclusion-current-half-filled-feasibility/domain-plan.json": "d1f1324c856ca1f981558dd6c8b67053e98b702898562f42ba4ddaa46578d6ca",
+    "staging/exclusion-current-half-filled-feasibility/screen.py": "8b98d640a204196faaf06767aae12f6bdfa43cef97ed21eb01e4725b481f70a5",
+    "staging/exclusion-current-half-filled-feasibility/polishing.py": "be7d80a81ce1a7fe0f7e480ce199423af4d1f08d88f25dea6f953b34f0c968ee",
+    "staging/exclusion-current-half-filled-feasibility/polishing-plan.json": "76e9a179d7faa010805c01fe11d4b8ab44280af70a7ad17780ec8617e7c57a29"
+  },
+  "dependency_hash_checks": {
+    "screen.py": true,
+    "polishing.py": true,
+    "polishing-plan.json": true
+  },
+  "checks": {
+    "case_registry": "The 37 unique settings exactly match the agreed reduction: six predictions first, 31 controls, no duplicates and no omitted planned setting. All fit E in [0,12] and lambda in [-2E-2,2]. Numerical comparison of the recorded critical biases against their defining formulas agrees within 1e-12.",
+    "run_count": "Two grids, 128/256, and the same three fresh seeds give exactly 222 raw optimizations and 222 refinements. Every raw profile is appended before refinement and every refined profile records its raw parent index. No elliptic profile supplies an initial condition.",
+    "classification": "Only the six fixed cases receive the prediction label. Reused evaluate() applies the contrast gate only to these cases and constructs only the original E=10 and E=12 prediction groups. All 31 controls still face the numerical/reference gates.",
+    "reference_and_symmetry": "Every case recomputes the elliptic answer at quadrature orders 64/128 and explicitly evaluates its GC mirror. The direct objective and gradient depend exactly on eta^2; omitting duplicate negative-eta spatial solves is valid. The referenced solver, functional, Hessian and polishing code hashes match the reviewed implementations.",
+    "root_map_and_convexity": "The root map uses 201 points on each of E=6.5,8,10,12. Each corresponding convexity slice has 121 equally spaced biases over the full public interval. Normalized minimum second difference is checked against the declared -1e-9 tolerance.",
+    "gates": "evaluate() receives the domain plan, so it uses 222 expected rows, grids 128/256 and all original numerical thresholds. The new convexity gate is included before final status classification. Any failed numerical gate gives numerical_unresolved; inadequate complete-group separation is classified separately.",
+    "anchors": "All nine analytic anchors are in the homogeneous/zero/critical exact set. Their 1e-12 gate is separate from the 0.2% independent spatial gate. There is no claim that spatial values are accurate to 1e-12.",
+    "runtime_and_retention": "A 600-second alarm, refusal to overwrite domain-report.json, incremental full-row output and source/plan/dependency hashes match the fixed plan. The existing screen and polishing reports are read neither as fresh seeds nor rewritten.",
+    "syntax": "Python AST and JSON parsed without importing domain.py or invoking any scientific function."
+  },
+  "outstanding_blockers": [],
+  "limitations": [
+    "This is a fixed sampled domain check, not a guarantee over every point of a continuous domain.",
+    "The published half-filled stationary Bethe/MFT branch assumptions remain; the study does not prove unrestricted global optimality.",
+    "A pass supports a separate package/calibration/noise review, not immediate model trials.",
+    "The original numerical failure and its separately frozen successful polishing diagnostic remain preserved."
+  ],
+  "next_action": "Freeze the reviewed bytes and execute the one declared domain study. Keep the case set, seeds, gates and group membership fixed. No additional cases or model work are needed now.",
+  "execution_performed_by_reviewer": false
+}

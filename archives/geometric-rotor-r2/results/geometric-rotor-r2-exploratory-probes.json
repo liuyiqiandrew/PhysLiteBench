@@ -1,0 +1,97 @@
+{
+  "task": "geometric-rotor",
+  "revision": 2,
+  "trial": "geometric-rotor__8H4GDTH",
+  "probes": [
+    {
+      "step_id": 8,
+      "tool_call": {
+        "tool_call_id": "call_3w1djVuVrUYfD3agqkWqgdem",
+        "function_name": "exec",
+        "arguments": {
+          "input": "const r = await tools.exec_command({cmd:\"python - <<'PY'\\nimport json, numpy as np\\nfrom scipy.linalg import eigh\\nfrom scipy.optimize import minimize_scalar\\nD=json.load(open('/app/data/calibration.json'))\\n\\ndef levels(theta,q,r,M=12,Ns=512):\\n ph=2*np.pi*np.arange(Ns)/Ns\\n # construct exact frame based existing\\n I=np.eye(4); X=np.array([[0,1],[1,0]],complex); Z=np.diag([1.,-1.]);\\n g=np.kron(I[:2,:2],X); j=np.kron(np.cos(theta)*Z+np.sin(theta)*X,Z)\\n cs=np.cos(q*ph/2)[:,None,None]; ss=np.sin(q*ph/2)[:,None,None]\\n first=cs*I-1j*ss*g\\n cs2=np.cos(r*ph/2)[:,None,None]; ss2=np.sin(r*ph/2)[:,None,None]\\n second=cs2*I-1j*ss2*j\\n u=first@second\\n der=(-1j*q/2*g)@u+first@((-1j*r/2*j)@second)\\n w=u[:,:,2:]\\n d=der[:,:,2:]\\n A=np.einsum('nka,nkb->nab',d.conj(),d)/Ns\\n B=np.einsum('nka,nkb->nab',d.conj(),w)/Ns\\n C=np.einsum('nka,nkb->nab',w.conj(),d)/Ns\\n # fft over n axis\\n Ah=np.fft.fft(A,axis=0)/Ns; Bh=np.fft.fft(B,axis=0)/Ns; Ch=np.fft.fft(C,axis=0)/Ns\\n ns=np.arange(-M,M+1); shift=((q+r)%2)/2; ks=ns-shift\\n dim=2*len(ks); H=np.zeros((dim,dim),complex)\\n for ii,k in enumerate(ks):\\n  for jj,l in enumerate(ks):\\n   if ii==jj: H[2*ii:2*ii+2,2*jj:2*jj+2]+=k*l*np.eye(2)\\n   m=int(round(k-l))%Ns\\n   H[2*ii:2*ii+2,2*jj:2*jj+2]+=Ah[m]+1j*l*Bh[m]-1j*k*Ch[m]\\n return eigh(H,eigvals_only=True)\\n\\ncache={}\\ndef pred(e,I):\\n key=(e['theta'],e['q'],e['r'])\\n if key not in cache: cache[key]=levels(*key)\\n x=cache[key]/I; z=np.exp(-(x-x.min())/e['temperature'])\\n return z@x/z.sum()\\ndef obj(I): return sum(((pred(x['input'],I)-x['value'])/.0005)**2 for x in D)\\nr=minimize_scalar(obj,bounds=(.8,1.2),method='bounded',options={'xatol':1e-13})\\nprint(r.x,r.fun,r.fun/(len(D)-1))\\nfor x in D[:12]: print(x['input'],pred(x['input'],r.x),x['value'],(pred(x['input'],r.x)-x['value'])/.0005)\\nPY\",\"workdir\":\"/app\",\"yield_time_ms\":30000,\"max_output_tokens\":20000}); text(r.output);\n"
+        }
+      },
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_3w1djVuVrUYfD3agqkWqgdem",
+            "content": "[{'type': 'input_text', 'text': 'Script completed\\nWall time 0.4 seconds\\nOutput:\\n'}, {'type': 'input_text', 'text': \"0.8000000193861952 328942588.3699278 1146141.4228917346\\n{'theta': 1.5707963267948966, 'temperature': 0.06, 'q': 1, 'r': 1} 0.001220109288419783 0.1741505798414564 -345.86094110607326\\n{'theta': 1.5707963267948966, 'temperature': 0.15, 'q': 1, 'r': 1} 0.001820742098133021 0.2115190661282714 -419.39664806027673\\n{'theta': 1.5707963267948966, 'temperature': 0.28, 'q': 1, 'r': 1} 0.02935475132156612 0.30589371306052315 -553.077923477914\\n{'theta': 1.5707963267948966, 'temperature': 0.06, 'q': 1, 'r': 2} 0.3155511541193709 0.6419374216304446 -652.7725350221475\\n{'theta': 1.5707963267948966, 'temperature': 0.15, 'q': 1, 'r': 2} 0.3155512985631304 0.6446164655369986 -658.1303339477363\\n{'theta': 1.5707963267948966, 'temperature': 0.28, 'q': 1, 'r': 2} 0.31588247839073746 0.6742195866663416 -716.6742165512084\\n{'theta': 1.5707963267948966, 'temperature': 0.06, 'q': 2, 'r': 1} 0.31554936597929867 0.4485913341010373 -266.08393624347724\\n{'theta': 1.5707963267948966, 'temperature': 0.15, 'q': 2, 'r': 1} 0.3155495104230582 0.45012823272208896 -269.15744459806155\\n{'theta': 1.5707963267948966, 'temperature': 0.28, 'q': 2, 'r': 1} 0.315880690250664 0.4776722982748441 -323.58321604836016\\n{'theta': 1.5707963267948966, 'temperature': 0.06, 'q': 2, 'r': 2} 0.004880430435255851 0.6974163383497282 -1385.0718158289446\\n{'theta': 1.5707963267948966, 'temperature': 0.15, 'q': 2, 'r': 2} 0.005481063244968332 0.7348232412603464 -1458.6843560307561\\n{'theta': 1.5707963267948966, 'temperature': 0.28, 'q': 2, 'r': 2} 0.033015072468396835 0.8298897144319911 -1593.7492839271886\\n\"}]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 10,
+      "tool_call": {
+        "tool_call_id": "call_KgCuYItBANl9pX0c5UZsv0nZ",
+        "function_name": "exec",
+        "arguments": {
+          "input": "const r = await tools.exec_command({cmd:\"python - <<'PY'\\n# save temp? use exact prior pasted unavailable. recreate compact and print\\nimport numpy as np\\nfrom scipy.linalg import eigh\\nth=np.pi/2;q=1;r=1;Ns=512;M=12\\nph=2*np.pi*np.arange(Ns)/Ns; I=np.eye(4);X=np.array([[0,1],[1,0]],complex);Z=np.diag([1.,-1.]);g=np.kron(np.eye(2),X);j=np.kron(np.cos(th)*Z+np.sin(th)*X,Z)\\nfirst=np.cos(q*ph/2)[:,None,None]*I-1j*np.sin(q*ph/2)[:,None,None]*g\\nsecond=np.cos(r*ph/2)[:,None,None]*I-1j*np.sin(r*ph/2)[:,None,None]*j\\nu=first@second; der=(-1j*q/2*g)@u+first@((-1j*r/2*j)@second)\\nw=u[:,:,2:];d=der[:,:,2:]\\nprint(np.max(abs(np.einsum('nka,nkb->nab',w.conj(),w)/Ns-np.eye(2))))\\nA=np.einsum('nka,nkb->nab',d.conj(),d)/Ns;B=np.einsum('nka,nkb->nab',d.conj(),w)/Ns;C=np.einsum('nka,nkb->nab',w.conj(),d)/Ns\\nprint(A[0],B[0],C[0])\\nAh=np.fft.fft(A,axis=0)/Ns;Bh=np.fft.fft(B,axis=0)/Ns;Ch=np.fft.fft(C,axis=0)/Ns\\nprint('fft0',Ah[0],Bh[0],Ch[0])\\nns=np.arange(-M,M+1);ks=ns-.5;H=np.zeros((2*len(ks),2*len(ks)),complex)\\nfor ii,k in enumerate(ks):\\n for jj,l in enumerate(ks):\\n  m=int(round(k-l))%Ns\\n  H[2*ii:2*ii+2,2*jj:2*jj+2]+=Ah[m]+1j*l*Bh[m]-1j*k*Ch[m]\\n  if ii==jj:H[2*ii:2*ii+2,2*jj:2*jj+2]+=k*l*np.eye(2)\\nprint('herm',np.max(abs(H-H.conj().T)));print(eigh(H,eigvals_only=True)[:20])\\nPY\",\"workdir\":\"/app\",\"yield_time_ms\":10000,\"max_output_tokens\":10000}); text(r.output);\n"
+        }
+      },
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_KgCuYItBANl9pX0c5UZsv0nZ",
+            "content": "[{'type': 'input_text', 'text': 'Script completed\\nWall time 0.2 seconds\\nOutput:\\n'}, {'type': 'input_text', 'text': '0.998046875\\n[[0.00097656+0.j 0.        +0.j]\\n [0.        +0.j 0.00097656+0.j]] [[0.-5.9797207e-20j 0.+9.7656250e-04j]\\n [0.+9.7656250e-04j 0.+5.9797207e-20j]] [[0.+5.9797207e-20j 0.-9.7656250e-04j]\\n [0.-9.7656250e-04j 0.-5.9797207e-20j]]\\nfft0 [[0.00097656+0.j 0.        +0.j]\\n [0.        +0.j 0.00097656+0.j]] [[-4.32946333e-21-5.97972070e-20j  2.53626127e-37-3.29978890e-20j]\\n [-2.53626127e-37-3.23460707e-20j -4.19561203e-21+5.97972070e-20j]] [[-4.32946333e-21+5.97972070e-20j -2.53626127e-37+3.23460707e-20j]\\n [ 2.53626127e-37+3.29978890e-20j -4.19561203e-21-5.97972070e-20j]]\\nherm 5.843782390051764e-19\\n[ 0.25097609  0.25097609  0.25097609  0.25097609  2.25097609  2.25097609\\n  2.25097609  2.25097609  6.25097609  6.25097609  6.25097609  6.25097609\\n 12.25097609 12.25097609 12.25097609 12.25097609 20.25097609 20.25097609\\n 20.25097609 20.25097609]\\n'}]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 11,
+      "tool_call": {
+        "tool_call_id": "call_fvf4lWSvmX1IIODfLR0oidqT",
+        "function_name": "exec",
+        "arguments": {
+          "input": "const r = await tools.exec_command({cmd:\"python - <<'PY'\\nimport json, numpy as np\\nfrom scipy.linalg import eigh\\nfrom scipy.optimize import minimize_scalar\\nD=json.load(open('/app/data/calibration.json'))\\n\\ndef levels(theta,q,r,M=14,Ns=512):\\n ph=2*np.pi*np.arange(Ns)/Ns; I=np.eye(4); X=np.array([[0,1],[1,0]],complex); Z=np.diag([1.,-1.]); g=np.kron(I[:2,:2],X); j=np.kron(np.cos(theta)*Z+np.sin(theta)*X,Z)\\n first=np.cos(q*ph/2)[:,None,None]*I-1j*np.sin(q*ph/2)[:,None,None]*g\\n second=np.cos(r*ph/2)[:,None,None]*I-1j*np.sin(r*ph/2)[:,None,None]*j\\n u=first@second; der=(-1j*q/2*g)@u+first@((-1j*r/2*j)@second)\\n w=u[:,:,2:]; d=der[:,:,2:]\\n A=np.einsum('nka,nkb->nab',d.conj(),d); B=np.einsum('nka,nkb->nab',d.conj(),w); C=np.einsum('nka,nkb->nab',w.conj(),d)\\n Ah=np.fft.fft(A,axis=0)/Ns; Bh=np.fft.fft(B,axis=0)/Ns; Ch=np.fft.fft(C,axis=0)/Ns\\n ns=np.arange(-M,M+1); sh=((q+r)%2)/2; ks=ns-sh; H=np.zeros((2*len(ks),2*len(ks)),complex)\\n for ii,k in enumerate(ks):\\n  for jj,l in enumerate(ks):\\n   m=int(round(k-l))%Ns\\n   H[2*ii:2*ii+2,2*jj:2*jj+2]+=Ah[m]+1j*l*Bh[m]-1j*k*Ch[m]\\n   if ii==jj:H[2*ii:2*ii+2,2*jj:2*jj+2]+=k*l*np.eye(2)\\n return eigh(H,eigvals_only=True)\\ncache={}\\ndef pred(e,I):\\n key=(e['theta'],e['q'],e['r'])\\n if key not in cache: cache[key]=levels(*key)\\n x=cache[key]/I; z=np.exp(-(x-x.min())/e['temperature']);return z@x/z.sum()\\ndef obj(I): return sum(((pred(x['input'],I)-x['value'])/.0005)**2 for x in D)\\nr=minimize_scalar(obj,bounds=(.8,1.2),method='bounded',options={'xatol':1e-13})\\nprint(r.x,r.fun,r.fun/(len(D)-1))\\nfor x in D[:12]: print(x['input'],pred(x['input'],r.x),x['value'],(pred(x['input'],r.x)-x['value'])/.0005)\\nPY\",\"workdir\":\"/app\",\"yield_time_ms\":30000,\"max_output_tokens\":20000}); text(r.output);\n"
+        }
+      },
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_fvf4lWSvmX1IIODfLR0oidqT",
+            "content": "[{'type': 'input_text', 'text': 'Script completed\\nWall time 0.2 seconds\\nOutput:\\n'}, {'type': 'input_text', 'text': \"1.1999999686324772 295334149.6637338 1029038.8490025568\\n{'theta': 1.5707963267948966, 'temperature': 0.06, 'q': 1, 'r': 1} 0.3108751348470117 0.1741505798414564 273.4491100111105\\n{'theta': 1.5707963267948966, 'temperature': 0.15, 'q': 1, 'r': 1} 0.31746799548406285 0.2115190661282714 211.8978587115829\\n{'theta': 1.5707963267948966, 'temperature': 0.28, 'q': 1, 'r': 1} 0.388147952156456 0.30589371306052315 164.50847819186563\\n{'theta': 1.5707963267948966, 'temperature': 0.06, 'q': 1, 'r': 2} 1.1453993494902686 0.6419374216304446 1006.9238557196478\\n{'theta': 1.5707963267948966, 'temperature': 0.15, 'q': 1, 'r': 2} 1.145424333044329 0.6446164655369986 1001.6157350146608\\n{'theta': 1.5707963267948966, 'temperature': 0.28, 'q': 1, 'r': 2} 1.1497272925916133 0.6742195866663416 951.0154118505434\\n{'theta': 1.5707963267948966, 'temperature': 0.06, 'q': 2, 'r': 1} 0.7991243596541332 0.4485913341010373 701.0660511061918\\n{'theta': 1.5707963267948966, 'temperature': 0.15, 'q': 2, 'r': 1} 0.79914224456247 0.45012823272208896 698.028023680762\\n{'theta': 1.5707963267948966, 'temperature': 0.28, 'q': 2, 'r': 1} 0.8027994133736582 0.4776722982748441 650.2542301976283\\n{'theta': 1.5707963267948966, 'temperature': 0.06, 'q': 2, 'r': 2} 1.2434939963593088 0.6974163383497282 1092.1553160191613\\n{'theta': 1.5707963267948966, 'temperature': 0.15, 'q': 2, 'r': 2} 1.249961527754812 0.7348232412603464 1030.276572988931\\n{'theta': 1.5707963267948966, 'temperature': 0.28, 'q': 2, 'r': 2} 1.3209962166467197 0.8298897144319911 982.2130044294572\\n\"}]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 14,
+      "tool_call": {
+        "tool_call_id": "call_G6EG8nWS1CbEQ9yw0Al2f3yr",
+        "function_name": "exec",
+        "arguments": {
+          "input": "const r = await tools.exec_command({cmd:\"python - <<'PY'\\nimport json,numpy as np\\nfrom scipy.linalg import eigh\\nfrom scipy.optimize import minimize_scalar\\nD=json.load(open('/app/data/calibration.json'))\\ndef lev(th,q,r,cols,M=14,Ns=512):\\n ph=2*np.pi*np.arange(Ns)/Ns;I=np.eye(4);X=np.array([[0,1],[1,0]],complex);Z=np.diag([1.,-1.]);g=np.kron(np.eye(2),X);j=np.kron(np.cos(th)*Z+np.sin(th)*X,Z)\\n f=np.cos(q*ph/2)[:,None,None]*I-1j*np.sin(q*ph/2)[:,None,None]*g;s=np.cos(r*ph/2)[:,None,None]*I-1j*np.sin(r*ph/2)[:,None,None]*j\\n u=f@s;d=(-1j*q/2*g)@u+f@((-1j*r/2*j)@s);w=u[:,:,cols];d=d[:,:,cols]\\n A=np.einsum('nka,nkb->nab',d.conj(),d);B=np.einsum('nka,nkb->nab',d.conj(),w);C=np.einsum('nka,nkb->nab',w.conj(),d)\\n Ah=np.fft.fft(A,axis=0)/Ns;Bh=np.fft.fft(B,axis=0)/Ns;Ch=np.fft.fft(C,axis=0)/Ns\\n ns=np.arange(-M,M+1);ks=ns-((q+r)%2)/2;H=np.zeros((2*len(ks),2*len(ks)),complex)\\n for ii,k in enumerate(ks):\\n  for jj,l in enumerate(ks):\\n   m=(int(round(k-l)))%Ns;H[2*ii:2*ii+2,2*jj:2*jj+2]+=Ah[m]+1j*l*Bh[m]-1j*k*Ch[m]\\n   if ii==jj:H[2*ii:2*ii+2,2*jj:2*jj+2]+=k*l*np.eye(2)\\n return eigh(H,eigvals_only=True)\\nfor cols in [slice(0,2),slice(2,4)]:\\n c={}\\n def p(e,I):\\n  key=(e['theta'],e['q'],e['r']);c.setdefault(key,lev(*key,cols));x=c[key]/I;z=np.exp(-(x-x.min())/e['temperature']);return z@x/z.sum()\\n def o(I):return sum(((p(a['input'],I)-a['value'])/.0005)**2 for a in D)\\n res=minimize_scalar(o,bounds=(.8,1.2),method='bounded');print(cols,res.x,res.fun,res.fun/287)\\n print([p(x['input'],res.x) for x in D[:6]])\\nPY\",\"workdir\":\"/app\",\"yield_time_ms\":30000,\"max_output_tokens\":10000}); text(r.output);\n"
+        }
+      },
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_G6EG8nWS1CbEQ9yw0Al2f3yr",
+            "content": "[{'type': 'input_text', 'text': 'Script completed\\nWall time 30.2 seconds\\nOutput:\\n'}, {'type': 'input_text', 'text': ''}]"
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 16,
+      "tool_call": {
+        "tool_call_id": "call_vLpEz8BKTjDJ865V8pjwAt03",
+        "function_name": "exec",
+        "arguments": {
+          "input": "const r = await tools.exec_command({cmd:\"python -u - <<'PY'\\nimport json,numpy as np\\nfrom scipy.linalg import eigh\\nfrom scipy.optimize import minimize_scalar\\nD=json.load(open('/app/data/calibration.json')); Ns=256;M=10\\ndef lev(th,q,r,cols):\\n ph=2*np.pi*np.arange(Ns)/Ns;I=np.eye(4);X=np.array([[0,1],[1,0]],complex);Z=np.diag([1.,-1.]);g=np.kron(np.eye(2),X);j=np.kron(np.cos(th)*Z+np.sin(th)*X,Z)\\n f=np.cos(q*ph/2)[:,None,None]*I-1j*np.sin(q*ph/2)[:,None,None]*g;s=np.cos(r*ph/2)[:,None,None]*I-1j*np.sin(r*ph/2)[:,None,None]*j\\n u=f@s;d=(-1j*q/2*g)@u+f@((-1j*r/2*j)@s);w=u[:,:,cols];d=d[:,:,cols]\\n A=np.einsum('nka,nkb->nab',d.conj(),d);B=np.einsum('nka,nkb->nab',d.conj(),w);C=np.einsum('nka,nkb->nab',w.conj(),d)\\n Ah=np.fft.fft(A,axis=0)/Ns;Bh=np.fft.fft(B,axis=0)/Ns;Ch=np.fft.fft(C,axis=0)/Ns\\n ns=np.arange(-M,M+1);ks=ns-((q+r)%2)/2;H=np.zeros((2*len(ks),2*len(ks)),complex)\\n for ii,k in enumerate(ks):\\n  for jj,l in enumerate(ks):\\n   m=(int(round(k-l)))%Ns;H[2*ii:2*ii+2,2*jj:2*jj+2]+=Ah[m]+1j*l*Bh[m]-1j*k*Ch[m]\\n   if ii==jj:H[2*ii:2*ii+2,2*jj:2*jj+2]+=k*l*np.eye(2)\\n return eigh(H,eigvals_only=True)\\nfor cols in [slice(0,2),slice(2,4)]:\\n c={}\\n for x in D[:1]: pass\\n for x in D:\\n  e=x['input']; key=(e['theta'],e['q'],e['r'])\\n  if key not in c:c[key]=lev(*key,cols)\\n def o(I):\\n  ss=0\\n  for a in D:\\n   e=a['input'];x=c[(e['theta'],e['q'],e['r'])]/I;z=np.exp(-(x-x.min())/e['temperature']); y=z@x/z.sum();ss+=((y-a['value'])/.0005)**2\\n  return ss\\n res=minimize_scalar(o,bounds=(.8,1.2),method='bounded');print(cols,res.x,res.fun,res.fun/287,flush=True)\\nPY\",\"workdir\":\"/app\",\"yield_time_ms\":30000,\"max_output_tokens\":10000}); text(r.output);\n"
+        }
+      },
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_vLpEz8BKTjDJ865V8pjwAt03",
+            "content": "[{'type': 'input_text', 'text': 'Script completed\\nWall time 0.2 seconds\\nOutput:\\n'}, {'type': 'input_text', 'text': 'slice(0, 2, None) 1.199993757705334 295343408.7308072 1029071.1105603038\\nslice(2, 4, None) 1.199993757705334 295343408.7308058 1029071.110560299\\n'}]"
+          }
+        ]
+      }
+    }
+  ]
+}

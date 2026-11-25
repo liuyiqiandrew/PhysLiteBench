@@ -1,0 +1,44 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,10 +71,18 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At the next order the valve populations lag behind the spatial motion.
++    # The sum of this correction is a free density correction.  Set it to zero:
++    # its calorimetric contribution cancels against the measured residence in
++    # the matched-background subtraction.
++    population_lag=np.linalg.pinv(q)@(d@first[1,0].T).T
++    density_correction={(0,0):population_lag}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+-    local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
++    background=np.sum(gx*(unit2[2,0][:,0]/factors-1/count)
++                      +gy*(unit2[0,2][:,0]/factors-1/count))
++    local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])
++                 +gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
++    local-=background*np.sum(density_correction[0,0],axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+ 
+ @lru_cache(4096)
+@@ -93,5 +101,17 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        # In the calibration preparations both contacts have identical drag
++        # and temperature.  Their switching is therefore immaterial, and the
++        # complete excess rate is proportional to inverse friction.
++        baseline=coefficients([r['input'] for r in records],1.)
++        observed=np.array([r['value'] for r in records],dtype=float)
++        sigma=np.array([r['sigma'] for r in records],dtype=float)
++        weights=1/sigma**2
++        inverse_friction=np.sum(weights*baseline*observed)/np.sum(weights*baseline**2)
++        self.friction=float(np.clip(1/inverse_friction,.7,1.6))
++        return self
++    def predict(self,experiments):
++        if self.friction is None:
++            raise ValueError('Fit the model before prediction.')
++        return coefficients(experiments,self.friction)

@@ -1,0 +1,1 @@
+The full interacting Gibbs state is a mixture over spin-z sectors, each with its own conditional displaced resonator state. A local spin pulse acts on each component of that joint mixture. Trace the subsequent conditional unitary evolution with the matching resonator component; multiplying the two separately averaged marginals loses the preparation correlations.

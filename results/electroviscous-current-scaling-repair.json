@@ -1,0 +1,37 @@
+{
+  "trial": "electroviscous-flow__j3kGB6e",
+  "job": "electroviscous-flow-hardening-r1-plain-20261002-053807",
+  "classification": "mixed_failure",
+  "unchanged_fitted_viscosity": 0.0011996327089437355,
+  "original_hidden_nrmse": {
+    "positive_charge": 0.38664108143378406,
+    "negative_charge": 0.34679250386002275,
+    "overlapping_layers": 0.39529643288130084
+  },
+  "viscosity_scaling_only_repair": {
+    "positive_charge": 0.17637527034605413,
+    "negative_charge": 0.19403566427330704,
+    "overlapping_layers": 0.1688717822887718
+  },
+  "scaling_and_current_feedback_repair": {
+    "positive_charge": 0.00022552940617215329,
+    "negative_charge": 0.00023959279013465186,
+    "overlapping_layers": 0.0002216299189123082
+  },
+  "math_only_repair_vs_completed_shortcut_max_absolute_difference": 4.235164736271502e-22,
+  "calibration_prediction_change_max_absolute": 0.0,
+  "explanation": "The submitted code both omits electric-field-driven convective current and incorrectly assumes all velocities scale as inverse viscosity. Restoring only the field viscosity factor reproduces the intended completed shortcut and still fails. Restoring the full zero-current denominator as well passes without refitting. The original failure is therefore compound, not a clean intended-closure failure.",
+  "source_sha256": "2560e2ec0a2facee30f7db0de2979e0b9aca17f8036613cde30476b87f89248e",
+  "scaling_only_source_sha256": "0fa37a833f22dc12e5d2546582109bec02fa627cf36ae63582d7756429b9c08d",
+  "full_repair_source_sha256": "4a372109781e7bdfddaed4d94a5ada96af0d95ee13f7b9a7451f475a681dee99",
+  "source_edits": {
+    "scaling_only": [
+      "field=-streaming/conductance",
+      "field=-streaming/(self.viscosity*conductance)"
+    ],
+    "full": [
+      "field=-streaming/conductance",
+      "field=-streaming/(self.viscosity*conductance + WEIGHTS@(charge*electroosmotic))"
+    ]
+  }
+}

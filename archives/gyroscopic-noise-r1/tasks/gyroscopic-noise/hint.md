@@ -1,0 +1,1 @@
+For a nonreciprocal response tensor, the dissipative part in the equilibrium fluctuation relation is its anti-Hermitian part. A delayed combination of coordinates measures the full cross spectrum. Derive the covariance from the stated thermal dynamics or use the tensor fluctuation relation before applying the sensor response.

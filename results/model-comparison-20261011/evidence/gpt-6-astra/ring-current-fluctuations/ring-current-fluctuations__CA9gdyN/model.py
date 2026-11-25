@@ -1,0 +1,105 @@
+"""Large-ring current SCGF for the half-filled weakly asymmetric ring.
+
+At unit diffusivity the mobility is 2*rho*(1-rho).  The uniform solution
+loses stability when -bias*(bias + 2*field) > 4*pi**2.  At half filling
+the optimal density wave in this phase has zero velocity, and its profile
+and SCGF can be expressed through complete elliptic integrals.
+
+Diffusivity multiplies the entire microscopic generator, so it multiplies
+the SCGF without changing the phase boundary or the counting parameter.
+"""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.optimize import brentq
+from scipy.special import ellipe, ellipk, elliprf, elliprj
+
+
+_CRITICAL_SQUARED = 4.0 * np.pi**2
+
+
+@lru_cache(maxsize=1024)
+def _central_modulus(field):
+    """Elliptic parameter at bias = -field, for field > 2*pi."""
+    return brentq(lambda p: ellipk(p) - field / 4.0,
+                  0.0, 1.0, xtol=1e-14)
+
+
+@lru_cache(maxsize=8192)
+def _wave_scgf(field, abs_shifted_bias):
+    """Unit-diffusivity SCGF inside the nonuniform phase.
+
+    Write 2*rho-1 = a*sn(4*K(p)*x | p), with c = 4*K(p)/field
+    and a**2 = p*c**2.  Stationarity of the current gives
+
+        |bias+field| = field*sqrt((1-a**2)*(1-c**2))*Pi(a**2,p)/K(p).
+
+    The branch runs from p=0 at the transition to K(p)=field/4 at
+    zero tilted current.  Pi is evaluated using Carlson's symmetric
+    elliptic integrals, avoiding numerical integration of the profile.
+    """
+    upper = _central_modulus(field)
+
+    def shifted_bias(p):
+        # Enforce the exact endpoint, including when K(upper) rounds down.
+        if p >= upper:
+            return 0.0
+        k = ellipk(p)
+        c_squared = (4.0 * k / field)**2
+        a_squared = p * c_squared
+        third_kind = (elliprf(0.0, 1.0 - p, 1.0)
+                      + a_squared / 3.0
+                      * elliprj(0.0, 1.0 - p, 1.0, 1.0 - a_squared))
+        return (field * np.sqrt(max(0.0, (1.0 - a_squared)
+                                   * (1.0 - c_squared)))
+                * third_kind / k)
+
+    if abs_shifted_bias == 0.0:
+        p = upper
+    elif abs_shifted_bias >= shifted_bias(0.0):
+        # Equivalent phase-boundary formulas can differ by a few ulps.
+        # Avoid asking the root solver to bracket a root just below zero.
+        return -np.pi**2
+    else:
+        p = brentq(lambda p: shifted_bias(p) - abs_shifted_bias,
+                   0.0, upper, xtol=1e-14)
+    k = ellipk(p)
+    return 4.0 * k**2 * (1.0 - p) - 8.0 * k * ellipe(p)
+
+
+def predict_at(experiments, diffusivity):
+    """Return raw SCGF values in the fixed microscopic time units."""
+    field = np.asarray([e["field"] for e in experiments], dtype=float)
+    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+    quadratic = bias * (bias + 2.0 * field)
+    values = quadratic / 4.0
+    for i in np.flatnonzero(-quadratic > _CRITICAL_SQUARED):
+        wave = _wave_scgf(float(field[i]), float(abs(bias[i] + field[i])))
+        # The two branches coincide at onset; guard against roundoff there.
+        values[i] = max(values[i], wave)
+    return float(diffusivity) * values
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Fit the bounded Gaussian maximum-likelihood rate prefactor."""
+        records = list(records)
+        if not records:
+            return self
+        unit_values = predict_at([r["input"] for r in records], 1.0)
+        measured = np.asarray([r["value"] for r in records], dtype=float)
+        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
+        weighted_model = unit_values / sigma
+        information = float(weighted_model @ weighted_model)
+        # Zero-current observations alone contain no information about D.
+        if information > 0.0:
+            estimate = float(weighted_model @ (measured / sigma)) / information
+            self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

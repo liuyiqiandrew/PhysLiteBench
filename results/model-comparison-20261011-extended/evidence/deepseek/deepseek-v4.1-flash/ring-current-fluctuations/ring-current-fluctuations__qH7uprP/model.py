@@ -1,0 +1,69 @@
+"""Current SCGF model and calibration interface.
+
+The apparatus is a half-filled simple exclusion process on a periodic ring of
+size L, driven by a weak field E/L (right rate ``D exp(E/L)``, left rate
+``D exp(-E/L)``).  In the joint limit (long time at fixed L, then L -> infinity)
+the requested scaled cumulant generating function of the net current
+
+    psi(E, lambda; D) = lim_L L * lim_t (1/t) log E[exp(lambda Q_t)]
+
+is exactly quadratic in the counting parameter lambda:
+
+    psi(E, lambda; D) = (D / 4) * lambda * (lambda + 2 E).
+
+Both the mean drift (psi'(0) = D E / 2) and the current variance
+(psi''(0) = D / 2) follow from the diffusive (macroscopic-fluctuation) picture,
+and the result obeys the Gallavotti-Cohen symmetry psi(lambda) = psi(-lambda-2E).
+The only unknown is the rate prefactor ``D``.
+"""
+import numpy as np
+
+_BOUNDS = (0.8, 1.2)
+
+
+def predict_at(experiments, diffusivity):
+    """Evaluate psi for a sequence of ``{"field": E, "bias": lambda}`` inputs."""
+    experiments = list(experiments)
+    if not experiments:
+        return np.empty(0, dtype=float)
+    field = np.asarray([e["field"] for e in experiments], dtype=float)
+    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+    return diffusivity * bias * (bias + 2.0 * field) / 4.0
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Estimate ``D`` from calibration records by weighted least squares.
+
+        Each record provides ``input`` (``field`` and ``bias``), a noisy
+        ``value`` and its Gaussian ``sigma``.  Since psi is linear in D, the
+        weighted least-squares estimate is available in closed form.
+        """
+        records = list(records)
+        if not records:
+            self.diffusivity = float(np.clip(self.diffusivity, *_BOUNDS))
+            return self
+
+        field = np.asarray([r["input"]["field"] for r in records], dtype=float)
+        bias = np.asarray([r["input"]["bias"] for r in records], dtype=float)
+        value = np.asarray([r["value"] for r in records], dtype=float)
+        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
+
+        # Per-unit-D prediction: psi = D * basis.
+        basis = bias * (bias + 2.0 * field) / 4.0
+
+        weight = 1.0 / np.square(sigma)
+        denom = np.sum(weight * basis * basis)
+        if denom > 0.0:
+            estimate = np.sum(weight * basis * value) / denom
+        else:
+            estimate = self.diffusivity
+
+        self.diffusivity = float(np.clip(estimate, *_BOUNDS))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

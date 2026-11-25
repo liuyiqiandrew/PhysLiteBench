@@ -1,0 +1,26 @@
+{
+  "status": "source_review_pending_no_execution",
+  "scope": "One separate deterministic KKT polish of every retained spatial profile from the failed first screen. No new case, seed, grid, elliptic initialization, task or model run.",
+  "parent_outcome": "The first screen remains numerical_unresolved. Its report and frozen source/plan are immutable inputs.",
+  "input_sha256": {
+    "screen.py": "8b98d640a204196faaf06767aae12f6bdfa43cef97ed21eb01e4725b481f70a5",
+    "plan.json": "36a1a2da2bf48929c92c8fc6a3d1b9f33ea64d8c5fc1068226f28179e5773f88",
+    "report.json": "22052e8977e087459fd314bb7ef90f656ca88a437661f5604eaca20e020bb2bb"
+  },
+  "expected_profiles": 72,
+  "row_policy": "Process all 72 retained rows in their original order. Reconstruct phi=arcsin(2rho-1). Reuse the original direct functional; retain original SLSQP success as provenance and record polishing status separately. Original eligibility still requires finite values and the recomputed mass/interior/stationarity gates. Missing the tighter polishing target is recorded, not silently converted into a new acceptance tolerance.",
+  "hessian": "Hcost=(n/2)L+diag[-E^2 cos(2phi)/(2n)+eta^2 sec^2(phi)(1+3tan^2(phi))/(2n H^2)]-2eta^2 outer(w,w)/(n^2 H^3), H=mean(sec^2(phi)), w=sec^2(phi)tan(phi), L=2I-periodic shifts. Add multiplier*diag(-sin(phi)/n) for the equality constraint.",
+  "multiplier": "At each state, mu=-(grad F dot normal)/(normal dot normal), normal=cos(phi)/n. Solve the bordered equality KKT system by fixed-rcond least squares; recompute mu and the projected stationarity at every line-search trial.",
+  "maximum_newton_steps": 12,
+  "maximum_halvings": 16,
+  "kkt_rcond": 1e-12,
+  "angle_bound_offset": 0.0002,
+  "stationarity_target": 1e-08,
+  "mass_target": 1e-12,
+  "residual_armijo": 0.0001,
+  "line_search": "Try a full step then at most 16 halvings. Require finite values, strict original angle bounds, and decrease in max(normalized_stationarity/1e-8, absolute_mass/1e-12) by the fixed Armijo factor, or attainment of both targets. Preserve linear-solve, line-search and step-limit failures.",
+  "gates": "All original selection and acceptance gates in plan.json are unchanged, including 1e-6 normalized stationarity, 0.2% independent/grid/doubled-mesh error and 6% complete-group separation. Reevaluate them using polished rows. The original elliptic, map, symmetry and anchor evidence is reused explicitly, not claimed as newly computed.",
+  "output": "polishing-report.json; refuse overwrite; preserve every row with parent index, original value/residual and a Newton trace.",
+  "budget_seconds": 600,
+  "next": "Root independently reviews and freezes source/plan before the single diagnostic execution. Any failed original numerical gate remains unresolved; no task/domain build is authorized by this plan."
+}

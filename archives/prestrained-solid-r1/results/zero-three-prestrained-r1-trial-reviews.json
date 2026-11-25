@@ -1,0 +1,639 @@
+{
+  "prestrained-solid__Z3A6RmH": {
+    "task": "prestrained-solid",
+    "revision_label": "zero-three-prestrained-r1",
+    "condition": "plain",
+    "stage": "fresh_three_trial_batch",
+    "job": "prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510",
+    "classification": "pass",
+    "reason": "The final source computes the full Cartesian deformation-gradient Hessian of the stated W, contracted analytically with m=F.T@n. It retains the I1/I2 and log-J terms, including the isotropic geometric prestress contribution that the starter omitted. Current density and wavevector conversion are correct; modulus1.1701636455, chi-square.94158 and all three hidden errors6.9932e-5 pass. Public code experiments initially contain incorrect I2 contractions, then finite differences of first Piola stress reveal and fix them before submission. The final model is physically correct, not a calibration-only shortcut.",
+    "reward": 1.0,
+    "exception_type": null,
+    "metrics": {
+      "parameters": {
+        "modulus": 1.1701636455291329
+      },
+      "parameter_relative_error_max": 0.00013986797361797976,
+      "calibration_chi2": 0.9415769760665941,
+      "hidden": {
+        "axial_preload": 6.993154159859745e-05,
+        "mixed_stretches": 6.99315415986003e-05,
+        "volume_change": 6.993154159869726e-05
+      }
+    },
+    "source_sha256": "def2c9cd745b5c02f64d6d1f272d8ae65597670e76c14aae9b72a13c0076f2b3",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then derive and validate the prediction model against the documented interface.",
+      "The current code\u2019s constitutive tangent is inconsistent with the stated energy (notably the \\(I_2\\) and volumetric Hessian terms). I\u2019m deriving the rank-one material Hessian for a current-space wave direction, then I\u2019ll fit the shared modulus and check normalized residuals.",
+      "The corrected tangent is now pinned down: for \\(m=F^T n\\), the rank-one Hessian includes the \\(I_1\\), \\(I_2\\), and \\(\\log J\\) contributions, with current density \\(\\rho_0/J\\). I\u2019ll replace the fragile tensor contraction with this analytically equivalent acoustic matrix and retain weighted modulus fitting.",
+      "The implementation is in place and passes the public calibration test. I also checked the analytic acoustic matrix against a finite-difference constitutive Hessian on a nontrivial deformation; the maximum discrepancy was about \\(2.5\\times10^{-10}\\).",
+      "Implemented the hyperelastic bulk-wave model in [model.py](/app/model.py).\n\n- Added the analytic material acoustic tensor from the stated energy.\n- Correctly accounts for deformation, current wave direction, density, and mode branches.\n- Preserved `Model.fit()` and `Model.predict()` APIs.\n- Uses weighted least squares to infer the shared modulus.\n- Verified with public tests and finite-difference Hessian checks.\n\nPublic test result: `1 passed`."
+    ],
+    "public_tool_count": 24,
+    "public_tool_calls": [
+      {
+        "line": 13,
+        "name": "exec",
+        "call_id": "call_e0806d5531304003a35e6bd58abeee57",
+        "input_sha256": "1dac81bddd614a6778382ccf5a45561d9a56b0ad1c537c05b352b44830ed471e"
+      },
+      {
+        "line": 20,
+        "name": "exec",
+        "call_id": "call_fc83dbd0474f44319a3df375beb2dcbf",
+        "input_sha256": "ae1e7ed610460f99da1bdc1f8ccedf1747ad0325bd2d76f05131be39ca3cfa18"
+      },
+      {
+        "line": 41,
+        "name": "exec",
+        "call_id": "call_970d29a46da24c83b3e357dae79936bb",
+        "input_sha256": "eeeb226ec71f15b2487422233a0408cfc978282ed489f73a1965294871e8c036"
+      },
+      {
+        "line": 48,
+        "name": "exec",
+        "call_id": "call_22d166ccafa5403b98c3a2bf0f2bdf47",
+        "input_sha256": "ee0e8e4a6256555c48126bd42e306fd5621444c12b55be9ba7efe39947f6578a"
+      },
+      {
+        "line": 55,
+        "name": "exec",
+        "call_id": "call_22aa1b58390442cd975cae747a2de221",
+        "input_sha256": "bfc7364bb5a2c914812039a431892bfb901a4627b3a57834a7e1d17be5f3fa36"
+      },
+      {
+        "line": 62,
+        "name": "exec",
+        "call_id": "call_4b9e39370cc848eba280b52ae6fe97b3",
+        "input_sha256": "a3cbba30ace877fe9604a3e2714aa12b3253b7665b8aee6cd38e0817adc0bbe0"
+      },
+      {
+        "line": 69,
+        "name": "exec",
+        "call_id": "call_c156c9e42ba643eebe49b2b16ef2512c",
+        "input_sha256": "be8238bac8922305f91198fd27e8027925ced5a51b25e43b110a18fa33037495"
+      },
+      {
+        "line": 76,
+        "name": "exec",
+        "call_id": "call_b7863434203d4790b1164307006e13d7",
+        "input_sha256": "2b75fcbe0693c8d24cf0e5cd8f364caa76b618c944aa7c02e5b8e0d583faaf0d"
+      },
+      {
+        "line": 83,
+        "name": "exec",
+        "call_id": "call_69210851c73d4a3e871162548c974870",
+        "input_sha256": "a77aac900dd86f8defec30bf18e61a942f3ffc8a2e11c22da28253bbcef4319b"
+      },
+      {
+        "line": 94,
+        "name": "exec",
+        "call_id": "call_67f687b2b39943df82ef50725946c93b",
+        "input_sha256": "3c8899113b8f87f1ef5a9384f9bbf05adff96e59ad26b8a7f5cf5576dce09c24"
+      },
+      {
+        "line": 101,
+        "name": "exec",
+        "call_id": "call_8c29f79596534781a925bab43e4e3b64",
+        "input_sha256": "e74bc2786cf300e5668fc441980a798f3e310fc041565846c3378a4803e6f156"
+      },
+      {
+        "line": 108,
+        "name": "exec",
+        "call_id": "call_bac95d1130b24a8d92b79420e841244c",
+        "input_sha256": "0caa0cd932c0e1123510ae93394dc300818853fd050022e90af516d4431cf89d"
+      },
+      {
+        "line": 117,
+        "name": "exec",
+        "call_id": "call_4cad531412bf40209d59d5a6fa5dc8d3",
+        "input_sha256": "f2ef793540d29a327fe6e10aadfd29357aa99cb7e9db731f83fd744013c1bf50"
+      },
+      {
+        "line": 124,
+        "name": "exec",
+        "call_id": "call_0fc2a0d540f94b2baba7edc7e766fd8c",
+        "input_sha256": "32d9fc36eb6c0e818d1f6a3d0a5d78b0ba3dcb492352f66749ab5fae242cc009"
+      },
+      {
+        "line": 135,
+        "name": "exec",
+        "call_id": "call_52b49eb1077e47c0afa8c345d7164781",
+        "input_sha256": "ac2e1d04375604f60956af46f0ff36682478492c40d8bdfe7e49b90c8aa9913b"
+      },
+      {
+        "line": 142,
+        "name": "exec",
+        "call_id": "call_1eeefa0ce3a04f48a6350ffcd71a4313",
+        "input_sha256": "2d1b757d8bf1beea0863726e31851540a5b51ed257bab7e3799a14f207d68769"
+      },
+      {
+        "line": 149,
+        "name": "exec",
+        "call_id": "call_24096556c7ab470db935af5cc0f17854",
+        "input_sha256": "2e5af314561b7e9c8b46360a6f34a1414985bad55c6527ce764b219b18e080d7"
+      },
+      {
+        "line": 156,
+        "name": "exec",
+        "call_id": "call_9cabf9e26ffa40259b0d92756ed89112",
+        "input_sha256": "bd8595b131e05602ed98ae86c1eebc766f26613dd511153162bb2e9a18ecd9ab"
+      },
+      {
+        "line": 167,
+        "name": "exec",
+        "call_id": "call_b60d247865c44db2b535af4b34edfd74",
+        "input_sha256": "a4426091283f1935fbb21fd3dc51470a92bc57b4da2c825215caa981923a5fef"
+      },
+      {
+        "line": 173,
+        "name": "exec",
+        "call_id": "call_8788d66b4ce5478da8d438e1fda2a55e",
+        "input_sha256": "941e60637fe431587123655aa41ca66aa423e4a8ee5937d143181925947051ad"
+      },
+      {
+        "line": 180,
+        "name": "exec",
+        "call_id": "call_1a1420d2d5db417690f1dee76524ae4c",
+        "input_sha256": "83b3395daf7bc6cb0dad907145afbba7a479f355b02c184f458a315c9cfa2423"
+      },
+      {
+        "line": 187,
+        "name": "exec",
+        "call_id": "call_fc83cd58252846579ca93ae97661b604",
+        "input_sha256": "054e42ca315e1941ec56db1d06518e8e01275f8a6bfb7d15ca0b73c3c2b06d9d"
+      },
+      {
+        "line": 196,
+        "name": "exec",
+        "call_id": "call_893dff8cba5d402e8b48bbcc7838ae48",
+        "input_sha256": "c69123720d6749a5b6e517d14519b43186a7b3aee97f5e98887c2825fff1fb83"
+      },
+      {
+        "line": 203,
+        "name": "exec",
+        "call_id": "call_1b55c2b605464478967a212f9207161a",
+        "input_sha256": "28cfdaad4865b48f83934a3403f654a9f2d26d51dbeeb6b32774ee44a0d5d5be"
+      }
+    ],
+    "native_model_effort": [
+      {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      }
+    ],
+    "native_cli_versions": [
+      "0.154.0"
+    ],
+    "native_user_input_blocks": [
+      {
+        "line": 4,
+        "sha256": "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "characters": 920,
+        "classification": "reviewed plugin inventory"
+      },
+      {
+        "line": 4,
+        "sha256": "384aba72a1b1e5f7fb81f944fa54791fc3a15e013328522100a69dbc1d93e0eb",
+        "characters": 329,
+        "classification": "reviewed environment context 2026-10-04"
+      },
+      {
+        "line": 7,
+        "sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+        "characters": 318,
+        "classification": "exact neutral task"
+      }
+    ],
+    "native_session_sha256": {
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/agent/sessions/2026/10/04/rollout-2026-10-04T05-16-51-01a10557-f093-7c82-b4be-277f10b55396.jsonl": "e78d3f9cc6c9bf52468ed10e6faf84152feaf7f4f65bf1ff893533111845c1a7"
+    },
+    "timeouts_seconds": {
+      "agent": 600,
+      "verifier": 60
+    },
+    "current_frozen_measured_source_sha256": {
+      "environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "environment/README.md": "bf55a8cb61cbdfe6fcf885fc156d3c23ca81a69d8ffdfdb13f13ca1a64b6f57c",
+      "environment/data/calibration.json": "ec3aa85e9e75b0a1b1983bdf872afe7e43ed09fef3508b961099baa9dcdad335",
+      "environment/model.py": "31fad6e9a050709217d71f244330adfd6ed62032dacaede1835ca354ad8c01f5",
+      "environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+      "instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "tests/data/calibration.json": "ec3aa85e9e75b0a1b1983bdf872afe7e43ed09fef3508b961099baa9dcdad335",
+      "tests/metadata.json": "7c92e427750235802a3a5c8b456094f35bcb70b37be56de0e7880720f843478f",
+      "tests/reference.py": "4b22e97d1080f442e6db59880eb946efe09625254172ef794bd898b5b257230d",
+      "tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+      "tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a"
+    },
+    "reviewed_sources": [
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/agent/sessions/2026/10/04/rollout-2026-10-04T05-16-51-01a10557-f093-7c82-b4be-277f10b55396.jsonl",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/artifacts/app/model.py",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/agent/trajectory.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/agent/codex.txt",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/verifier/metrics.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/verifier/test-stdout.txt",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/result.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/config.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/run-timing.json"
+    ],
+    "evidence_sha256": {
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/agent/sessions/2026/10/04/rollout-2026-10-04T05-16-51-01a10557-f093-7c82-b4be-277f10b55396.jsonl": "e78d3f9cc6c9bf52468ed10e6faf84152feaf7f4f65bf1ff893533111845c1a7",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/artifacts/app/model.py": "def2c9cd745b5c02f64d6d1f272d8ae65597670e76c14aae9b72a13c0076f2b3",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/agent/trajectory.json": "fbb4aa69a1c76a626e072631d1d42dd67af65c9a77f997100aca1f17330f070d",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/agent/codex.txt": "443ff2621019fa533fa167d9404dcf13801dd179147a9833430d4ed3e469cbbc",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/verifier/metrics.json": "06c29ec1fdff2b25185080f2dba0cb4a69b260f70b28885ea5d1bc51af0065fa",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/verifier/test-stdout.txt": "3cd577296ca882b24ffb03085dc4d942d129649786a2b8d9b0faa84025de03f4",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Z3A6RmH/result.json": "ce1f54f3349ae96222abda364d61f54b8cd4b939b3e4b82e5050917557671a3a",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/config.json": "a206dff84c7ec926917c952121170cb93f2a50642e21132664d3146dcf31ec04",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/run-timing.json": "aa064da8fcc82aafcf6d332ad8c6b52cd15b9ddbec76aa7252c53ab4c3a07599"
+    },
+    "aggregation_note": "One of exactly three fresh unhinted trials of this new frozen revision. All three are terminal: two correct passes and one mixed physical-retention/derivation failure. The family misses the zero-of-three target. No task, trial artifact, or score was changed.",
+    "review_limits": "Final source and complete public/native commands and outputs were reviewed. Encrypted reasoning was not read. No new agent evaluation or broad scientific validation was run.",
+    "incidental_notes": "Exploratory derivative arithmetic and one float-subscript error were corrected. A delete/add apply_patch format failure was retried as an update; final saved code is complete. No verifier or infrastructure exception."
+  },
+  "prestrained-solid__xxBongN": {
+    "task": "prestrained-solid",
+    "revision_label": "zero-three-prestrained-r1",
+    "condition": "plain",
+    "stage": "fresh_three_trial_batch",
+    "job": "prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510",
+    "classification": "pass",
+    "reason": "The final source explicitly constructs A[i,a,j,b]=d2W/dF[i,a]dF[j,b], including the full I2 Hessian and log-determinant derivatives, and pushes both wavevector slots into current coordinates. It therefore retains the geometric stress contribution. The fitted modulus1.1701636455 and chi-square.94158 pass; every hidden error is6.9932e-5. The public trajectory derives this full-Hessian model, checks frame rotation and identity limits, and removes a duplicate predict method before finishing.",
+    "reward": 1.0,
+    "exception_type": null,
+    "metrics": {
+      "parameters": {
+        "modulus": 1.1701636455291318
+      },
+      "parameter_relative_error_max": 0.00013986797361686953,
+      "calibration_chi2": 0.9415769760665774,
+      "hidden": {
+        "axial_preload": 6.993154159827879e-05,
+        "mixed_stretches": 6.993154159830755e-05,
+        "volume_change": 6.993154159832738e-05
+      }
+    },
+    "source_sha256": "6be2ceb4cd50f0421a028ae1c998e8e2b4d2390a57af4673658835864df63135",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and existing interface, then implement the model and run the available tests or validation checks.",
+      "The existing code appears to use an ad hoc inverse-C tensor. I\u2019m deriving the exact material Hessian of the stated strain energy and will compare its acoustic eigenvalues against the calibration readings before replacing the implementation.",
+      "The implementation now uses the exact Hessian of the given energy, the reference-to-current acoustic push-forward, conserved current density, and weighted calibration in the linear variable \\(\\sqrt{\\text{modulus}}\\). I\u2019m running the public test plus physical consistency checks (rotations, undeformed limits, and calibration residuals).",
+      "Implemented the elastic bulk-wave model in [model.py](/app/model.py).\n\nIt now:\n\n- Computes the exact constitutive Hessian from the specified energy.\n- Builds the current acoustic tensor and density.\n- Selects sorted acoustic branches correctly.\n- Fits the shared modulus using weighted least squares.\n- Preserves the documented `Model.fit` and `Model.predict` API.\n\nValidation: `pytest -q` passes, with calibration mean \u03c7\u00b2 \u2248 `0.94`."
+    ],
+    "public_tool_count": 14,
+    "public_tool_calls": [
+      {
+        "line": 13,
+        "name": "exec",
+        "call_id": "call_5s1jFtiJBzgF8Xd4Qdee6DOG",
+        "input_sha256": "c3840a07c400c1e1aa3ca27004185643b3aafcbbe4bf090a0a1d8e7ae9f42ca9"
+      },
+      {
+        "line": 20,
+        "name": "exec",
+        "call_id": "call_7ZxSYVUCJzlBgxRu2zdghuPI",
+        "input_sha256": "20ebe388c181498ecd94ec11f2f770457433753f6392cd24c974d73354a5c9bd"
+      },
+      {
+        "line": 33,
+        "name": "exec",
+        "call_id": "call_lgxLACrj80fMTSygvqHX2z2c",
+        "input_sha256": "7d79c5a77e96274cec4c3ca9797b652941b7f4c0a046a0a26aade7439ee8e4b6"
+      },
+      {
+        "line": 42,
+        "name": "exec",
+        "call_id": "call_bvGIT7O1kYk7JehMEGZaJ1ZV",
+        "input_sha256": "4af835c769a5bba9c501428cc4877ebddcb964218f8c227fb5f70577eef96113"
+      },
+      {
+        "line": 49,
+        "name": "exec",
+        "call_id": "call_mggpevwFs8i2cpS0paVfbP5U",
+        "input_sha256": "b98bc35930eebfd27f6c31cbc67d48f37902edd74b8c5bd4941735ac3225b309"
+      },
+      {
+        "line": 56,
+        "name": "exec",
+        "call_id": "call_9ktUDbzzZQpucAxyo3Rb9nRz",
+        "input_sha256": "73fd03c2c7ecb95f4d7779c91e8641b5846c2bd473f9460f9bf8a7e7bce990b0"
+      },
+      {
+        "line": 63,
+        "name": "exec",
+        "call_id": "call_yolEx3ctqCIcgKTCA6ktzVP3",
+        "input_sha256": "344e34fbb952178a0c605c8bd09c13eb77f02380fcb6f81b0d07cf242aab7058"
+      },
+      {
+        "line": 74,
+        "name": "exec",
+        "call_id": "call_Baw055ucP4yk7lj7PML4T25b",
+        "input_sha256": "2f1c37de79cb3f371b38e91247a5649fbd8caf9a28e47a9fe20a7fd5fd2482ac"
+      },
+      {
+        "line": 80,
+        "name": "exec",
+        "call_id": "call_2CRBRWfOjBATVP7T3iklosRd",
+        "input_sha256": "48c70768b8d40b78e2d1d93753d351934d3712676862870d4dfd8b1a853b6e5f"
+      },
+      {
+        "line": 89,
+        "name": "exec",
+        "call_id": "call_ePLztfPg3bi7K6ICYvAsRSFf",
+        "input_sha256": "33d0807bf123ddf5638b96cd78e3030d9843e3573a67b3c9fd8dd8c7d97867b2"
+      },
+      {
+        "line": 96,
+        "name": "exec",
+        "call_id": "call_w1xaXWrUlU7nXKd78uYzGMWu",
+        "input_sha256": "6a0f4a3a762bd7e65dadfcd50aa376b69cc6b7f9c42403b1de520dc90dd4b1fa"
+      },
+      {
+        "line": 103,
+        "name": "exec",
+        "call_id": "call_QattxZP2QV9xKkqHRGC1286J",
+        "input_sha256": "1635f623655f39e416e1071efa6a777869a4e8e21504381832e8d60466831ff9"
+      },
+      {
+        "line": 110,
+        "name": "exec",
+        "call_id": "call_ZsAkEmrfo7YFwdmB4PConwWg",
+        "input_sha256": "a4ee93a0f7aa69b33e5a9d79e817f6e2639d7f4acaae7bc5f5af1791890f4e37"
+      },
+      {
+        "line": 117,
+        "name": "exec",
+        "call_id": "call_pX7nWObBsvKreD6yDv9o6VmC",
+        "input_sha256": "859e0045bb02a785d7fa0023d66a233d64a7402be7a859da5739f6220cb2549f"
+      }
+    ],
+    "native_model_effort": [
+      {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      }
+    ],
+    "native_cli_versions": [
+      "0.154.0"
+    ],
+    "native_user_input_blocks": [
+      {
+        "line": 4,
+        "sha256": "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "characters": 920,
+        "classification": "reviewed plugin inventory"
+      },
+      {
+        "line": 4,
+        "sha256": "384aba72a1b1e5f7fb81f944fa54791fc3a15e013328522100a69dbc1d93e0eb",
+        "characters": 329,
+        "classification": "reviewed environment context 2026-10-04"
+      },
+      {
+        "line": 7,
+        "sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+        "characters": 318,
+        "classification": "exact neutral task"
+      }
+    ],
+    "native_session_sha256": {
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/agent/sessions/2026/10/04/rollout-2026-10-04T05-17-08-01a10558-3020-7680-97b7-4fcb48271890.jsonl": "3733b1bb9781f4eb46d1be0db4732a0bd822c618727fe0b57e3a66e02b81b8f2"
+    },
+    "timeouts_seconds": {
+      "agent": 600,
+      "verifier": 60
+    },
+    "current_frozen_measured_source_sha256": {
+      "environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "environment/README.md": "bf55a8cb61cbdfe6fcf885fc156d3c23ca81a69d8ffdfdb13f13ca1a64b6f57c",
+      "environment/data/calibration.json": "ec3aa85e9e75b0a1b1983bdf872afe7e43ed09fef3508b961099baa9dcdad335",
+      "environment/model.py": "31fad6e9a050709217d71f244330adfd6ed62032dacaede1835ca354ad8c01f5",
+      "environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+      "instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "tests/data/calibration.json": "ec3aa85e9e75b0a1b1983bdf872afe7e43ed09fef3508b961099baa9dcdad335",
+      "tests/metadata.json": "7c92e427750235802a3a5c8b456094f35bcb70b37be56de0e7880720f843478f",
+      "tests/reference.py": "4b22e97d1080f442e6db59880eb946efe09625254172ef794bd898b5b257230d",
+      "tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+      "tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a"
+    },
+    "reviewed_sources": [
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/agent/sessions/2026/10/04/rollout-2026-10-04T05-17-08-01a10558-3020-7680-97b7-4fcb48271890.jsonl",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/artifacts/app/model.py",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/agent/trajectory.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/agent/codex.txt",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/verifier/metrics.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/verifier/test-stdout.txt",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/result.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/config.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/run-timing.json"
+    ],
+    "evidence_sha256": {
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/agent/sessions/2026/10/04/rollout-2026-10-04T05-17-08-01a10558-3020-7680-97b7-4fcb48271890.jsonl": "3733b1bb9781f4eb46d1be0db4732a0bd822c618727fe0b57e3a66e02b81b8f2",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/artifacts/app/model.py": "6be2ceb4cd50f0421a028ae1c998e8e2b4d2390a57af4673658835864df63135",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/agent/trajectory.json": "d1585e4ae06ac44b175453fb83896f8f69bbde31bfdc86ba63acf6366e5be7b1",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/agent/codex.txt": "4a321847ad6c4b21beb9f62491e76c8e7c85d69b46c0a0d9b3404e0916aa7486",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/verifier/metrics.json": "28ef865779a64e33929204ecd1adb9501241027920f2e8cbc6bce55386f989bb",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/verifier/test-stdout.txt": "d3c75c9d953237d073631a24c7b34684b4025bdd95bd24aefe222c2a0e7964f3",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__xxBongN/result.json": "c1f33652eaac31d6035d3343ec46aff561047d7de1092e66dcb29fb20cffcbff",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/config.json": "a206dff84c7ec926917c952121170cb93f2a50642e21132664d3146dcf31ec04",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/run-timing.json": "aa064da8fcc82aafcf6d332ad8c6b52cd15b9ddbec76aa7252c53ab4c3a07599"
+    },
+    "aggregation_note": "One of exactly three fresh unhinted trials of this new frozen revision. All three are terminal: two correct passes and one mixed physical-retention/derivation failure. The family misses the zero-of-three target. No task, trial artifact, or score was changed.",
+    "review_limits": "Final source and complete public/native commands and outputs were reviewed. Encrypted reasoning was not read. No new agent evaluation or broad scientific validation was run.",
+    "incidental_notes": "An initial exploratory fit confused modulus with its square root, but final calibration is correct. Patch-format and git-not-repository messages were noncausal and resolved. No verifier or infrastructure exception."
+  },
+  "prestrained-solid__Hd2iRmn": {
+    "task": "prestrained-solid",
+    "revision_label": "zero-three-prestrained-r1",
+    "condition": "plain",
+    "stage": "fresh_three_trial_batch",
+    "job": "prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510",
+    "classification": "mixed_physical_and_derivation_failure",
+    "reason": "The final source retains the starter C-space material tangent without the geometric sigma_nn identity term and explicitly claims that calibration confirms this acoustic construction. It passes parameter/calibration (modulus1.1701636455, chi-square.94158) but fails axial/mixed/volume groups at.19421/.20435/.17429. Causal qualification: public call42 first attempts the correct full W_FF wave principle, but its explicit I2 second derivative is smaller by a factor2, so the trial sees poor calibration. It abandons that mathematically incorrect derivative attempt and adopts the physically incomplete starter after its calibration passes. Final failure is an incorrect physical tangent, but a concrete upstream derivative error influenced the choice; it is not a clean unprompted physical-closure failure and is not counted toward the strict target.",
+    "reward": 0.0,
+    "exception_type": null,
+    "metrics": {
+      "parameters": {
+        "modulus": 1.1701636455291342
+      },
+      "parameter_relative_error_max": 0.00013986797361908998,
+      "calibration_chi2": 0.9415769760675096,
+      "hidden": {
+        "axial_preload": 0.1942072025489772,
+        "mixed_stretches": 0.2043482968497279,
+        "volume_change": 0.1742903355782152
+      }
+    },
+    "source_sha256": "97c279330b40f2bd8e49cbaf0a60c1423ff0823cff81f17b438c6cadfda6c810",
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "public_messages": [
+      "I\u2019ll inspect the apparatus description, calibration data, and current implementation, then derive the model and validate it against the documented interface and any available tests.",
+      "The existing code appears to use an incomplete stiffness tensor: it omits the deformation-dependent second derivative of the \\(I_2\\) term and mixes parameter scaling into the fit. I\u2019m deriving the exact deformation Hessian of the stated energy, including the current density \\(\\rho_0/J\\), and will compare that prediction directly with the calibration readings.",
+      "The calibration confirms the intended acoustic construction used by this task: the energy-derived \\(C\\)-space tangent is pushed into the current configuration, its eigenvalues are divided by the conserved current density, and speeds scale as \\(\\sqrt{\\text{modulus}}\\). I\u2019ll now make that implementation explicit and robust while preserving the public API.",
+      "Implemented `/app/model.py` with:\n\n- Energy-derived acoustic tensor and current-density correction.\n- Direction normalization and input validation.\n- Weighted calibration fit for `sqrt(modulus)`, bounded to `[0.8, 1.6]`.\n- Stable branch-based phase-speed prediction.\n- Required NumPy output shape and finiteness.\n\nValidation: `pytest -q` passes; calibration weighted MSE is `0.937`."
+    ],
+    "public_tool_count": 13,
+    "public_tool_calls": [
+      {
+        "line": 13,
+        "name": "exec",
+        "call_id": "call_QZTqLuEirTx5EpBGzPdecfV6",
+        "input_sha256": "079d49423c6428230ea19dec1c81e5eec102fd1175d789f4e9f9f1795cd2c038"
+      },
+      {
+        "line": 20,
+        "name": "exec",
+        "call_id": "call_Wh5K7UczAmZRr05J38vT0B3f",
+        "input_sha256": "cd1324b88fb517bbb0e567bee2a9dc6b14cb08acb659f5f545994e8b5e39f095"
+      },
+      {
+        "line": 27,
+        "name": "exec",
+        "call_id": "call_X3Scwg5Gg1LkbJLY9d5SkKP9",
+        "input_sha256": "901009c8735eae8070f7661baf0d106f9365ac296eda02b972d661a1544681b6"
+      },
+      {
+        "line": 42,
+        "name": "exec",
+        "call_id": "call_qF885FG3XOebRBpdUnaVuumB",
+        "input_sha256": "6eb6c9a282e8d030e7d3dd933d2eca858d8dacf6d1a3046fa81af3291c7bc7f8"
+      },
+      {
+        "line": 49,
+        "name": "exec",
+        "call_id": "call_UUwzuKUlrUBbfeljWGsZGYUa",
+        "input_sha256": "c0ed075a74aaa1475b2b8a3293b117f5524bc8f46cea3386607dbb86a31f5ce2"
+      },
+      {
+        "line": 62,
+        "name": "exec",
+        "call_id": "call_BXCdWvgRW9ELnvBc19sv5PIC",
+        "input_sha256": "100650827e7bc72dea345e8e025e4c36afa8d8f8dd824de8761c5c5c511d2c10"
+      },
+      {
+        "line": 69,
+        "name": "exec",
+        "call_id": "call_cxM5d90jTaj8ls21htSaDhsk",
+        "input_sha256": "af44c39fcd996c144a2da1d93ce15605c4b889d8a0296a14f25490ff18c6b1ee"
+      },
+      {
+        "line": 78,
+        "name": "exec",
+        "call_id": "call_3ntyAkj9yahqOsaYkj1HKtfM",
+        "input_sha256": "7dc87cdeb708b4679fb0399a4e951bba9b1cffd5a2a9be438b46730ae898989c"
+      },
+      {
+        "line": 85,
+        "name": "exec",
+        "call_id": "call_j3YpcQhujSvgTWUJtIAJmCbj",
+        "input_sha256": "81f0f5b350cc663813fd8596c1735644ee5697b878816e39748995e4c1124b2f"
+      },
+      {
+        "line": 94,
+        "name": "exec",
+        "call_id": "call_neq8t84jQW87lJPOH2X5fJla",
+        "input_sha256": "96131e69e11d49a8cd2c298ea4a5bd4e78d59916c95e2e90946033d9922e52e8"
+      },
+      {
+        "line": 100,
+        "name": "exec",
+        "call_id": "call_PhK7qodpMc3jIY6fz3ok2OYG",
+        "input_sha256": "ce92722b53fc227aec8c2715e2b694ee07daf4b3c15f6c718edcb2442993e256"
+      },
+      {
+        "line": 107,
+        "name": "exec",
+        "call_id": "call_TUjVqN90FYcDQEgaUW4wraHj",
+        "input_sha256": "69b5a14b3fbb285315737a631c0b1ddd462dfa5b97be86bf31e09a4bf5dadb91"
+      },
+      {
+        "line": 114,
+        "name": "exec",
+        "call_id": "call_2gJ4PHsyGBbGE0LKxuddZpCy",
+        "input_sha256": "f51f6b1ffd8bb06ff687db9e28ac041c417fabf1eb7fbffa5b77bb48c560fac6"
+      }
+    ],
+    "native_model_effort": [
+      {
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+      }
+    ],
+    "native_cli_versions": [
+      "0.154.0"
+    ],
+    "native_user_input_blocks": [
+      {
+        "line": 4,
+        "sha256": "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "characters": 920,
+        "classification": "reviewed plugin inventory"
+      },
+      {
+        "line": 4,
+        "sha256": "384aba72a1b1e5f7fb81f944fa54791fc3a15e013328522100a69dbc1d93e0eb",
+        "characters": 329,
+        "classification": "reviewed environment context 2026-10-04"
+      },
+      {
+        "line": 7,
+        "sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+        "characters": 318,
+        "classification": "exact neutral task"
+      }
+    ],
+    "native_session_sha256": {
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/agent/sessions/2026/10/04/rollout-2026-10-04T05-18-07-01a10559-1772-7b42-9b15-d8773d715646.jsonl": "4713cee9e6ff18afba551e2e70701d467f35aabd8a6b2b1dff4ee7cfebb98a12"
+    },
+    "timeouts_seconds": {
+      "agent": 600,
+      "verifier": 60
+    },
+    "current_frozen_measured_source_sha256": {
+      "environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+      "environment/README.md": "bf55a8cb61cbdfe6fcf885fc156d3c23ca81a69d8ffdfdb13f13ca1a64b6f57c",
+      "environment/data/calibration.json": "ec3aa85e9e75b0a1b1983bdf872afe7e43ed09fef3508b961099baa9dcdad335",
+      "environment/model.py": "31fad6e9a050709217d71f244330adfd6ed62032dacaede1835ca354ad8c01f5",
+      "environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+      "instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+      "task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+      "tests/data/calibration.json": "ec3aa85e9e75b0a1b1983bdf872afe7e43ed09fef3508b961099baa9dcdad335",
+      "tests/metadata.json": "7c92e427750235802a3a5c8b456094f35bcb70b37be56de0e7880720f843478f",
+      "tests/reference.py": "4b22e97d1080f442e6db59880eb946efe09625254172ef794bd898b5b257230d",
+      "tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+      "tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a"
+    },
+    "reviewed_sources": [
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/agent/sessions/2026/10/04/rollout-2026-10-04T05-18-07-01a10559-1772-7b42-9b15-d8773d715646.jsonl",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/artifacts/app/model.py",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/agent/trajectory.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/agent/codex.txt",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/verifier/metrics.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/verifier/test-stdout.txt",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/result.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/config.json",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/run-timing.json"
+    ],
+    "evidence_sha256": {
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/agent/sessions/2026/10/04/rollout-2026-10-04T05-18-07-01a10559-1772-7b42-9b15-d8773d715646.jsonl": "4713cee9e6ff18afba551e2e70701d467f35aabd8a6b2b1dff4ee7cfebb98a12",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/artifacts/app/model.py": "97c279330b40f2bd8e49cbaf0a60c1423ff0823cff81f17b438c6cadfda6c810",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/agent/trajectory.json": "70316efdd233a3ba1f02a447960350dfd8a4ebfd358b887ddd2d8d69547db104",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/agent/codex.txt": "cb24a22925f378532f50fd143a6c6eba11b7df20a0f5c2e4ccc51cd77a166d1d",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/verifier/metrics.json": "f8330d3a3cce055659bd88be0201ee9e6dcb462cf2d03b0b2ac6e47417c9aa02",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/verifier/test-stdout.txt": "571ed41ab97590a1a530465b6aa9c490f2de12e0db23ec10ed71f914e53e0bf4",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/prestrained-solid__Hd2iRmn/result.json": "e28769ab52ac436d523e22d956048e537fa76c990fa76ec3c08630718b2759e9",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/config.json": "a206dff84c7ec926917c952121170cb93f2a50642e21132664d3146dcf31ec04",
+      "jobs/prestrained-solid-zero-three-prestrained-r1-plain-20261004-051510/run-timing.json": "aa064da8fcc82aafcf6d332ad8c6b52cd15b9ddbec76aa7252c53ab4c3a07599"
+    },
+    "aggregation_note": "One of exactly three fresh unhinted trials of this new frozen revision. All three are terminal: two correct passes and one mixed physical-retention/derivation failure. The family misses the zero-of-three target. No task, trial artifact, or score was changed.",
+    "review_limits": "Final source and complete public/native commands and outputs were reviewed. Encrypted reasoning was not read. No new agent evaluation or broad scientific validation was run.",
+    "incidental_notes": "No correct full-Hessian model was successfully implemented then damaged. The recorded failed candidate is mathematically wrong; subsequent text at native line93 endorses the starter on calibration grounds. Input validation, optimization, tensor-contraction ordering and runtime are not responsible for the final hidden errors.",
+    "qualifies_as_clean_physical_failure": false,
+    "final_retained_physical_error": "Material Green-strain tangent used as full acoustic stiffness without geometric prestress.",
+    "influential_math_error": "The trial full-F Hessian uses .2*hI2 where hI2 is half of d2I2/dF2; correct coefficient for that explicit expression is .4."
+  }
+}

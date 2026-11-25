@@ -1,0 +1,75 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,18 +1,66 @@
+-"""Current SCGF model and calibration interface."""
++"""SCGF model for the weakly asymmetric exclusion process on a ring.
++
++At half filling the leading large-ring SCGF is
++
++    psi(E, lambda; D) = D * lambda * (lambda + 2 E) / 4.
++
++``D`` is the sole unknown common rate scale, so calibration is a weighted
++linear least-squares problem rather than a numerical simulation problem.
++"""
++
+ import numpy as np
+ 
++
++_MIN_DIFFUSIVITY = 0.8
++_MAX_DIFFUSIVITY = 1.2
++
++
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    """Return raw SCGF values for an iterable of documented input mappings."""
++    # Constructing the arrays this way gives the specified (0,) output for an
++    # empty list, while retaining a compact vectorized implementation.
++    field = np.asarray([item["field"] for item in experiments], dtype=float)
++    bias = np.asarray([item["bias"] for item in experiments], dtype=float)
++    return float(diffusivity) * bias * (bias + 2.0 * field) / 4.0
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        """Estimate the common diffusivity by inverse-variance regression.
++
++        Each calibration record has mean ``diffusivity * x``, where
++        ``x = bias * (bias + 2 * field) / 4``. Known independent Gaussian
++        errors make the weighted least-squares estimator the maximum-
++        likelihood estimate.
++        """
++        records = list(records)
++        if not records:
++            # There is no evidence with which to update the valid initial
++            # value. Keeping it also makes fitting an empty batch benign.
++            return self
++
++        inputs = [record["input"] for record in records]
++        response = np.asarray([record["value"] for record in records], dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records], dtype=float)
++        design = predict_at(inputs, 1.0)
++
++        if (not np.isfinite(response).all() or not np.isfinite(sigma).all()
++                or not np.isfinite(design).all() or np.any(sigma <= 0.0)):
++            raise ValueError("calibration records require finite values and positive sigma")
++
++        weights = 1.0 / np.square(sigma)
++        denominator = float(np.dot(weights, np.square(design)))
++        if not np.isfinite(denominator) or denominator <= 0.0:
++            raise ValueError("calibration records do not identify diffusivity")
++
++        estimate = float(np.dot(weights * design, response) / denominator)
++        # The supported physical calibration range is part of the model
++        # contract, so use the constrained maximum-likelihood estimate.
++        self.diffusivity = float(np.clip(estimate, _MIN_DIFFUSIVITY, _MAX_DIFFUSIVITY))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

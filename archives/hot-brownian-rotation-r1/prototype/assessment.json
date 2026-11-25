@@ -1,0 +1,90 @@
+{
+  "status": "prototype_only_no_task_or_agent_evaluations",
+  "proposal": "hot-brownian-rotation",
+  "unknown": "constant viscosity eta, identified strictly from zero-frequency angular-velocity noise across known nonuniform radial temperatures",
+  "shortcut": "Exact full rotational unsteady-Stokes impedance and moment of inertia, but one generalized-Langevin bath temperature equal to the exact static value T0+3*deltaT/4",
+  "physics": "Different hydrodynamic frequencies distribute viscous dissipation over different radii, and each radius has its stated bath temperature. The full thermal-stress field therefore does not reduce to a single noise temperature.",
+  "independent_derivation": {
+    "flow": "u_phi/Omega = a^3/r^2 * exp(-k*(r-a))*(1+k*r)/(1+k*a)*sin(theta), k=sqrt(-i*omega*rho/eta)",
+    "strain": "h(r) = derivative(A(r))-A(r)/r",
+    "radial_weight": "r^2*abs(h)^2",
+    "impedance": "8*pi*eta*a^3*(1+(k*a)^2/(3*(1+k*a)))",
+    "dissipation_identity": "Re(impedance)=(8*pi*eta/3)*integral r^2*abs(h)^2 dr",
+    "static_temperature": "T0+3*deltaT/4",
+    "velocity_spectrum": "2*T_noise(omega)*Re(impedance)/abs(impedance-i*omega*I)^2"
+  },
+  "prototype_controls": {
+    "eta": 1,
+    "density": 1,
+    "radius": 1,
+    "ambient_temperature": 1,
+    "temperature_rise": 2
+  },
+  "rows": [
+    {
+      "omega": 0,
+      "temperature_weight": 0.75,
+      "relative_shortcut_error": 0
+    },
+    {
+      "omega": 0.1,
+      "temperature_weight": 0.7525406440166084,
+      "relative_shortcut_error": 0.002028392474723195
+    },
+    {
+      "omega": 0.5,
+      "temperature_weight": 0.7645750425431742,
+      "relative_shortcut_error": 0.011525644625930975
+    },
+    {
+      "omega": 1,
+      "temperature_weight": 0.7770688729061865,
+      "relative_shortcut_error": 0.02119609480778173
+    },
+    {
+      "omega": 3,
+      "temperature_weight": 0.8093983440730196,
+      "relative_shortcut_error": 0.04536308170992098
+    },
+    {
+      "omega": 10,
+      "temperature_weight": 0.8574280736425556,
+      "relative_shortcut_error": 0.07914089573400418
+    },
+    {
+      "omega": 30,
+      "temperature_weight": 0.9010954207889664,
+      "relative_shortcut_error": 0.10784092114431698
+    },
+    {
+      "omega": 100,
+      "temperature_weight": 0.9389084628419474,
+      "relative_shortcut_error": 0.1312859488426663
+    },
+    {
+      "omega": 300,
+      "temperature_weight": 0.9624580295333267,
+      "relative_shortcut_error": 0.14527461659950847
+    }
+  ],
+  "dissipation_impedance_max_absolute_error": 5.684341886080802e-14,
+  "primary_sources": [
+    "https://arxiv.org/abs/1403.4040",
+    "https://arxiv.org/abs/1805.05108"
+  ],
+  "archive_assessment": {
+    "unsteady-sphere": "Related deterministic response; missing fluid history there, exact history retained here.",
+    "heated-filament": "Related local bath field, but that task discarded off-diagonal modal noise; this tests frequency-dependent continuum reservoir weighting for one rotational channel.",
+    "magnetic-tracer-r1": "Rejected alternative: spatial B positional Hall drift already passed neutral-v1 3/3.",
+    "empirical_difficulty": "Unknown; hot-Brownian physics may be recognized. No claim of 0/3."
+  },
+  "independent_reference_plan": "Conservative radial viscous angular-momentum discretization with local stochastic shear stress; frequency transfer against analytic toroidal strain quadrature.",
+  "public_requirements": [
+    "Prescribed radial T(r)=T0+deltaT*a/r, fixed center, freely fluctuating rigid sphere rotation.",
+    "Local equilibrium Gaussian Markov stress with physical fluctuation-dissipation covariance; no other mechanical bath.",
+    "Constant viscosity/density/incompressibility are exact ideal-model assumptions over allowed temperatures/frequencies.",
+    "Small fluctuations and linear unsteady flow; negligible heat advection and buoyancy.",
+    "Stationary two-sided angular-velocity PSD convention."
+  ],
+  "prototype_sha256": "c6ebdf19ba13db0164a6d2920525fa7af9c9dd252a4bec33ae8d31282b84a887"
+}

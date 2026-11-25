@@ -1,0 +1,60 @@
+import numpy as np
+
+
+def response(e):
+    """Rate function apart from the (common) mobility.
+
+    The conservative part of the force contributes only the endpoint
+    change in trap energy.  The extensive heat is consequently the
+    rotational-current heat.  Its stationary mean is
+
+        q_bar = 2 * mobility * stiffness * drive_ratio**2.
+
+    Solving the tilted Ornstein--Uhlenbeck problem and expressing the
+    result in terms of z = Q/(q_bar*t) gives the expression below.  It is
+    written directly in terms of ``r`` and ``z`` to avoid an unnecessary
+    intermediate division by r**2.
+    """
+    stiffness = float(e['stiffness'])
+    r = float(e['drive_ratio'])
+    z = float(e['relative_heat'])
+
+    r2 = r * r
+    # Rationalizing sqrt(a*b) - (1+r^2*z) avoids cancellation at z=1,
+    # where the rate is exactly zero.  Its numerator is r^2*(z-1)^2.
+    root = np.sqrt((1.0 + r2) * (1.0 + r2 * z * z))
+    dimensionless_rate = r2 * (z - 1.0) ** 2 / (root + 1.0 + r2 * z)
+    return stiffness * dimensionless_rate
+
+
+def predict_at(experiments, mobility):
+    return mobility*np.asarray([response(e) for e in experiments])
+
+
+class Model:
+    def __init__(self):
+        self.mobility = None
+
+    def fit(self, records):
+        """Fit the shared mobility by Gaussian weighted least squares."""
+        bases = np.asarray([response(record['input']) for record in records], dtype=float)
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
+
+        if (bases.size == 0 or not np.isfinite(bases).all()
+                or not np.isfinite(values).all() or not np.isfinite(sigmas).all()
+                or np.any(sigmas <= 0.0)):
+            raise ValueError('Calibration records must have finite values and positive sigmas.')
+
+        weights = 1.0 / np.square(sigmas)
+        denominator = np.dot(weights, np.square(bases))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError('Calibration records do not identify mobility.')
+
+        estimate = np.dot(weights * bases, values) / denominator
+        # The apparatus specifies this as the physically allowed interval.
+        self.mobility = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.mobility)

@@ -1,0 +1,128 @@
+"""Finite-cell osmotic coefficient for the two-dimensional ionic cell.
+
+The radial coordinate is represented by ``t = log(r/a)``.  This makes the
+answer depend on the apparatus only through ``L = log(R/a)``; in particular,
+``disk_radius`` must not enter the result separately.  Angular integrations
+of a pair interaction give the hypergeometric function used below.
+"""
+
+from functools import lru_cache
+
+import numpy as np
+from scipy.integrate import quad
+from scipy.optimize import minimize_scalar
+from scipy.special import exprel, hyp2f1, roots_legendre
+
+
+@lru_cache(maxsize=None)
+def coefficient(gamma,count,ratio):
+    """Return P/(kT N/A) for one finite cell.
+
+    ``coefficient`` is deliberately expressed as a ratio of a boundary
+    integral and a configurational integral.  If Z is the configurational
+    partition integral, phi is
+
+        (1 - exp(-2 L)) / (2 N) * d(log Z)/dL,
+
+    where L = log(R/a).  That form avoids numerical differentiation of a
+    free energy.
+    """
+    if count == 3:
+        return three_ion_coefficient(gamma,ratio)
+    length = np.log(ratio)
+    if count == 1:
+        slope = 2-gamma
+        return -np.expm1(-2*length)*np.exp(slope*length)/(2*length*exprel(slope*length))
+    # Order the two radial coordinates and integrate their common offset
+    # analytically.  ``angular`` is the remaining relative-angle integral.
+    a,b = 4-3*gamma,2-gamma
+    def angular(gap):
+        return hyp2f1(-gamma/2,-gamma/2,1,np.exp(-2*gap))
+    partition = quad(lambda d: angular(d)*np.exp(b*d)*(length-d)*exprel(a*(length-d)),
+                     0,length,epsabs=1e-11,epsrel=1e-11)[0]
+    boundary = quad(lambda d: angular(d)*np.exp(b*d+a*(length-d)),
+                    0,length,epsabs=1e-11,epsrel=1e-11)[0]
+    return -np.expm1(-2*length)*boundary/(4*partition)
+
+
+def predict_at(experiments,coupling):
+    return np.asarray(
+        [
+            coefficient(
+                float(e['temperature_multiplier']) * coupling,
+                int(e['ion_count']),
+                float(e['radius_ratio']),
+            )
+            for e in experiments
+        ],
+        dtype=float,
+    )
+
+
+class Model:
+    def __init__(self):
+        self.coupling = None
+
+    def fit(self,records):
+        """Fit the shared reference coupling by Gaussian maximum likelihood."""
+        records = list(records)
+        if not records:
+            raise ValueError("at least one calibration record is required")
+
+        experiments = [record['input'] for record in records]
+        observed = np.asarray([record['value'] for record in records], dtype=float)
+        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
+        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
+                or np.any(sigma <= 0.0)):
+            raise ValueError("calibration values must be finite and sigma must be positive")
+
+        # Independent Gaussian errors have a weighted least-squares MLE.
+        # The coupling interval is part of the physical specification.
+        def loss(g):
+            residual = (predict_at(experiments, g) - observed) / sigma
+            return float(np.dot(residual, residual))
+
+        result = minimize_scalar(
+            loss, bounds=(0.7, 1.4), method='bounded',
+            options={'xatol': 1e-10},
+        )
+        if not result.success or not np.isfinite(result.fun):
+            raise RuntimeError("could not fit the electrostatic coupling")
+        self.coupling = float(result.x)
+        return self
+
+    def predict(self,experiments):
+        if self.coupling is None:
+            raise RuntimeError("fit must be called before predict")
+        return predict_at(experiments,self.coupling)
+
+
+@lru_cache(maxsize=None)
+def nodes(order):
+    x,w = roots_legendre(order)
+    return (x+1)/2,w/2
+
+
+def three_ion_coefficient(gamma,ratio,order=48):
+    """Three-ion result from an ordered-radii Gauss--Legendre integral.
+
+    The two variables are the adjacent logarithmic radial gaps.  The final
+    common radial offset has already been integrated, leaving a smooth
+    integral over a triangle.  Forty-eight nodes per dimension keeps the
+    weak endpoint structure of the angular average accurate throughout the
+    specified gamma and radius-ratio ranges.
+    """
+    length = np.log(ratio)
+    x,w = nodes(order)
+    d1 = np.broadcast_to((length*x)[:,None],(order,order)).ravel()
+    d2 = ((length-length*x)[:,None]*x[None,:]).ravel()
+    weights = (length*(length-length*x)[:,None]*w[:,None]*w[None,:]).ravel()
+    angular = np.ones(len(d1))
+    for gap in [d1,d2,d1+d2]:
+        angular *= hyp2f1(-gamma/2,-gamma/2,1,np.exp(-2*gap))
+    span = length-d1-d2
+    slope = 6-6*gamma
+    weight = weights*angular*np.exp((4-3*gamma)*d1+(2-gamma)*d2)
+    partition = np.dot(weight,span*exprel(slope*span))
+    boundary = np.dot(weight,np.exp(slope*span))
+    return -np.expm1(-2*length)*boundary/(6*partition)

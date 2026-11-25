@@ -1,0 +1,1 @@
+Derive the particle force fluctuations from the equilibrated fluid responsible for the full deterministic response. Calibration of mean motion does not determine the temporal spectrum of the fluctuating force.

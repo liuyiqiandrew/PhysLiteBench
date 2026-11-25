@@ -1,0 +1,1 @@
+For a finite-rate switching surface, formulate diffusion for the joint particle concentrations and coating state before averaging the capture rate. A stationary coating probability need not be the coating probability conditioned on a particle near the surface. Check particle balance and the fast- and slow-switching limits.

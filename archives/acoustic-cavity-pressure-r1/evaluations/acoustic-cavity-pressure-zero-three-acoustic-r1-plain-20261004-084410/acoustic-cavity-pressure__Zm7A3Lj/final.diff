@@ -1,0 +1,152 @@
+--- before/model.py
++++ after/model.py
+@@ -1,29 +1,99 @@
++"""Small-amplitude response model for the driven liquid cavity."""
++
+ import numpy as np
+ 
+-RHO0 = 1.
+-BULK = 1.
+-EXPONENT = 5.
++
++RHO0 = 1.0
++BULK = 1.0
++EXPONENT = 5.0
++VISCOSITY_BOUNDS = (0.08, 0.18)
+ 
+ 
+ def fields(length, mode, frequency_ratio, drive, viscosity):
+-    wavevector = mode*np.pi/length
+-    frequency = frequency_ratio*np.sqrt(BULK/RHO0)*wavevector
+-    velocity = drive/(viscosity*wavevector**2+1j*(BULK*wavevector**2/frequency-RHO0*frequency))
+-    density = -1j*RHO0*wavevector*velocity/frequency
++    """Return first-order velocity and density complex amplitudes."""
++
++    wavevector = mode * np.pi / length
++    sound_speed = np.sqrt(BULK / RHO0)
++    frequency = frequency_ratio * sound_speed * wavevector
++
++    # The forcing is prescribed per current volume.  At first order its
++    # complex amplitude is simply drive; no extra factor of rho appears.
++    denominator = (
++        viscosity * wavevector**2
++        + 1j * (BULK * wavevector**2 / frequency - RHO0 * frequency)
++    )
++    velocity = drive / denominator
++    density = -1j * RHO0 * wavevector * velocity / frequency
+     return velocity, density
+ 
+ 
++def _response(input_data, viscosity):
++    velocity, density = fields(
++        input_data["length"],
++        input_data["mode"],
++        input_data["frequency_ratio"],
++        input_data["drive"],
++        viscosity,
++    )
++
++    readout = input_data["readout"]
++    if readout == "density":
++        # At x=0, cos(kx)=1; the requested quantity is the peak amplitude.
++        return abs(density)
++
++    if readout == "force":
++        # For the O(epsilon^2) mean wall traction, the EOS contributes
++        # 2<r1^2> and the nonlinear momentum balance contributes <u1^2>.
++        # For complex peak amplitudes, each spatial/time average supplies a
++        # factor of 1/4, hence (2|R|^2 + |V|^2)/4.
++        return 0.25 * (2.0 * abs(density) ** 2 + abs(velocity) ** 2)
++
++    raise ValueError(f"unknown readout {readout!r}")
++
++
+ def predict_at(experiments, viscosity):
+-    result = []
+-    for e in experiments:
+-        velocity, density = fields(e['length'], e['mode'], e['frequency_ratio'], e['drive'], viscosity)
+-        if e['readout'] == 'density':
+-            value = abs(density)
++    """Evaluate a sequence of experiment dictionaries at one viscosity."""
++
++    return np.asarray([_response(experiment, viscosity) for experiment in experiments], dtype=float)
++
++
++def _weighted_loss(viscosity, inputs, values, sigmas):
++    prediction = predict_at(inputs, viscosity)
++    residual = (prediction - values) / sigmas
++    return float(np.dot(residual, residual))
++
++
++def _bounded_minimize_scalar(function, lower, upper):
++    """Minimize a smooth one-dimensional function without extra dependencies."""
++
++    # The grid makes the fit robust to a nearly flat objective; refinement
++    # gives substantially more precision than the calibration uncertainty.
++    grid = np.linspace(lower, upper, 1001)
++    values = np.asarray([function(point) for point in grid], dtype=float)
++    best = int(np.nanargmin(values))
++
++    if best == 0 or best == len(grid) - 1:
++        return float(grid[best])
++
++    left = float(grid[best - 1])
++    right = float(grid[best + 1])
++    golden = (np.sqrt(5.0) - 1.0) / 2.0
++    x1 = right - golden * (right - left)
++    x2 = left + golden * (right - left)
++    f1 = function(x1)
++    f2 = function(x2)
++
++    for _ in range(100):
++        if f1 <= f2:
++            right, x2, f2 = x2, x1, f1
++            x1 = right - golden * (right - left)
++            f1 = function(x1)
+         else:
+-            curvature = (EXPONENT-1)*BULK/RHO0**2
+-            value = .25*curvature*abs(density)**2
+-        result.append(float(value))
+-    return np.array(result)
++            left, x1, f1 = x1, x2, f2
++            x2 = left + golden * (right - left)
++            f2 = function(x2)
++
++    return float((left + right) / 2.0)
+ 
+ 
+ class Model:
+@@ -31,7 +101,32 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Infer viscosity by weighted least squares over calibration records."""
++
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        inputs = [record["input"] for record in records]
++        values = np.asarray([record["value"] for record in records], dtype=float)
++        sigmas = np.asarray([record.get("sigma", 0.0002) for record in records], dtype=float)
++
++        if not np.isfinite(values).all() or not np.isfinite(sigmas).all():
++            raise ValueError("calibration values and uncertainties must be finite")
++        if np.any(sigmas <= 0.0):
++            raise ValueError("calibration uncertainties must be positive")
++
++        lower, upper = VISCOSITY_BOUNDS
++        self.viscosity = _bounded_minimize_scalar(
++            lambda viscosity: _weighted_loss(viscosity, inputs, values, sigmas),
++            lower,
++            upper,
++        )
++        return self
+ 
+     def predict(self, experiments):
++        """Return predictions in input order as a one-dimensional NumPy array."""
++
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
+         return predict_at(experiments, self.viscosity)

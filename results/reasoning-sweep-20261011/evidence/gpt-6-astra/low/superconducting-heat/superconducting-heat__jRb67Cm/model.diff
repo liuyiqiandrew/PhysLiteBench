@@ -1,0 +1,88 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,29 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        records = list(records)
++        if not records:
++            raise ValueError("Calibration records must not be empty")
++        inputs = [r['input'] for r in records]
++        values = np.asarray([r['value'] for r in records], dtype=float)
++        sigma = np.asarray([r['sigma'] for r in records], dtype=float)
++        if np.any(sigma <= 0) or not np.all(np.isfinite(sigma)):
++            raise ValueError("Calibration uncertainties must be finite and positive")
++        if all(e.get('amplitude', 0.) == 0 for e in inputs):
++            basis = predict_at(inputs, 1.) / sigma
++            information = basis @ basis
++            if information == 0:
++                raise ValueError("Calibration does not constrain conductance")
++            self.conductance = float(np.clip(basis @ (values/sigma) / information, 20., 80.))
++        else:
++            from scipy.optimize import minimize_scalar
++            def objective(g):
++                residual = (predict_at(inputs, g)-values)/sigma
++                return residual @ residual
++            answer = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                     options={'xatol': 1e-9})
++            self.conductance = float(min((20., answer.x, 80.), key=objective))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -475,8 +497,53 @@
+     bare=float(np.sum((rp-rm)*mark**3))
+     for j,(temp,u,d,mm,ap,am) in enumerate(flipdata):
+         ell=-2*p1[j];bare+=float(np.sum(ap-am))*ell**3
++    # The extensive counting CGF is the stationary value of the jump
++    # Hamiltonian H(mu,p,k)=sum r(mu)*(exp(p.dot(v)+k*w)-1).
++    # Its first saddle response is p1 above and mu1 below. Differentiating
++    # that stationary value three times adds rate-gradient and curvature
++    # terms to the screened Poisson cumulant. Using mu as a coordinate is
++    # valid because the spin susceptibility is nonsingular; it cancels
++    # from the zero-frequency stationary saddle equations.
++    covariance = injection.T @ np.sum((rp+rm)*mark, axis=1)
++    for j, (_, _, _, _, ap, am) in enumerate(flipdata):
++        covariance[j] += 4*p1[j]*np.sum(ap+am)
++    mu1 = -np.linalg.solve(state['jacobian'], covariance)
++
++    def fermi_jet(value, direction):
++        first = direction*value*(1-value)
++        return value, first, direction*first*(1-2*value)
++
++    def complement(jet):
++        return 1-jet[0], -jet[1], -jet[2]
++
++    def product(a, b):
++        return (a[0]*b[0], a[1]*b[0]+a[0]*b[1],
++                a[2]*b[0]+2*a[1]*b[1]+a[0]*b[2])
++
++    fj = fermi_jet(f, sl*mu1[0]/tl)
++    gj = fermi_jet(g, sr*mu1[1]/tr)
++    # Forward pair creation uses (1-f); forward transfer uses f.
++    first_factor = tuple(np.where(pair, a, b)
++                         for a, b in zip(complement(fj), fj))
++    reverse_factor = tuple(np.where(pair, a, b)
++                           for a, b in zip(fj, complement(fj)))
++    plus = product(first_factor, complement(gj))
++    minus = product(reverse_factor, gj)
++    shot_derivative = measure*(pf*plus[1]+pb*minus[1])
++    net_curvature = measure*(pf*plus[2]-pb*minus[2])
++    correction = 3*np.sum(shot_derivative*mark**2 + net_curvature*mark)
++    for j, (temp, u, d, mm, ap, am) in enumerate(flipdata):
++        uj = fermi_jet(u, mu1[j]/temp)
++        dj = fermi_jet(d, -mu1[j]/temp)
++        plus = product(uj, complement(dj))
++        minus = product(dj, complement(uj))
++        ell = -2*p1[j]
++        correction += 3*np.sum(mm*((plus[1]+minus[1])*ell**2
++                                  +(plus[2]-minus[2])*ell))
+     scale=RATE_CONVERSION*conductance*KB**3*1e36
+-    return dict(third=bare*scale,screened_poisson=bare*scale,count_response=p1.tolist())
++    return dict(third=float(bare+correction)*scale,
++                screened_poisson=bare*scale, count_response=p1.tolist())
++
+ 
+ 
+ noise_predict=predict_at

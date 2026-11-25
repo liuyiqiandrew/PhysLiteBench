@@ -1,0 +1,66 @@
+{
+  "review": "Independent static review of half-filled exclusion-current feasibility screen",
+  "created_utc": "2026-10-06T09:26:21.076406+00:00",
+  "reviewer": "crystal_plan_review",
+  "status": "static_clearance_for_one_frozen_bounded_screen",
+  "scope": "Source/plan reading and syntax/JSON parsing only. The screen was not imported or executed. No scientific outcomes exist in this review and no source was modified.",
+  "hashes": {
+    "staging/exclusion-current-half-filled-feasibility/screen.py": "8b98d640a204196faaf06767aae12f6bdfa43cef97ed21eb01e4725b481f70a5",
+    "staging/exclusion-current-half-filled-feasibility/plan.json": "36a1a2da2bf48929c92c8fc6a3d1b9f33ea64d8c5fc1068226f28179e5773f88",
+    "results/exclusion-current-half-filled-proposal-review.json": "c62f685ca139c0954c1a445e8f469f0e59ae56fefbb31cf731bc5a1a12b80ac7"
+  },
+  "checks": {
+    "elliptic": "Correct use of m=k^2 with scipy elliptic functions, b=4K/E, a^2=m b^2, Pi/H quadrature, absolute eta, one-period root and SCGF. Flat and critical branches have the correct normalization. The endpoint clamp only tolerates root-roundoff on the specified physical interval; no change to microscopic rates is made.",
+    "spatial_functional": "The minimized cost is minus the D=1 stationary SCGF after optimizing current. z=sin(phi) gives the displayed secant-squared average and plain phi-gradient energy. All signs and factors are correct.",
+    "analytic_gradient": "Differentiating the onsite cosine term, periodic nearest-neighbor squared differences and inverse-H current term gives the implemented gradient. Periodic edge differences have no centered-derivative checkerboard null.",
+    "constraints": "mean(sin(phi))=0 enforces half filling; its Jacobian cos(phi)/N is correct. Orthogonal removal of that normal gives the correct equality-constrained first-order residual. The angle bounds keep density approximately 1e-8 from zero and one; the subsequent interior-margin gate is stricter.",
+    "independence": "All three prescribed seeds are independent of the elliptic profile. Each is initialized afresh at each grid/case. The direct objective, derivative and constrained optimizer do not call the elliptic oracle. Fourier interpolation followed by a new doubled-grid objective and mass calculation is a useful discretization check.",
+    "count_and_grouping": "Six prediction cases plus six controls, each on two grids and three seeds, gives exactly 72 attempted spatial optimizations. The two source-error groups include all three prediction biases at their field and exclude controls. They use ordinary raw-value relative L2 error, without baseline subtraction.",
+    "provenance_and_limits": "The report hashes source and plan, refuses to overwrite an existing report, retains each completed seed result, and enforces a 600-second alarm. The time-limit path saves an unresolved status before raising. D scaling and rate positivity are analytic identities, as stated, not new microscopic computations.",
+    "plan_alignment": "The 64/128 quadrature pair, 201-point root-map check and edge-gradient discretization are explicit preexecution choices. No field, bias, control, group or separation-threshold drift was found. Exact-anchor precision concerns the elliptic/flat formulas; direct spatial comparisons remain at 0.2%."
+  },
+  "interpretation_limits": [
+    "No strict monotonicity proof is supplied; the sampled root map and independent optimization are numerical diagnostics.",
+    "A passing screen validates sampled consistency of the published stationary half-filled branch, not unrestricted global optimality or a continuous parameter domain.",
+    "A failed optimization, refinement or budget gate is not a physical failure.",
+    "The original quarter-filled proposal review is unchanged."
+  ],
+  "next_action": "Freeze these reviewed source/plan bytes and execute the single declared bounded screen. Retain every outcome and stop under the fixed gates. A pass supports only the later domain/reference assessment.",
+  "reviewed_final_utc": "2026-10-06T09:26:51.486847+00:00",
+  "preexecution_revision": {
+    "note": "The findings arose from the initial source read; the final hashes below identify the corrected bytes. No separate pre-correction snapshot is asserted.",
+    "outcomes_existed_at_final_review": false
+  },
+  "resolved_findings": [
+    {
+      "id": "admissible_selection",
+      "priority": "before_freeze",
+      "finding": "The candidate filter uses only optimizer success and mass error. It can select the highest SCGF with a failed bound-margin or projected-gradient check even when another seed is admissible. The final gate catches this, so it cannot create a false pass, but it can cause an unnecessary unresolved result and does not fully implement the stated admissible-selection policy.",
+      "fix": "Before max selection require finite profile/value, success, mass, interior margin and normalized projected-gradient gates. Preserve all rows and rejection reasons. Keep doubled-mesh error and doubled mass as independent checks of the selected profile rather than selecting on reference agreement.",
+      "status": "resolved_in_final_reviewed_source_and_plan"
+    },
+    {
+      "id": "status_classification",
+      "priority": "before_freeze",
+      "finding": "A single screen_fail status covers both numerical/reference failure and insufficient ordinary separation. The detailed gate dictionary preserves the distinction, but the top-level status does not.",
+      "fix": "Use a numerical_unresolved status if any numerical/reference gate fails; use insufficient_separation only when those gates pass and the source-error margin fails; retain screen_pass for all gates passing.",
+      "status": "resolved_in_final_reviewed_source_and_plan"
+    },
+    {
+      "id": "elliptic_residual",
+      "priority": "small_recommended_diagnostic",
+      "finding": "The bias-equation residual is saved but never checked by a declared gate. Independent objective agreement protects the value, so this is not an algebra blocker.",
+      "fix": "Add a plan/source residual gate consistent with the declared zero-current endpoint tolerance, such as absolute residual <=1e-5. Do not claim the root equation was checked unless this gate is included.",
+      "status": "resolved_in_final_reviewed_source_and_plan"
+    }
+  ],
+  "final_checks": {
+    "selection": "Finite value/profile, success, mass, interior margin and projected-gradient residual are now required before maximizing SCGF. Every attempted row remains retained. Missing admissible candidates become null, and all dependent numerical gates fail safely.",
+    "independent_doubled_mesh": "Doubled-mesh value and mass are checked after selection; profiles are not selected by agreement with the elliptic answer.",
+    "branch_residual": "Every saved elliptic case/order residual must be below the declared 1e-5 absolute tolerance.",
+    "classification": "Numerical/reference gate failures now produce numerical_unresolved. The insufficient_separation status requires all numerical gates to pass. The plan matches this distinction.",
+    "final_count": 72,
+    "syntax": "Python AST and JSON parsed without importing or executing the screen",
+    "outstanding_blockers": []
+  }
+}

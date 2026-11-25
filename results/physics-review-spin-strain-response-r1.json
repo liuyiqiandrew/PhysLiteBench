@@ -1,0 +1,202 @@
+{
+  "task": "spin-strain-response",
+  "revision": 1,
+  "reviewer": "physics_review",
+  "reviewed_utc": "2026-10-03T05:30:59.145582+00:00",
+  "status": "passed_final_source_input_science_local_and_provenance_review",
+  "blockers": [],
+  "scope": "Read-only source and report review with independent analytic derivation and exact frozen-hash verification. No new scientific or model runs. No task edits.",
+  "evaluation_status": "Staged and unevaluated; scientific separation does not establish model difficulty.",
+  "physics_review": [
+    "With H(x)=H0-lambda*x*Q, the molecular force on the controlled coordinate is lambda*<Q>. Fully equilibrated readings at fixed temperature select its isothermal derivative. The subtracted empty apparatus removes any unmodeled support stiffness.",
+    "Differentiating the normalized Gibbs state gives lambda^2 times [sum p_i*Q_ii^2-<Q>^2]/T + 2*lambda^2*sum_{i<j}(p_i-p_j)*abs(Q_ij)^2/(E_j-E_i). Both sign and factor2 in the oracle are correct.",
+    "The oracle uses -expm1(-gap/T) to form the thermal divided difference stably. Its exact-degeneracy value p_i/T gives the continuous limit, including degenerate commuting preparations. The real Hamiltonian makes transpose rather than conjugate transpose sufficient for its real eigenvectors.",
+    "The reference computes the Frechet derivative of exp(-H/T) in the +lambda*Q/T direction, then differentiates both force numerator and partition normalization. This reproduces the physical force derivative without using the oracle spectral quotient.",
+    "The supplied shortcut diagonalizes the entire quantum Hamiltonian and computes the full exact equal-time Q variance, including off-diagonal matrix elements. Its error is assigning all those fluctuations to static thermal response via Var(Q)/T. It is an internally correct positive approximation rather than an omitted level or malformed covariance.",
+    "At transverse=0, Q commutes with H and the two responses agree exactly. The coefficient of lambda^2 is positive; positive lambda in[.8,1.4] removes the sign ambiguity and yields a globally identifiable single-parameter weighted fit. The completed fit correctly clips lambda^2 before taking its positive square root.",
+    "At nonzero transverse field the response includes virtual transitions and is bounded above by the equal-time variance/T. High-temperature and ground-state limits in the existing report support this interpretation."
+  ],
+  "input_grading_and_packaging": {
+    "instruction_sha256": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "public_sufficiency": "Exact spin matrices and displacement-dependent Hamiltonian, fixed-temperature equilibration at every displacement, molecular force slope, background subtraction, parameter domains and units define a unique readout.",
+    "leakage_or_constraints": "No quantum/classical fluctuation identity or repair prescription appears in the public description. The unchanged neutral instruction allows any implementation preserving the API. Public source has no private parameter, hidden group or diagnosis comment.",
+    "data": "216 records with constant instrument sigma=.001 independent of coupling and signal. Public/private bytes identical.",
+    "grading": "API and exact prediction shapes, finite outputs, relative coupling error<.03, reduced calibration chi-square<1.5 and group NRMSE<.04. No required eigenbasis, differentiation method or internal model form.",
+    "coverage": "Three noncommuting response groups and commuting anchors, all within the documented control domain. Physical hidden signals .1841 to .4973 are nonzero and well resolved.",
+    "public_image": "Explicit Docker copies only environment README/model/public test/data; hint, AUTHOR, solution, reference and metadata remain private.",
+    "runtime": "Pinned dependencies, agent600s/verifier60s unchanged; existing local tests complete below.4s.",
+    "regeneration": "Only explicit --generate rewrites both calibration copies."
+  },
+  "related_families": "Quantum noncommutativity also appears in archived work-cumulant candidates, but this measurement is an equilibrium mechanical susceptibility. Retained superconducting heat instead approximates the energy dependence of interference. Related theoretical background is explicitly disclosed, without claiming independent principles.",
+  "later_trial_classification": "Retaining equal-time variance as static response after an accurate fit can support a physical failure. A correct Gibbs derivative or spectral-response attempt with a sign, normalization, degeneracy or coding error must be classified separately, including implementation-induced regression. A causal repair should hold the submitted coupling fixed.",
+  "existing_evidence": {
+    "controls": {
+      "oracle": {
+        "coupling": 1.099930986965864,
+        "parameter_relative_error_max": 6.273912194187936e-05,
+        "calibration_chi2": 1.0371791870015448,
+        "hidden": {
+          "transverse": 0.0001254743076865375,
+          "temperature": 0.00012547430768480118,
+          "anisotropy_bias": 0.00012547430768597784,
+          "commuting_anchors": 0.00012547430768602318
+        }
+      },
+      "shortcut": {
+        "coupling": 1.099930986965864,
+        "parameter_relative_error_max": 6.273912194187936e-05,
+        "calibration_chi2": 1.0371791870015448,
+        "hidden": {
+          "transverse": 1.5602191796490594,
+          "temperature": 2.5106463857726435,
+          "anisotropy_bias": 1.292158183734185,
+          "commuting_anchors": 0.00012547430768602318
+        }
+      }
+    },
+    "noise": {
+      "oracle_passes": 256,
+      "shortcut_rejections": 256,
+      "all_calibration_pass": true,
+      "max_calibration_chi2": 1.2430818016068326,
+      "max_coupling_relative_error": 0.00018850651990798273
+    },
+    "noise_extrema": {
+      "oracle": {
+        "transverse": {
+          "min": 5.8266479886291235e-08,
+          "max": 0.00037697750510806455
+        },
+        "temperature": {
+          "min": 5.826647809830888e-08,
+          "max": 0.0003769775051062792
+        },
+        "anisotropy_bias": {
+          "min": 5.826647928069416e-08,
+          "max": 0.0003769775051075011
+        },
+        "commuting_anchors": {
+          "min": 5.826647930308365e-08,
+          "max": 0.00037697750510756414
+        }
+      },
+      "shortcut": {
+        "transverse": {
+          "min": 1.5596011293230096,
+          "max": 1.5613610590548335
+        },
+        "temperature": {
+          "min": 2.509787852888827,
+          "max": 2.5122325522553366
+        },
+        "anisotropy_bias": {
+          "min": 1.2915904673721725,
+          "max": 1.2932070583184174
+        },
+        "commuting_anchors": {
+          "min": 5.826647930308365e-08,
+          "max": 0.00037697750510756414
+        }
+      }
+    },
+    "physical_checks": {
+      "commuting_calibration_equality": 0.0,
+      "calibration_reference_error": 2.220446049250313e-16,
+      "independent_hidden_error": 5.273559366969494e-16,
+      "public_corner_count": 243,
+      "corner_frechet_error": 2.3314683517128287e-15,
+      "finite_displacement_error": 4.608535775219025e-13,
+      "finite_displacement_refinement": 1.0202394484792876e-12,
+      "commuting_closed_form_error": 4.440892098500626e-16,
+      "minimum_response": 0.00956440634678349,
+      "maximum_response": 2.4499994911527736,
+      "minimum_quantum_variance_correction": 0.0,
+      "energy_gauge_error": 2.2926105458509483e-14,
+      "field_reversal_error": 2.1094237467877974e-15,
+      "high_temperature_relative_error": 3.5999400127550985e-09,
+      "zero_temperature_virtual_transition_error": 0.0,
+      "noiseless_endpoint_parameter_recovery": {
+        "0.8": 0.0,
+        "1.1": 0.0,
+        "1.4": 0.0
+      },
+      "squared_coupling_information": 45565519.119607605,
+      "minimum_scored_signal": 0.1841443617573151,
+      "maximum_scored_signal": 0.4972740484068837
+    }
+  },
+  "local_controls": {
+    "oracle": {
+      "exit_code": 0,
+      "seconds": 0.32245316699845716,
+      "metrics": {
+        "parameters": {
+          "coupling": 1.099930986965864
+        },
+        "parameter_relative_error_max": 6.273912194187936e-05,
+        "calibration_chi2": 1.0371791870015448,
+        "hidden": {
+          "transverse": 0.0001254743076865375,
+          "temperature": 0.0001254743076848012,
+          "anisotropy_bias": 0.00012547430768597784,
+          "commuting_anchors": 0.00012547430768602318
+        }
+      }
+    },
+    "shortcut": {
+      "exit_code": 1,
+      "seconds": 0.2516065419767983,
+      "metrics": {
+        "parameters": {
+          "coupling": 1.099930986965864
+        },
+        "parameter_relative_error_max": 6.273912194187936e-05,
+        "calibration_chi2": 1.0371791870015448,
+        "hidden": {
+          "transverse": 1.5602191796490597,
+          "temperature": 2.510646385772644,
+          "anisotropy_bias": 1.292158183734185,
+          "commuting_anchors": 0.00012547430768602318
+        }
+      }
+    }
+  },
+  "evidence_limits": "The243 domain controls and256 independent calibration-noise fits are finite checks, not exhaustive proof or a model-failure-rate measurement. No redundant validation was repeated.",
+  "author_status": "Final AUTHOR correctly states equilibrium protocol, observable sign, calibration equivalence, independent reference, related mechanisms and unevaluated status.",
+  "source_sha256": {
+    "scripts/spin_strain_response_baseline.py": "642aca3d780dd59bcf3df149cec2cb1d9fdd6f982c44f68cbc096f37548a3df1",
+    "scripts/validate_spin_strain_response.py": "cb3dcb1e1fdbe86ccb9f221428448f3dc8825bf5c147099483f0d91033148aab",
+    "tasks/spin-strain-response/AUTHOR.md": "15f6ad44b36fc01c77307d97c4eeb97ce50bb62ff9ac98dc006acc61b281c09a",
+    "tasks/spin-strain-response/environment/Dockerfile": "375a34ee073c6cb5cb31cf35811cf0ae93156f315efd3747575b06fb97deeb70",
+    "tasks/spin-strain-response/environment/README.md": "25da0123676e52c84587df75c6f6d854a7beb768bf0d9aac6672e1f067e340b1",
+    "tasks/spin-strain-response/environment/data/calibration.json": "4dbcd31ed5a0ba081c0716993cf27a53956309c9e109c45ab8ffc671b949a43b",
+    "tasks/spin-strain-response/environment/model.py": "ebd2b37009bf56d8d04e27c5aa1b0e60322951c76ebc4fbe584f9f358ba805f3",
+    "tasks/spin-strain-response/environment/test_public.py": "9bc14b7a85105baed797c4ed7c091416402989805279601a9a83be8ae6d703c9",
+    "tasks/spin-strain-response/hint.md": "0e0baa8c151cb981e1afdcefe716c6e646c1d8734de1aeaa67f07e51b97fa999",
+    "tasks/spin-strain-response/instruction.md": "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62",
+    "tasks/spin-strain-response/solution/model.py": "3f994787b6ab8199da151dc7e21cd98df6d5dd7fb5baa9b086b78133b2eb65b6",
+    "tasks/spin-strain-response/solution/solve.sh": "bc0ad4cb71c36a0064d7787dcbac008e37e438e6b6ecbfca0d28c7370d9cf644",
+    "tasks/spin-strain-response/task.toml": "cbc3d931f382c98d33542e9bf5c9f2acc623d7c7cebc3a95f9fb4b46127cb6af",
+    "tasks/spin-strain-response/tests/data/calibration.json": "4dbcd31ed5a0ba081c0716993cf27a53956309c9e109c45ab8ffc671b949a43b",
+    "tasks/spin-strain-response/tests/metadata.json": "f98865037536f38d863b39c95843c695b011870c346ff395e5579d084476aef1",
+    "tasks/spin-strain-response/tests/reference.py": "cf2347100d058e52fd81d5b9e9c89d3bc09928dbc8ab71fe88b7f8168a86b735",
+    "tasks/spin-strain-response/tests/test.sh": "74e0598dd777b91b4a639ded0d84e5e5a4ea688344e70a5ae18c2a4e7ff4620c",
+    "tasks/spin-strain-response/tests/test_hidden.py": "606ac0417bfed59e53f226530c438b97f5f2c498bb846725a847cc2ca6f5eb3a"
+  },
+  "report_sha256": {
+    "results/spin-strain-response-validation.json": "80a2b829d4f312880b820ef32b386fdb758036c80b68a9e85cca5075dda72ea7",
+    "results/spin-strain-response-r1-local-controls.json": "ef92d0285bb4aa5de6617296e4060292a31a9c512f74b5e80a72201cb11b8e35",
+    "results/spin-strain-response-r1-source-provenance.json": "b6cc3de85281f9c4d524a9890a856de06f3f4599c3e8bb5b5185846129004663"
+  },
+  "prototype_sha256": {
+    "prototype/prototype_quantum_compliance.py": "0ef4a363cdc91588bebfc2e0ff784e00dffaa0c4b67e11d196de1602a52c6543",
+    "prototype/quantum_compliance_prototype.json": "d9be32bfabc9cc03797b482d885610d8ec11b61822a9ff685d551a3eca1b3834"
+  },
+  "hash_verification": {
+    "all18_source_control_files": true,
+    "both_final_reports": true,
+    "both_prototype_files": true,
+    "validation_source_hashes": true,
+    "public_private_calibration": true
+  }
+}

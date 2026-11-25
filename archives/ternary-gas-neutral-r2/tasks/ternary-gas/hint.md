@@ -1,0 +1,1 @@
+Molecular collision loads depend on the local partner fractions. A conserved mean composition does not fix those local loads. Apply the coupled pair-friction and zero-total-flux constraints to the evolving local mixture.

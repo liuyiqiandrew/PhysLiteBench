@@ -1,0 +1,153 @@
+{
+  "completed_utc": "2026-10-05T06:14:15.375730+00:00",
+  "task": "rotating-reservoir",
+  "revision": 2,
+  "passes": 2,
+  "trials": 3,
+  "physical_passes": 2,
+  "physical_failures": 0,
+  "mixed_physics_numerical_failures": 1,
+  "mathematical_failures": 0,
+  "errors": 0,
+  "unscored_attempts": 0,
+  "unstarted_setup_failures": 0,
+  "total_model_attempts": 3,
+  "total_attempts": 3,
+  "scored_trial_exceptions": 0,
+  "started_infrastructure_interruptions": 0,
+  "qualifies": false,
+  "disposition": "archived_above_zero_pass_threshold",
+  "archive": "archives/rotating-reservoir-r2",
+  "plan": "results/zero-three-rotating-r2-plan.json",
+  "plan_sha256": "c80e42e1acf04207f292e4bf7171083e5cb3a3e883434a0f6252edd71bd0715a",
+  "matrix_index": "jobs/matrix-zero-three-rotating-r2-20261005-052216/index.json",
+  "matrix_index_sha256": "0612276ea658b991d292e986e3bb27f529d7cc9e12b2c944463cdbeea729a0fc",
+  "matrix_index_interpretation": "Natural original serial matrix completed after both controls and exactly three ordinary trials. No retry, interruption or replacement catalog.",
+  "controls": {
+    "oracle": {
+      "passes": 1,
+      "trials": 1,
+      "errors": 0
+    },
+    "shortcut": {
+      "passes": 0,
+      "trials": 1,
+      "errors": 0
+    }
+  },
+  "reviews": "results/zero-three-rotating-r2-trial-reviews.json",
+  "review_sha256": "e5c22134bf0a05d63c6996683a1381e772eca565fcaa3507291c0f79a2ab1c47",
+  "source_review": "results/zero-three-rotating-r2-source-review.json",
+  "source_review_sha256": "be4e3a4efe4c1b01984848d36d059daf192d7492b2b1985abe6dfd99e54faedd",
+  "all_scored_native_inputs_and_model_configuration_verified": true,
+  "all_original_plan_current_and_plain_frozen_task_hashes_match": true,
+  "source_and_grading_unchanged_through_three_scored_trials": true,
+  "original_stage_manifest_sha256": "aecd042375e9ed80862025850dc0a1e8528285afb93c498a316e7dd0a6ae72e5",
+  "original_stage_payload_count": 38,
+  "trials_detail": [
+    {
+      "trial": "rotating-reservoir__WzE7esi",
+      "reward": 1,
+      "classification": "physical_model_pass",
+      "reason": "Reconstructs the complete stationary Gaussian dynamics in actual (r,v,q) coordinates and measures heat at the overdamped coupler: h^2/b times the spring-extension variance minus the two-dimensional Stratonovich correction 2hT_b/b. This equals the physical oracle and includes connector deformation work absent from the supplied relative particle power. Fits the common drag and passes all seven verifier tests.",
+      "trajectory_qualification": "Public step7 calls the supplied drift/diffusion incorrect because it interprets the last two force coordinates z as q. The supplied (r,v,z) dynamics are exactly related to (r,v,q) by z=-h(r-q), so this statement does not establish a source-dynamics defect. The final direct-coordinate reconstruction, heat formula and score are correct.",
+      "exception_info": null,
+      "metrics": {
+        "parameter": 0.7294810874324849,
+        "parameter_relative_error": 0.000710839133582386,
+        "calibration_chi2": 0.9157869925593546,
+        "hidden": {
+          "deforming_flow": 2.0384981763902207e-05,
+          "thermal_bias": 8.292196769215141e-05,
+          "contact_time": 5.980425394686346e-05,
+          "rotation_anchor": 0.00020026491372028728
+        }
+      },
+      "source_sha256": "b09d3656bf7cbd36d5055799ec9043b55a1e83143c5cce34973a8453c423b20e",
+      "result_sha256": "c53e2a81c5e86e024ee32a23df3fa62cfc8eb4d4532baa0dfd33abd399050db6",
+      "native_user_block_sha256": [
+        "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "18251b19781b4f80df719810c54459e0cf1ce6d76d79c5ebace96c986d2eed12",
+        "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62"
+      ],
+      "native_model": "gpt-5.6-luna",
+      "native_effort": "high",
+      "cli_version": "0.154.0"
+    },
+    {
+      "trial": "rotating-reservoir__Yrf53oM",
+      "reward": 1,
+      "classification": "physical_model_pass",
+      "reason": "The final implementation builds exact (r,v,q) covariance and uses the thermostat heat at the coupler, h*(E|r-q|^2/contact_time-2T_b/b). It resolves the distinction between laboratory spring power and thermal heat relative to the maintained flow, fits drag and passes all seven verifier checks. Public steps9 and16 evaluate the correct relative-heat formula; step17 fits it successfully; step19 saves the correct final implementation.",
+      "trajectory_qualification": "Exploratory laboratory-work/sign alternatives in steps6/8/10 are rejected before the final physical model. Public step18 incorrectly claims the original drift/noise omitted the spring force: the supplied last two coordinates were z=-h(r-q), not q, and its mechanics were already exact. The final q-coordinate reconstruction and thermal observable are correct. A first delete/add patch does not apply, then step19 updates successfully. A git-inspection error at step21 prevents its chained edge check; step22 reruns that check and reads the final code. None affects the scored physical solution.",
+      "exception_info": null,
+      "metrics": {
+        "parameter": 0.7294810874363729,
+        "parameter_relative_error": 0.0007108391282563131,
+        "calibration_chi2": 0.9157869925594448,
+        "hidden": {
+          "deforming_flow": 2.0384981615303646e-05,
+          "thermal_bias": 8.292196706620342e-05,
+          "contact_time": 5.9804253504239626e-05,
+          "rotation_anchor": 0.00020026491222760684
+        }
+      },
+      "source_sha256": "c126cfe505c7f56ca9fe30ecd369233ba015de0aabbb6897bee1d84509b0eb56",
+      "result_sha256": "71819077eaad5a5bad45ed7f0f79cbd9bfb67df313053d0bf67cde21ece46afb",
+      "native_user_block_sha256": [
+        "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "18251b19781b4f80df719810c54459e0cf1ce6d76d79c5ebace96c986d2eed12",
+        "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62"
+      ],
+      "native_model": "gpt-5.6-luna",
+      "native_effort": "high",
+      "cli_version": "0.154.0"
+    },
+    {
+      "trial": "rotating-reservoir__bbYKr4N",
+      "reward": 0,
+      "classification": "mixed_failure",
+      "reason": "Final source accurately fits drag but retains the supplied particle-relative heat functional, failing three deforming-flow groups while passing calibration and rigid-rotation anchors. This is not a clean physics-only omission: emitted steps8 and10 implement the correct q-bath heat h^2/b*E|r-q|^2-2hT_b/b, but their reconstructed (r,v,q) drift sets the particle-position block to -K instead of -(K+hI), retaining the +h q force. The same missing spring self-force persists in steps14,16 and18. Its false calibration failure precedes step20 decision to retain the original predictor. The valid physical observable is attempted but not successfully represented.",
+      "trajectory_qualification": "Conservative mixed mathematical/implementation and physical-retention classification. Step8 scratch RMSE is 2.024-2.550 across tested drag values; step10 optimization reaches the upper bound with RMSE2.02406 and mean squared standardized residual4096805. Step16 rest-only scratch gives drag .57325 and RMSE .018059 versus the starter .72966 and .0009456 at step15. No corrected scratch with -(K+hI) is emitted. Final forward helpers are AST-identical to the starter. An early public test fails only because fit is still unfinished; the later fit passes. Step22 git-inspection failure is unrelated and the calibration summary is rerun at step23.",
+      "exception_info": null,
+      "metrics": {
+        "parameter": 0.7294810874364216,
+        "parameter_relative_error": 0.0007108391281895887,
+        "calibration_chi2": 0.9157869925586054,
+        "hidden": {
+          "deforming_flow": 0.527591321890139,
+          "thermal_bias": 0.4631711955428767,
+          "contact_time": 0.4015235956760704,
+          "rotation_anchor": 0.00020026491219796166
+        }
+      },
+      "source_sha256": "9fdb16982109121ba0d502f0ddcfd0f0b709df2dbe13e3efdf8d0120555b4533",
+      "result_sha256": "328ee6349addce735d1d3411affef8cfbb7e9b8028ad98b78db518f2d84db4b3",
+      "native_user_block_sha256": [
+        "3c1d89a789ebf1e6bcad0e6665c74a735b360cbcc25dbf0efca2f9d71bb8cf56",
+        "18251b19781b4f80df719810c54459e0cf1ce6d76d79c5ebace96c986d2eed12",
+        "6a5ef18a542d5fd42298ccab151355ecf224974f3b465d9a6299768988739b62"
+      ],
+      "native_model": "gpt-5.6-luna",
+      "native_effort": "high",
+      "cli_version": "0.154.0"
+    }
+  ],
+  "limitations": [
+    "Two physical passes and one mixed failure describe this exact frozen batch, not a population success probability. It fails the zero-pass qualification.",
+    "The failed trial attempted the correct coupler heat but omitted the spring self-force -hI from its scratch particle drift, falsely rejecting that physical alternative before retaining the starter. It is not counted as a clean physical failure.",
+    "Both passers incorrectly described the supplied force-coordinate drift as defective; that drift was already exact in (r,v,z). Their final direct-coordinate reconstructions and coupler calorimetry are nevertheless correct.",
+    "Setup allowance1080seconds was predeclared; model600/verifier60 remained unchanged. No setup failures, model retries, numerical reruns or causal repair runs were performed for this archive.",
+    "Raw native payloads remain in ignored original jobs, exhaustively indexed by hash rather than copied to the publishable archive. The original frozen ASSESSMENT, manifest and AUTHOR remain historical pre-evaluation records."
+  ],
+  "archive_operations": {
+    "model_runs": 0,
+    "scientific_runs": 0,
+    "source_edits": 0,
+    "original_raw_jobs_modified": false,
+    "canonical_sources_modified": false,
+    "shared_status_or_candidate_ledger_modified": false,
+    "git_operations": 0,
+    "stage_removal": "Only after exact original-stage copy, archive and exhaustive raw-job hash verification."
+  }
+}

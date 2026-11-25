@@ -1,0 +1,121 @@
+"""Current statistics for the ballistic hard-rod apparatus.
+
+The free-length coordinate has particle density ``c=rho/(1-rho*length)``.
+For a block whose mean rod length is ``a``, its positive-current SCGF is
+
+    c (cosh(s) - 1),       h = s + a c sinh(s).
+
+For a length mixture the block selected by a current fluctuation need not
+have the typical 50:50 composition. A block containing a short-rod fraction
+``p`` has a binary relative-entropy cost per crossed rod. Contracting that
+cost with the free-particle current rate function is equivalent to maximizing
+the positive-current SCGF below over ``p``. This is important away from zero
+counting field; simply inserting the population mean length misses it.
+"""
+
+import numpy as np
+from scipy.optimize import brentq, minimize_scalar
+
+
+def _binary_cost(short_fraction):
+    """Relative entropy of a Bernoulli(p) block relative to p=1/2."""
+    p = float(short_fraction)
+    if p <= 0.0 or p >= 1.0:
+        return np.log(2.0)
+    return p * np.log(2.0 * p) + (1.0 - p) * np.log(2.0 * (1.0 - p))
+
+
+def _positive_scgf(field, free_density, crossed_mean_length):
+    """SCGF restricted to non-negative current, in units of the speed."""
+    if field <= 0.0:
+        return 0.0
+    # The left side is strictly increasing and is field at s=0, so the root
+    # lies in (0, field). This bracket remains well-conditioned at the stated
+    # domain edges.
+    s = brentq(
+        lambda z: z + crossed_mean_length * free_density * np.sinh(z) - field,
+        0.0,
+        field,
+        xtol=1.0e-13,
+        rtol=1.0e-14,
+    )
+    return free_density * (np.cosh(s) - 1.0)
+
+
+def _mixture_scgf(rho, mean_length, contrast, field):
+    """Even SCGF per unit speed, including the crossed-block composition LDP."""
+    h = abs(float(field))
+    if h == 0.0:
+        return 0.0
+
+    c = rho / (1.0 - rho * mean_length)
+    d = float(contrast)
+    if d == 0.0:
+        return _positive_scgf(h, c, mean_length)
+
+    # For h >= 0 a shorter-than-typical crossed block is always at least as
+    # favorable as its long-block mirror, so p is restricted to [1/2, 1].
+    # The field available to its free-particle fluctuation is h-D(p).
+    def objective(p):
+        available_field = h - _binary_cost(p)
+        if available_field <= 0.0:
+            return 0.0
+        crossed_mean = mean_length * (1.0 + d - 2.0 * d * p)
+        return _positive_scgf(available_field, c, crossed_mean)
+
+    # Include both boundaries explicitly; this avoids a tiny bounded-method
+    # endpoint error in the equal-cost limiting cases.
+    optimum = minimize_scalar(
+        lambda p: -objective(p), bounds=(0.5, 1.0), method='bounded',
+        options={'xatol': 1.0e-12},
+    )
+    return max(objective(0.5), objective(1.0), -float(optimum.fun))
+
+
+def response(experiment):
+    """Readout in units of the unknown common speed."""
+    rho = float(experiment['density'])
+    mean_length = float(experiment['length'])
+    statistic = experiment['statistic']
+
+    if statistic == 'mean':
+        return 0.0
+    if statistic == 'variance':
+        # The composition saddle starts affecting the SCGF at cubic order.
+        # Its curvature is therefore the equal-length result with the
+        # population mean length, even for a length mixture.
+        return rho * (1.0 - rho * mean_length)
+    if statistic == 'scgf':
+        return _mixture_scgf(
+            rho, mean_length, float(experiment['contrast']),
+            float(experiment['counting_field']),
+        )
+    raise ValueError("statistic must be 'mean', 'variance', or 'scgf'")
+
+
+def predict_at(experiments, speed):
+    return float(speed) * np.asarray([response(e) for e in experiments], dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.speed = None
+
+    def fit(self, records):
+        """Fit the shared multiplicative speed by Gaussian weighted least squares."""
+        base = np.asarray([response(record['input']) for record in records], dtype=float)
+        values = np.asarray([record['value'] for record in records], dtype=float)
+        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
+        weights = 1.0 / np.square(sigmas)
+        denominator = float(np.dot(weights, np.square(base)))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError('calibration records contain no informative finite readout')
+        estimate = float(np.dot(weights * base, values) / denominator)
+        # The stated apparatus range is part of the calibration model.
+        self.speed = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        if self.speed is None:
+            raise RuntimeError('fit must be called before predict')
+        return predict_at(experiments, self.speed)

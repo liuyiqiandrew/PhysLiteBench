@@ -1,0 +1,71 @@
+--- starter/model.py
++++ submission/model.py
+@@ -43,7 +43,7 @@
+     return 2e6*(KB/ELECTRON_CHARGE)**2*(transfer-creation)
+ 
+ 
+-from scipy.optimize import least_squares
++from scipy.optimize import least_squares, minimize_scalar
+ 
+ # Positive-energy quasiparticle states per spin per kelvin, including both xi branches.
+ QUASIPARTICLE_DENSITY = 1e6
+@@ -191,7 +191,46 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the (only) apparatus parameter by independent weighted least squares.
++
++        ``conductance`` is quoted in microSiemens throughout this module.  In
++        particular, no SI conversion is appropriate here: the conversion is
++        already part of the Golden-rule prefactors used by the predictors.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        observed = np.asarray([record['value'] for record in records], dtype=float)
++        sigma = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(observed).all() or not np.isfinite(sigma).all()
++                or np.any(sigma <= 0)):
++            raise ValueError("calibration values must be finite and sigma must be positive")
++
++        # With an unmodulated barrier the stationary spin potentials vanish,
++        # so every predicted heat current is exactly proportional to G.  This
++        # covers the supplied calibration set and avoids an unnecessary scalar
++        # optimization (and associated integration round-off).
++        if all(float(e.get('amplitude', 0.)) == 0. for e in experiments):
++            unit = predict_at(experiments, 1.)
++            denominator = float(np.sum((unit / sigma) ** 2))
++            if denominator == 0 or not np.isfinite(denominator):
++                raise ValueError("calibration records do not constrain conductance")
++            fitted = float(np.sum(unit * observed / sigma**2) / denominator)
++            self.conductance = float(np.clip(fitted, 20., 80.))
++            return self
++
++        def objective(conductance):
++            residual = (predict_at(experiments, float(conductance)) - observed) / sigma
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(20., 80.), method='bounded',
++                                 options={'xatol': 2e-8})
++        if not result.success or not np.isfinite(result.fun):
++            raise RuntimeError("conductance fit did not converge")
++        self.conductance = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)
+@@ -412,7 +451,10 @@
+     for e in experiments:
+         value=mean_heat(e,conductance)
+         if e.get('statistic','mean')=='phase_contrast':
+-            other=dict(e,phase=(e['phase']+2*np.pi)%(2*np.pi)-np.pi)
++            # Normalize phi + pi to [-pi, pi).  The extra pi inside the
++            # modulo is the normalization offset: ((phi + pi) + pi) mod
++            # 2*pi - pi.
++            other=dict(e, phase=(e['phase'] + 2*np.pi) % (2*np.pi) - np.pi)
+             value=(value-mean_heat(other,conductance))/2
+         values.append(value)
+     return np.array(values)

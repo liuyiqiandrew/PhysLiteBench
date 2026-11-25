@@ -1,0 +1,34 @@
+--- frozen-starter/model.py
++++ submitted/model.py
+@@ -71,8 +71,14 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # The O(m) contact populations follow from the stationary contact
++    # continuity equation.  Their common component is a normalization
++    # correction and cancels against the measured-residence background.
++    contact_flux=d@first[1,0].T
++    q_aug=q.copy();q_aug[-1]=1.
++    source=contact_flux.T.copy();source[-1]=0.
++    population_correction=np.linalg.solve(q_aug,source)
++    density_correction={(0,0):population_correction}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +99,13 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        # Calibration is restricted to zero magnetic field and identical
++        # reservoirs.  In this regime every predicted rate scales as 1/gamma.
++        experiments=[record['input'] for record in records]
++        unit=coefficients(experiments,1.)
++        observed=np.array([record['value'] for record in records],dtype=float)
++        sigma=np.array([record['sigma'] for record in records],dtype=float)
++        inverse=np.dot(unit/sigma,observed/sigma)/np.dot(unit/sigma,unit/sigma)
++        self.friction=float(np.clip(1./inverse,.7,1.6))
++        return self
+     def predict(self,experiments):return coefficients(experiments,self.friction)

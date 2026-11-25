@@ -1,0 +1,38 @@
+--- starter/model.py
++++ submission/model.py
+@@ -25,7 +25,24 @@
+         self.diffusivity = None
+ 
+     def fit(self,data):
+-        raise NotImplementedError('Fit the common ionic diffusion scale from calibration.')
++        x=np.asarray(data['x'])
++        t=np.asarray(data['t'])
++        initial=np.asarray(data['initial'])
++        observed=np.asarray(data['concentration'])
++        sigma=np.asarray(data['sigma'])
++        count=len(x)-1
++        spatial_rate=4/(x[1]-x[0])**2*np.sin(np.arange(count+1)*np.pi/(2*count))**2
++        coefficients=dct(initial,type=1,axis=1)
++        rates=spatial_rate[None,:,None]*np.array([4/3,8/3])[None,None,:]
++        def objective(log_diffusivity):
++            decay=np.exp(-t[None,:,None,None]*np.exp(log_diffusivity)*rates[:,None,:,:])
++            prediction=idct(decay*coefficients[:,None,:,:],type=1,axis=2)
++            return np.sum(((prediction-observed)/sigma)**2)
++        result=minimize_scalar(objective,bounds=(np.log(1e-12),np.log(1e-7)),method='bounded',options={'xatol':1e-12})
++        if not result.success:
++            raise RuntimeError(result.message)
++        self.diffusivity=float(np.exp(result.x))
++        return self
+ 
+     def _binary(self,t,x,initial):
+         t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)
+@@ -77,8 +94,7 @@
+ def equilibrium_correlations(t,totals,harmonic,diffusivity):
+     covariance,mobility=fluctuation_matrices(totals,diffusivity)
+     relaxation=(harmonic*np.pi/.001)**2*mobility@np.linalg.inv(covariance)
+-    initial_covariance=np.diag(totals)
+-    return np.array([expm(-float(time)*relaxation)@initial_covariance for time in t])
++    return np.array([expm(-float(time)*relaxation)@covariance for time in t])
+ 
+ def correlate(self,t,totals,harmonic=1):
+     return equilibrium_correlations(np.asarray(t),np.asarray(totals),int(harmonic),self.diffusivity)

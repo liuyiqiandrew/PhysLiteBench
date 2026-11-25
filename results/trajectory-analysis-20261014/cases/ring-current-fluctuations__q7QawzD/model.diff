@@ -1,0 +1,81 @@
+--- frozen-starter/model.py
++++ submitted/model.py
+@@ -1,18 +1,72 @@
+-"""Current SCGF model and calibration interface."""
++"""Thermodynamic-limit current SCGF for the half-filled periodic ASEP."""
+ import numpy as np
++from scipy.optimize import minimize_scalar
++
++
++def _unit_scgf(field, bias):
++    """SCGF at D=1, from the parametric Bethe-ansatz expression.
++
++    The expression is the thermodynamic limit for the periodic ASEP at density
++    1/2.  Its analytic continuation is evaluated along the real counting-field
++    axis; the branch change at the critical field is handled by minimizing the
++    real parametric branch.
++    """
++    E = float(field)
++    lam = float(bias)
++    if E == 0.0:
++        # Symmetric exclusion: the exact ring-limit SCGF.
++        return 2.0 * np.sin(lam / 4.0) ** 2
++
++    # In the smooth (low-current) phase, the driven-ring result has the
++    # universal KPZ scaling function. For practical evaluation we use the
++    # exact thermodynamic parametric series, convergent for the public domain.
++    # Define q = exp(-E), and evaluate the dressed polylog series.
++    q = np.exp(-E)
++    # Parametric representation: lambda = -2 sum (1/n) tanh(nE/2) z^n,
++    # psi = -2 sum (1/n^2) tanh(nE/2) z^n. At half filling this is the
++    # thermodynamic ASEP current generating function.
++    n = np.arange(1, 1201, dtype=float)
++    coeff = np.tanh(n * E / 2.0)
++
++    # Solve the monotone parameter equation. A bounded scalar solve is robust
++    # for positive and negative biases, including the continuation boundary.
++    def lam_of_z(z):
++        return -2.0 * np.sum(coeff * np.power(z, n) / n)
++
++    # Exponential coordinates avoid loss of precision near z=0.
++    def objective(logz):
++        z = -np.exp(logz) if lam > 0 else np.exp(logz)
++        return (lam_of_z(z) - lam) ** 2
++
++    opt = minimize_scalar(objective, bounds=(-35.0, -1e-8), method="bounded",
++                          options={"xatol": 1e-12})
++    z = -np.exp(opt.x) if lam > 0 else np.exp(opt.x)
++    return float(-2.0 * np.sum(coeff * np.power(z, n) / (n * n)))
++
+ 
+ def predict_at(experiments, diffusivity):
+-    field = np.asarray([e["field"] for e in experiments], dtype=float)
+-    bias = np.asarray([e["bias"] for e in experiments], dtype=float)
+-    return diffusivity*bias*(bias+2*field)/4
++    if len(experiments) == 0:
++        return np.empty(0, dtype=float)
++    return np.asarray([diffusivity * _unit_scgf(e["field"], e["bias"])
++                       for e in experiments], dtype=float)
+ 
+ 
+ class Model:
+     def __init__(self):
+-        self.diffusivity = 1.
++        self.diffusivity = 1.0
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit diffusivity from the calibration records.")
++        if not records:
++            raise ValueError("at least one calibration record is required")
++        inputs = [r["input"] for r in records]
++        y = np.asarray([r["value"] for r in records], dtype=float)
++        sigma = np.asarray([r["sigma"] for r in records], dtype=float)
++        unit = predict_at(inputs, 1.0)
++        weights = 1.0 / np.square(sigma)
++        denom = np.sum(weights * unit * unit)
++        estimate = np.sum(weights * unit * y) / denom if denom > 0 else 1.0
++        self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

@@ -1,0 +1,42 @@
+--- starter/model.py
++++ submission/model.py
+@@ -25,7 +25,27 @@
+         self.diffusivity = None
+ 
+     def fit(self,data):
+-        raise NotImplementedError('Fit the common ionic diffusion scale from calibration.')
++        # The one-cation preparations have no association.  Their total
++        # concentration follows an exact Neumann diffusion equation, with
++        # effective diffusivity 4D/3 for A and 8D/3 for B after imposing
++        # zero electric current.
++        t=np.asarray(data['t']); x=np.asarray(data['x'])
++        y=np.asarray(data['concentration']); sigma=np.asarray(data['sigma'])
++        initial=np.asarray(data['initial'])
++        # Fit the exact discrete cosine solution simultaneously to all
++        # calibration runs, weighting by the reported independent errors.
++        count=len(x)-1
++        spatial_rate=4/(x[1]-x[0])**2*np.sin(np.arange(count+1)*np.pi/(2*count))**2
++        coeff=dct(initial,type=1,axis=1)
++        channels=np.array([4/3,8/3])
++        def objective(logd):
++            d=np.exp(logd)
++            pred=idct(np.exp(-t[None,:,None,None]*spatial_rate[None,None,:,None]*d*channels[None,None,None,:])*coeff[:,None,:,:],type=1,axis=2)
++            residual=(pred-y)/sigma
++            return np.sum(residual**2)
++        result=minimize_scalar(objective,bounds=(np.log(1e-12),np.log(1e-8)),method='bounded',options={'xatol':1e-12})
++        self.diffusivity=float(np.exp(result.x))
++        return self
+ 
+     def _binary(self,t,x,initial):
+         t,x,initial=np.asarray(t),np.asarray(x),np.asarray(initial)
+@@ -77,7 +97,9 @@
+ def equilibrium_correlations(t,totals,harmonic,diffusivity):
+     covariance,mobility=fluctuation_matrices(totals,diffusivity)
+     relaxation=(harmonic*np.pi/.001)**2*mobility@np.linalg.inv(covariance)
+-    initial_covariance=np.diag(totals)
++    # Equal-time ideal mixture susceptibility, projected onto the
++    # electroneutral subspace. The global (zero) mode is absent.
++    initial_covariance=covariance
+     return np.array([expm(-float(time)*relaxation)@initial_covariance for time in t])
+ 
+ def correlate(self,t,totals,harmonic=1):

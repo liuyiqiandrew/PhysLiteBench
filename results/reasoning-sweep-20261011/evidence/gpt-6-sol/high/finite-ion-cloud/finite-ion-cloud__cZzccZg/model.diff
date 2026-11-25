@@ -1,0 +1,83 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,4 +1,5 @@
+ import numpy as np
++from scipy.fft import rfft
+ from scipy.integrate import quad
+ from scipy.optimize import minimize_scalar
+ from scipy.special import exprel, hyp2f1, roots_legendre
+@@ -33,7 +34,29 @@
+         self.coupling = None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the reference electrostatic coupling.')
++        # The radius a sets the length scale and cancels from phi. Combine
++        # repeated preparations before evaluating the likelihood.
++        grouped = {}
++        for record in records:
++            experiment = record['input']
++            key = (experiment['ion_count'],
++                   experiment['temperature_multiplier'],
++                   experiment['radius_ratio'])
++            weight = 1.0 / record['sigma']**2
++            sum_weight, sum_value = grouped.get(key, (0.0, 0.0))
++            grouped[key] = (sum_weight + weight,
++                            sum_value + weight * record['value'])
++
++        def loss(coupling):
++            return sum(weight * (coefficient(u * coupling, count, ratio)
++                                 - weighted_value / weight)**2
++                       for (count, u, ratio), (weight, weighted_value)
++                       in grouped.items())
++
++        result = minimize_scalar(loss, bounds=(0.7, 1.4), method='bounded',
++                                 options={'xatol': 1e-10})
++        self.coupling = float(result.x)
++        return self
+ 
+     def predict(self,experiments):
+         return predict_at(experiments,self.coupling)
+@@ -45,15 +68,36 @@
+     return (x+1)/2,w/2
+ 
+ 
+-def three_ion_coefficient(gamma,ratio,order=32):
++@lru_cache(maxsize=None)
++def angular_grid(order):
++    angle = np.arange(order) * (np.pi / order)
++    return 4 * np.sin(angle)**2
++
++
++def pair_fourier(gamma, gaps, order):
++    """Fourier coefficients of |1-exp(-gap+i*theta)|**gamma."""
++    t = np.exp(-np.asarray(gaps))[:, None]
++    kernel = ((1-t)**2 + t*angular_grid(order)[None, :])**(gamma/2)
++    return rfft(kernel, axis=1).real / order
++
++
++def three_ion_coefficient(gamma,ratio,order=64,angular_order=512):
++    """Finite-cell contact density with all three angular pairs coupled."""
+     length = np.log(ratio)
+     x,w = nodes(order)
+-    d1 = np.broadcast_to((length*x)[:,None],(order,order)).ravel()
+-    d2 = ((length-length*x)[:,None]*x[None,:]).ravel()
+-    weights = (length*(length-length*x)[:,None]*w[:,None]*w[None,:]).ravel()
+-    angular = np.ones(len(d1))
+-    for gap in [d1,d2,d1+d2]:
+-        angular *= hyp2f1(-gamma/2,-gamma/2,1,np.exp(-2*gap))
++    first = length*x
++    d1 = np.broadcast_to(first[:,None],(order,order)).ravel()
++    d2 = ((length-first)[:,None]*x[None,:]).ravel()
++    weights = (length*(length-first)[:,None]*w[:,None]*w[None,:]).ravel()
++
++    # The same two relative angles occur in all three pair distances. In
++    # their Fourier expansions, angular integration keeps modes with the
++    # same index in each of the three factors.
++    c12 = np.repeat(pair_fourier(gamma, first, angular_order), order, axis=0)
++    c23 = pair_fourier(gamma, d2, angular_order)
++    c13 = pair_fourier(gamma, d1+d2, angular_order)
++    product = c12*c23*c13
++    angular = product[:,0] + 2*np.sum(product[:,1:-1],axis=1) + product[:,-1]
+     span = length-d1-d2
+     slope = 6-6*gamma
+     weight = weights*angular*np.exp((4-3*gamma)*d1+(2-gamma)*d2)

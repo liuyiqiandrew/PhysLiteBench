@@ -1,0 +1,28 @@
+--- before/model.py
++++ after/model.py
+@@ -56,7 +56,9 @@
+     positional = np.sum((friction*current_x**2+gamma_y*current_y**2)/(temp*density))*dx
+     positional += switch_rate*np.sum(density*np.log(density/density[::-1]))*dx
+     thermal = heat_coefficient(friction, drag_ratio, magnetic)*np.sum(density*gradient**2/temp)*dx
+-    return float(positional+thermal)
++    ratio = temp/temp[::-1]
++    contact = switch_rate*np.sum(density*(ratio-1-np.log(ratio)))*dx
++    return float(positional+thermal+contact)
+ 
+ 
+ def coefficients(experiments, friction=1.):
+@@ -68,7 +70,13 @@
+         self.friction = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
++        inputs = [r['input'] for r in records]
++        values = np.array([r['value'] for r in records])
++        sigma = np.array([r['sigma'] for r in records])
++        coefficient = coefficients(inputs)
++        inverse_friction = np.sum(coefficient*values/sigma**2)/np.sum(coefficient**2/sigma**2)
++        self.friction = float(1/inverse_friction)
++        return self
+ 
+     def predict(self, experiments):
+         return coefficients(experiments, self.friction)

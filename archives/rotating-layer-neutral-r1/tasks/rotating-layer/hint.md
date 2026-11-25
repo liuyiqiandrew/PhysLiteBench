@@ -1,0 +1,1 @@
+The specified drag acts on horizontal velocity. Take the curl of that force when evolving the vorticity anomaly. Linear potential vorticity also contains the layer-depth perturbation; direct exponential relaxation of that entire combination is a different dissipative law.

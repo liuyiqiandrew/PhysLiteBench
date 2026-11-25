@@ -1,0 +1,238 @@
+"""Transport model for the electrolyte cell described in ``README.md``.
+
+The state evolved by :class:`TransportModel` is the pair of *total*
+constituent concentrations.  Free concentrations and the neutral-cluster
+concentration are eliminated locally through the (fast) association
+equilibrium.
+"""
+
+import numpy as np
+from scipy.fft import dct, idct
+from scipy.integrate import solve_ivp
+from scipy.linalg import expm
+from scipy.optimize import minimize_scalar
+from scipy.sparse import diags
+
+
+ASSOCIATION = 0.5
+NEUTRAL_MOBILITY = 0.15
+CELL_LENGTH = 1.0e-3
+
+
+def equilibrium(total):
+    """Return ``(free_A, free_B, free_C, cluster)`` at local equilibrium.
+
+    ``total`` may have any leading shape but its final dimension must contain
+    the A and B total constituent concentrations.  The scalar equation for
+    the cluster concentration is monotone on ``[0, min(A, B)]``; safeguarded
+    Newton iterations therefore give the physical root even where one total
+    is zero.
+    """
+    total = np.asarray(total, dtype=float)
+    if total.shape[-1] != 2:
+        raise ValueError("total concentrations must have final dimension 2")
+    if not np.isfinite(total).all() or np.any(total < 0):
+        raise ValueError("total concentrations must be finite and nonnegative")
+
+    a_total = total[..., 0]
+    b_total = total[..., 1]
+    upper = np.minimum(a_total, b_total)
+    p = np.zeros_like(a_total)
+    lo = np.zeros_like(a_total)
+    hi = upper.copy()
+    for _ in range(40):
+        a = a_total - p
+        b = b_total - p
+        c = a + b
+        residual = p - ASSOCIATION * a * b * c**2
+        derivative = 1.0 + ASSOCIATION * (c**3 + 4.0 * a * b * c)
+        lo = np.where(residual < 0.0, p, lo)
+        hi = np.where(residual >= 0.0, p, hi)
+        candidate = p - residual / derivative
+        candidate = np.where((candidate > lo) & (candidate < hi), candidate,
+                             0.5 * (lo + hi))
+        if np.max(np.abs(candidate - p), initial=0.0) < 2e-14:
+            p = candidate
+            break
+        p = candidate
+
+    p = np.clip(p, 0.0, upper)
+    a = a_total - p
+    b = b_total - p
+    return np.stack((a, b, a + b, p), axis=-1)
+
+
+def _check_mesh(x):
+    x = np.asarray(x, dtype=float)
+    if x.ndim != 1 or len(x) < 2 or not np.isfinite(x).all():
+        raise ValueError("x must be a finite one-dimensional mesh")
+    dx = x[1] - x[0]
+    if dx <= 0 or not np.allclose(np.diff(x), dx, rtol=2e-11, atol=1e-15):
+        raise ValueError("x must be equally spaced and increasing")
+    return x, dx
+
+
+def _check_times(t):
+    t = np.asarray(t, dtype=float)
+    if t.ndim != 1 or len(t) == 0 or not np.isfinite(t).all():
+        raise ValueError("t must be a nonempty finite one-dimensional array")
+    if t[0] < 0 or np.any(np.diff(t) < 0):
+        raise ValueError("t must be nonnegative and increasing")
+    return t
+
+
+class TransportModel:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, data):
+        """Fit the common ion diffusion coefficient from calibration records."""
+        try:
+            x = np.asarray(data["x"], dtype=float)
+            times = _check_times(data["t"])
+            initial = np.asarray(data["initial"], dtype=float)
+            observed = np.asarray(data["concentration"], dtype=float)
+            sigma = np.asarray(data["sigma"], dtype=float)
+        except KeyError as exc:
+            raise ValueError("calibration data is missing " + str(exc)) from exc
+        x, _ = _check_mesh(x)
+        expected = (len(initial), len(times), len(x), 2)
+        if initial.ndim != 3 or initial.shape[1:] != (len(x), 2) or observed.shape != expected or sigma.shape != expected:
+            raise ValueError("calibration arrays have incompatible shapes")
+        if (not np.isfinite(initial).all() or not np.isfinite(observed).all()
+                or not np.isfinite(sigma).all() or np.any(sigma <= 0)):
+            raise ValueError("calibration data must be finite and sigma positive")
+
+        # Calibration preparations have either A or B absent, so association
+        # vanishes and the exact discrete Neumann diffusion propagator is
+        # available.  It also makes fitting inexpensive and reproducible.
+        if not all(np.all(record[:, 0] == 0.0) or np.all(record[:, 1] == 0.0)
+                   for record in initial):
+            raise ValueError("calibration preparations must contain one cation constituent")
+
+        previous = self.diffusivity
+
+        def objective(log_diffusivity):
+            self.diffusivity = float(np.exp(log_diffusivity))
+            predicted = np.stack([self._binary(times, x, record) for record in initial])
+            residual = (predicted - observed) / sigma
+            return float(np.sum(residual * residual))
+
+        result = minimize_scalar(
+            objective, bounds=(np.log(1e-14), np.log(1e-5)), method="bounded",
+            options={"xatol": 2e-12},
+        )
+        if not result.success or not np.isfinite(result.fun):
+            self.diffusivity = previous
+            raise RuntimeError("unable to fit diffusivity")
+        self.diffusivity = float(np.exp(result.x))
+        return self
+
+    def _require_diffusivity(self):
+        if self.diffusivity is None or not np.isfinite(self.diffusivity) or self.diffusivity <= 0:
+            raise RuntimeError("fit must be called before prediction")
+
+    def _binary(self, t, x, initial):
+        """Exact semi-discrete no-flux propagation for a single salt."""
+        count = len(x) - 1
+        dx = x[1] - x[0]
+        eigenvalue = 4.0 / dx**2 * np.sin(np.arange(count + 1) * np.pi / (2.0 * count))**2
+        coefficients = dct(initial, type=1, axis=0)
+        # Zero current gives ambipolar diffusivities 4D/3 for A--C and
+        # 8D/3 for B--C, respectively.
+        rates = eigenvalue[:, None] * self.diffusivity * np.array((4.0 / 3.0, 8.0 / 3.0))
+        factors = np.exp(-t[:, None, None] * rates[None, :, :])
+        return idct(factors * coefficients[None, :, :], type=1, axis=1)
+
+    def predict(self, t, x, initial):
+        """Predict total A and B constituent concentrations on the given mesh."""
+        self._require_diffusivity()
+        t = _check_times(t)
+        x, dx = _check_mesh(x)
+        initial = np.asarray(initial, dtype=float)
+        if initial.shape != (len(x), 2):
+            raise ValueError("initial must have shape (len(x), 2)")
+        if not np.isfinite(initial).all() or np.any(initial < 0):
+            raise ValueError("initial concentrations must be finite and nonnegative")
+
+        if np.all(initial[:, 0] == 0.0) or np.all(initial[:, 1] == 0.0):
+            return self._binary(t, x, initial)
+        if t[-1] == 0.0:
+            return initial[None, :, :].copy()
+
+        points = len(x)
+        widths = np.full(points, dx)
+        widths[[0, -1]] *= 0.5
+        d_a, d_b, d_c = self.diffusivity * np.array((1.0, 4.0, 2.0))
+
+        def derivative(_time, flat_total):
+            species = equilibrium(flat_total.reshape(points, 2))
+            face_concentration = 0.5 * (species[:-1] + species[1:])
+            gradient = np.diff(species, axis=0) / dx
+            electric_gradient = -(
+                d_a * gradient[:, 0] + d_b * gradient[:, 1] - d_c * gradient[:, 2]
+            ) / (d_a * face_concentration[:, 0]
+                 + d_b * face_concentration[:, 1]
+                 + d_c * face_concentration[:, 2])
+            free_flux = -np.array((d_a, d_b)) * (
+                gradient[:, :2] + face_concentration[:, :2] * electric_gradient[:, None]
+            )
+            cluster_flux = -self.diffusivity * NEUTRAL_MOBILITY * gradient[:, 3]
+            constituent_flux = np.zeros((points + 1, 2))
+            constituent_flux[1:-1] = free_flux + cluster_flux[:, None]
+            return (-np.diff(constituent_flux, axis=0) / widths[:, None]).ravel()
+
+        sparsity = diags(
+            [np.ones(2 * points - abs(offset)) for offset in range(-3, 4)],
+            range(-3, 4), shape=(2 * points, 2 * points), format="csr",
+        )
+        solution = solve_ivp(
+            derivative, (0.0, float(t[-1])), initial.ravel(), method="BDF", t_eval=t,
+            rtol=2e-8, atol=2e-10, jac_sparsity=sparsity,
+        )
+        if not solution.success:
+            raise RuntimeError(solution.message)
+        result = solution.y.T.reshape(len(t), points, 2)
+        if t[0] == 0.0:
+            result[0] = initial
+        return result
+
+    def correlate(self, t, totals, harmonic=1):
+        """Return the equilibrium two-time covariance for one cosine mode."""
+        self._require_diffusivity()
+        t = _check_times(t)
+        totals = np.asarray(totals, dtype=float)
+        if totals.shape != (2,) or not np.isfinite(totals).all() or np.any(totals <= 0):
+            raise ValueError("totals must be two positive concentrations")
+        if isinstance(harmonic, (bool, np.bool_)) or int(harmonic) != harmonic or not 1 <= int(harmonic) <= 8:
+            raise ValueError("harmonic must be an integer from 1 through 8")
+        harmonic = int(harmonic)
+
+        susceptibility, mobility = fluctuation_matrices(totals, self.diffusivity)
+        relaxation = (harmonic * np.pi / CELL_LENGTH) ** 2 * mobility @ np.linalg.inv(susceptibility)
+        # The detector convention expressly supplies independent ideal total
+        # constituent fluctuations at equal time.
+        initial_covariance = np.diag(totals)
+        return np.stack([expm(-lag * relaxation) @ initial_covariance for lag in t])
+
+
+def fluctuation_matrices(totals, diffusivity):
+    """Susceptibility and constrained Onsager mobility of total A/B fields."""
+    species = equilibrium(np.asarray(totals, dtype=float)[None, :])[0]
+    # Rows list the A,B constituent contents of species A, B, C, P.  C has
+    # no cation constituent; its potential is set by electroneutrality.
+    constituent = np.array(((1.0, 0.0), (0.0, 1.0), (0.0, 0.0), (1.0, 1.0)))
+    charge = np.array((1.0, 1.0, -1.0, 0.0))
+    population = np.diag(species)
+
+    charge_susceptibility = float(charge @ population @ charge)
+    conditional = population - np.outer(population @ charge, population @ charge) / charge_susceptibility
+    susceptibility = constituent.T @ conditional @ constituent
+
+    particle_mobility = np.diag(diffusivity * np.array((1.0, 4.0, 2.0, NEUTRAL_MOBILITY)) * species)
+    charge_mobility = float(charge @ particle_mobility @ charge)
+    constrained_mobility = particle_mobility - np.outer(
+        particle_mobility @ charge, particle_mobility @ charge
+    ) / charge_mobility
+    mobility = constituent.T @ constrained_mobility @ constituent
+    return susceptibility, mobility

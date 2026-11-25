@@ -1,0 +1,62 @@
+import numpy as np
+
+
+def response(e):
+    """Return the rate function per unit mobility for one preparation.
+
+    With ``r = drive_ratio`` the stationary mean heat rate is
+    ``q_bar = 2 * mobility * stiffness * r**2``.  The contraction of the
+    heat SCGF therefore gives
+
+        I(z) / mobility = stiffness * [sqrt((1+r**2)(1+r**2 z**2))
+                                           - 1 - r**2 z].
+
+    The rationalized form below is algebraically identical, but retains
+    precision when z is close to one, where the rate vanishes quadratically.
+    """
+    stiffness = float(e['stiffness'])
+    r = float(e['drive_ratio'])
+    z = float(e['relative_heat'])
+    r_squared = r * r
+    root = np.sqrt((1.0 + r_squared) * (1.0 + r_squared * z * z))
+    dimensionless_rate = (
+        r_squared * (z - 1.0) ** 2 / (root + 1.0 + r_squared * z)
+    )
+    return stiffness * dimensionless_rate
+
+
+def predict_at(experiments, mobility):
+    return mobility*np.asarray([response(e) for e in experiments])
+
+
+class Model:
+    def __init__(self):
+        self.mobility = None
+
+    def fit(self, records):
+        """Fit the common mobility using the Gaussian calibration likelihood."""
+        records = list(records)
+        if not records:
+            raise ValueError('At least one calibration record is required.')
+
+        design = np.asarray([response(record['input']) for record in records])
+        values = np.asarray([float(record['value']) for record in records])
+        sigmas = np.asarray([float(record['sigma']) for record in records])
+        if (not np.isfinite(design).all() or not np.isfinite(values).all()
+                or not np.isfinite(sigmas).all() or np.any(sigmas <= 0.0)):
+            raise ValueError('Calibration records must contain finite values and positive sigmas.')
+
+        # I_i = mobility * design_i and independent readings have variance
+        # sigma_i**2, so this is the constrained weighted least-squares MLE.
+        weights = 1.0 / np.square(sigmas)
+        denominator = np.sum(weights * np.square(design))
+        if not np.isfinite(denominator) or denominator <= 0.0:
+            raise ValueError('Calibration records do not identify mobility.')
+        estimate = np.sum(weights * design * values) / denominator
+        self.mobility = float(np.clip(estimate, 0.8, 1.3))
+        return self
+
+    def predict(self, experiments):
+        if self.mobility is None:
+            raise RuntimeError('Call fit(records) before predict(experiments).')
+        return predict_at(experiments, self.mobility)

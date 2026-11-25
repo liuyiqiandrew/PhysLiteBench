@@ -1,0 +1,47 @@
+--- before/model.py
++++ after/model.py
+@@ -40,7 +40,43 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Implement calibration fitting.')
++        """Fit the (uniform) solvent viscosity from calibration records.
++
++        ``response`` is the response for unit viscosity, so the model for a
++        calibration value is ``response / viscosity``.  This is linear in
++        the reciprocal viscosity.  Using the supplied uncertainties gives
++        the maximum-likelihood estimate for the independent Gaussian
++        measurements without requiring a nonlinear optimizer.
++        """
++        unit_responses = []
++        values = []
++        weights = []
++
++        for record in records:
++            experiment = record['input']
++            unit_responses.append(response(experiment['radius'],
++                                           experiment['width'],
++                                           experiment['strength'],
++                                           experiment['slip']))
++            values.append(record['value'])
++            weights.append(1.0 / record['sigma']**2)
++
++        unit_responses = np.asarray(unit_responses, dtype=float)
++        values = np.asarray(values, dtype=float)
++        weights = np.asarray(weights, dtype=float)
++        information = np.sum(weights * unit_responses**2)
++        if not np.isfinite(information) or information <= 0.0:
++            raise ValueError('calibration records contain no informative response')
++
++        reciprocal_viscosity = np.sum(weights * unit_responses * values) / information
++        if not np.isfinite(reciprocal_viscosity) or reciprocal_viscosity <= 0.0:
++            raise ValueError('calibration implies a non-positive viscosity')
++
++        # The apparatus description supplies the admissible viscosity range.
++        reciprocal_viscosity = np.clip(reciprocal_viscosity, 1.0 / 1.6,
++                                       1.0 / 0.8)
++        self.viscosity = 1.0 / reciprocal_viscosity
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.viscosity)

@@ -1,0 +1,86 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+________________________ test_interface_and_calibration ________________________
+
+    def test_interface_and_calibration():
+        records=json.loads((Path(__file__).parent/'data/calibration.json').read_text())
+        model=Model();assert model.fit(records) is model
+        predicted=model.predict([r['input'] for r in records]);assert isinstance(predicted,np.ndarray) and predicted.shape==(len(records),) and np.isfinite(predicted).all()
+        residual=(predicted-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
+>       assert np.mean(residual**2)<1.5
+E       assert np.float64(246603.43198831577) < 1.5
+E        +  where np.float64(246603.43198831577) = <function mean at 0xffff87093430>((array([ 128.37580739,  148.31959002,  196.58751461,  227.25794274,\n        266.4533533 ,  314.9787483 ,  421.99722103,...42309,  525.9715787 ,  718.08982736,  762.43884658,\n       -583.66761821, -570.15139939, -752.50443341, -874.14256975]) ** 2))
+E        +    where <function mean at 0xffff87093430> = np.mean
+
+test_public.py:11: AssertionError
+___________________________ test_private_calibration ___________________________
+
+evaluated = {'calibration_chi2': 247570.50427062286, 'hidden': {'central_anchors': 0.48778095868575994, 'forward_tails': 0.8025132...508061742, 'reverse_weak_drive': 0.3583286581883865}, 'parameter': 0.8, 'parameter_relative_error': 0.2592592592592593}
+
+    def test_private_calibration(evaluated):
+>       assert evaluated['calibration_chi2'] < 1.5
+E       assert 247570.50427062286 < 1.5
+
+/tests/test_hidden.py:43: AssertionError
+___________________________ test_parameter_recovery ____________________________
+
+evaluated = {'calibration_chi2': 247570.50427062286, 'hidden': {'central_anchors': 0.48778095868575994, 'forward_tails': 0.8025132...508061742, 'reverse_weak_drive': 0.3583286581883865}, 'parameter': 0.8, 'parameter_relative_error': 0.2592592592592593}
+
+    def test_parameter_recovery(evaluated):
+>       assert evaluated['parameter_relative_error'] < .03
+E       assert 0.2592592592592593 < 0.03
+
+/tests/test_hidden.py:47: AssertionError
+_______________________ test_prediction[central_anchors] _______________________
+
+evaluated = {'calibration_chi2': 247570.50427062286, 'hidden': {'central_anchors': 0.48778095868575994, 'forward_tails': 0.8025132...508061742, 'reverse_weak_drive': 0.3583286581883865}, 'parameter': 0.8, 'parameter_relative_error': 0.2592592592592593}
+case = 'central_anchors'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.48778095868575994 < 0.04
+
+/tests/test_hidden.py:52: AssertionError
+_____________________ test_prediction[reverse_weak_drive] ______________________
+
+evaluated = {'calibration_chi2': 247570.50427062286, 'hidden': {'central_anchors': 0.48778095868575994, 'forward_tails': 0.8025132...508061742, 'reverse_weak_drive': 0.3583286581883865}, 'parameter': 0.8, 'parameter_relative_error': 0.2592592592592593}
+case = 'reverse_weak_drive'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.3583286581883865 < 0.04
+
+/tests/test_hidden.py:52: AssertionError
+____________________ test_prediction[reverse_strong_drive] _____________________
+
+evaluated = {'calibration_chi2': 247570.50427062286, 'hidden': {'central_anchors': 0.48778095868575994, 'forward_tails': 0.8025132...508061742, 'reverse_weak_drive': 0.3583286581883865}, 'parameter': 0.8, 'parameter_relative_error': 0.2592592592592593}
+case = 'reverse_strong_drive'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.18902992508061742 < 0.04
+
+/tests/test_hidden.py:52: AssertionError
+________________________ test_prediction[forward_tails] ________________________
+
+evaluated = {'calibration_chi2': 247570.50427062286, 'hidden': {'central_anchors': 0.48778095868575994, 'forward_tails': 0.8025132...508061742, 'reverse_weak_drive': 0.3583286581883865}, 'parameter': 0.8, 'parameter_relative_error': 0.2592592592592593}
+case = 'forward_tails'
+
+    @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
+    def test_prediction(evaluated, case):
+>       assert evaluated['hidden'][case] < METADATA['prediction_limit']
+E       assert 0.8025132773212207 < 0.04
+
+/tests/test_hidden.py:52: AssertionError
+=========================== short test summary info ============================
+FAILED test_public.py::test_interface_and_calibration - assert np.float64(246...
+FAILED ../tests/test_hidden.py::test_private_calibration - assert 247570.5042...
+FAILED ../tests/test_hidden.py::test_parameter_recovery - assert 0.2592592592...
+FAILED ../tests/test_hidden.py::test_prediction[central_anchors] - assert 0.4...
+FAILED ../tests/test_hidden.py::test_prediction[reverse_weak_drive] - assert ...
+FAILED ../tests/test_hidden.py::test_prediction[reverse_strong_drive] - asser...
+FAILED ../tests/test_hidden.py::test_prediction[forward_tails] - assert 0.802...
+7 failed in 0.82s

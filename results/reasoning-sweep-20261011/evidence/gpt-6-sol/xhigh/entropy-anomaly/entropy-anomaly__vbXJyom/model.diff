@@ -1,0 +1,56 @@
+--- starter/model.py
++++ submission/model.py
+@@ -71,8 +71,16 @@
+     fourth=solve_moments(4,second,temperatures,gx,gy,magnetic,q)
+     first=solve_moments(1,{},temperatures,gx,gy,magnetic,q,d,force,zeroth,second)
+     third=solve_moments(3,first,temperatures,gx,gy,magnetic,q,d,force,second,fourth)
+-    # Use the leading equal conditional contact populations.
+-    density_correction={(0,0):np.zeros((count,points))}
++    # At order m, the contact populations need not be equal at each position.
++    # Their sum is an arbitrary correction to the spatial density.  The
++    # leading heat rate is a constant times that density, so this common
++    # correction cancels against the measured residence in the background
++    # subtraction.  Set its sum to zero and retain the contact imbalance.
++    contact_source=d@first[1,0].T
++    contact_source=contact_source.T
++    contact_source-=contact_source.mean(axis=0,keepdims=True)
++    population=np.linalg.solve(q+np.ones((count,count))/count,contact_source)
++    density_correction={(0,0):population}
+     second_correction=solve_moments(2,density_correction,temperatures,gx,gy,magnetic,q,d,force,first,third)
+     local=np.sum(gx[:,None]*(second_correction[2,0]/temperatures-density_correction[0,0])+gy[:,None]*(second_correction[0,2]/temperatures-density_correction[0,0]),axis=0)
+     return dict(value=float(dx*local.sum()),local=local,phase=phase,density=density,diffusion=diffusion,velocity=velocity,dx=dx,first=first,second=second,density_correction=density_correction,second_correction=second_correction,temperatures=temperatures)
+@@ -93,5 +101,32 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        records=list(records)
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        experiments=[record['input'] for record in records]
++        observed=np.asarray([record['value'] for record in records],dtype=float)
++        sigma=np.asarray([record['sigma'] for record in records],dtype=float)
++        if not np.all(np.isfinite(observed)) or not np.all(np.isfinite(sigma)) or np.any(sigma<=0):
++            raise ValueError('calibration values and uncertainties must be finite, with positive uncertainties')
++        if all(e['bath_contrast']==0 and e['magnetic']==0 and 'valve_cycle' not in e for e in experiments):
++            # In the calibration preparation, switching is invisible and the
++            # excess rate is exactly proportional to inverse friction.
++            unit=coefficients(experiments,1.)
++            weight=1/sigma**2
++            inverse_friction=np.sum(weight*unit*observed)/np.sum(weight*unit**2)
++            if inverse_friction<=0:
++                raise ValueError('calibration does not identify a positive friction')
++            self.friction=float(np.clip(1/inverse_friction,.7,1.6))
++        else:
++            from scipy.optimize import minimize_scalar
++            def loss(friction):
++                residual=(coefficients(experiments,friction)-observed)/sigma
++                return float(residual@residual)
++            result=minimize_scalar(loss,bounds=(.7,1.6),method='bounded',options={'xatol':1e-8})
++            self.friction=float(result.x)
++        return self
++    def predict(self,experiments):
++        if self.friction is None:
++            raise ValueError('fit calibration records before prediction')
++        return coefficients(experiments,self.friction)

@@ -1,0 +1,82 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,6 +1,7 @@
+ from functools import lru_cache
+ import numpy as np
+ from scipy.linalg import eigh
++from scipy.optimize import minimize_scalar
+ 
+ WIDTH, HEIGHT = .012, .008
+ DENSITY, CONDUCTIVITY = 1000., 1e5
+@@ -35,20 +36,35 @@
+         k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+         qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+ 
+-    return m, n, wave2, mean, qx, qy
++    # A field with both components has an extra, signed coupling.  qx and qy
++    # above are the (positive) magnetic damping operators for fields in x and
++    # y respectively.  The mixed term is obtained by eliminating the electric
++    # potential in the Neumann Poisson problem.  It only couples the odd-odd
++    # and even-even sine modes, hence it was not needed by the original
++    # single-component implementation.
++    dm = derivative_overlap(m, m).T / WIDTH
++    dn = derivative_overlap(n, n) / HEIGHT
++    denominator = ((m[None, :]*np.pi/WIDTH)**2 +
++                   (n[:, None]*np.pi/HEIGHT)**2)
++    mixed_one_way = dm * dn / denominator
++    mixed = mixed_one_way + mixed_one_way.T
++
++    return m, n, wave2, mean, qx, qy, mixed
+ 
+ 
+ @lru_cache(64)
+ def spectrum(viscosity, bx, by, nx=X_MODES, ny=Y_MODES):
+-    m, n, wave2, mean, qx, qy = operators(nx, ny)
+-    magnetic = bx*bx*qx+by*by*qy
++    m, n, wave2, mean, qx, qy, mixed = operators(nx, ny)
++    magnetic = bx*bx*qx + by*by*qy + bx*by*mixed
+     operator = np.diag(viscosity/DENSITY*wave2)+CONDUCTIVITY/DENSITY*magnetic
+     if bx == 0.:
+         groups = [np.flatnonzero((m == fixed) & (n % 2 == 1)) for fixed in np.unique(m[m % 2 == 1])]
+     elif by == 0.:
+         groups = [np.flatnonzero((n == fixed) & (m % 2 == 1)) for fixed in np.unique(n[n % 2 == 1])]
+     else:
+-        groups = [np.flatnonzero(m % 2 == 1)]
++        # The mixed term transfers response from the forced odd-odd modes to
++        # even-even modes.  Both are represented by m+n even.
++        groups = [np.arange(len(m))]
+     result = []
+     for ids in groups:
+         values, vectors = eigh(operator[np.ix_(ids, ids)], check_finite=False)
+@@ -61,9 +77,30 @@
+         self.viscosity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments = [record['input'] for record in records]
++        measured = np.asarray([record['value'] for record in records], dtype=float)
++        uncertainty = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(measured).all() or not np.isfinite(uncertainty).all()
++                or np.any(uncertainty <= 0)):
++            raise ValueError("calibration values and sigmas must be finite, with positive sigma")
++
++        def objective(viscosity):
++            self.viscosity = float(viscosity)
++            residual = (self.predict(experiments) - measured) / uncertainty
++            return float(residual @ residual)
++
++        result = minimize_scalar(objective, bounds=(0.006, 0.018),
++                                 method='bounded', options={'xatol': 1e-9})
++        self.viscosity = float(result.x)
++        return self
+ 
+     def predict(self, experiments):
++        if self.viscosity is None:
++            raise RuntimeError("fit must be called before predict")
+         m, n, _, mean, *_ = operators()
+         output = []
+         for e in experiments:

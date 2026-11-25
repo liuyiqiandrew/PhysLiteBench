@@ -1,0 +1,3 @@
+# Dielectric flow revision 2
+
+Neutral-instruction revision of the scientifically validated, never-evaluated backup. Exact physics, source, calibration and hidden verifier are retained. The source solves steady current and dielectric-gradient force but omits the free-charge mechanical force. Proportional material profiles make calibration blind to that contribution. Final independent review and fresh Docker controls are required before the three frozen Luna trials. Inherited scientific and local evidence is identified explicitly in results/revision-history.json; no new numerical or model run has yet been made.

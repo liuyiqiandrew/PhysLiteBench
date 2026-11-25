@@ -1,0 +1,87 @@
+import numpy as np
+
+
+def covariance(diffusivity, density, time_a, time_b):
+    """Return the limiting tagged-particle covariance coefficient.
+
+    The dependence on the unknown diffusivity is proportional to its square
+    root.  Keeping that dependence explicit is useful when fitting the one
+    common parameter from the calibration records.
+    """
+    return (
+        np.sqrt(diffusivity / (2 * np.pi)) / density
+        * (np.sqrt(time_a) + np.sqrt(time_b) - np.sqrt(abs(time_a - time_b)))
+    )
+
+
+def predict_at(experiments, diffusivity):
+    predictions = [
+        covariance(
+            float(diffusivity),
+            float(e["density"]),
+            float(e["time_a"]),
+            float(e["time_b"]),
+        )
+        for e in experiments
+    ]
+    return np.asarray(predictions, dtype=float)
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = None
+
+    def fit(self, records):
+        """Estimate the common diffusivity by weighted least squares.
+
+        Writing ``q = sqrt(D)`` makes the model linear:
+
+            value_i = covariance(1, controls_i) * q + error_i.
+
+        Therefore the Gaussian maximum-likelihood estimate of ``q`` has a
+        closed form.  The physical parameter is then constrained to the
+        documented diffusivity interval.
+        """
+        records = list(records)
+        if not records:
+            raise ValueError("At least one calibration record is required.")
+
+        design = np.asarray(
+            [
+                covariance(
+                    1.0,
+                    float(record["input"]["density"]),
+                    float(record["input"]["time_a"]),
+                    float(record["input"]["time_b"]),
+                )
+                for record in records
+            ],
+            dtype=float,
+        )
+        values = np.asarray([float(record["value"]) for record in records], dtype=float)
+        sigma = np.asarray([float(record["sigma"]) for record in records], dtype=float)
+
+        if not (
+            np.all(np.isfinite(design))
+            and np.all(np.isfinite(values))
+            and np.all(np.isfinite(sigma))
+            and np.all(sigma > 0)
+            and np.any(design != 0)
+        ):
+            raise ValueError("Calibration records must contain finite values and positive sigma.")
+
+        weights = 1.0 / np.square(sigma)
+        q = np.sum(weights * design * values) / np.sum(weights * np.square(design))
+
+        # Constrain sqrt(D), rather than clipping D after squaring.  This also
+        # handles an unusually noisy calibration whose unconstrained estimate
+        # would be negative.
+        q = float(np.clip(q, np.sqrt(0.8), np.sqrt(1.2)))
+        diffusivity = q * q
+        self.diffusivity = diffusivity
+        return self
+
+    def predict(self, experiments):
+        if self.diffusivity is None:
+            raise RuntimeError("Model.fit must be called before Model.predict.")
+        return predict_at(experiments, self.diffusivity)

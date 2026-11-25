@@ -1,0 +1,475 @@
+EEEEEEE                                                                  [100%]
+==================================== ERRORS ====================================
+_______________________ ERROR at setup of test_interface _______________________
+
+records = [{'input': {'magnetic_x': 0.0, 'magnetic_y': 0.3, 'observable': 'mean', 'pressure_gradient': 0.06, ...}, 'sigma': 2.56...rvable': 'mean', 'pressure_gradient': 0.06, ...}, 'sigma': 2.56841646939444e-07, 'value': 1.2441983639921708e-05}, ...]
+
+    @pytest.fixture(scope='module')
+    def fitted(records):
+        model = Model()
+>       assert model.fit(records) is model
+               ^^^^^^^^^^^^^^^^^^
+
+test_public.py:16: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:96: in fit
+    result = minimize_scalar(objective, bounds=(lower, upper), method='bounded',
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_minimize.py:1027: in minimize_scalar
+    res = _minimize_scalar_bounded(fun, bounds, args, **options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_optimize.py:2336: in _minimize_scalar_bounded
+    fx = func(x, *args)
+         ^^^^^^^^^^^^^^
+model.py:92: in objective
+    residual = (self.predict(experiments)-values)/sigmas
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:106: in predict
+    m, n, _, mean, *_ = operators()
+                        ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nx = 40, ny = 56
+
+    @lru_cache(4)
+    def operators(nx=X_MODES, ny=Y_MODES):
+        m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+        keep = (m+n) % 2 == 0
+        m, n = m[keep], n[keep]
+        wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+        mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+        qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+        electric = np.arange(1, 401)
+        for fixed in np.unique(n):
+            ids = np.flatnonzero(n == fixed)
+            d = derivative_overlap(electric, m[ids])/WIDTH
+            k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+            qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+        for fixed in np.unique(m):
+            ids = np.flatnonzero(m == fixed)
+            d = derivative_overlap(electric, n[ids])/HEIGHT
+            k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+            qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+    
+        # The mixed term is the overlap of the x and y derivatives in the
+        # streamfunction representation of the divergence-free electric current.
+        # An x derivative couples a velocity mode (m, n) to streamfunction modes
+        # (p, n); a y derivative couples (m', n') to (m', q). Their overlap is
+        # therefore nonzero only for p=m' and q=n.
+        cross = np.zeros((len(m), len(m)))
+        # cross[i, j] = <d_x phi_i, (-laplacian_D)^-1 d_y phi_j>.
+        for i, (mi, ni) in enumerate(zip(m, n)):
+            # The streamfunction mode is (m_j, n_i).
+            stream_k2 = (m*np.pi/WIDTH)**2 + (ni*np.pi/HEIGHT)**2
+            x_overlap = derivative_overlap(m, np.full(len(m), mi, dtype=int))/WIDTH
+            y_overlap = derivative_overlap(np.full(len(n), ni, dtype=int), n)/HEIGHT
+>           cross[i, :] = x_overlap*y_overlap/stream_k2
+            ^^^^^^^^^^^
+E           ValueError: could not broadcast input array from shape (1120,1120) into shape (1120,)
+
+model.py:51: ValueError
+______________________ ERROR at setup of test_calibration ______________________
+
+records = [{'input': {'magnetic_x': 0.0, 'magnetic_y': 0.3, 'observable': 'mean', 'pressure_gradient': 0.06, ...}, 'sigma': 2.56...rvable': 'mean', 'pressure_gradient': 0.06, ...}, 'sigma': 2.56841646939444e-07, 'value': 1.2441983639921708e-05}, ...]
+
+    @pytest.fixture(scope='module')
+    def fitted(records):
+        model = Model()
+>       assert model.fit(records) is model
+               ^^^^^^^^^^^^^^^^^^
+
+test_public.py:16: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:96: in fit
+    result = minimize_scalar(objective, bounds=(lower, upper), method='bounded',
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_minimize.py:1027: in minimize_scalar
+    res = _minimize_scalar_bounded(fun, bounds, args, **options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_optimize.py:2336: in _minimize_scalar_bounded
+    fx = func(x, *args)
+         ^^^^^^^^^^^^^^
+model.py:92: in objective
+    residual = (self.predict(experiments)-values)/sigmas
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:106: in predict
+    m, n, _, mean, *_ = operators()
+                        ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nx = 40, ny = 56
+
+    @lru_cache(4)
+    def operators(nx=X_MODES, ny=Y_MODES):
+        m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+        keep = (m+n) % 2 == 0
+        m, n = m[keep], n[keep]
+        wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+        mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+        qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+        electric = np.arange(1, 401)
+        for fixed in np.unique(n):
+            ids = np.flatnonzero(n == fixed)
+            d = derivative_overlap(electric, m[ids])/WIDTH
+            k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+            qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+        for fixed in np.unique(m):
+            ids = np.flatnonzero(m == fixed)
+            d = derivative_overlap(electric, n[ids])/HEIGHT
+            k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+            qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+    
+        # The mixed term is the overlap of the x and y derivatives in the
+        # streamfunction representation of the divergence-free electric current.
+        # An x derivative couples a velocity mode (m, n) to streamfunction modes
+        # (p, n); a y derivative couples (m', n') to (m', q). Their overlap is
+        # therefore nonzero only for p=m' and q=n.
+        cross = np.zeros((len(m), len(m)))
+        # cross[i, j] = <d_x phi_i, (-laplacian_D)^-1 d_y phi_j>.
+        for i, (mi, ni) in enumerate(zip(m, n)):
+            # The streamfunction mode is (m_j, n_i).
+            stream_k2 = (m*np.pi/WIDTH)**2 + (ni*np.pi/HEIGHT)**2
+            x_overlap = derivative_overlap(m, np.full(len(m), mi, dtype=int))/WIDTH
+            y_overlap = derivative_overlap(np.full(len(n), ni, dtype=int), n)/HEIGHT
+>           cross[i, :] = x_overlap*y_overlap/stream_k2
+            ^^^^^^^^^^^
+E           ValueError: could not broadcast input array from shape (1120,1120) into shape (1120,)
+
+model.py:51: ValueError
+__________________ ERROR at setup of test_private_calibration __________________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+>       assert model.fit(records) is model
+               ^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:96: in fit
+    result = minimize_scalar(objective, bounds=(lower, upper), method='bounded',
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_minimize.py:1027: in minimize_scalar
+    res = _minimize_scalar_bounded(fun, bounds, args, **options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_optimize.py:2336: in _minimize_scalar_bounded
+    fx = func(x, *args)
+         ^^^^^^^^^^^^^^
+model.py:92: in objective
+    residual = (self.predict(experiments)-values)/sigmas
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:106: in predict
+    m, n, _, mean, *_ = operators()
+                        ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nx = 40, ny = 56
+
+    @lru_cache(4)
+    def operators(nx=X_MODES, ny=Y_MODES):
+        m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+        keep = (m+n) % 2 == 0
+        m, n = m[keep], n[keep]
+        wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+        mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+        qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+        electric = np.arange(1, 401)
+        for fixed in np.unique(n):
+            ids = np.flatnonzero(n == fixed)
+            d = derivative_overlap(electric, m[ids])/WIDTH
+            k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+            qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+        for fixed in np.unique(m):
+            ids = np.flatnonzero(m == fixed)
+            d = derivative_overlap(electric, n[ids])/HEIGHT
+            k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+            qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+    
+        # The mixed term is the overlap of the x and y derivatives in the
+        # streamfunction representation of the divergence-free electric current.
+        # An x derivative couples a velocity mode (m, n) to streamfunction modes
+        # (p, n); a y derivative couples (m', n') to (m', q). Their overlap is
+        # therefore nonzero only for p=m' and q=n.
+        cross = np.zeros((len(m), len(m)))
+        # cross[i, j] = <d_x phi_i, (-laplacian_D)^-1 d_y phi_j>.
+        for i, (mi, ni) in enumerate(zip(m, n)):
+            # The streamfunction mode is (m_j, n_i).
+            stream_k2 = (m*np.pi/WIDTH)**2 + (ni*np.pi/HEIGHT)**2
+            x_overlap = derivative_overlap(m, np.full(len(m), mi, dtype=int))/WIDTH
+            y_overlap = derivative_overlap(np.full(len(n), ni, dtype=int), n)/HEIGHT
+>           cross[i, :] = x_overlap*y_overlap/stream_k2
+            ^^^^^^^^^^^
+E           ValueError: could not broadcast input array from shape (1120,1120) into shape (1120,)
+
+model.py:51: ValueError
+__________________ ERROR at setup of test_parameter_recovery ___________________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+>       assert model.fit(records) is model
+               ^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:96: in fit
+    result = minimize_scalar(objective, bounds=(lower, upper), method='bounded',
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_minimize.py:1027: in minimize_scalar
+    res = _minimize_scalar_bounded(fun, bounds, args, **options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_optimize.py:2336: in _minimize_scalar_bounded
+    fx = func(x, *args)
+         ^^^^^^^^^^^^^^
+model.py:92: in objective
+    residual = (self.predict(experiments)-values)/sigmas
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:106: in predict
+    m, n, _, mean, *_ = operators()
+                        ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nx = 40, ny = 56
+
+    @lru_cache(4)
+    def operators(nx=X_MODES, ny=Y_MODES):
+        m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+        keep = (m+n) % 2 == 0
+        m, n = m[keep], n[keep]
+        wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+        mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+        qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+        electric = np.arange(1, 401)
+        for fixed in np.unique(n):
+            ids = np.flatnonzero(n == fixed)
+            d = derivative_overlap(electric, m[ids])/WIDTH
+            k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+            qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+        for fixed in np.unique(m):
+            ids = np.flatnonzero(m == fixed)
+            d = derivative_overlap(electric, n[ids])/HEIGHT
+            k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+            qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+    
+        # The mixed term is the overlap of the x and y derivatives in the
+        # streamfunction representation of the divergence-free electric current.
+        # An x derivative couples a velocity mode (m, n) to streamfunction modes
+        # (p, n); a y derivative couples (m', n') to (m', q). Their overlap is
+        # therefore nonzero only for p=m' and q=n.
+        cross = np.zeros((len(m), len(m)))
+        # cross[i, j] = <d_x phi_i, (-laplacian_D)^-1 d_y phi_j>.
+        for i, (mi, ni) in enumerate(zip(m, n)):
+            # The streamfunction mode is (m_j, n_i).
+            stream_k2 = (m*np.pi/WIDTH)**2 + (ni*np.pi/HEIGHT)**2
+            x_overlap = derivative_overlap(m, np.full(len(m), mi, dtype=int))/WIDTH
+            y_overlap = derivative_overlap(np.full(len(n), ni, dtype=int), n)/HEIGHT
+>           cross[i, :] = x_overlap*y_overlap/stream_k2
+            ^^^^^^^^^^^
+E           ValueError: could not broadcast input array from shape (1120,1120) into shape (1120,)
+
+model.py:51: ValueError
+_____________ ERROR at setup of test_prediction[oblique_positive] ______________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+>       assert model.fit(records) is model
+               ^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:96: in fit
+    result = minimize_scalar(objective, bounds=(lower, upper), method='bounded',
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_minimize.py:1027: in minimize_scalar
+    res = _minimize_scalar_bounded(fun, bounds, args, **options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_optimize.py:2336: in _minimize_scalar_bounded
+    fx = func(x, *args)
+         ^^^^^^^^^^^^^^
+model.py:92: in objective
+    residual = (self.predict(experiments)-values)/sigmas
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:106: in predict
+    m, n, _, mean, *_ = operators()
+                        ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nx = 40, ny = 56
+
+    @lru_cache(4)
+    def operators(nx=X_MODES, ny=Y_MODES):
+        m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+        keep = (m+n) % 2 == 0
+        m, n = m[keep], n[keep]
+        wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+        mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+        qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+        electric = np.arange(1, 401)
+        for fixed in np.unique(n):
+            ids = np.flatnonzero(n == fixed)
+            d = derivative_overlap(electric, m[ids])/WIDTH
+            k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+            qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+        for fixed in np.unique(m):
+            ids = np.flatnonzero(m == fixed)
+            d = derivative_overlap(electric, n[ids])/HEIGHT
+            k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+            qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+    
+        # The mixed term is the overlap of the x and y derivatives in the
+        # streamfunction representation of the divergence-free electric current.
+        # An x derivative couples a velocity mode (m, n) to streamfunction modes
+        # (p, n); a y derivative couples (m', n') to (m', q). Their overlap is
+        # therefore nonzero only for p=m' and q=n.
+        cross = np.zeros((len(m), len(m)))
+        # cross[i, j] = <d_x phi_i, (-laplacian_D)^-1 d_y phi_j>.
+        for i, (mi, ni) in enumerate(zip(m, n)):
+            # The streamfunction mode is (m_j, n_i).
+            stream_k2 = (m*np.pi/WIDTH)**2 + (ni*np.pi/HEIGHT)**2
+            x_overlap = derivative_overlap(m, np.full(len(m), mi, dtype=int))/WIDTH
+            y_overlap = derivative_overlap(np.full(len(n), ni, dtype=int), n)/HEIGHT
+>           cross[i, :] = x_overlap*y_overlap/stream_k2
+            ^^^^^^^^^^^
+E           ValueError: could not broadcast input array from shape (1120,1120) into shape (1120,)
+
+model.py:51: ValueError
+_____________ ERROR at setup of test_prediction[oblique_negative] ______________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+>       assert model.fit(records) is model
+               ^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:96: in fit
+    result = minimize_scalar(objective, bounds=(lower, upper), method='bounded',
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_minimize.py:1027: in minimize_scalar
+    res = _minimize_scalar_bounded(fun, bounds, args, **options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_optimize.py:2336: in _minimize_scalar_bounded
+    fx = func(x, *args)
+         ^^^^^^^^^^^^^^
+model.py:92: in objective
+    residual = (self.predict(experiments)-values)/sigmas
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:106: in predict
+    m, n, _, mean, *_ = operators()
+                        ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nx = 40, ny = 56
+
+    @lru_cache(4)
+    def operators(nx=X_MODES, ny=Y_MODES):
+        m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+        keep = (m+n) % 2 == 0
+        m, n = m[keep], n[keep]
+        wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+        mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+        qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+        electric = np.arange(1, 401)
+        for fixed in np.unique(n):
+            ids = np.flatnonzero(n == fixed)
+            d = derivative_overlap(electric, m[ids])/WIDTH
+            k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+            qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+        for fixed in np.unique(m):
+            ids = np.flatnonzero(m == fixed)
+            d = derivative_overlap(electric, n[ids])/HEIGHT
+            k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+            qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+    
+        # The mixed term is the overlap of the x and y derivatives in the
+        # streamfunction representation of the divergence-free electric current.
+        # An x derivative couples a velocity mode (m, n) to streamfunction modes
+        # (p, n); a y derivative couples (m', n') to (m', q). Their overlap is
+        # therefore nonzero only for p=m' and q=n.
+        cross = np.zeros((len(m), len(m)))
+        # cross[i, j] = <d_x phi_i, (-laplacian_D)^-1 d_y phi_j>.
+        for i, (mi, ni) in enumerate(zip(m, n)):
+            # The streamfunction mode is (m_j, n_i).
+            stream_k2 = (m*np.pi/WIDTH)**2 + (ni*np.pi/HEIGHT)**2
+            x_overlap = derivative_overlap(m, np.full(len(m), mi, dtype=int))/WIDTH
+            y_overlap = derivative_overlap(np.full(len(n), ni, dtype=int), n)/HEIGHT
+>           cross[i, :] = x_overlap*y_overlap/stream_k2
+            ^^^^^^^^^^^
+E           ValueError: could not broadcast input array from shape (1120,1120) into shape (1120,)
+
+model.py:51: ValueError
+____________ ERROR at setup of test_prediction[unequal_components] _____________
+
+    @pytest.fixture(scope='module')
+    def evaluated():
+        records = json.loads((HERE/'data/calibration.json').read_text())
+        model = Model()
+>       assert model.fit(records) is model
+               ^^^^^^^^^^^^^^^^^^
+
+/tests/test_hidden.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+model.py:96: in fit
+    result = minimize_scalar(objective, bounds=(lower, upper), method='bounded',
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_minimize.py:1027: in minimize_scalar
+    res = _minimize_scalar_bounded(fun, bounds, args, **options)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.13/site-packages/scipy/optimize/_optimize.py:2336: in _minimize_scalar_bounded
+    fx = func(x, *args)
+         ^^^^^^^^^^^^^^
+model.py:92: in objective
+    residual = (self.predict(experiments)-values)/sigmas
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+model.py:106: in predict
+    m, n, _, mean, *_ = operators()
+                        ^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+nx = 40, ny = 56
+
+    @lru_cache(4)
+    def operators(nx=X_MODES, ny=Y_MODES):
+        m, n = np.meshgrid(np.arange(1, nx+1), np.arange(1, ny+1), indexing='ij')
+        keep = (m+n) % 2 == 0
+        m, n = m[keep], n[keep]
+        wave2 = (m*np.pi/WIDTH)**2+(n*np.pi/HEIGHT)**2
+        mean = np.where(m % 2 == 1, 8/(np.pi*np.pi*m*n), 0.)
+        qx, qy = np.zeros((len(m), len(m))), np.zeros((len(m), len(m)))
+        electric = np.arange(1, 401)
+        for fixed in np.unique(n):
+            ids = np.flatnonzero(n == fixed)
+            d = derivative_overlap(electric, m[ids])/WIDTH
+            k2 = (electric*np.pi/WIDTH)**2+(fixed*np.pi/HEIGHT)**2
+            qx[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+        for fixed in np.unique(m):
+            ids = np.flatnonzero(m == fixed)
+            d = derivative_overlap(electric, n[ids])/HEIGHT
+            k2 = (fixed*np.pi/WIDTH)**2+(electric*np.pi/HEIGHT)**2
+            qy[np.ix_(ids, ids)] = d.T@(d/k2[:, None])
+    
+        # The mixed term is the overlap of the x and y derivatives in the
+        # streamfunction representation of the divergence-free electric current.
+        # An x derivative couples a velocity mode (m, n) to streamfunction modes
+        # (p, n); a y derivative couples (m', n') to (m', q). Their overlap is
+        # therefore nonzero only for p=m' and q=n.
+        cross = np.zeros((len(m), len(m)))
+        # cross[i, j] = <d_x phi_i, (-laplacian_D)^-1 d_y phi_j>.
+        for i, (mi, ni) in enumerate(zip(m, n)):
+            # The streamfunction mode is (m_j, n_i).
+            stream_k2 = (m*np.pi/WIDTH)**2 + (ni*np.pi/HEIGHT)**2
+            x_overlap = derivative_overlap(m, np.full(len(m), mi, dtype=int))/WIDTH
+            y_overlap = derivative_overlap(np.full(len(n), ni, dtype=int), n)/HEIGHT
+>           cross[i, :] = x_overlap*y_overlap/stream_k2
+            ^^^^^^^^^^^
+E           ValueError: could not broadcast input array from shape (1120,1120) into shape (1120,)
+
+model.py:51: ValueError
+=========================== short test summary info ============================
+ERROR test_public.py::test_interface - ValueError: could not broadcast input ...
+ERROR test_public.py::test_calibration - ValueError: could not broadcast inpu...
+ERROR ../tests/test_hidden.py::test_private_calibration - ValueError: could n...
+ERROR ../tests/test_hidden.py::test_parameter_recovery - ValueError: could no...
+ERROR ../tests/test_hidden.py::test_prediction[oblique_positive] - ValueError...
+ERROR ../tests/test_hidden.py::test_prediction[oblique_negative] - ValueError...
+ERROR ../tests/test_hidden.py::test_prediction[unequal_components] - ValueErr...
+7 errors in 1.00s

@@ -1,0 +1,37 @@
+{
+  "trial": "spin-strain-response__u22cuVy",
+  "classification": "physics_model_failure",
+  "fixed_parameter": {
+    "name": "coupling",
+    "value": 1.0999309869658642
+  },
+  "change": "Replace only the equal-time variance response by the equilibrium Gibbs derivative in the submitted response function. Keep Hamiltonian, exact diagonalization, thermal weights, fit code, parameter, API and calibration unchanged.",
+  "before_source_block": "    q2_mean = np.dot(weights, np.diag(q_in_energy_basis @ q_in_energy_basis))\n    return float((q2_mean - q_mean * q_mean) / temperature)",
+  "after_source_block": "    result = (np.dot(weights, np.diag(q_in_energy_basis)**2) - q_mean*q_mean)/temperature\n    for i in range(3):\n        for j in range(i+1,3):\n            gap = energy[j] - energy[i]\n            quotient = weights[i]/temperature if gap == 0. else weights[i]*(-np.expm1(-gap/temperature))/gap\n            result += 2.*quotient*q_in_energy_basis[i,j]**2\n    return float(result)",
+  "results": {
+    "submitted": {
+      "calibration_chi2": 1.0371791870015477,
+      "hidden": {
+        "transverse": 1.5602191796490605,
+        "temperature": 2.5106463857726453,
+        "anisotropy_bias": 1.2921581837341858,
+        "commuting_anchors": 0.00012547430768564312
+      }
+    },
+    "physical_repair": {
+      "calibration_chi2": 1.0371791870015477,
+      "hidden": {
+        "transverse": 0.00012547430768617457,
+        "temperature": 0.00012547430768444616,
+        "anisotropy_bias": 0.00012547430768561425,
+        "commuting_anchors": 0.00012547430768564312
+      }
+    }
+  },
+  "calibration_prediction_max_change": 0.0,
+  "all_hidden_groups_pass_after_repair": true,
+  "submitted_source_sha256": "1a67493d5f26785abef5386215be24006bea140bfeaf9db982700043cf49d30f",
+  "retained_artifact_unchanged": true,
+  "execution": "In-memory source replacement, fixed submitted coupling, no refit and no retained artifact edits.",
+  "diagnostic_source_sha256": "1de9c895cc2792dbc7ae63c117bd6cbe17cfd7043bbe1bac27728fc3d3177704"
+}

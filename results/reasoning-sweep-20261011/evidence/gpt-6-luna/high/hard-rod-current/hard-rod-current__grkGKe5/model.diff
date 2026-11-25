@@ -1,0 +1,24 @@
+--- starter/model.py
++++ submission/model.py
+@@ -23,7 +23,20 @@
+         self.speed = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the common speed from calibration records.')
++        # The response is linear in the common speed, so the Gaussian
++        # maximum-likelihood estimate has a closed form.  Weight each record
++        # by its stated measurement variance.
++        unit_response = np.asarray(
++            [response(record['input']) for record in records], dtype=float
++        )
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        weights = 1.0 / np.square(sigmas)
++        denominator = np.sum(weights * np.square(unit_response))
++        if not np.isfinite(denominator) or denominator <= 0:
++            raise ValueError('Calibration records do not identify a positive speed.')
++        self.speed = float(np.sum(weights * unit_response * values) / denominator)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.speed)

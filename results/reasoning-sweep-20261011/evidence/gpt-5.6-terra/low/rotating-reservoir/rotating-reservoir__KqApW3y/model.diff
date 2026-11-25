@@ -1,0 +1,124 @@
+--- starter/model.py
++++ submission/model.py
+@@ -113,10 +113,87 @@
+ 
+ 
+ def kinetic_statistics(e,drag,degree=34,variance=None):
+-    variance=max(e['temperature_a'],e['temperature_b']) if variance is None else float(variance)
+-    if e['flux_fraction']==0.:
+-        return hermite(e,drag,degree=6,variance=variance,total_degree=True,noise=True)
+-    return hermite(e,drag,degree=degree,variance=variance,noise=True)
++    """Cumulants from the backward generator, retaining both motor states.
++
++    The old implementation folded the two motor labels into a parity term.
++    That is not equivalent once the target flow is nonzero.  Keeping the
++    labels explicitly also makes the flip-rate dependence physical.
++    """
++    ta,tb=e['temperature_a'],e['temperature_b']
++    lam,eta,flip=e['relaxation_rate'],e['flux_fraction'],e['flip_rate']
++    omega=e['angular_speed']; variance=max(ta,tb) if variance is None else float(variance)
++    # Degree 22 is a useful compromise for the |v-g| collision kernel.  The
++    # no-flux process is quadratic and needs only a small basis.
++    degree=8 if eta == 0. else min(int(degree),22)
++    w=degree+1; base=w*w; size=2*base
++    ix=lambda s,n,m: s*base+n*w+m
++    L=np.zeros((size,size)); A1=np.zeros_like(L); A2=np.zeros_like(L)
++    coll=collision_weak_matrix(degree,variance)
++    for s in range(2):
++        sign=-1. if s==0 else 1.
++        u=sign*omega
++        for n in range(w):
++            for m in range(w):
++                j=ix(s,n,m)
++                L[j,j]-=drag*n+lam*m+RATE*(1-eta)+flip
++                L[ix(1-s,n,m),j]+=flip
++                L[ix(s,m,n),j]+=RATE*(1-eta)
++                if n>=2: L[ix(s,n-2,m),j]+=drag*(ta/variance-1)*np.sqrt(n*(n-1))
++                if m>=2: L[ix(s,n,m-2),j]+=lam*(tb/variance-1)*np.sqrt(m*(m-1))
++                if m>=1:
++                    L[ix(s,n,m-1),j]+=lam*u*np.sqrt(m/variance)
++                # Tilted heat generator for E exp(-k Q).
++                # A1 includes the shared B-noise cross derivative.
++                A1[j,j]+= -lam*(variance*(2*m+1)+u*u-tb)
++                if m>=1:
++                    A1[ix(s,n,m-1),j]+=2*lam*tb*np.sqrt(m/variance)+2*lam*u*np.sqrt(variance*m)
++                if m+1<w: A1[ix(s,n,m+1),j]+=-lam*2*u*np.sqrt(variance*(m+1))
++                if m>=2: A1[ix(s,n,m-2),j]+=-lam*variance*np.sqrt(m*(m-1))
++                if m+2<w: A1[ix(s,n,m+2),j]+=-lam*variance*np.sqrt((m+1)*(m+2))
++                A2[j,j]+=2*lam*tb*(variance*(2*m+1)+u*u)
++                if m>=1: A2[ix(s,n,m-1),j]+=-4*lam*tb*u*np.sqrt(variance*m)
++                if m+1<w: A2[ix(s,n,m+1),j]+=-4*lam*tb*u*np.sqrt(variance*(m+1))
++                if m>=2: A2[ix(s,n,m-2),j]+=2*lam*tb*variance*np.sqrt(m*(m-1))
++                if m+2<w: A2[ix(s,n,m+2),j]+=2*lam*tb*variance*np.sqrt((m+1)*(m+2))
++        sl=slice(s*base,(s+1)*base)
++        L[sl,sl]+=RATE*eta*coll
++    # Construct polynomial multiplication/derivative operators explicitly.
++    # Doing this as products is important: g*d/dg has both diagonal and
++    # degree-minus-two Hermite components.
++    G=np.zeros((base,base)); D=np.zeros_like(G); G2=np.zeros_like(G)
++    b=lambda n,m:n*w+m
++    for n in range(w):
++        for m in range(w):
++            j=b(n,m)
++            if m: G[b(n,m-1),j]+=np.sqrt(variance*m); D[b(n,m-1),j]+=np.sqrt(m/variance)
++            if m+1<w: G[b(n,m+1),j]+=np.sqrt(variance*(m+1))
++            G2[j,j]=variance*(2*m+1)
++            if m>=2: G2[b(n,m-2),j]=variance*np.sqrt(m*(m-1))
++            if m+2<w: G2[b(n,m+2),j]=variance*np.sqrt((m+1)*(m+2))
++    A1.fill(0.); A2.fill(0.); eye=np.eye(base)
++    for s in range(2):
++        u=(-1. if s==0 else 1.)*omega; rel2=G2-2*u*G+u*u*eye
++        sl=slice(s*base,(s+1)*base)
++        A1[sl,sl]=2*lam*tb*(G-u*eye)@D-lam*(rel2-tb*eye)
++        A2[sl,sl]=2*lam*tb*rel2
++    # Stationary expectation functional p satisfies L^T p=0.
++    p_system=L.T.copy(); rhs=np.zeros(size); c=np.zeros(size); c[ix(0,0,0)]=c[ix(1,0,0)]=1.
++    p_system[0]=c; rhs[0]=1.
++    p=solve(p_system,rhs,check_finite=False)
++    a1=A1@c; mean_minus=float(p@a1); mean=-mean_minus
++    # A rapidly independently mixed gate only changes equal-time quadratic
++    # variation.  It is the limiting preparation documented in the README.
++    contrast=float(e.get('detector_contrast',0.))
++    gate2=1.+contrast*contrast/2.
++    A2*=gate2; a2=A2@c
++    system=L.copy(); system[0]=p
++    r_rhs=mean_minus*c-a1; r_rhs[0]=0.
++    r1=solve(system,r_rhs,check_finite=False)
++    noise=float(p@a2+2*p@(A1@r1))
++    r2_rhs=noise*c+2*mean_minus*r1-2*A1@r1-a2; r2_rhs[0]=0.
++    r2=solve(system,r2_rhs,check_finite=False)
++    third_minus=float(p@(3*A1@r2+3*A2@r1))
++    return dict(mean=mean,noise=noise,third_cumulant=-third_minus)
+ 
+ 
+ @lru_cache(4096)
+@@ -192,13 +269,15 @@
+     return angular_hermite(e,drag)
+ 
+ def predict_at(experiments,drag):
++    if drag is None:
++        raise RuntimeError('Call fit(records) before predict(experiments).')
+     result=[]
+     for e in experiments:
+         if e.get('detector_contrast',0.)!=0.:
+             if e['angular_speed']!=0.:raise ValueError('Angularly gated preparations require zero flow target.')
+-            values=angular_readouts(float(e['temperature_a']),float(e['temperature_b']),float(e['relaxation_rate']),
+-                float(e['flux_fraction']),float(e['detector_contrast']),int(e.get('detector_harmonic',1)),float(drag))
+-            result.append(values[e.get('statistic','mean')])
++            statistic=e.get('statistic','mean')
++            if statistic not in ('mean','noise','third_cumulant'): raise ValueError('unknown calorimeter statistic')
++            result.append(kinetic_statistics(e,float(drag))[statistic])
+         else:result.append(readout(*(float(e[f]) for f in FIELDS),e.get('statistic','mean'),float(drag)))
+     return np.array(result)
+ 
+@@ -207,6 +286,9 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        if not records:
++            raise ValueError('at least one calibration record is required')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

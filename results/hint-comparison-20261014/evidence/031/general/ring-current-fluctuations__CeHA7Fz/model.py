@@ -1,0 +1,156 @@
+"""Large-ring current SCGF for the half-filled weakly asymmetric SEP.
+
+The common rate prefactor is deliberately kept outside ``_unit_scgf``. At a
+fixed finite ring it simply multiplies the tilted generator, so the same is
+true after both limits in the question have been taken.
+"""
+
+from __future__ import annotations
+
+import math
+
+import numpy as np
+
+
+# The flat (spatially uniform) saddle becomes unstable at this value. It is
+# written separately to avoid a numerical minimisation over most inputs.
+_FOUR_PI_SQUARED = 4.0 * math.pi * math.pi
+
+
+def _flat_scgf(field: float, bias: float) -> float:
+    """SCGF with a uniform density profile, for diffusivity one."""
+    return 0.25 * bias * (bias + 2.0 * field)
+
+
+def _nonuniform_scgf(field: float, bias: float) -> float:
+    """Numerically minimize the half-filled MFT functional.
+
+    Put ``rho = (1 + sin(theta))/2``. Particle-hole symmetry lets the
+    minimizing profile be represented by theta(x + 1/2) = -theta(x), which
+    enforces half filling exactly. After eliminating the constant current, the
+    negative SCGF is the minimum of
+
+      int[(theta')^2/4 + E^2 cos(theta)^2/4] dx
+        - (E + lambda)^2 / (4 int sec(theta)^2 dx).
+
+    This is the phase-separated branch of the ring problem. A pair of
+    second-order finite-element grids and Richardson extrapolation provides a
+    stable continuum value.
+    """
+    # Imported here: the elementary branch only needs NumPy.
+    from scipy.optimize import minimize
+
+    h = field + bias
+
+    def minimum_on_grid(points: int) -> float:
+        half = points // 2
+        dx = 1.0 / points
+        x = np.arange(half, dtype=float) / points
+        limit = math.pi / 2.0 - 1.0e-9
+
+        def value_and_gradient(first_half: np.ndarray):
+            theta = np.concatenate((first_half, -first_half))
+            difference = np.roll(theta, -1) - theta
+            kinetic = float(np.dot(difference, difference)) / (4.0 * dx)
+
+            cosine = np.cos(theta)
+            sec2 = 1.0 / (cosine * cosine)
+            integral_sec2 = dx * float(np.sum(sec2))
+            potential = dx * field * field * float(np.sum(cosine * cosine)) / 4.0
+            value = kinetic + potential - h * h / (4.0 * integral_sec2)
+
+            gradient = 2.0 * theta - np.roll(theta, 1) - np.roll(theta, -1)
+            gradient /= 2.0 * dx
+            gradient -= dx * field * field * np.sin(2.0 * theta) / 4.0
+            gradient += h * h * dx * sec2 * np.tan(theta) / (2.0 * integral_sec2**2)
+            # theta[j] occurs once as a and once as -a in the full profile.
+            return value, gradient[:half] - gradient[half:]
+
+        # The zero solution is useful close to the transition. The other
+        # starts find the strongly phase-separated solution at large fields.
+        starts = (
+            np.zeros(half),
+            0.05 * np.sin(2.0 * math.pi * x),
+            0.60 * np.sin(2.0 * math.pi * x),
+            1.40 * np.sin(2.0 * math.pi * x),
+        )
+        best = math.inf
+        bounds = [(-limit, limit)] * half
+        for start in starts:
+            result = minimize(
+                value_and_gradient,
+                start,
+                jac=True,
+                method="L-BFGS-B",
+                bounds=bounds,
+                options={"maxiter": 2500, "ftol": 1.0e-13, "gtol": 1.0e-8},
+            )
+            if np.isfinite(result.fun):
+                best = min(best, float(result.fun))
+
+        # The exact flat result is also a legitimate competitor. This makes
+        # the result robust if an optimizer stops in a local basin.
+        return min(best, -_flat_scgf(field, bias))
+
+    coarse = minimum_on_grid(128)
+    fine = minimum_on_grid(256)
+    continuum_minimum = (4.0 * fine - coarse) / 3.0
+    # Do not let extrapolation round-off discard the known uniform saddle.
+    continuum_minimum = min(continuum_minimum, -_flat_scgf(field, bias))
+    return -continuum_minimum
+
+
+def predict_at(experiments, diffusivity: float):
+    """Return raw SCGF values for dictionaries with ``field`` and ``bias``."""
+    experiments = list(experiments)
+    if not experiments:
+        return np.empty(0, dtype=float)
+
+    result = np.empty(len(experiments), dtype=float)
+    # Repeated calibration inputs are common. Evaluate each distinct point
+    # once, which matters in the nonuniform branch.
+    cached: dict[tuple[float, float], float] = {}
+    for index, experiment in enumerate(experiments):
+        field = float(experiment["field"])
+        bias = float(experiment["bias"])
+        key = (field, bias)
+        unit_value = cached.get(key)
+        if unit_value is None:
+            if field * field - (field + bias) ** 2 <= _FOUR_PI_SQUARED:
+                unit_value = _flat_scgf(field, bias)
+            else:
+                unit_value = _nonuniform_scgf(field, bias)
+            cached[key] = unit_value
+        result[index] = float(diffusivity) * unit_value
+    return result
+
+
+class Model:
+    def __init__(self):
+        self.diffusivity = 1.0
+
+    def fit(self, records):
+        """Fit the single rate prefactor by inverse-variance least squares."""
+        records = list(records)
+        if not records:
+            self.diffusivity = 1.0
+            return self
+
+        inputs = [record["input"] for record in records]
+        unit_prediction = predict_at(inputs, 1.0)
+        values = np.asarray([record["value"] for record in records], dtype=float)
+        sigmas = np.asarray([record["sigma"] for record in records], dtype=float)
+
+        # The supplied errors are positive. The fallback also makes fitting
+        # harmless for an all-zero-prediction calibration set.
+        weights = np.where(np.isfinite(sigmas) & (sigmas > 0.0), 1.0 / sigmas**2, 0.0)
+        denominator = float(np.dot(weights * unit_prediction, unit_prediction))
+        if denominator > 0.0 and math.isfinite(denominator):
+            estimate = float(np.dot(weights * unit_prediction, values) / denominator)
+        else:
+            estimate = 1.0
+        self.diffusivity = float(np.clip(estimate, 0.8, 1.2))
+        return self
+
+    def predict(self, experiments):
+        return predict_at(experiments, self.diffusivity)

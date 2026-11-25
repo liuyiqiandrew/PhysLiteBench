@@ -1,0 +1,57 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,11 +54,52 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        # All stated calibration temperatures are below the first freezing
++        # point (beta_c >= sqrt(2 * 0.3 / 0.7) / 1.2 > 0.76).  In this
++        # regime the limiting disorder-averaged energy density is
++        #     e(beta) = -beta * (0.7 + 0.3) * width**2.
++        # The measurement errors are independent Gaussians with known sigma,
++        # so fit t=width**2 by weighted least squares and project onto the
++        # allowed interval for t.
++        betas = []
++        values = []
++        sigmas = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            observed = float(row['value'])
++            sigma = float(row['sigma'])
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Calibration beta must be in [0.2,0.6].')
++            if not math.isfinite(observed):
++                raise ValueError('Calibration values must be finite.')
++            if not math.isfinite(sigma) or sigma <= 0:
++                raise ValueError('Calibration sigma must be finite and positive.')
++            betas.append(beta)
++            values.append(observed)
++            sigmas.append(sigma)
++
++        if not betas:
++            raise ValueError('At least one calibration record is required to fit width.')
++
++        beta = np.asarray(betas, dtype=float)
++        observed = np.asarray(values, dtype=float)
++        sigma = np.asarray(sigmas, dtype=float)
++        weights = 1.0 / np.square(sigma)
++        width_squared = -np.dot(weights * beta, observed) / np.dot(weights, beta * beta)
++        lower, upper = WIDTH_INTERVAL
++        width_squared = min(upper * upper, max(lower * lower, float(width_squared)))
++        self.width = math.sqrt(width_squared)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
+-        return np.asarray([-float(row['input']['beta'])*value*value for row in records],dtype=float)
++        result = []
++        for row in records:
++            beta = float(row['input']['beta'])
++            if not math.isfinite(beta) or not .2 <= beta <= .6:
++                raise ValueError('Calibration beta must be in [0.2,0.6].')
++            result.append(-beta * value * value)
++        return np.asarray(result, dtype=float)
+ 
+     def predict(self, experiments, width=None):
+         value = self._parameter(width)

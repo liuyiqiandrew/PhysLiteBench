@@ -1,0 +1,55 @@
+--- starter/model.py
++++ submission/model.py
+@@ -191,7 +191,51 @@
+         self.conductance = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit the normal contact conductance from calibration records.')
++        """Fit the (only) apparatus parameter by independent Gaussian WLS.
++
++        The supplied calibration is the static, oscillator-decoupled heat
++        measurement.  In that case the golden-rule result is exactly linear
++        in the total normal conductance, so doing the fit analytically is both
++        more accurate and substantially cheaper than repeatedly solving the
++        spin kinetic problem.  Keep a scalar numerical fall-back for callers
++        that supply a more general set of records through the public API.
++        """
++        if not records:
++            raise ValueError("fit requires at least one calibration record")
++
++        inputs = [record['input'] for record in records]
++        values = np.asarray([record['value'] for record in records], dtype=float)
++        sigmas = np.asarray([record['sigma'] for record in records], dtype=float)
++        if (not np.isfinite(values).all() or not np.isfinite(sigmas).all()
++                or np.any(sigmas <= 0)):
++            raise ValueError("calibration values must be finite and sigma positive")
++
++        # Calibration records documented for this apparatus have no driven
++        # spin injection, so their response is proportional to conductance.
++        static = all(
++            record['input'].get('statistic', 'mean') in ('mean', 'phase_contrast')
++            and record['input'].get('amplitude', 0.) == 0.
++            and record['input'].get('oscillator_coupling', 0.) == 0.
++            and record['input'].get('secondary_coupling', 0.) == 0.
++            and record['input'].get('quadratic_coupling', 0.) == 0.
++            and record['input'].get('momentum_coupling', 0.) == 0.
++            for record in records
++        )
++        if static:
++            response = predict_at(inputs, 1.)
++            weights = 1. / sigmas**2
++            estimate = float(np.sum(weights * response * values)
++                             / np.sum(weights * response**2))
++            self.conductance = float(np.clip(estimate, 20., 80.))
++        else:
++            from scipy.optimize import minimize_scalar
++            def objective(conductance):
++                residual = (predict_at(inputs, conductance) - values) / sigmas
++                return float(residual @ residual)
++            self.conductance = float(minimize_scalar(
++                objective, bounds=(20., 80.), method='bounded',
++                options={'xatol': 1e-9}).x)
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.conductance)

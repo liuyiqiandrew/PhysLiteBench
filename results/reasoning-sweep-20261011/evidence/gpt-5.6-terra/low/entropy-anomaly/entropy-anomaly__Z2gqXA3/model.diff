@@ -1,0 +1,75 @@
+--- starter/model.py
++++ submission/model.py
+@@ -91,7 +91,69 @@
+     return np.array([entropy_rate(*(e[f] for f in INPUT_FIELDS),float(friction),e.get('detector_phase'),e.get('valve_cycle'),e.get('contact_drag_contrast',0.)) for e in experiments])
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        # Kept unset until calibration on purpose: friction is the one shared
++        # apparatus parameter which is not an experiment input.
++        self.friction=None
++
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        """Estimate the common drag by weighted least squares.
++
++        The uncertainties in the calibration file are independent Gaussian
++        standard deviations, so minimizing chi squared is also the maximum
++        likelihood estimate.  A small bounded golden-section search avoids a
++        scipy dependency and, unlike assuming a particular scaling law, also
++        remains valid if this method is passed a broader set of records.
++        """
++        records=list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        experiments=[]
++        observed=[]
++        sigma=[]
++        for record in records:
++            try:
++                experiment=record['input']
++                value=float(record['value'])
++                uncertainty=float(record['sigma'])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("each record needs input, value, and positive sigma") from exc
++            if not np.isfinite(value) or not np.isfinite(uncertainty) or uncertainty <= 0:
++                raise ValueError("calibration values must be finite and sigma must be positive")
++            experiments.append(experiment)
++            observed.append(value)
++            sigma.append(uncertainty)
++        observed=np.asarray(observed)
++        sigma=np.asarray(sigma)
++
++        def chi_squared(friction):
++            residual=(coefficients(experiments,friction)-observed)/sigma
++            return float(residual@residual)
++
++        # The stated interval is closed.  Include endpoints explicitly, as a
++        # noisy calibration can legitimately put its constrained optimum there.
++        lo,hi=0.7,1.6
++        ratio=(np.sqrt(5.)-1.)/2.
++        left=hi-ratio*(hi-lo)
++        right=lo+ratio*(hi-lo)
++        fleft=chi_squared(left)
++        fright=chi_squared(right)
++        for _ in range(36):
++            if fleft <= fright:
++                hi,right,fright=right,left,fleft
++                left=hi-ratio*(hi-lo)
++                fleft=chi_squared(left)
++            else:
++                lo,left,fleft=left,right,fright
++                right=lo+ratio*(hi-lo)
++                fright=chi_squared(right)
++        candidates=((0.7,chi_squared(0.7)), (1.6,chi_squared(1.6)),
++                    (left,fleft), (right,fright), ((lo+hi)/2,chi_squared((lo+hi)/2)))
++        self.friction=float(min(candidates,key=lambda item:item[1])[0])
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError("call fit(records) before predict(experiments)")
++        return coefficients(experiments,self.friction)

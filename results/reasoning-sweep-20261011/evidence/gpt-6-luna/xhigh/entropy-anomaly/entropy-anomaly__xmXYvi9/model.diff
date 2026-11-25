@@ -1,0 +1,80 @@
+--- starter/model.py
++++ submission/model.py
+@@ -93,5 +93,75 @@
+ class Model:
+     def __init__(self):self.friction=None
+     def fit(self,records):
+-        raise NotImplementedError("Fit the common friction coefficient from the calibration records.")
+-    def predict(self,experiments):return coefficients(experiments,self.friction)
++        records=list(records)
++        if not records:
++            raise ValueError("At least one calibration record is required.")
++
++        experiments=[]
++        values=[]
++        sigmas=[]
++        for record in records:
++            try:
++                experiments.append(record['input'])
++                values.append(float(record['value']))
++                sigmas.append(float(record['sigma']))
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("Each calibration record must contain input, value, and sigma.") from exc
++
++        values=np.asarray(values,dtype=float)
++        sigmas=np.asarray(sigmas,dtype=float)
++        if not np.all(np.isfinite(values)) or not np.all(np.isfinite(sigmas)) or np.any(sigmas<=0):
++            raise ValueError("Calibration values must be finite and uncertainties must be positive.")
++
++        # Calibration uses the two-contact apparatus with no magnetic field and
++        # equal mean reservoir temperatures. In this regime the limiting rate
++        # is exactly proportional to 1/friction, so weighted least squares is
++        # a one-parameter linear fit in the inverse friction.
++        inverse_friction_regime=all(
++            e.get('valve_cycle') is None
++            and float(e['magnetic'])==0.
++            and float(e['bath_contrast'])==0.
++            for e in experiments
++        )
++        if inverse_friction_regime:
++            unit_rates=coefficients(experiments,1.)
++            weights=1./np.square(sigmas)
++            denominator=float(np.dot(weights,unit_rates*unit_rates))
++            if not np.isfinite(denominator) or denominator<=0:
++                raise ValueError("Calibration records do not identify the friction coefficient.")
++            inverse_friction=float(np.dot(weights,unit_rates*values)/denominator)
++            inverse_friction=np.clip(inverse_friction,1./1.6,1./.7)
++            self.friction=float(1./inverse_friction)
++            return self
++
++        # Retain a general bounded fit for record sets outside the documented
++        # calibration regime. The objective is a scalar weighted least-squares
++        # error on the supplied independent uncertainties.
++        def objective(friction):
++            residual=(coefficients(experiments,friction)-values)/sigmas
++            return float(np.dot(residual,residual))
++
++        lower,upper=.7,1.6
++        ratio=(np.sqrt(5.)-1.)/2.
++        left=upper-ratio*(upper-lower)
++        right=lower+ratio*(upper-lower)
++        f_left,f_right=objective(left),objective(right)
++        for _ in range(36):
++            if f_left<=f_right:
++                upper,right,f_right=right,left,f_left
++                left=upper-ratio*(upper-lower)
++                f_left=objective(left)
++            else:
++                lower,left,f_left=left,right,f_right
++                right=lower+ratio*(upper-lower)
++                f_right=objective(right)
++        self.friction=float((lower+upper)/2.)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise ValueError("Call fit(records) before predict(experiments).")
++        values=coefficients(experiments,self.friction)
++        if values.ndim!=1 or not np.all(np.isfinite(values)):
++            raise FloatingPointError("Prediction produced non-finite rates.")
++        return values

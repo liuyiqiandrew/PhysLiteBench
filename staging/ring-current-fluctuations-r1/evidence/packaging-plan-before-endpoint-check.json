@@ -1,0 +1,106 @@
+{
+  "created_utc": "2026-10-06T09:54:37.317327+00:00",
+  "status": "fixed_before_package_generation",
+  "task": "ring-current-fluctuations",
+  "revision": 1,
+  "apparatus": "Periodic exclusion ring, even L, fixed N=L/2 canonical stationary initial ensemble; successful right/left jumps at rates D exp(+/-E/L); Q_t=total signed successful jumps over all bonds/L; psi=lim_L L lim_t log E exp(lambda Q_t)/t in the fixed microscopic clock.",
+  "public_domain": {
+    "field": [
+      0,
+      12
+    ],
+    "bias": "[-2*field-2,2]",
+    "diffusivity": [
+      0.8,
+      1.2
+    ]
+  },
+  "api": "Model().fit(records) returns self and stores diffusivity; predict(experiments) returns a finite numpy array with one raw SCGF per {field,bias} input.",
+  "calibration": {
+    "fields": [
+      0,
+      1,
+      2,
+      4
+    ],
+    "biases_for_field": "[-field-0.75,0.5,1.5]",
+    "distinct_settings": 12,
+    "replicates_per_setting": 16,
+    "records": 192,
+    "true_diffusivity": 0.937,
+    "sigma": 0.005,
+    "data_seed": 172101,
+    "noise_seed": 172102,
+    "noise_realizations": 256,
+    "fit": "exact weighted least squares through origin, clipped to[.8,1.2]",
+    "chi2": "sum of squared standardized residuals/(192-1)"
+  },
+  "prediction_groups": {
+    "field10": [
+      [
+        10,
+        -5
+      ],
+      [
+        10,
+        -7.5
+      ],
+      [
+        10,
+        -10
+      ]
+    ],
+    "field12": [
+      [
+        12,
+        -6
+      ],
+      [
+        12,
+        -9
+      ],
+      [
+        12,
+        -12
+      ]
+    ],
+    "exact_limits": [
+      [
+        0,
+        1
+      ],
+      [
+        4,
+        2
+      ],
+      [
+        "2*pi",
+        "-2*pi"
+      ]
+    ]
+  },
+  "gold": "The two distinguishing groups use the six raw selected grid256 D=1 values from the reviewed domain report, scaled exactly by D. Exact limits use D*lambda*(lambda+2E)/4.",
+  "gates": {
+    "prediction_relative_group_rms": 0.04,
+    "parameter_relative_error": 0.03,
+    "reduced_chi2": 1.5,
+    "grid_reference_relative": 0.002
+  },
+  "controls": "Elliptic scalar physical oracle and completed homogeneous-profile shortcut share the exact calibration fit. Public starter uses the homogeneous predictor with fit unfinished.",
+  "check_order": [
+    "Write this plan before calibration generation.",
+    "Create self-contained task, completed shortcut, private independent grid reference and retained scientific provenance.",
+    "Generate the192 observations once with the fixed seed/sigma; copy identical bytes to public and private calibration.",
+    "Validate source transfer and local oracle/shortcut metrics against the frozen independent gold.",
+    "Reproduce the six grid references once from the self-contained packaged code at128/256 and three fixed seeds, with the reviewed polishing.",
+    "Evaluate all256 fixed-seed noisy fits and all hidden groups for both completed controls; retain every realization.",
+    "Run isolated local public/private pytest controls and retain their complete logs.",
+    "Write AUTHOR/ASSESSMENT with results and limitations; root and separate teammate review before freeze/Docker controls."
+  ],
+  "retention": "Every validation invocation writes a fresh timestamped report and logs, including exceptions/failures. Ordinary validation reads existing data. Only explicit --regenerate regenerates identical predeclared data; no outcome-based seed, sigma or case change.",
+  "no_docker_or_model_runs": true,
+  "evidence": {
+    "staging/exclusion-current-half-filled-feasibility/domain-report.json": "62040128a25980616099d5fd5d84168eb064122bd3d2c9fb24d8c51c75080d6e",
+    "results/exclusion-current-half-filled-domain-review.json": "a9df1e1ae9efdd50f2616ba8e00295137d8c60dc2dde3037807f154208098bb4"
+  }
+}

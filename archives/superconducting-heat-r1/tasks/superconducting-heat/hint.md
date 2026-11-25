@@ -1,0 +1,1 @@
+Use the electron and hole components of each Bogoliubov quasiparticle when evaluating the energy carried by tunneling. Their relative amplitudes vary across the continuum spectrum. Apply the tunneling Hamiltonian before integrating over quasiparticle energy.

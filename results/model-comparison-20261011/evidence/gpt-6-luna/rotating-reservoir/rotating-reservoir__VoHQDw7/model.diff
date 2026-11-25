@@ -1,0 +1,105 @@
+--- starter/model.py
++++ submission/model.py
+@@ -51,7 +51,10 @@
+     for n in range(width):
+         for m in range(width):
+             j=index(n,m)
+-            matrix[j,j]-=gamma*n+lam*m+flip*(1-(-1)**(n+m))+RATE*(1-eta)
++            # The motor is not a sign flip of the particle velocities.  When
++            # the flow target is zero it is independent of the particles and
++            # therefore contributes no term to their marginal generator.
++            matrix[j,j]-=gamma*n+lam*m+RATE*(1-eta)
+             matrix[index(m,n),j]+=RATE*(1-eta)
+             if n>=2:matrix[index(n-2,m),j]+=gamma*(ta/variance-1)*np.sqrt(n*(n-1))
+             if m>=2:matrix[index(n,m-2),j]+=lam*(tb/variance-1)*np.sqrt(m*(m-1))
+@@ -119,6 +122,80 @@
+     return hermite(e,drag,degree=degree,variance=variance,noise=True)
+ 
+ 
++def motor_kinetic_statistics(e,drag,degree=14):
++    """Hermite Galerkin solution with the prescribed two-state motor.
++
++    A block is retained for each motor state.  This keeps the correlations
++    between motor residence times, rotor velocity, and the retained gas.
++    The tilted-generator derivatives include the shared bath-B Wiener noise.
++    """
++    ta,tb=e['temperature_a'],e['temperature_b']; lam=e['relaxation_rate']
++    eta,omega,flip=e['flux_fraction'],e['angular_speed'],e['flip_rate']
++    gamma=float(drag); variance=max(ta,tb); width=degree+1; block=width*width
++    size=2*block
++    idx=lambda n,m:n*width+m
++    collision=RATE*eta*collision_weak_matrix(degree,variance)
++    base=np.zeros((block,block))
++    for n in range(width):
++        for m in range(width):
++            j=idx(n,m);base[j,j]-=gamma*n+lam*m+RATE*(1-eta)
++            base[idx(m,n),j]+=RATE*(1-eta)
++            if n>=2:base[idx(n-2,m),j]+=gamma*(ta/variance-1)*np.sqrt(n*(n-1))
++            if m>=2:base[idx(n,m-2),j]+=lam*(tb/variance-1)*np.sqrt(m*(m-1))
++            if m>=1:base[idx(n,m-1),j]+=lam*omega/np.sqrt(variance)*np.sqrt(m)
++    base+=collision
++    M=np.zeros((size,size))
++    for si,s in enumerate((1.,-1.)):
++        sl=slice(si*block,(si+1)*block)
++        M[sl,sl]=base.copy()
++        # d g contains +lambda*s*omega; the source is multiplied by s.
++        if s<0:
++            for n in range(width):
++                for m in range(1,width):M[si*block+idx(n,m-1),si*block+idx(n,m)]-=2*lam*omega/np.sqrt(variance)*np.sqrt(m)
++        other=slice((1-si)*block,(2-si)*block)
++        M[sl,sl]-=flip*np.eye(block);M[sl,other]+=flip*np.eye(block)
++
++    # Multiplication by g and differentiation in the scaled Hermite basis.
++    G=np.zeros((block,block));D=np.zeros_like(G);G2=np.zeros_like(G)
++    for n in range(width):
++        for m in range(width):
++            j=idx(n,m)
++            if m: G[idx(n,m-1),j]=np.sqrt(variance*m);D[idx(n,m-1),j]=np.sqrt(m/variance)
++            if m+1<width:G[idx(n,m+1),j]=np.sqrt(variance*(m+1))
++            G2[j,j]=variance*(2*m+1)
++            if m>=2:G2[idx(n,m-2),j]=variance*np.sqrt(m*(m-1))
++            if m+2<width:G2[idx(n,m+2),j]=variance*np.sqrt((m+1)*(m+2))
++    A1=np.zeros_like(M);A2=np.zeros_like(M)
++    I=np.eye(block)
++    for si,s in enumerate((1.,-1.)):
++        sl=slice(si*block,(si+1)*block)
++        rel=G2-2*s*omega*G+omega**2*I
++        A1[sl,sl]=2*lam*tb*(G-s*omega*I)@D-lam*(rel-tb*I)
++        A2[sl,sl]=2*lam*tb*rel
++
++    # Stationary left null vector (the moments of the invariant law).
++    stat=M.T.copy();stat[0]=0.;stat[0,0]=1.
++    rhs=np.zeros(size);rhs[0]=1.
++    p=solve(stat,rhs,check_finite=False)
++    constant=np.zeros(size);constant[0]=constant[block]=1.
++    mu1=float(p@A1@constant)
++    system=M.copy();system[0]=p
++    rhs1=mu1*constant-A1@constant;rhs1[0]=0.
++    r1=solve(system,rhs1,check_finite=False)
++    shot=float(p@A2@constant);noise=shot+float(2*p@A1@r1)
++    rhs2=noise*constant+2*mu1*r1-2*A1@r1-A2@constant;rhs2[0]=0.
++    r2=solve(system,rhs2,check_finite=False)
++    third=-float(p@(3*A1@r2+3*A2@r1))
++    return dict(mean=-mu1,noise=noise,third_cumulant=third)
++
++
++_kinetic_statistics_original=kinetic_statistics
++def kinetic_statistics(e,drag,degree=34,variance=None):
++    if e['angular_speed'] != 0.:
++        return motor_kinetic_statistics(e,drag)
++    return _kinetic_statistics_original(e,drag,degree,variance)
++
++
+ @lru_cache(4096)
+ def readout(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate,statistic,drag):
+     e=dict(zip(FIELDS,(angular_speed,flip_rate,temperature_a,temperature_b,flux_fraction,relaxation_rate)))
+@@ -207,6 +284,8 @@
+     def __init__(self):self.drag=None
+ 
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common drag from calibration.')
++        if not records:raise ValueError('Calibration records must not be empty.')
++        self.drag=fit_drag(records)
++        return self
+ 
+     def predict(self,experiments):return predict_at(experiments,self.drag)

@@ -1,0 +1,1 @@
+Project the local random force onto the filament modes before forming the sensor spectrum. Spatially independent reservoirs need not generate independent modal forces when their temperatures vary with position. Retain their projected cross-covariances through the frequency-dependent response and the signed sensor weights.

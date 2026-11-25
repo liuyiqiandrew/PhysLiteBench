@@ -1,0 +1,115 @@
+--- before/model.py
++++ after/model.py
+@@ -1,44 +1,31 @@
++"""Model for the weak radiation-pattern transport experiment.
++
++For a beam with direction ``n``, the transport equation is
++
++    dI/dt + n_x dI/dx = -kappa I.
++
++Consequently, only the x component of a direction enters the measurement:
++the initial cosine is translated by ``n_x * time`` and attenuated by the
++same factor for every beam.
++"""
++
+ import numpy as np
+-from scipy.linalg import expm
+-
+-
+-def flux_jacobian(energy, flux):
+-    flux = np.asarray(flux, dtype=float)
+-    magnitude = np.linalg.norm(flux)
+-    matrix = np.zeros((4, 4))
+-    matrix[0, 1] = 1.0
+-    if magnitude == 0.0:
+-        matrix[1, 0] = 1.0 / 3.0
+-        return matrix
+-    f = magnitude / energy
+-    direction = flux / magnitude
+-    s = np.sqrt(4.0 - 3.0 * f**2)
+-    denominator = 5.0 + 2.0 * s
+-    b = f**2 * (6.0 + 3.0 / (2.0 + s)) / denominator
+-    a = (1.0 - b) / 3.0
+-    derivative = (8.0*f*denominator + 6.0*f*(3.0+4.0*f**2)/s) / denominator**2
+-    tensor = np.outer(direction, direction)
+-    identity = np.eye(3)
+-    matrix[1:, 0] = ((a + f*derivative/2)*identity +
+-                     (b - 3*f*derivative/2)*tensor)[0, :]
+-    for j in range(3):
+-        axis = identity[:, j]
+-        column = derivative*direction[j]*(3*tensor-identity)/2
+-        column += f*(6+3/(2+s))/denominator * (
+-            np.outer(axis, direction) + np.outer(direction, axis) - 2*direction[j]*tensor)
+-        matrix[1:, 1+j] = column[0, :]
+-    return matrix
++from scipy.optimize import minimize_scalar
+ 
+ 
+ def transport(experiment):
++    """Return the weak-response signal before common absorption."""
+     directions = np.asarray(experiment["directions"], dtype=float)
+     weights = np.asarray(experiment["weights"], dtype=float)
+-    amplitudes = weights * np.asarray(experiment["modulations"], dtype=float)
+-    matrix = flux_jacobian(float(np.sum(weights)), weights @ directions)
+-    initial = np.r_[np.sum(amplitudes), amplitudes @ directions]
+-    evolved = expm(-1j * experiment["wavenumber"] * experiment["time"] * matrix) @ initial
+-    phase = np.exp(1j * experiment["wavenumber"] * experiment["position"])
+-    return float(np.real(phase * evolved[0]))
++    modulations = np.asarray(experiment["modulations"], dtype=float)
++    wavenumber = int(experiment["wavenumber"])
++    time = float(experiment["time"])
++    position = float(experiment["position"])
++
++    # The spatial domain is periodic, so the phase can be evaluated directly
++    # without any special boundary handling.
++    phases = wavenumber * (position - directions[:, 0] * time)
++    return float(np.sum(weights * modulations * np.cos(phases)))
+ 
+ 
+ class Model:
+@@ -46,8 +33,42 @@
+         self.absorption = .25
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Implement calibration fitting.")
++        """Fit the common absorption rate and return this model.
++
++        The calibration observations are independent Gaussians, so the
++        maximum-likelihood estimate minimizes the sigma-weighted squared
++        residuals.  The one-dimensional bounded optimization also handles
++        calibrations whose optimum is at a permitted endpoint.
++        """
++        records = list(records)
++        if not records:
++            return self
++
++        inputs = [record["input"] for record in records]
++        observed = np.asarray([record["value"] for record in records],
++                              dtype=float)
++        sigma = np.asarray([record["sigma"] for record in records],
++                           dtype=float)
++        unattenuated = np.asarray([transport(experiment) for experiment in inputs],
++                                   dtype=float)
++        times = np.asarray([float(experiment["time"]) for experiment in inputs],
++                           dtype=float)
++
++        def objective(kappa):
++            residual = (unattenuated * np.exp(-kappa * times) - observed) / sigma
++            return float(np.dot(residual, residual))
++
++        result = minimize_scalar(objective, bounds=(0.12, 0.45), method="bounded")
++        candidates = [(result.fun, result.x),
++                      (objective(0.12), 0.12),
++                      (objective(0.45), 0.45)]
++        _, best_kappa = min(candidates, key=lambda item: item[0])
++        self.absorption = float(best_kappa)
++        return self
+ 
+     def predict(self, experiments):
+-        return np.asarray([transport(e) * np.exp(-self.absorption*e["time"])
+-                           for e in experiments], dtype=float)
++        """Return one finite weak-response prediction for each experiment."""
++        predictions = [transport(experiment) *
++                       np.exp(-self.absorption * float(experiment["time"]))
++                       for experiment in experiments]
++        return np.asarray(predictions, dtype=float)

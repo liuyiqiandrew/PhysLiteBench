@@ -1,0 +1,32 @@
+# Paired local spin noise, revision 1
+
+This task tests a two-particle spin response after the complete one-particle dynamics has already been solved. The source uses the exact doubled-Nambu spectrum, all thermal populations, complex spatial pairing phases, and the actual detector bandpass. Its completed control keeps only the normal density contractions. This is an independent-spin response approximation: it discards joint pair correlations even though each spin's normal one-particle spectrum is exact.
+
+The approximation is a coherent stationary closure, not an incorrectly coded Wick expansion. Each exact normal one-particle spectral function can be realized by a number-conserving Gaussian auxiliary system; treating the two spin systems independently gives the supplied positive spectral convolution. Both models have nonnegative grouped spectral weights and thermal detailed balance. The approximation nevertheless violates a physical conservation identity: singlet pairing and spin-independent hopping conserve total Sz, while its independent-spin response produces spurious finite-frequency total-spin weight. That defect is recorded in validation. The measured and scored quantity is strictly local, with nonzero signals, so the task does not exploit an exactly vanishing global-spin response.
+
+For the doubled field Psi=(c,c†), diagonalize the full 12 by 12 BdG matrix. The two-time kernel <Psi_a(t) Psi_b†(0)> has spectral coefficients V_ar V_br* [1-f(E_r)]. With spin weights s=(1/2,-1/2) at the measured site, the connected correlation is
+
+    Czz(t) = sum_ab s_a s_b [<c†_a(t)c_b(0)><c_a(t)c†_b(0)>
+                              - <c†_a(t)c†_b(0)><c_a(t)c_b(0)>].
+
+The source retains the first product. Its calibration pairing amplitude is zero, making the second product identically zero for every calibration preparation. The sole gain multiplies a strictly positive known normal-state response, so it is identifiable by a strictly convex scalar weighted least-squares objective. The complete oracle and shortcut controls use that same exact fit. The public starter leaves only `fit` unfinished; completing its fit alone does not resolve the hidden response error.
+
+The public detector starts excited. Its de-excitation transfers positive energy to the sample, so a sample transition from n to m is weighted by the initial Gibbs probability p_n, the squared local-spin matrix element, and the specified probe weight at E_m-E_n>0. The readout is a weak-coupling rate after the microscopic transient, before depletion. The omega-squared window removes zero-frequency elastic weight. This is an instrument bandpass, not a broadening assigned to the finite sample. Pairing is externally imposed by rigid proximity sources; the Hamiltonian is the defining effective model, with no unstated gap equation, charging energy, or fermion-parity restriction.
+
+The independent verifier constructs all six fermion annihilation operators in a 64-state occupation basis, constructs the many-body Hamiltonian directly, and evaluates the local-spin transition rates. It shares no Nambu contraction code with the oracle. A third check particle-hole transforms only the down-spin modes, obtaining a six-mode number-conserving Hamiltonian with a local bilinear spin vertex; its rate agrees within 1.56e-15. The full Fock reference agrees with the oracle within 4.83e-15 across 384 public-domain corners, and within 1.50e-15 on hidden cases. The equal-time local-spin variance identity holds within 1.95e-16. Grouped spectral detailed balance errors are below 3.2e-12; tiny negative exact spectral weights are roundoff at 2.7e-18.
+
+The task is related to the retained superconducting-heat task through BCS pairing. The physical approximations and observables differ: superconducting-heat already retains anomalous phase interference but freezes its energy-dependent ratio at the gap edge; this task retains complete normal spectra but factorizes the joint spin response. We do not claim that the tasks use unrelated theoretical principles. A model trial that recognizes the paired response but implements a Wick sign or index incorrectly must be classified as an implementation failure, rather than the intended independent-spin physical failure.
+
+Calibration has 144 observations, fixed uncertainty 0.0005, true gain 1.1, calibration seed 981031, and repeated-noise seed 981037. Fixed instrument uncertainty contains no noiseless-response side channel. Both completed models fit gain 1.1001184 with reduced chi-square 1.2104. Across 256 noise draws, all calibration/parameter checks pass; maximum relative gain error is 0.04175%.
+
+Prediction error is group RMSE divided by the group's true RMS rate, with a 0.04 threshold. Scored paired rates range from 0.0977 to 0.4814. The threshold is comfortably above reference error and calibration uncertainty, and is fixed across groups. Nominal oracle error is 0.00010765. Shortcut errors are 1.1695, 0.2275, and 1.1641; normal-state anchors pass. Across noisy fits, oracle error remains below 0.0004175 and the smallest paired shortcut error exceeds 0.2269. Isolated local verification gives oracle 7/7 and shortcut four passes plus three intended hidden failures, in less than 0.3 seconds each. Model difficulty has not yet been evaluated.
+
+Reports: [scientific validation](../../results/paired-spin-noise-validation.json), [local controls](../../results/paired-spin-noise-local-controls.json), [prototype](../../results/paired-spin-noise-prototype.json), and [source provenance](../../results/paired-spin-noise-source-provenance.json). The exact neutral instruction is retained.
+
+Primary background: [Hebel and Slichter, Physical Review 113, 1504 (1959)](https://journals.aps.org/pr/abstract/10.1103/PhysRev.113.1504) establishes superconducting spin-relaxation coherence as a probe of opposite-spin correlations. [Nagai and Ota, Physical Review B 94, 134516 (2016)](https://arxiv.org/abs/1605.08164) analyzes normal and anomalous spectral contributions to magnetic relaxation. The finite-system response used here follows directly from the specified Hamiltonian and detector coupling; neither continuum NMR formulas nor lifetime regularization are assumed.
+
+```bash
+uv run --no-project --python 3.13 --with numpy==2.3.3 --with scipy==1.16.3 --with pytest==8.4.2 python scripts/validate_paired_spin_noise.py
+```
+
+Ordinary validation reads checked-in calibration; `--generate` intentionally rewrites both copies. Root manages Docker controls and conditional model evaluation after promotion from staging.

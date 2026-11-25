@@ -1,0 +1,29 @@
+--- starter/model.py
++++ submission/model.py
+@@ -206,7 +206,23 @@
+ 
+ 
+ class Model:
+-    def __init__(self):self.friction=None
++    def __init__(self):
++        # ``friction`` is deliberately the only fitted quantity.  Keeping it
++        # as a plain float is useful to callers that serialize a fitted model.
++        self.friction = None
++
+     def fit(self,records):
+-        raise NotImplementedError('Fit the common fluid friction from calibration.')
+-    def predict(self,experiments):return predict_at(experiments,self.friction)
++        """Fit the common ordinary-fluid friction from calibration records.
++
++        The supplied calibration experiment is the zero-field, no-retained-
++        contact special case.  In that case the small-mass covariance has a
++        closed form (``zero_field_calibration``), so this is a one-dimensional
++        weighted least-squares fit rather than a simulation-based estimate.
++        """
++        self.friction = fit_friction(records)
++        return self
++
++    def predict(self,experiments):
++        if self.friction is None:
++            raise RuntimeError('Call fit(records) before predict(experiments).')
++        return predict_at(experiments,self.friction)

@@ -1,0 +1,110 @@
+--- starter/model.py
++++ submission/model.py
+@@ -1,16 +1,52 @@
++"""Asymptotic covariance model for a tagged single-file Brownian particle."""
++
++import math
++
+ import numpy as np
+ 
+ 
++_MIN_DIFFUSIVITY = 0.8
++_MAX_DIFFUSIVITY = 1.2
++
++
+ def covariance(diffusivity, density, time_a, time_b):
+-    return np.sqrt(diffusivity/(2*np.pi))/density * (np.sqrt(time_a)+np.sqrt(time_b)-np.sqrt(abs(time_a-time_b)))
++    """Return the long-time covariance coefficient for one experiment.
++
++    The initially deterministic, equally spaced configuration is important here:
++    it gives the quenched kernel ``sqrt(t_a + t_b) - sqrt(|t_a-t_b|)``.
++    A randomly populated equilibrium initial state has a different
++    off-diagonal covariance.
++    """
++    diffusivity = float(diffusivity)
++    density = float(density)
++    time_a = float(time_a)
++    time_b = float(time_b)
++    if not (math.isfinite(diffusivity) and diffusivity >= 0.0):
++        raise ValueError("diffusivity must be finite and non-negative")
++    if not (math.isfinite(density) and density > 0.0):
++        raise ValueError("density must be finite and positive")
++    if not (math.isfinite(time_a) and time_a >= 0.0 and
++            math.isfinite(time_b) and time_b >= 0.0):
++        raise ValueError("times must be finite and non-negative")
++
++    kernel = math.sqrt(time_a + time_b) - math.sqrt(abs(time_a - time_b))
++    return math.sqrt(diffusivity / math.pi) * kernel / density
++
++
++def _coefficient(experiment):
++    """Coefficient multiplying sqrt(diffusivity) for an experiment."""
++    return covariance(1.0, experiment["density"], experiment["time_a"], experiment["time_b"])
+ 
+ 
+ def predict_at(experiments, diffusivity):
+-    return np.asarray([
+-        covariance(float(diffusivity), float(e["density"]),
+-                   float(e["time_a"]), float(e["time_b"]))
+-        for e in experiments
+-    ], dtype=float)
++    """Predict an ordered, one-dimensional array for an experiment iterable."""
++    if diffusivity is None:
++        raise RuntimeError("Model must be fitted before predictions can be made")
++    return np.asarray(
++        [covariance(diffusivity, e["density"], e["time_a"], e["time_b"])
++         for e in experiments],
++        dtype=float,
++    )
+ 
+ 
+ class Model:
+@@ -18,7 +54,47 @@
+         self.diffusivity = None
+ 
+     def fit(self, records):
+-        raise NotImplementedError("Fit the common diffusivity from the calibration records.")
++        """Fit the common diffusivity by weighted Gaussian least squares.
++
++        Since each prediction is ``c_i * sqrt(D)``, the maximum-likelihood
++        estimate of ``sqrt(D)`` has a closed form.  The known physical bounds
++        are then imposed on that one-dimensional estimate.
++        """
++        records = list(records)
++        if not records:
++            raise ValueError("at least one calibration record is required")
++
++        coefficients = []
++        values = []
++        sigmas = []
++        for record in records:
++            try:
++                coefficient = _coefficient(record["input"])
++                value = float(record["value"])
++                sigma = float(record["sigma"])
++            except (KeyError, TypeError, ValueError) as exc:
++                raise ValueError("each record needs valid input, value, and sigma fields") from exc
++            if not (math.isfinite(value) and math.isfinite(sigma) and sigma > 0.0):
++                raise ValueError("record values must be finite and sigmas must be positive")
++            coefficients.append(coefficient)
++            values.append(value)
++            sigmas.append(sigma)
++
++        coefficients = np.asarray(coefficients, dtype=float)
++        values = np.asarray(values, dtype=float)
++        weights = 1.0 / np.square(np.asarray(sigmas, dtype=float))
++        denominator = float(np.dot(weights, np.square(coefficients)))
++        if not (math.isfinite(denominator) and denominator > 0.0):
++            raise ValueError("calibration records contain no information about diffusivity")
++
++        sqrt_diffusivity = float(np.dot(weights * coefficients, values) / denominator)
++        sqrt_diffusivity = float(np.clip(
++            sqrt_diffusivity,
++            math.sqrt(_MIN_DIFFUSIVITY),
++            math.sqrt(_MAX_DIFFUSIVITY),
++        ))
++        self.diffusivity = sqrt_diffusivity * sqrt_diffusivity
++        return self
+ 
+     def predict(self, experiments):
+         return predict_at(experiments, self.diffusivity)

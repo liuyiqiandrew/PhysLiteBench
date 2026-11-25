@@ -1,0 +1,30 @@
+--- starter/model.py
++++ submission/model.py
+@@ -54,7 +54,26 @@
+         return value
+ 
+     def fit(self, records):
+-        raise NotImplementedError('Fit width from the calibration records.')
++        numerator = 0.0
++        denominator = 0.0
++        for row in records:
++            beta = float(row['input']['beta'])
++            value = float(row['value'])
++            sigma = float(row['sigma'])
++            if not math.isfinite(beta) or not math.isfinite(value):
++                raise ValueError('Calibration records must be finite.')
++            if not math.isfinite(sigma) or sigma <= 0.0:
++                raise ValueError('Calibration errors must be positive.')
++            weight = 1.0/(sigma*sigma)
++            numerator += beta*value*weight
++            denominator += beta*beta*weight
++        if denominator <= 0.0:
++            raise ValueError('Calibration records must contain a nonzero inverse temperature.')
++        squared = -numerator/denominator
++        if not math.isfinite(squared) or squared <= 0.0:
++            raise ValueError('Calibration does not determine a positive material scale.')
++        self.width = math.sqrt(squared)
++        return self
+ 
+     def predict_calibration(self, records, width=None):
+         value = self._parameter(width)
