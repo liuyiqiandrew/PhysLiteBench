@@ -34,6 +34,10 @@ def test_fit(metrics):
 
 
 @pytest.mark.parametrize("readout,tolerance", [("crest", .003), ("trough", .003), ("impulse", .008),
-                                               ("induction", .001), ("electric", .0006)])
+                                               ("induction", .001), ("electric", .0006),
+                                               ("laminate_induction", .001),
+                                               ("laminate_electric", .0006),
+                                               ("normal_voltage", .00025),
+                                               ("sheet_power", .00015)])
 def test_signal(metrics, readout, tolerance):
     assert metrics["max_abs_errors"][readout] < tolerance

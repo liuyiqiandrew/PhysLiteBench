@@ -69,3 +69,46 @@ the front seed sensitivity and rotational symmetry. The accepted maximum
 errors in B and E/|ω| are 0.001 and 0.0006 in the instrument units.
 The distinction between current and electric field directions in critical
 state laws is discussed by [Clem et al. (2011)](https://arxiv.org/abs/1103.1393).
+
+## Revision 3
+
+The laminate adds a static normal induction and a conducting sheet below the
+surface. All collinear calibrations remain unchanged. The starter includes the
+collinear solution and a dilute-field estimate of the rotating profile. The
+completed shortcut solves the full bulk critical-state equations but evaluates
+the Joule signal in the undisturbed fields of a homogeneous slab.
+
+Use distance u increasing from the front towards the left surface. Write b
+and e for the complex tangential magnetic and electric fields in (y,z), with
+e in units of |ω|. In physical coordinates b′ = iJ and e′ = s b, with
+s the sense of rotation. At the sheet e is continuous and the tangential
+field jumps by b_coat − b_sub = iK. Hall current contributes to this jump,
+and its scalar product with e vanishes. Thus the sheet power is G|e|².
+
+Let n be the threading induction and c the cutting ratio. In local tangential
+axes along b and perpendicular to b, the restricted critical ellipse has
+squared axis ratio A = (n²+|b|²)/(n²+|b|²/c²). The normal to the full
+ellipsoid has an x component even though Jₓ vanishes. In physical coordinates
+Eₓ/|ω| = (c⁻²−1)n Re(b* e)/(n²+|b|²/c²), with the star denoting complex
+conjugation. This field gives a DC potential difference during rotation.
+
+The oracle integrates the bulk equations in log u with the regular variables
+|b|/u and e exp(−i arg b)/u². It shoots for the substrate thickness
+that reproduces the imposed tangential surface amplitude after crossing the
+sheet and coating. In a threaded core the limiting in-plane ellipse is circular.
+The leading solution has |b|/u = j / [√3(1+|n|)] and winding angle s√2 log u.
+With no threading field the winding coefficient is s√2 c. The reference
+integrates Cartesian fields in physical depth and eliminates Eₓ using the
+inverse full three-dimensional ellipsoid. It quadratures the resulting Ex
+separately along each side of the contact.
+
+The validator checks both interface jump components, E continuity,
+conjugation under joint reversal of n and s, Eₓ = 0 for c = 1, Joule power
+positivity and front seed convergence. A separate real-vector Maxwell solver
+was compared on three off-grid inputs at five depths, including both sides
+of the sheet. The largest difference was 2.2 × 10⁻¹⁰. The calibrated
+oracle's largest errors on the four laminate readouts are 1.1 × 10⁻⁸,
+1.9 × 10⁻⁹, 3.5 × 10⁻¹⁰ and 2.1 × 10⁻¹⁰. The passive-sheet control misses
+them by 0.04635, 0.00869, 0.00123 and 0.00102. Both controls match the
+longitudinal calibration within 1.3 × 10⁻⁷. R3 uses 1,800 s for the solver
+and 180 s for verification to allow independent numerical methods to finish.

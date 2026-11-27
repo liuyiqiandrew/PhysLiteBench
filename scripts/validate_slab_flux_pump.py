@@ -59,6 +59,54 @@ def validate(generate):
                 assert abs(value - sign * mirror) < 1e-9
                 rows.append(dict(input=q, value=float(value)))
         truth[mode] = rows
+    setups = [
+        (.215,.20,.50,.049,1.65,.60,1),
+        (.219,-.19,2.5,.062,1.70,-.62,-1),
+        (.211,.30,2.3,.051,1.57,-.55,1),
+        (.201,-.27,.62,.084,1.36,.61,1),
+        (.217,-.20,.48,.070,1.63,.57,-1),
+        (.211,.31,2.46,.048,1.68,.60,-1),
+        (.185,.23,1.,.085,1.50,.33,1),
+        (.176,-.28,1.7,.093,0.,-.50,-1),
+    ]
+    for group, readout in [("laminate_induction","induction"), ("laminate_electric","electric"),
+                           ("normal_voltage","normal_voltage"), ("sheet_power","sheet_power")]:
+        rows = []
+        for h, n, ratio, coating, g, hall, sense in setups:
+            common = dict(readout=readout, amplitude=h, normal=n, cutting=ratio,
+                          coating=coating, conductance=g, hall=hall, sense=sense)
+            if readout == "sheet_power":
+                cases = [common]
+            elif readout == "normal_voltage":
+                cases = [dict(common, depth=x) for x in (.04, .19, .76)]
+            else:
+                cases = [dict(common, depth=x, axis=axis)
+                         for x, axis in [(coating, "y"), (coating+.0005, "z"), (.18, "y")]]
+            for q in cases:
+                value = ref.rotary(q, ref.TRUE_PARAMETER)
+                # Reversing both rotation and threading conjugates B, negates
+                # conjugate E and leaves E_x and power unchanged.
+                reverse = ref.rotary(dict(q, normal=-n, sense=-sense), ref.TRUE_PARAMETER)
+                parity = (-1 if q.get("axis") == "z" else 1) * (-1 if readout == "electric" else 1)
+                assert abs(value-parity*reverse) < 2e-10
+                if readout == "sheet_power":
+                    assert value >= 0.
+                if readout == "normal_voltage" and ratio == 1.:
+                    assert abs(value) < 1e-12
+                rows.append(dict(input=q, value=float(value)))
+        truth[group] = rows
+    # Verify both sheet jump components and tangential E continuity directly.
+    for h, n, ratio, coating, g, hall, sense in setups:
+        q = dict(amplitude=h, normal=n, cutting=ratio, coating=coating,
+                 conductance=g, hall=hall, sense=sense)
+        def field(readout, x):
+            return sum(mult*oracle.rotary(dict(q, readout=readout, depth=x, axis=a),
+                                          ref.TRUE_PARAMETER)
+                       for a, mult in [("y", 1), ("z", 1j)])
+        e = field("electric", coating)
+        jump = field("induction", coating) - field("induction", coating+1e-8)
+        assert abs(jump - 1j*g*(1+1j*hall*np.sign(n))*e) < 2e-8
+        assert abs(e - field("electric", coating+1e-8)) < 2e-8
     for path in [TASK / "environment/data/calibration.json", TASK / "tests/data/calibration.json"]:
         if generate:
             path.write_text(json.dumps(calibration, indent=2) + "\n")
@@ -103,9 +151,13 @@ def validate(generate):
         if name == "oracle":
             assert max(errors["crest"], errors["trough"]) < 0.003 and errors["impulse"] < 0.008
             assert errors["induction"] < .001 and errors["electric"] < .0006
+            assert errors["laminate_induction"] < .001 and errors["laminate_electric"] < .0006
+            assert errors["normal_voltage"] < .00025 and errors["sheet_power"] < .00015
         else:
             assert max(errors["crest"], errors["trough"]) < 0.003 and errors["impulse"] < 0.008
-            assert errors["induction"] > .001 and errors["electric"] > .0006
+            assert errors["induction"] < .001 and errors["electric"] < .0006
+            assert errors["laminate_induction"] > .001 and errors["laminate_electric"] > .0006
+            assert errors["normal_voltage"] > .00025 and errors["sheet_power"] > .00015
 
 
 if __name__ == "__main__":

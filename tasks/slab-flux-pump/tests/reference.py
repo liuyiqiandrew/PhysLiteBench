@@ -1,6 +1,9 @@
 """Finite-volume flux balance. Advance the critical fronts from both edges."""
+from functools import lru_cache
+
 import numpy as np
-from scipy.integrate import solve_ivp
+from scipy.integrate import quad, solve_ivp
+from scipy.optimize import brentq
 
 TRUE_PARAMETER = 1.063
 
@@ -54,31 +57,72 @@ def signal(q, j=TRUE_PARAMETER, n=800, increments=240):
     return float(impulse)
 
 
-def rotary(q, pinning, seed=3e-7):
-    # Integrate Faraday and Ampere directly from a near-front seed, using
-    # arbitrary initial orientation. Finally align the surface phasor with y.
-    ratio, h = q['cutting'], q['amplitude']
-    pitch = np.sqrt(2.) * ratio
-    depth0 = seed * np.sqrt(3.) / pinning
-    electric = seed * depth0 / (2 + 1j*pitch)
+@lru_cache(maxsize=128)
+def rotary_layers(h, ratio, normal, coating, g, hall, sense, j, seed):
+    # Maxwell equations in laboratory components, distance from front outward.
+    def current(b, e):
+        field = np.array([normal, b.real, b.imag])
+        size = np.linalg.norm(field)
+        unit = field / size
+        inverse = ratio**2 - 1
+        projection = unit[1]*e.real + unit[2]*e.imag
+        # The inverse constitutive tensor acting on E must give Jx = 0.
+        ex = -inverse * unit[0] * projection / (1 + inverse*unit[0]**2)
+        full = np.array([ex, e.real, e.imag])
+        gradient = full + inverse * unit * (unit @ full)
+        factor = j / ((1+size)*np.sqrt(full @ gradient))
+        return factor*(gradient[1] + 1j*gradient[2]), ex
+
     def rates(x, state):
         b, e = state
-        axis = b / abs(b)
-        v = e * axis.conjugate()
-        current = (ratio**2*v.real + 1j*v.imag) / np.hypot(ratio*v.real, v.imag)
-        return [1j * pinning / (1+abs(b)) * axis * current, b]
+        return [1j*current(b, e)[0], sense*b]
 
-    def surface(x, state):
-        return abs(state[0]) - h
-    surface.terminal = True
-    sol = solve_ivp(rates, (depth0, 4), [seed, electric], events=surface,
-                    method="DOP853", dense_output=True, rtol=2e-10, atol=2e-24)
-    d = sol.t_events[0][0]
-    assert d < 1.0
-    if d-q['depth'] <= depth0:
+    def run(start, end, initial):
+        return solve_ivp(rates, (start, end), initial, dense_output=True,
+                         method="DOP853", rtol=3e-10, atol=2e-23).sol
+
+    pitch = np.sqrt(2.) * (1 if normal else ratio)
+    u0 = seed * np.sqrt(3.) * (1+abs(normal))/j
+    inner = run(u0, 1.19, [seed, sense * seed*u0/(2+1j*sense*pitch)])
+
+    def coated(u):
+        b, e = inner(u)
+        k = g*(e + hall*np.sign(normal)*1j*e)
+        return run(0., coating, [b+1j*k, e])
+
+    if coating:
+        contact = brentq(lambda u: abs(coated(u)(coating)[0])-h, .007, 1.1)
+        outer = coated(contact)
+        surface = outer(coating)
+    else:
+        contact = brentq(lambda u: abs(inner(u)[0])-h, u0, 1.1)
+        outer = None
+        surface = inner(contact)
+    return u0, contact, surface, inner, outer, current
+
+
+def rotary(q, pinning, seed=3e-7):
+    h, g = q["amplitude"], q.get("conductance", 0.)
+    coating = q.get("coating", 0.)
+    start, contact, surface, inner, outer, current = rotary_layers(
+        h, q["cutting"], q.get("normal", 0.), coating, g, q.get("hall", 0.),
+        q["sense"], pinning, seed)
+    if q["readout"] == "sheet_power":
+        return g*abs(inner(contact)[1])**2
+    x = q["depth"]
+    if q["readout"] == "normal_voltage":
+        def integral(path, a, b):
+            if b <= a:
+                return 0.
+            value, _ = quad(lambda u: current(*path(u))[1], a, b, epsabs=1e-12)
+            return value
+        top = integral(outer, max(coating-x, 0.), coating)
+        return top + integral(inner, max(start, contact+coating-x), contact)
+    if outer is not None and x <= coating:
+        b, e = outer(coating-x)
+    elif contact+coating-x > start:
+        b, e = inner(contact+coating-x)
+    else:
         return 0.
-    b, e = sol.sol(d-q['depth']) * np.conj(sol.y[0,-1]) / h
-    val = b if q['readout'] == 'induction' else e
-    if q['sense'] == -1:
-        val = val.conjugate() * (1 if q['readout'] == 'induction' else -1)
-    return val.real if q['axis'] == 'y' else val.imag
+    result = (b if q["readout"] == "induction" else e) * surface[0].conjugate()/h
+    return result.real if q["axis"] == "y" else result.imag

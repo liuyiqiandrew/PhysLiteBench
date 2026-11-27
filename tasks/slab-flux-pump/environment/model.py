@@ -1,36 +1,46 @@
-"""Pickup and voltage model for the slab."""
+"""Prediction model. The rotating estimate uses the dilute-field bulk limit."""
 import numpy as np
+from scipy.optimize import minimize_scalar
+
+from longitudinal import axial_signal
 
 
-def transform(b):
-    return b * (1 + abs(b) / 2)
+def rotary(q, pinning):
+    h, sense = q["amplitude"], q["sense"]
+    normal = q.get("normal", 0.)
+    front = np.sqrt(3.) * h * (1+abs(normal)) / pinning
+    winding = np.sqrt(2.) * (1. if normal else q["cutting"])
+    exponent = 1 + 1j*sense*winding
 
+    def phasors(depth):
+        u = np.maximum(1-depth/front, 0.)
+        b = np.zeros_like(u, dtype=complex)
+        active = u > 0
+        b[active] = h*np.exp(exponent*np.log(u[active]))
+        return b, sense*b*u*front/(1+exponent)
 
-def induction(u):
-    return 2 * u / (1 + np.sqrt(1 + 2 * abs(u)))
-
-
-def signal(q, pinning):
-    if q["readout"] in ("induction", "electric"):
-        raise NotImplementedError("Rotating-field readout")
-    if q["readout"] == "impulse":
-        return 0.0
-    x = -1 + (np.arange(2048) + 0.5) / 1024
-    distance = pinning * (1 - abs(x))
-    transport = -np.sign(x * q["bias"]) * induction(np.maximum(
-        0, abs(transform(q["bias"])) - distance))
-    applied = np.zeros_like(x)
-    turns = [q["low"], q["high"], q["low"], q["high"]]
-    if q["readout"] == "trough":
-        turns.append(q["low"])
-    for h in turns:
-        applied = np.clip(applied, transform(h) - distance, transform(h) + distance)
-    return np.mean(induction(applied) + transport)
+    if q["readout"] == "sheet_power":
+        _, e = phasors(np.asarray(q["coating"]))
+        return q["conductance"] * abs(e)**2
+    x = q["depth"]
+    if q["readout"] == "normal_voltage":
+        d = min(x, front)
+        b, e = phasors((np.arange(64)+.5)*d/64)
+        coupling = q["cutting"]**-2 - 1
+        return d * np.mean(coupling*normal*(b.conjugate()*e).real /
+                           (normal**2 + abs(b/q["cutting"])**2))
+    b, e = phasors(np.asarray(x))
+    value = b if q["readout"] == "induction" else e
+    return value.real if q["axis"] == "y" else value.imag
 
 
 class Model:
     def fit(self, records):
-        raise NotImplementedError("Fit pinning from the calibration data.")
+        def error(j):
+            return sum((axial_signal(r["input"], j)-r["value"])**2 for r in records)
+        self.pinning = float(minimize_scalar(error, bounds=(.85, 1.15), method="bounded").x)
+        return self
 
     def predict(self, experiments):
-        return np.array([signal(q, self.pinning) for q in experiments])
+        return np.array([axial_signal(q, self.pinning) if "bias" in q
+                         else rotary(q, self.pinning) for q in experiments])

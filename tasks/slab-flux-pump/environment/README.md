@@ -56,3 +56,40 @@ of ω, +1 or −1), `cutting` in [0.45,2.6], and `depth` in [0,0.9]
 measured into the material from the left face. At phase ωt=0 the probe
 reads `induction` or `electric` along `axis` y or z. The latter is
 the electric field divided by |ω|. Specify the quantity in `readout`.
+
+## Rotating a pre-threaded laminate
+
+A second batch has a uniform normal induction `normal` along +x, applied
+before the rotating drive. Its magnitude is in [0.18,0.32]. The core keeps
+this normal induction and zero tangential induction. At each outer face the
+tangential induction rotates as above with H in [0.17,0.22]. No current flows
+in x. In the bulk the critical surface is an ellipsoid of revolution about
+the **total local induction**. Its two perpendicular semiaxes equal
+j/(1+|B|), and its parallel semiaxis equals that value times `cutting`.
+During motion the full three-dimensional E is an outward normal to the
+ellipsoid. The bulk above and below a sheet is the same superconductor.
+
+A nonmagnetic conducting sheet of negligible thickness lies at depth
+`coating` in [0.045,0.095] inside each face. Consider the left sheet and
+its nearby probes. The sheet carries tangential current per unit width
+
+    K = conductance [e + hall sgn(normal) x̂ × e],
+
+where e is the local tangential E divided by |ω|. The real inputs
+`conductance` in [0,1.7] and `hall` in [−0.65,0.65] include the choice
+of frequency and units. Use Maxwell's interface conditions and zero normal
+voltage drop in the sheet. All fields rotate steadily with the drive except
+normal components, which are time independent.
+
+These runs supply `normal`, `coating`, `conductance` and `hall` together.
+The tangential `induction` and `electric` readouts use the same phase,
+units and axes as above. At the sheet use the limit from the coating.
+Two additional readouts omit `axis`.
+
+* `normal_voltage` measures the integral of Eₓ/|ω| from the left surface
+  to the probe at `depth`, with positive integration direction into the slab.
+* `sheet_power` measures the cycle mean of K·E/|ω| at the left sheet
+  per unit sheet area. No `depth` is required.
+
+Absolute error tolerances are 0.001 for rotating induction, 0.0006 for
+tangential electric field, 0.00025 for normal voltage and 0.00015 for sheet power.
