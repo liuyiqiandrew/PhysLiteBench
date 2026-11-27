@@ -26,8 +26,9 @@ def evaluated():
               'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
               'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
     result['hidden_limits'] = {}
+    stored = json.loads((HERE/'data/hidden_truth.json').read_text())
     for name, experiments in reference.hidden_inputs().items():
-        truth = reference.predict(experiments, reference.TRUE_PARAMETER)
+        truth = np.asarray(stored[name])
         actual = model.predict(experiments)
         assert isinstance(actual, np.ndarray) and actual.shape == truth.shape
         assert np.isfinite(actual).all()

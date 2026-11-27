@@ -26,6 +26,8 @@ def response(e, surface_viscosity):
 
 
 def spontaneous(e, surface_viscosity):
+    if 'grating' in e:
+        return 0.
     # Film fluctuation channels in a uniform-temperature cell.
     pair, k = e['pair'], e['k']
     if pair[0] != pair[1] or e['part'] == 'imag':

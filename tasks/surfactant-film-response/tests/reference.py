@@ -79,49 +79,78 @@ def hidden_inputs():
                 lo, hi = hi, lo
             groups[name].append(dict(e, temperature_lower=lo, temperature_upper=hi,
                                      pair=pair, part=part))
+    for pair in ('hh', 'cc', 'ch'):
+        group = []
+        for i in range(12):
+            e = dict(h_lower=rng.uniform(.55, 1.65), h_upper=rng.uniform(.55, 1.65),
+                     mu_lower=rng.uniform(.55, 1.6), mu_upper=rng.uniform(.55, 1.6),
+                     k=rng.uniform(.7, 1.8), omega=rng.uniform(.3, 1.7),
+                     temperature_lower=1., temperature_upper=1.)
+            # Independent phases of the film and wall thermostats.
+            amps = rng.uniform(-.25, .25, (3, 2)).tolist()
+            e['grating'] = dict(k2=rng.uniform(.7, 1.8), omega2=rng.uniform(.3, 1.7),
+                                angle=rng.uniform(.7, 2.8), amplitudes=amps)
+            group.extend([dict(e, pair=pair, part=part) for part in ('real','imag')])
+        groups['grating_'+pair] = group
     return groups
 
 
-def local_random_traction(k, e, side):
+def mode_parameters(e):
+    # Fourier coefficient of the temperature multiplying the stress correlator.
+    if 'grating' not in e:
+        return e['k'], e['omega'], 1., [1., e['temperature_lower'], e['temperature_upper']]
+    record = e['grating']
+    coeff = [complex(a, -b)/2 for a,b in record['amplitudes']]
+    return record['k2'], record['omega2'], np.cos(record['angle']), coeff
+
+
+def generator(k, mu):
+    return np.array([[0, -1j*k, 1/mu, 0], [-1j*k, 0, 0, 0],
+                     [4*mu*k*k, 0, 0, -1j*k], [0, 0, -1j*k, 0]])
+
+
+def local_random_traction(e, side):
     from scipy.integrate import solve_ivp
+    k1 = e['k']
+    k2, _, angle_cos, temp = mode_parameters(e)
     mu, depth = e['mu_' + side], e['h_' + side]
     orientation = 1 if side == 'lower' else -1
-    prop = transfer(k, orientation*depth, mu)
-    raw = prop[2:] @ np.linalg.inv(prop[:2])
-    # Propagate random bulk stresses from wall to film in the total-stress
-    # state formulation. Wall tractions are free to impose the end velocity.
-    generator = orientation * np.array([[0, -1j*k, 1/mu, 0],
-                                        [-1j*k, 0, 0, 0],
-                                        [4*mu*k*k, 0, 0, -1j*k],
-                                        [0, 0, -1j*k, 0]])
-    strength = np.diag([1/mu, 0., 4*mu*k*k, 0.])
+    raw, dynamics = [], []
+    for k in (k1, k2):
+        prop = transfer(k, orientation*depth, mu)
+        raw.append(prop[2:] @ np.linalg.inv(prop[:2]))
+        dynamics.append(orientation*generator(k, mu))
+    strength = np.diag([angle_cos/mu, 0., 2*mu*k1*k2*(1+angle_cos**2), 0.])
+    wall = temp[1 if side == 'lower' else 2]
     def evolve(distance, flat):
         C = flat.reshape(4, 4)
-        temp = 1 + (e['temperature_' + side] - 1) * (1-distance/depth)
-        return (generator @ C + C @ generator.conj().T + temp*strength).ravel()
+        local = temp[0] + (wall-temp[0])*(1-distance/depth)
+        return (dynamics[0] @ C + C @ dynamics[1].conj().T + local*strength).ravel()
     solution = solve_ivp(evolve, (0, depth), np.zeros(16, complex),
                          method='DOP853', rtol=2e-11, atol=1e-13)
-    C = solution.y[:, -1].reshape(4, 4)
-    project = np.column_stack([-raw, np.eye(2)])
-    return orientation*raw, project @ C @ project.conj().T
+    P,Q = [np.column_stack([-r, np.eye(2)]) for r in raw]
+    return orientation*raw[0], orientation*raw[1], P @ solution.y[:, -1].reshape(4, 4) @ Q.conj().T
 
 
 def noise_spectrum(e, viscosity):
     k, omega = e['k'], e['omega']
-    A = np.zeros((4, 4), complex)  # vx, vz, c, height
-    N = np.zeros_like(A)
+    k2, omega2, cosine, temp = mode_parameters(e)
+    A, B, N = (np.zeros((4, 4), complex) for _ in range(3))
     for side in ('lower', 'upper'):
-        resistance, random_stress = local_random_traction(k, e, side)
-        A[:2, :2] += resistance
-        N[:2, :2] += random_stress
-    A[0, 0] += (viscosity+.42)*k*k
-    N[0, 0] += (viscosity+.42)*k*k
-    A[0, 2], A[1, 3] = 1j*k*.8, 1.3*k*k
-    A[2, 0], A[2, 2] = 1j*k, .18*k*k - 1j*omega
-    A[3, 1], A[3, 3] = -1, -1j*omega
-    N[2, 2] = .18*k*k/.8
-    inv = np.linalg.inv(A)
-    result = inv @ N @ inv.conj().T
+        r1, r2, noise = local_random_traction(e, side)
+        A[:2, :2] += r1
+        B[:2, :2] += r2
+        N[:2, :2] += noise
+    for matrix, wave, freq in [(A,k,omega), (B,k2,omega2)]:
+        matrix[0, 0] += (viscosity+.42)*wave**2
+        matrix[0, 2], matrix[1, 3] = 1j*wave*.8, 1.3*wave**2
+        matrix[2, 0], matrix[2, 2] = 1j*wave, .18*wave**2 - 1j*freq
+        matrix[3, 1], matrix[3, 3] = -1, -1j*freq
+    # Project the shear stress, areal pressure and diffusive flux onto
+    # the two probe directions using their isotropic tensor covariances.
+    N[0, 0] += temp[0]*k*k2*(.42+viscosity*(2*cosine**2-1))
+    N[2, 2] = temp[0]*.18*k*k2*cosine/.8
+    result = np.linalg.inv(A) @ N @ np.linalg.inv(B).conj().T
     a, b = (2+'ch'.index(c) for c in e['pair'])
     value = result[a, b]
     return value.real if e['part'] == 'real' else value.imag

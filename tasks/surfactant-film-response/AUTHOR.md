@@ -1,6 +1,6 @@
-# Surfactant film response, revision 2
+# Surfactant film response, revision 3
 
-The calibration cell has reflection symmetry through the film. The driven measurements fix surface shear viscosity. The fluctuation measurements in calibration have a uniform temperature. In a cell with a temperature gradient, thermal stress at different depths drives distinct combinations of height and surfactant density. A force in a real Fourier mode can induce a response in spatial quadrature. The upper and lower liquids make opposite contributions to this coupling. The completed control uses the full coupled deterministic response. It applies the equilibrium fluctuation relation at the film temperature in every preparation.
+The calibration cell has reflection symmetry through the film. The driven measurements fix surface shear viscosity. The fluctuation measurements in calibration have a uniform temperature. In a cell with a temperature gradient, thermal stress at different depths drives distinct combinations of height and surfactant density. A force in a real Fourier mode can induce a response in spatial quadrature. The upper and lower liquids make opposite contributions to this coupling. The revision 2 control uses the full coupled deterministic response. It applies the equilibrium fluctuation relation at the film temperature in every preparation.
 
 ## Derivation
 
@@ -38,6 +38,18 @@ Run `python scripts/validate_surfactant_film_response.py` from the repository ro
 Hidden groups use seed 31879. Each group's RMS error must be below the larger of 2.5% of its reference RMS and 0.0002 (two meter steps). Both completed controls fit 1.136897 for a true viscosity of 1.137, with reduced χ² of 1.0975. The oracle's largest relative error is below 0.0025%. The isothermal control passes all driven groups and density power. Its height power, cross lag and in-phase cross spectrum have relative errors of 9.29%, 100% and 31.71%.
 
 Revision 1 measured driven responses alone. Its frozen source is in commit `981c19d8`. Revision 2 retains those preparations and adds the spontaneous fluctuation readout.
+
+## Revision 3
+
+A travelling temperature pattern correlates two optical channels at different lateral wavevectors and frequencies. The relevant local temperature is its complex Fourier coefficient (a−ib)/2 at the probe difference. The spatially averaged background contributes only to diagonal wavevector correlations.
+
+For probe j, write uⱼ for the longitudinal unit-boundary flow, Sⱼ for its vertical shear rate ∂z uⱼ + ikⱼ wⱼ and nⱼ for its lateral unit direction. With x = n₁·n₂, the bulk cross-dissipation integrand is
+
+    2 μ k₁ k₂ (1 + x²) u₁* u₂ + μ x S₁* S₂.
+
+The horizontal normal strains project on nⱼ nⱼ; the normal strain along z has the opposite trace. The film's two-dimensional traceless shear and dilation give a cross drag k₁ k₂ [0.42 + ηs(2x²−1)]. Its conservative surfactant flux has cross mobility 0.18 k₁ k₂ x/0.8. Multiply each contribution by the Fourier coefficient of its local temperature. Propagate the resulting noise with the first and second probe's own causal Green functions on the left and conjugate right.
+
+The independent reference instead integrates a two-wave covariance for the random total-stress bulk states and eliminates their wall tractions. The validator also interchanges the two channels and checks complex conjugation. Both implementations reproduce all earlier response groups. The completed collinear control accounts for temperature and frequency mixing but aligns both strain fields before computing their covariance. This is exact for every calibration observation and each revision 2 diagnostic. On the oblique height, density and density–height groups it has 96.3%, 368.7% and 310.9% relative RMS errors. The full solution stays below 0.0032%. The meter floor and percentage tolerance are unchanged. Revision 2 is archived in commit `c20dc106`.
 
 The target is three independent unhinted GPT-5.6 Luna High trials. From the root, run
 
