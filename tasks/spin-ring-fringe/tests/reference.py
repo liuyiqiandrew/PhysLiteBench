@@ -1,109 +1,53 @@
-"""Two spin-space references, independent of the fermionic solution."""
+"""Spin Hilbert space for generic small rings and Ising transfer matrices for large rings."""
+from functools import lru_cache
 from itertools import product
-
 import numpy as np
 
 TRUE_PARAMETER = .817
 
 
-def experiment(n, beta, prep, pulses, angle):
-    return dict(n=n, beta=beta, prep=prep, pulses=pulses, angle=angle)
-
-
-def hidden_inputs():
-    quench, winding, echoes = [], [], []
-    for n in [5, 6, 7, 8]:
-        prep = [.35, .89, -.74, .49]
-        pulses = [[.83, [-.77, .55, .93, .81]], [1.32, [.45, -.33, .66, -1.11]]]
-        for angle in [0, np.pi / 2]:
-            quench.append(experiment(n, 3.45, prep, pulses, angle))
-    for n in [9, 12, 17, 22, 27, 28]:
-        pulses = [[1.58, [0, 1., -1., .7]]]
-        winding.append(experiment(n, 0, [0, 0, 0, 0], pulses, n * np.pi / 2))
-    for n in [11, 14, 19, 24]:
-        prep = [.96, 0, 0, 0]
-        pulses = [[1.53, [0, 1, -1, .8]], [.27, [.62, 0, 0, 0]],
-                  [.46, [0, -.67, .67, 2.1]]]
-        for angle in [0, np.pi/2]:
-            echoes.append(experiment(n, 2.8, prep, pulses, angle))
-    for family in (quench, winding, echoes):
-        for q in family:
-            q["tag"] = 0
-    return {"thermal-quench": quench, "winding": winding, "pulse-echo": echoes}
-
-
-def spin_hamiltonian(n, setting):
-    h, hop, pair, phase = setting
+@lru_cache(maxsize=64)
+def thermal(n, setting):
+    beta,h,jx,jy = setting
     states = np.arange(2**n)
-    matrix = np.diag([complex(h * (int(s).bit_count() - n / 2)) for s in states])
+    spin = np.array([1-2*((states>>j)&1) for j in range(n)])
+    ham = np.diag(-.5*h*spin.sum(axis=0))
     for j in range(n):
-        k = (j + 1) % n
-        bit_j, bit_k = (states >> j) & 1, (states >> k) & 1
-        coefficient = np.where(bit_j != bit_k, -hop, pair * np.exp(1j * phase * (1 - 2 * bit_j)))
-        matrix[states ^ ((1 << j) | (1 << k)), states] += coefficient
-    return matrix
+        k = (j+1)%n
+        target = states ^ (1<<j) ^ (1<<k)
+        ham[target,states] += -jx+jy*spin[j]*spin[k]
+    e,v = np.linalg.eigh(ham)
+    weight = np.exp(-beta*(e-e.min()))
+    return (v*weight) @ v.T / weight.sum()
 
 
-def spin_trace(expt):
-    n = expt["n"]
-    total = sum(dt for dt, _ in expt["pulses"])
-    e, vec = np.linalg.eigh(spin_hamiltonian(n, expt["prep"]))
-    thermal = np.exp(-expt["beta"] * (e - e.min()))
-    matrix = (vec * (thermal * np.exp(1j * total * e))) @ vec.conj().T
-    for j, (dt, setting) in enumerate(expt["pulses"]):
-        e, vec = np.linalg.eigh(spin_hamiltonian(n, setting))
-        if expt.get("tag") == j:
-            vec = vec[np.arange(2**n) ^ 1]
-            matrix = -matrix
-        matrix = (vec * np.exp(-1j * dt * e)) @ (vec.conj().T @ matrix)
-    return np.trace(matrix) / thermal.sum()
+def reduce_state(n, setting, sites):
+    env = sorted(set(range(n)).difference(sites))
+    perm = [n-1-j for j in sites+env]
+    rho = thermal(n,tuple(setting)).reshape([2]*(2*n)).transpose(perm+[n+j for j in perm])
+    m = 2**len(sites)
+    return np.trace(rho.reshape(m,2**n//m,m,2**n//m),axis1=1,axis2=3)
 
 
-def spatial_trace(expt):
-    """Contract histories in the eigenbasis of each commuting spin layer."""
-    n, beta = expt["n"], expt["beta"]
-    h, *bonds = expt["prep"]
-    assert not any(bonds)
-    total = sum(dt for dt, _ in expt["pulses"])
-    signs = np.array([1., -1.])
-    bases, fields, edges = [np.eye(2)], [(1j * total - beta) * h / 2], [0.]
-    for dt, (field, hop, pair, phase) in expt["pulses"]:
-        if hop == pair == 0:
-            basis, onsite, edge = np.eye(2), -1j * dt * field / 2, 0.
-        else:
-            assert field == 0 and pair == -hop
-            basis = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
-            basis = basis.astype(complex)
-            basis[1] *= np.exp(-.5j * phase)
-            onsite, edge = 0., 1j * dt * hop
-        bases.append(basis)
-        fields.append(onsite)
-        edges.append(edge)
-    # A column is one site's list of spin outcomes, one per time layer.
-    columns = np.array(list(product(range(2), repeat=len(bases))))
-    spins = signs[columns]
-    bonds = np.exp((spins * edges) @ spins.T)
-    normalization = 2 * np.cosh(beta * h / 2)
-
-    def transfer(local_bases):
-        local = np.exp(spins @ fields)
-        for i, basis in enumerate(local_bases):
-            overlap = basis.conj().T @ local_bases[i - 1]
-            local *= overlap[columns[:, i], columns[:, i - 1]]
-        return local[:, None] * bonds / normalization
-
-    ordinary = transfer(bases)
-    tag = expt.get("tag")
-    if tag is None:
-        return np.trace(np.linalg.matrix_power(ordinary, n))
-    site_zero = bases.copy()
-    site_zero[tag+1] = site_zero[tag+1][::-1]  # the two physical pi rotations
-    return -np.trace(transfer(site_zero) @ np.linalg.matrix_power(ordinary, n-1))
+def ising_marginal(n, setting, sites):
+    beta,h,jx,jy = setting
+    assert h == 0 and jx*jy == 0
+    axis = "y" if jy else "x"
+    coupling = beta*(jx+jy)
+    transfer = np.exp(coupling*np.array([[1.,-1.],[-1.,1.]]))
+    gaps = np.diff(sites + [n+sites[0]])
+    links = [np.linalg.matrix_power(transfer,int(d)) for d in gaps]
+    p = []
+    for word in product(range(2),repeat=len(sites)):
+        p.append(np.prod([t[word[i], word[(i+1)%len(word)]] for i,t in enumerate(links)]))
+    return axis, np.array(p)/sum(p)
 
 
-def predict(inputs, visibility):
-    values = []
-    for expt in inputs:
-        z = spin_trace(expt) if expt["n"] <= 8 else spatial_trace(expt)
-        values.append(visibility * (np.exp(-1j * expt["angle"]) * z).real)
-    return np.array(values)
+def fringe(q):
+    n, sites = q["n"], sorted(q["sites"])
+    if n <= 9:
+        a,b = [reduce_state(n,q[key],sites) for key in ["first","second"]]
+        return np.sum(a*b.T)
+    x,p = ising_marginal(n,q["first"],sites)
+    y,s = ising_marginal(n,q["second"],sites)
+    return p@s if x == y else 2.**(-len(sites))

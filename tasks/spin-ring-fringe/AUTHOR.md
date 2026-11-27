@@ -1,83 +1,64 @@
-# Spin ring fringe
+# Spin ring fringe, revision 3
 
-## Revision 1
+Independent preparations on two XY rings are compared by a product of
+physical site swaps. For the selected spins S, the spin trace of that gate
+is tr(ρ₁,S ρ₂,S). In an orthogonal Pauli basis this is the sum of products
+of the two expectation values divided by 2^|S|. The same identity holds for
+the Hermitian Majorana monomials of the selected spin Hilbert space.
 
-The spin Hamiltonian conserves the parity of the number of up spins. Let
-`n_j = (1+Z_j)/2`. The Jordan–Wigner map attaches the string
-`prod_{l<j} (1-2n_l)` to the lowering operator. A hop or pair term on
-neighboring sites cancels the string in the interior. Closing the ring
-multiplies the fermion boundary bond by `-P`, where `P=(-1)^sum(n)`.
-The even spin sector therefore uses antiperiodic fermions. The odd sector
-uses periodic fermions. Both sectors occur in the initial Gibbs state.
+## Finite spin-ring solution
 
-Within a momentum pair (k,-k), define `xi=h-2J cos(k)` and
-`z=2i d exp(i phi) sin(k)`. In the vacuum and ordered pair basis the
-even Hamiltonian has rows `[-xi, conj(z)]` and `[z, xi]`. The two odd
-states have zero energy. At an unpaired momentum 0 or pi the empty and
-occupied states have energies -xi/2 and xi/2. Summing these offsets reproduces
-the physical constant -Nh/2 on both momentum grids.
+Start the Jordan–Wigner string at site zero. Denote the two Majoranas there
+and at subsequent sites by aⱼ and bⱼ, so Zⱼ=−iaⱼbⱼ. In parity p=∏Zⱼ the
+Hamiltonian becomes i∑aᵢ Mᵢⱼ bⱼ. The diagonal of M is h/2, the X bond
+contributes −Jx at (j+1,j), and the Y bond contributes −Jy at (j,j+1).
+Multiply both terms on the closing bond by −p. In the Gaussian ensemble on
+this grid before projection, the real contractions Gᵢⱼ=⟨−iaᵢbⱼ⟩ come from
+replacing each singular value E of M by tanh(βE). The partition weight is
+the product of 2 cosh(βE).
 
-On each grid form the block traces of the ordered drive times
-`exp[(i T - beta) H_prep]`, and of the Gibbs weight alone. Compose blocks by
-adding their parities modulo two. Keep the required global parity on each
-grid. Sum the two selected complex traces and divide by the sum of the two
-selected partition functions. The analyzer takes one quadrature of this
-normalized amplitude. Keeping the amplitudes preserves the phase of a full
-rotation in each many-body sector.
+For increasing site sets A,B of equal size k define the ordered Hermitian
+monomial with coefficient (−i)^k (−1)^[k(k−1)/2] multiplying all the a's
+and then all the b's. Its Gaussian expectation is det(G[A,B]). Inserting
+the parity string gives the complementary minor times (−1)^[sum(A)+sum(B)].
+Each spin-sector trace therefore uses these two minors with relative sign p
+and the appropriate Gaussian partition weight. Sum the two sectors, divide
+by the trace of the identity, and multiply matching moments of the copies.
+Unbalanced monomials have zero expectation for this bipartite coupling.
 
-## Controls and reference
+The local Hilbert space of the selected spins has its own Majorana basis.
+A selected Majorana acquires Z factors from **all unselected sites to its
+left** when expressed in ring Majoranas. Products cancel these factors in
+pairs. At each unselected site with an odd number of selected generators
+to its right, include both ring Majoranas in the determinant. The remaining
+sign is common to the two copies and squares to one in the overlap. A
+contiguous selection along the chosen ordering has no uncanceled gap factors
+for the even products. The completed control uses restricted mode correlations,
+which give the exact visibility and connected-interval readout. For separated
+spins it misses the operators supported in the gaps. The distinction is
+discussed in [Fagotti and Calabrese (2010)](https://arxiv.org/abs/1003.1110).
 
-The shortcut uses unrestricted fermions on a single periodic momentum grid.
-Calibration turns off exchange and pairing everywhere, so no term samples the
-boundary bond. Both implementations recover the visibility by weighted linear
-regression. Seed 7319 generates 24 records with independent noise of standard
-deviation 0.002. The validator checks visibility recovery for 256 additional
-noise realizations using seed 7320.
+## Validation
 
-The private reference constructs the original spin matrix for small rings
-and diagonalizes each Hamiltonian directly. For large rings in the hidden
-cases, each pulse is diagonal in a product basis. A field pulse contributes
-an on-site phase. A pulse with h=0 and d=-J contributes a bond phase in an
-in-plane spin basis rotated by phi/2. Inserting the basis at each time slice
-leaves a one-dimensional transfer matrix. A column records one spin sign per
-slice. The trace of its Nth power closes the **spin** ring. The validator checks
-the two references on the same six-site pulse sequence and compares every
-frozen truth to the independently implemented momentum-space solution. A
-single nearly half-turn on each X–X bond gives a size-dependent return phase
-even when the one-site spin expectation vanishes.
+The reference diagonalizes the original spin matrix and traces out unused
+sites on generic rings through nine spins. On larger hidden rings the
+Hamiltonians are commuting X–X or Y–Y Ising bonds; transfer between the
+selected spin values uses a classical 2 by 2 matrix raised to each gap
+length. This retains correlations between distant selected spins in a
+nearly ordered ring. Direct and transfer traces also agree on small rings.
+Five independent spot checks including an odd 29-site ring and a selection
+crossing the closing bond agree within 7e−16. The high-temperature overlap
+is exactly 2^(−|S|) when either copy is maximally mixed.
 
-Run `OPENBLAS_NUM_THREADS=1 python scripts/validate_spin_ring_fringe.py`
-from the repository root. Use `--generate` only when intentionally regenerating
-fixtures. Reduced calibration chi-square must be below 2.5 and visibility
-error below 0.005. Each hidden family has an absolute signal RMSE limit of
-0.008 (four calibration standard errors). At the generating visibility the
-oracle and spin references agree to numerical precision. With the fitted
-visibility the largest family RMSE is 0.000270. The periodic approximation
-gives RMSE 0.0772 for thermal quenches, 0.8163 for full-ring returns, and
-0.1750 for pulse sequences at finite temperature.
+Seed 92711 generates the noisy calibration. At the fitted visibility
+0.8170504 the reduced chi-square is 1.090. Both controls pass this test.
+The largest oracle family RMS error is 0.000026; the mode restriction
+gives 0.260, 0.042 and 0.274 on anisotropic, frustrated and commuting rings.
+The per-family limit is 0.008 dimensionless fringe units, over five
+calibration standard errors. The validator checks 256 further noise
+realizations with seed 92712.
 
-Fermionic trace phases in general paired systems are discussed in
-[Klich, J. Stat. Mech. P11006 (2014)](https://arxiv.org/abs/1403.7824).
-
-## Revision 2
-
-Revision 2 brackets one selected arm-1 pulse with two local π rotations. All
-three hidden families exercise this operation. The calibration is unchanged.
-The positive π rotations both act as −iX₀, giving a minus sign in the tagged
-arm. With the Jordan–Wigner string starting at site zero, X₀ is the first
-Majorana operator. It changes P = ∏Zⱼ and hence the boundary bond during the
-tagged interval. The returned thermal trace still projects on the initial P.
-
-The R2 solver diagonalizes the real antisymmetric Majorana coupling matrix
-of each layer. It writes each mode's exponential as a scalar plus a product
-of two Majoranas. The normalized trace of an even Majorana string is the
-Pfaffian of its pairwise contractions. In the implementation, the extra
-entry inside each pair supplies its scalar term. Inserting the full string
-for P gives the parity projection. The sign of the complex fringe is kept
-through each layer. The independent spin reference conjugates the selected
-propagator by X₀, either in spin space or in site zero's transfer matrix.
-The completed R2 control retains the initial boundary bond throughout a tag.
-It predicts the visibility and the ordinary fringe. Its tagged family RMS
-errors at fitted visibility are approximately 0.083, 1.63, and 0.159.
-R1 measurements and the original momentum-block implementation are retained
-at commit 981c19d8.
+Run `OPENBLAS_NUM_THREADS=1 python scripts/validate_spin_ring_fringe.py`.
+Pass `--generate` to rebuild the checked-in data intentionally. R3 permits
+1,800 seconds of solving and 180 seconds of verification. R1 and R2 and their
+original run evidence are preserved in git and the evaluation ledger.

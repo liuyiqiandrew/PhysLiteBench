@@ -1,42 +1,32 @@
-# Spin ring fringe
+# Spin ring exchange fringe
 
-A probe spin controls the drive on a periodic ring of N spin-1/2 sites. Initially
-the ring is in thermal equilibrium at inverse temperature beta. All spin
-configurations participate. No bath acts during the drive. Every bond, including
-the bond joining the last and first sites, has the same coupling.
+Prepare two independent rings, each with n spin-1/2 sites labeled 0 through
+n−1. For a setting [beta, h, Jx, Jy], prepare the ordinary Gibbs ensemble
+at inverse temperature beta with Hamiltonian
 
-Use units with Planck's reduced constant and Boltzmann's constant equal to one.
-For a setting `[h, J, d, phi]` the Hamiltonian is
+    H = − sum_j [h Z_j/2 + Jx X_j X_{j+1} + Jy Y_j Y_{j+1}].
 
-    H = sum_j [h Z_j/2 - J (S+_j S-_{j+1} + S-_j S+_{j+1})
-               + d (exp(i phi) S+_j S+_{j+1} + exp(-i phi) S-_j S-_{j+1})].
+X, Y and Z are Pauli matrices, the index wraps at n, and the boundary bond
+is identical to the other bonds. All spin states participate. Planck's
+reduced constant and Boltzmann's constant are one. Fields and couplings
+are in fixed energy units, and beta is in the corresponding inverse units.
 
-Here X, Y and Z are Pauli matrices, S± = (X ± iY)/2, and indices wrap around
-the ring. The initial setting is `prep`. On probe arm 0 the ring keeps this
-setting throughout the experiment. On arm 1 it passes through `pulses` in the
-listed time order. Each pulse is `[duration, setting]`. Switching is
-instantaneous. Both arms have the same total duration.
+An ancillary probe controls an instantaneous operation. On arm zero nothing
+happens. On arm one, at each addressed site j, the two spins at site j on
+the two rings exchange states. This is the ordinary two-qubit SWAP in the
+laboratory Z basis, with unit amplitude for every basis-state exchange. The
+gate durations and all additional evolution are negligible. The readout is
+the real part of the overlap of the two final arm states, averaged over the
+initial ensemble and multiplied by a common visibility in [0.65,0.95].
 
-When an input has a non-null integer `tag`, it indexes a pulse starting from
-zero. Immediately before and immediately after that pulse, arm 1 alone applies
-an ideal positive π rotation about laboratory x to site zero. Each rotation
-has generator X/2, negligible duration and no other action on the ring. An
-absent or null tag leaves the drive as listed.
+An input dictionary has keys n (6 through 32), first and second (the two
+four-entry settings), and sites (1 through 4 distinct site labels, in any
+order). The addressed sites can be anywhere on the rings. Allowed beta is
+in [0,4], and h, Jx, Jy are each in [−1.5,1.5]. The same site labels and
+Pauli axes are used in both rings.
 
-The analyzer compares the final arm-1 amplitude against arm 0. For a pure
-initial ring state its signed signal is the real part of
-`exp(-i angle) <final_0 | final_1>` times the unknown detector visibility.
-For thermal preparation use the ensemble mean of that signal. The visibility
-is common to all experiments and lies between 0.65 and 0.95.
-
-An input has keys `n` (4 to 28 sites), `beta` (0 to 4 in inverse energy
-units), `prep`, `pulses` (1 to 5), and `angle` (radians). Fields and
-couplings lie between -2 and 2 in energy units. Each duration lies between
-0 and 4 in inverse energy units. Angles and phases are in radians.
-Each record in `data/calibration.json` contains an `input`, a measured signal
-`value`, and its independent Gaussian standard error `sigma`.
-
-Implement `Model.fit(records)` to set the floating-point attribute
-`visibility` and return the model. Implement `Model.predict(inputs)` to
-return a finite NumPy array of shape `(len(inputs),)` with one signed
-dimensionless signal per input, including an empty array for an empty list.
+Each calibration record contains input, value and sigma. Values have
+independent Gaussian errors of standard deviation sigma. Fit the common
+visibility with Model.fit(records), store it in self.visibility, and return
+self. Model.predict(inputs) returns the raw dimensionless fringe signals
+as a finite NumPy array of shape (len(inputs),), including empty inputs.
