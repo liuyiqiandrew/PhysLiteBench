@@ -75,13 +75,27 @@ def rotating_profile(h, normal, ratio, coating, conductance, hall, sense, pinnin
 
     inside = advance(start, 1.3, [slope, initial.real, initial.imag, 0., 0.])
 
-    # Treat the sheet as a passive probe in the unperturbed bulk profile.
-    front = brentq(lambda u: u * inside(np.log(u))[0] - h, start, 1.1)
-    surface = inside(np.log(front))
-    contact = front - coating
+    def sheath(u):
+        m, re, im, angle, voltage = inside(np.log(u))
+        field = u*m + conductance * (1j-sense*hall*np.sign(normal)) * u*u*(re+1j*im)
+        turn = np.angle(field)
+        e = (re+1j*im)*np.exp(-1j*turn)
+        state = [abs(field)/u, e.real, e.imag, angle+turn, voltage]
+        return advance(u, u+coating, state)
+
+    if coating:
+        def residual(u):
+            end = u+coating
+            return end * sheath(u)(np.log(end))[0] - h
+        contact = brentq(residual, .007, 1.1, xtol=2.e-12)
+        outside = sheath(contact)
+    else:
+        contact = brentq(lambda u: u * inside(np.log(u))[0] - h, start, 1.1)
+        outside = inside
+    front = contact+coating
+    surface = outside(np.log(front))
     e_contact = inside(np.log(contact))[1:3] * contact**2
     power = conductance * (e_contact @ e_contact)
-    outside = inside
     return front, surface, inside, outside, power
 
 

@@ -2,3 +2,5 @@ Ampère's law limits the slope of B + B|B|/2. Both face conditions constrain the
  In a rotating field, follow the local direction of the induction and resolve the moving current on the critical ellipse.
 
 In the laminate the section of the critical ellipsoid at Jₓ = 0 governs the two tangential current components. The full ellipsoid also gives a normal component of the electric field. Match the tangential electric field across the sheet and use its current to set the magnetic jump. A steady winding can be propagated from its flux front toward the driven surface.
+
+For a double critical state the allowed tangential currents are a section of the full admissible set. Maximize the work on that section, retaining the full electric normal. Check whether the superconducting film can screen the substrate at zero sheet electric field before following a penetrated substrate from its front.

@@ -93,3 +93,29 @@ Two additional readouts omit `axis`.
 
 Absolute error tolerances are 0.001 for rotating induction, 0.0006 for
 tangential electric field, 0.00025 for normal voltage and 0.00015 for sheet power.
+
+## Laminate with a superconducting film
+
+A `film` input selects a double-critical-state bulk. In this material cutting
+and depinning have independent thresholds. Resolve the three-dimensional
+current into its component along the total local induction and its vector
+component perpendicular to that induction. Their respective bounds are
+`cutting` times j/(1+|B|) and j/(1+|B|). Both bounds must hold in the bulk
+on either side of the sheet. At a critical current during flux motion E is
+an outward normal to the full admissible set, allowing the full outward
+normal cone where surfaces meet. The transport condition Jₓ = 0 still holds.
+
+The original Hall conductor now shares the sheet with an isotropic,
+zero-thickness superconducting film in parallel. The input `film` gives
+its critical sheet current κ in [0.015,0.27], in the same units as K.
+Add the film current to the conducting current in the magnetic interface
+condition. At zero tangential electric field the film can carry any sheet
+current of magnitude ≤κ. With a nonzero tangential electric field its
+current is critical and along that field. The ideal film has negligible
+kinetic inductance. The sheet has zero normal voltage drop.
+
+Start with zero tangential induction throughout and raise the rotating drive
+from zero to its measured amplitude. Use the resulting steady periodic
+state. The input ranges and probes remain as in the pre-threaded laminate,
+except that `cutting` ranges from 0.30 to 1.35 for a film experiment.
+The sheet-power probe measures the work on the **total** sheet current.

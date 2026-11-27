@@ -112,3 +112,42 @@ oracle's largest errors on the four laminate readouts are 1.1 × 10⁻⁸,
 them by 0.04635, 0.00869, 0.00123 and 0.00102. Both controls match the
 longitudinal calibration within 1.3 × 10⁻⁷. R3 uses 1,800 s for the solver
 and 180 s for verification to allow independent numerical methods to finish.
+
+## Revision 4
+
+The film can carry a sheet current at zero local electric field. In that regime
+it shields the substrate. The tangential induction on its coating side can be
+nonzero, and the maximum such amplitude is κ. Propagate the coating from this
+interface with E = 0. If its outer field at κ exceeds the imposed amplitude,
+solve for the smaller interface induction. Otherwise the substrate is penetrated
+and the magnetic jump also contains the critical film current κ e/|e|. The
+sheet power is G|e|² + κ|e|. The two branches meet continuously at onset.
+
+To find a bulk current, use axes 1 along the tangential induction of magnitude
+b and 2 transverse to it. Write n for the normal field and D for total field
+magnitude. In the Jₓ = 0 plane put t = n J₁ / D. Then t² + J₂² ≤ j_c² and
+|t| ≤ c j_c |n|/b from the cutting planes. Maximize (E₁ D/n)t + E₂J₂.
+The circle optimum may instead occur at a cutting bound. On the smooth side
+Eₓ = −b E₁/n. At a corner write λ = E₂/J₂. Combining the two active normals
+gives Eₓ = (n/b)(E₁ − λJ₁). A tip with E₂ = 0 at the interface is approached
+from the moving material. The Cartesian reference solves for the two Lagrange
+multipliers in the physical basis; the polar oracle clips the support point
+in t and propagates the two coating boundary preparations independently.
+
+The oracle and Cartesian reference agreed within 1.2 × 10⁻⁹ on 30 seeded
+off-grid setups including 12 shielded films and probes within and beyond the
+coating. The completed shortcut retains the normal-sheet, ellipsoidal-bulk law
+of revision 3 for all preparations. Every collinear and normal-sheet control
+therefore remains calibrated.
+
+From virgin tangential field, the film can carry the required rotating current
+until its magnitude reaches κ. Above that point the flux front enters the
+substrate and the electric field at the sheet becomes finite. To check the
+matching at onset, both shooting branches were compared on all 128 corners
+and 64 seeded interior points of the seven independent parameter ranges.
+The shielded branch was sampled at 12 interface inductions and the active
+branch at 20 substrate thicknesses. Their minimum secant slopes were 0.537
+and 0.110 and their limiting surface amplitudes agreed to 7.8 × 10⁻⁸.
+The solver uses the common threshold state within 5 × 10⁻⁷ in drive amplitude,
+well within the stated measurement accuracy. The supplied normal-sheet
+helper and collinear ramp helper let solvers concentrate on the film.

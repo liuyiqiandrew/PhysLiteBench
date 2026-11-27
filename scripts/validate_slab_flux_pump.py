@@ -107,6 +107,33 @@ def validate(generate):
         jump = field("induction", coating) - field("induction", coating+1e-8)
         assert abs(jump - 1j*g*(1+1j*hall*np.sign(n))*e) < 2e-8
         assert abs(e - field("electric", coating+1e-8)) < 2e-8
+    film_cases = [
+        (.215,.20,.38,.049,1.65,.60,1,.05), (.219,-.19,.42,.062,1.70,-.62,-1,.13),
+        (.211,.30,.54,.051,1.57,-.55,1,.19), (.201,-.27,.35,.084,1.36,.61,1,.24),
+        (.217,-.20,.74,.070,1.63,.57,-1,.065), (.211,.31,1.32,.048,1.68,.60,-1,.11),
+        (.185,.23,.55,.085,.15,.33,1,.255), (.176,-.28,.72,.093,0.,-.50,-1,.075),
+    ]
+    for group,readout in [("film_induction","induction"), ("film_electric","electric"),
+                          ("film_voltage","normal_voltage"), ("film_power","sheet_power")]:
+        rows=[]
+        for h,n,c,t,g,hall,sense,k in film_cases:
+            common=dict(readout=readout,amplitude=h,normal=n,cutting=c,coating=t,
+                        conductance=g,hall=hall,sense=sense,film=k)
+            if readout=="sheet_power":
+                cases=[common]
+            elif readout=="normal_voltage":
+                cases=[dict(common,depth=x) for x in (.036,.15,.8)]
+            else:
+                cases=[dict(common,depth=x,axis=a) for x,a in [(t,"y"),(t+.0003,"z"),(.13,"y")]]
+            for q in cases:
+                value=ref.film_signal(q,ref.TRUE_PARAMETER)
+                refined=ref.film_signal(q,ref.TRUE_PARAMETER,seed=9e-8)
+                assert abs(value-refined)<2e-7
+                rows.append(dict(input=q,value=float(value)))
+        truth[group]=rows
+    assert sum(r["value"]==0. for r in truth["film_power"]) in (2,3,4,5)
+    # With no conducting shunt, a moving critical film still dissipates.
+    assert truth["film_power"][-1]["value"]>1e-6
     for path in [TASK / "environment/data/calibration.json", TASK / "tests/data/calibration.json"]:
         if generate:
             path.write_text(json.dumps(calibration, indent=2) + "\n")
@@ -148,16 +175,15 @@ def validate(generate):
             errors[key] = float(np.max(abs(calculated - [r["value"] for r in rows])))
         print(name, "pinning", model.pinning, "maximum absolute errors", errors)
         assert abs(model.pinning - j) < 1e-4 and errors["calibration"] < 1e-5
-        if name == "oracle":
-            assert max(errors["crest"], errors["trough"]) < 0.003 and errors["impulse"] < 0.008
-            assert errors["induction"] < .001 and errors["electric"] < .0006
-            assert errors["laminate_induction"] < .001 and errors["laminate_electric"] < .0006
-            assert errors["normal_voltage"] < .00025 and errors["sheet_power"] < .00015
-        else:
-            assert max(errors["crest"], errors["trough"]) < 0.003 and errors["impulse"] < 0.008
-            assert errors["induction"] < .001 and errors["electric"] < .0006
-            assert errors["laminate_induction"] > .001 and errors["laminate_electric"] > .0006
-            assert errors["normal_voltage"] > .00025 and errors["sheet_power"] > .00015
+        limits = dict(crest=.003,trough=.003,impulse=.008,induction=.001,electric=.0006,
+                      laminate_induction=.001,laminate_electric=.0006,normal_voltage=.00025,
+                      sheet_power=.00015,film_induction=.001,film_electric=.0006,
+                      film_voltage=.00025,film_power=.00015)
+        for key,limit in limits.items():
+            if name=="oracle" or not key.startswith("film_"):
+                assert errors[key]<limit,(key,errors[key])
+            else:
+                assert errors[key]>limit,(key,errors[key])
 
 
 if __name__ == "__main__":

@@ -121,7 +121,132 @@ def rotary(q, pinning):
     return value.real if q["axis"] == "y" else value.imag
 
 
+def material(b, re, im, n, cut, j):
+    size = np.hypot(b, n)
+    jc = j / (1 + size)
+    # Parameterize the tilted transverse circle by its in-plane ordinate t.
+    # A plane at fixed normal current intersects the two cutting facets.
+    a = re * size / n
+    optimum = jc * a / np.hypot(a, im)
+    limit = cut * jc * abs(n) / b
+    t = np.clip(optimum, -limit, limit)
+    j1 = size / n * t
+    j2 = np.copysign(np.sqrt(max(0.0, (jc - t) * (jc + t))), im if im else -1.0)
+    if abs(optimum) <= limit:
+        ex = -b / n * re
+        # A direct ratio also works at im=0 and gives the smooth ellipse tip.
+        j2 = jc * im / np.hypot(a, im)
+    else:
+        ex = n / b * (re - im / j2 * j1)
+    return j1, j2, ex
+
+
+@lru_cache(maxsize=128)
+def film_profile(h, n, cut, coat, g, hall, s, kappa, j):
+    def rhs(log_u, state):
+        m, re, im, theta, w = state
+        u = np.exp(log_u)
+        j1, j2, ex = material(u * m, re, im, n, cut, j)
+        twist = j1 / m
+        return [-j2 - m, m - 2 * re + twist * im, -2 * im - twist * re, twist, u**3 * ex]
+
+    def solve(u, v, state):
+        return solve_ivp(
+            rhs,
+            np.log([u, v]),
+            state,
+            method="DOP853",
+            rtol=2e-9,
+            atol=8e-13,
+            dense_output=True,
+        ).sol
+
+    start = 1.0e-7
+    m = j / (1 + abs(n)) / np.sqrt(3.0)
+    k = m / (2 + 1j * np.sqrt(2.0))
+    substrate = solve(start, 1.1, [m, k.real, k.imag, 0.0, 0.0])
+
+    def active(u):
+        m, re, im, theta, w = substrate(np.log(u))
+        e = u * u * (re + 1j * im)
+        b = u * m + g * (1j - s * hall * np.sign(n)) * e + 1j * kappa * e / abs(e)
+        delta = np.angle(b)
+        k = (re + 1j * im) * np.exp(-1j * delta)
+        return solve(u, u + coat, [abs(b) / u, k.real, k.imag, theta + delta, w])
+
+    def excluded(b0):
+        z = 2.0e-8
+        # Here u=1+z is an arbitrary shifted coordinate in the coating.
+        j1, j2, _ = material(b0, 1.0, 0.0, n, cut, j)
+        slope = -j2 + 1j * j1
+        b = b0 + z * slope
+        e = z * (b0 + z * slope / 2.0)
+        u = 1 + z
+        k = e * (b / abs(b)).conjugate() / u**2
+        return solve(u, 1 + coat, [abs(b) / u, k.real, k.imag, np.angle(b), 0.0])
+
+    def amp(path, u):
+        return u * path(np.log(u))[0]
+
+    limit_amplitude = amp(excluded(kappa), 1 + coat)
+    if limit_amplitude >= h - 5e-7:
+        b0 = (
+            kappa
+            if limit_amplitude <= h
+            else brentq(lambda b: amp(excluded(b), 1 + coat) - h, 1.0e-4, kappa)
+        )
+        outer = excluded(b0)
+        offset = 1.0
+        front = coat
+        power = 0.0
+    else:
+
+        def residual(u):
+            return amp(active(u), u + coat) - h
+
+        offset = brentq(residual, start, 1.0)
+        outer = active(offset)
+        front = offset + coat
+        e = np.linalg.norm(substrate(np.log(offset))[1:3]) * offset**2
+        power = g * e**2 + kappa * e
+    high = offset + coat
+    surface = outer(np.log(high))
+    return front, high, substrate, outer, surface, power
+
+
+def film(q, pinning):
+    coat, s = q["coating"], q["sense"]
+    front, high, inner, outer, surface, power = film_profile(
+        q["amplitude"],
+        q["normal"],
+        q["cutting"],
+        coat,
+        q["conductance"],
+        q["hall"],
+        s,
+        q["film"],
+        pinning,
+    )
+    if q["readout"] == "sheet_power":
+        return power
+    x = q["depth"]
+    # For a shielded film, the limiting outer b at x == coating is finite.
+    if x > coat and front - x <= 1.0e-7:
+        return s * surface[4] if q["readout"] == "normal_voltage" else 0.0
+    u = high - x if x <= coat else front - x
+    state = (outer if x <= coat else inner)(np.log(u))
+    if q["readout"] == "normal_voltage":
+        return s * (surface[4] - state[4])
+    orient = np.exp(1j * s * (state[3] - surface[3]))
+    value = orient * (
+        u * state[0] if q["readout"] == "induction" else u * u * (s * state[1] + 1j * state[2])
+    )
+    return value.real if q["axis"] == "y" else value.imag
+
+
 def signal(q, pinning):
+    if "film" in q:
+        return film(q, pinning)
     if q["readout"] in ("induction", "electric", "normal_voltage", "sheet_power"):
         return rotary(q, pinning)
     bias, low, high = q["bias"], q["low"], q["high"]

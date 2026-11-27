@@ -126,3 +126,114 @@ def rotary(q, pinning, seed=3e-7):
         return 0.
     result = (b if q["readout"] == "induction" else e) * surface[0].conjugate()/h
     return result.real if q["axis"] == "y" else result.imag
+
+
+def material(b, e, n, ratio, pinning):
+    a = abs(b)
+    axis = b / a
+    aligned = e * axis.conjugate()
+    e1, e2 = aligned.real, aligned.imag
+    total = np.hypot(a, n)
+    c = pinning / (1 + total)
+    t = (n / total) ** 2
+    scale = c / np.hypot(e1 / np.sqrt(t), e2)
+    j1, j2 = scale * e1 / t, scale * e2
+    limit = ratio * c * total / a
+    if abs(j1) > limit:
+        j1 = np.copysign(limit, e1)
+        j2 = np.copysign(np.sqrt(max(0.0, c * c - t * j1 * j1)), e2 if e2 else -1)
+        ex = n / a * (e1 - e2 / j2 * j1)
+    else:
+        ex = -a / n * e1
+    return (j1 + 1j * j2) * axis, ex
+
+
+@lru_cache(maxsize=128)
+def profile(h, n, ratio, coat, g, hall, sense, kappa, pinning, seed=3e-8):
+    def rates(z, state):
+        b, e = state
+        return [1j * material(b, e, n, ratio, pinning)[0], sense * b]
+
+    def run(lo, hi, state):
+        return solve_ivp(
+            rates, (lo, hi), state, method="DOP853", rtol=1e-9, atol=4e-22, dense_output=True
+        ).sol
+
+    u0 = seed * np.sqrt(3.0) * (1 + abs(n)) / pinning
+    inner = run(u0, 1.1, [seed, sense * seed * u0 / (2 + 1j * sense * np.sqrt(2.0))])
+
+    def screened(b0):
+        j, _ = material(b0, sense * b0 + 0j, n, ratio, pinning)
+        z0 = 1.0e-9
+        b = b0 + 1j * j * z0
+        e = sense * (b0 + 0.5j * j * z0) * z0
+        return run(z0, coat, [b, e])
+
+    def active(contact):
+        b, e = inner(contact)
+        k = g * (1 + 1j * hall * np.sign(n)) * e + kappa * e / abs(e)
+        return run(0.0, coat, [b + 1j * k, e])
+
+    limit_amplitude = abs(screened(kappa)(coat)[0])
+    if limit_amplitude >= h - 5e-7:
+        b0 = (
+            kappa
+            if limit_amplitude <= h
+            else brentq(lambda a: abs(screened(a)(coat)[0]) - h, 1.0e-4, kappa)
+        )
+        contact = 0.0
+        outer = screened(b0)
+        power = 0.0
+    else:
+        contact = brentq(lambda u: abs(active(u)(coat)[0]) - h, u0, 1.0)
+        outer = active(contact)
+        e = abs(inner(contact)[1])
+        power = g * e**2 + kappa * e
+    surface = outer(coat)[0]
+
+    def sample(q):
+        if q["readout"] == "sheet_power":
+            return power
+        x = q["depth"]
+        if q["readout"] == "normal_voltage":
+
+            def integ(path, lo, hi):
+                if hi <= lo:
+                    return 0.0
+                return quad(
+                    lambda z: material(*path(z), n, ratio, pinning)[1],
+                    lo,
+                    hi,
+                    epsabs=2e-10,
+                    limit=160,
+                )[0]
+
+            return integ(outer, max(1.0e-9 if not contact else 0.0, coat - x), coat) + integ(
+                inner, max(u0, contact + coat - x), contact
+            )
+        if x <= coat:
+            b, e = outer(coat - x)
+        elif contact + coat - x > u0:
+            b, e = inner(contact + coat - x)
+        else:
+            return 0.0
+        value = (b if q["readout"] == "induction" else e) * surface.conjugate() / h
+        return value.real if q["axis"] == "y" else value.imag
+
+    return contact, power, sample
+
+
+def film_signal(q, pinning, seed=3e-8):
+    _, _, sample = profile(
+        q["amplitude"],
+        q["normal"],
+        q["cutting"],
+        q["coating"],
+        q["conductance"],
+        q["hall"],
+        q["sense"],
+        q["film"],
+        pinning,
+        seed=seed,
+    )
+    return sample(q)

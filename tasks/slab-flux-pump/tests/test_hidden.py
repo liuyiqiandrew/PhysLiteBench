@@ -38,6 +38,10 @@ def test_fit(metrics):
                                                ("laminate_induction", .001),
                                                ("laminate_electric", .0006),
                                                ("normal_voltage", .00025),
-                                               ("sheet_power", .00015)])
+                                               ("sheet_power", .00015),
+                                               ("film_induction", .001),
+                                               ("film_electric", .0006),
+                                               ("film_voltage", .00025),
+                                               ("film_power", .00015)])
 def test_signal(metrics, readout, tolerance):
     assert metrics["max_abs_errors"][readout] < tolerance
