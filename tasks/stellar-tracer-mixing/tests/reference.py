@@ -75,3 +75,71 @@ def signal(q, exponent=TRUE_PARAMETER, order=48):
         return np.where(bound, np.sum(past*time, axis=-1) / np.sum(time, axis=-1), 0)
 
     return float(volume * density(e, len(fields)-1))
+
+
+def remap(L, field, strength, eps, cap, exponent, tau, bins=900, order=120):
+    from scipy.sparse import coo_matrix
+    # A post-kick orbit at a specified J has the same action after slow return.
+    # Integrate over its phase in the transient field, mapping every phase point
+    # back to its exact pre-kick energy. Project by linear interpolation.
+    m,b=field
+    m1,b1=np.array(field)*np.exp(eps*np.array(strength))
+    x=np.linspace(0,cap,bins,endpoint=False)
+    spacing=cap/bins
+    moment=x + offset(L,m1,b1)
+    e=-(m1/moment)**2/2
+    axis=moment**2/m1
+    amp=np.sqrt(np.maximum((axis-b1)**2 - L**2*axis/m1,0))
+    theta=np.pi*(np.arange(order)+.5)/order
+    s=axis[:,None]+amp[:,None]*np.cos(theta)
+    r=np.sqrt(np.maximum(s*s-b1*b1,0))
+    e0=e[:,None]+potential(r,(m,b))-potential(r,(m1,b1))
+    z=np.where(e0<0,m/np.sqrt(np.maximum(-2*e0,1e-18))-offset(L,m,b),cap)
+    z=np.maximum(z,0)/spacing
+    index=np.floor(z).astype(int)
+    frac=z-index
+    weights=s/axis[:,None]/order
+    rows=np.broadcast_to(np.arange(bins)[:,None],index.shape)
+    rr,cc,dd=[],[],[]
+    for loc,w in [(index,1-frac),(index+1,frac)]:
+        valid=loc<bins
+        rr.append(rows[valid])
+        cc.append(loc[valid])
+        dd.append((weights*w)[valid])
+    transfer=coo_matrix((np.concatenate(dd),(np.concatenate(rr),np.concatenate(cc))),shape=(bins,bins)).tocsr()
+    f=(.5/.4/(x + offset(L,1,1))**2)**exponent
+    for _ in range(round(tau/eps**2)):
+        f=transfer @ f
+    return x,f
+
+
+
+def train_signal(q, exponent=TRUE_PARAMETER, level=20, cells_per_level=100):
+    # Richardson extrapolation in pulse size removes the leading absorbing-edge
+    # overshoot. A single cycle uses the exact finite perturbation and phase mix.
+    m, b = q["slow"]
+    rp, ra = q["peri"], q["apo"]
+    sp,sa=np.hypot([rp,ra],b)
+    L=np.sqrt(2*m*rp**2*ra**2/((sp+b)*(sa+b)*(sp+sa)))
+    e=potential(rp,(m,b))+L**2/(2*rp**2)
+    train=q["train"]
+    if e >= -train["binding_limit"]:
+        return 0.
+    cap=m/np.sqrt(2*train["binding_limit"])-offset(L,m,b)
+    action=m/np.sqrt(-2*e)-offset(L,m,b)
+    values=[]
+    for n in (level,2*level):
+        eps=np.sqrt(train["exposure"])/n
+        # Average the two perturbation directions, which have the same limit.
+        pair=[]
+        for sign in (-1,1):
+            x,f=remap(L,(m,b),train["coupling"],sign*eps,cap,exponent,
+                      train["exposure"],bins=cells_per_level*n,order=96)
+            pair.append(np.interp(action,np.r_[x,cap],np.r_[f,0.]))
+        values.append(np.mean(pair))
+    period=2*np.pi*m/(-2*e)**1.5
+    return float(8*np.pi**2*L*period*(2*values[1]-values[0]))
+
+
+def offset(L,m,b):
+    return (L+np.hypot(L,2*np.sqrt(m*b)))/2

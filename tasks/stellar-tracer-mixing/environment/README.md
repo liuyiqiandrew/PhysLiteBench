@@ -29,3 +29,11 @@ scale length in [0.12,2.5]. Calibration uses static fields. Each row of
 nine significant figures. Implement `Model.fit(records)` returning self with
 fitted scalar `exponent`, and `Model.predict(experiments)` returning a finite
 one-dimensional NumPy array in input order.
+
+Some experiments replace the list of instantaneous steps by a long sequence of weak potential fluctuations. In these runs `steps` is empty and `train` supplies a positive dimensionless exposure, a coupling [a,c] and a positive binding_limit. The population first reaches the stated slow field (m,b). A detector removes all stars whose binding energy −E is at or below binding_limit in that field. Each cycle then:
+
+1. Changes (m,b) instantaneously to (m exp(a ε), b exp(c ε)).
+2. Allows complete radial phase mixing there, with unbound tracers escaping.
+3. Restores (m,b) arbitrarily slowly, repeats the binding-energy cut and allows complete radial phase mixing before the next cycle.
+
+The counter measures the same final differential number after N cycles. Take ε → 0 and N → ∞ with N ε² tending to exposure. Use the stated order of mixing and restoration within each cycle. Exposure lies in [0.05, 0.65], both coupling entries in [−1,1], and binding_limit in [0.025,0.25] in energy units. For bins outside the surviving energy range the count is zero. The initial distribution, calibration and detector units are the same for both protocols.

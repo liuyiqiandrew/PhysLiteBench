@@ -1,4 +1,6 @@
-# Stellar tracer mixing, revision 1
+# Stellar tracer mixing
+
+## Revision 1 – isolated changes
 
 Angular momentum L is conserved throughout. In a slow change the radial
 action is conserved too. The isochrone action for energy E < 0 is
@@ -34,3 +36,13 @@ Each group permits 2% maximum relative count error. The oracle stays within
 
 Run `python scripts/validate_stellar_tracer_mixing.py` from the repository
 root. The script reads committed data. Passing `--generate` recomputes it.
+
+## Revision 2 – repeated weak cycles
+
+Revision 2 adds the pulse train and retains the revision 1 readings. At fixed L the canonical phase volume is constant per unit radial action J. Write C = (L + √(L² + 4mb))/2, E = −m²/[2(J+C)²] and radial frequency Ω = m²/(J+C)³. Along a perturbation with coupling (a,c), the potential derivative at fixed position is V = Φ(a − cb/s), with s = √(b² + r²). The sudden switch gives a first-order action step ε(V−⟨V⟩)/Ω. The slow return leaves this action unchanged.
+
+Thus the action variance per scaled exposure is B(J) = Var(V)/Ω². Before aperture loss, the one-cycle transfer preserves canonical phase volume: uniform phase-space density stays uniform under Hamiltonian evolution and phase averaging. The probability current of a uniform action population therefore has zero divergence, and the circular endpoint admits no outward flux. In the weak-pulse limit this fixes the mean action drift to B′/2. The density evolves by ∂τ f = ∂J(B ∂J f)/2, with regular zero-current behavior at J=0 and an absorbing upper endpoint J = m/√(2 binding_limit) − C. Escaping trajectories have already passed out of this finite binding window in the local diffusion limit.
+
+The oracle integrates the orbital variance, then evolves the initial action density with a conservative cell-centered finite-volume operator and a symmetric tridiagonal eigensolver. The completed control reconstructs past orbits with centered backward action increments of the correct local variance. It solves ∂τ f = B ∂²J f/2, which drops the drift from the transfer operator. Both methods recover the static exponent 2.73 and reproduce the finite-switch observations. On mass, scale-length, and mixed pulse trains, the control's maximum relative count errors are 25.8%, 44.1%, and 79.8%.
+
+The private reference evolves the finite-pulse process itself, without a drift law or a diffusion equation. For a given final J after slow restoration it uses the same J in the temporary field, samples the post-jump radial phase there, and reconstructs the exact pre-jump action. Interpolation deposits these weights in a sparse backward transfer matrix. Repeated application incorporates aperture losses after every pulse. Trains of 400 and 1,600 cycles, in both perturbation directions, give two estimates of the same limit. Linear extrapolation in pulse amplitude corrects the leading finite-step bias at the absorbing boundary. The validator repeats the calculation with 144 and 576 cycles and an independent spatial grid. The three groups permit 2% maximum relative error. The oracle's worst difference from the finite-pulse reference is 0.055%.

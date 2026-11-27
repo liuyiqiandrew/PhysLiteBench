@@ -35,6 +35,7 @@ def test_fit(metrics):
     assert abs(metrics["exponent"] - 2.73) < 0.01 and metrics["calibration"] < 0.002
 
 
-@pytest.mark.parametrize("group", ["slow", "one_switch", "mixed_cycle", "two_switches"])
+@pytest.mark.parametrize("group", ["slow", "one_switch", "mixed_cycle", "two_switches",
+                                   "mass_train", "shape_train", "mixed_train"])
 def test_prediction(metrics, group):
     assert metrics["max_relative_error"][group] < 0.02

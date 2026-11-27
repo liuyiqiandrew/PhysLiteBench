@@ -48,7 +48,14 @@ def main():
         groups = {"slow": inputs(a, [], bins), "one_switch": inputs(c, [a], bins),
                   "mixed_cycle": inputs(a, [b, a], bins),
                   "two_switches": inputs(b, [a, c], bins)}
-        write(private / "predictions.json", {g: [dict(input=q, value=ref.signal(q, order=80))
+        for name, field, coupling, exposure, limit in [
+                ("mass_train", [1., 1.], [1., 0.], .25, .09),
+                ("shape_train", [.85, .44], [0., -1.], .38, .12),
+                ("mixed_train", [1.3, .7], [-.72, .88], .21, .16)]:
+            train = dict(exposure=exposure, coupling=coupling, binding_limit=limit)
+            groups[name] = [dict(q, train=train) for q in inputs(field, [], [
+                (.22, .77), (.35, 1.85), (.54, 3.52), (.38, 4.25)])]
+        write(private / "predictions.json", {g: [dict(input=q, value=ref.train_signal(q) if "train" in q else ref.signal(q, order=80))
                                                  for q in qs] for g, qs in groups.items()})
     assert cal_path.read_bytes() == (private / "calibration.json").read_bytes()
     rows = json.loads(cal_path.read_text())
@@ -62,13 +69,16 @@ def main():
         for group, sample in cases.items():
             qs = [r["input"] for r in sample]
             truth = np.array([r["value"] for r in sample])
-            check = [ref.signal(q, order=56) for q in qs]
-            assert np.max(abs(check / truth - 1)) < 0.001
+            if impl is oracle:
+                check = [ref.train_signal(q, level=12, cells_per_level=70)
+                         if "train" in q else ref.signal(q, order=56) for q in qs]
+                assert np.max(abs(check / truth - 1)) < .004
             errors[group] = float(np.max(abs(model.predict(qs) / truth - 1)))
         if impl is oracle:
-            assert max(errors.values()) < 0.001
+            assert max(errors.values()) < 0.004
         else:
-            assert errors["slow"] < 0.001 and min(v for k, v in errors.items() if k != "slow") > .02
+            assert max(v for k, v in errors.items() if not k.endswith("_train")) < .001
+            assert min(v for k, v in errors.items() if k.endswith("_train")) > .02
         print(impl.__name__, "exponent", model.exponent, "max relative errors", errors)
 
 
