@@ -24,8 +24,9 @@ detector coordinates are set in the same laboratory frame throughout.
 
 Each input contains u in [0.5, 1.4], y in [0, 2], f in [−0.6, 0.6],
 a in [0.25, 1.6], and window (null or a two-element increasing list with
-coordinates in [−3,4]). Calibration rows have an input and its probability
-value rounded to eight decimal places. Implement Model.fit(records) returning
+coordinates in [−3,4]). Calibration uses coincident sources (y=0), zero
+force and a full detector. Each row has an input and its probability value
+rounded to eight decimal places. Implement Model.fit(records) returning
 self with the fitted float intensity c stored in self.intensity. Implement
 Model.predict(inputs) returning a finite NumPy array of shape (len(inputs),)
 in input order, including an empty array for an empty input.

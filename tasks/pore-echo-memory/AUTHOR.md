@@ -38,7 +38,7 @@ over the scaled pickup window of C times these two tails. For coincident
 sources at zero field with full acceptance this gives 2√r/sinh(2√r).
 The limiting finite-interval measure, the Brownian units, and the full-line
 meeting observable are derived in sections 2, 3 and 7 of
-[Le Doussal, EPL 87, 20006 (2009), extended paper](https://arxiv.org/abs/0906.0267).
+[Le Doussal, Sinai model in presence of dilute absorbers (2009)](https://arxiv.org/abs/0906.0267).
 The finite-window weighting here follows by restricting the bottom selected
 by that measure.
 
