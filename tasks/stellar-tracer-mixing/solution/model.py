@@ -116,7 +116,7 @@ def coherent_variance(J, L, field, strength, hold, order=192):
     return np.mean((V(s) - V(end))**2 * s/axis, axis=1) / omega[:,0]**2
 
 
-def chamber_density(action,L,field,train,exponent,bins=220):
+def chamber_density(action, distance_to_cut, L, field, train, exponent, bins=220):
     m,b=field
     hold=train["hold"]
     C=offset(L,m,b)
@@ -138,8 +138,8 @@ def chamber_density(action,L,field,train,exponent,bins=220):
     sigma=np.sqrt(train['exposure']*v(np.array([hi]))[0]) if absorbing else 0
     if not any(train["coupling"]):
         return initial(action)
-    if absorbing and 0 < sigma < 1e-7*span and cap-action<10*sigma:
-        return initial(action)*erf((cap-action)/(np.sqrt(2)*sigma))
+    if absorbing and 0 < sigma < 1e-7*span and distance_to_cut < 10*sigma:
+        return initial(action)*erf(distance_to_cut/(np.sqrt(2)*sigma))
     faces=np.linspace(lo,hi,bins+1)
     if absorbing and 1e-7*span<=sigma<8*span/bins:
         split=hi-8*sigma
@@ -166,8 +166,11 @@ def train_density(e, L, field, train, exponent):
         return 0.
     cap = m / np.sqrt(2*cut) - offset(L, m, b)
     action = m / np.sqrt(-2*e) - offset(L, m, b)
+    # Difference of two near-equal actions, evaluated from the measured energies.
+    distance = m * (-e - cut) / (
+        np.sqrt(2 * cut * -e) * (np.sqrt(-e) + np.sqrt(cut)))
     if "hold" in train:
-        return chamber_density(action, L, field, train, exponent)
+        return chamber_density(action, distance, L, field, train, exponent)
     strength, tau = train["coupling"], train["exposure"]
     initial = (0.5 / 0.4 / (action + offset(L, 1, 1))**2)**exponent
     sigma = np.sqrt(tau * variance(np.array([cap]), L, field, strength)[0])
@@ -176,8 +179,6 @@ def train_density(e, L, field, train, exponent):
     if sigma < 1e-7 * cap:
         # Locally constant diffusivity and flat initial density to O(sigma).
         # The half-line absorbing solution is erf(distance / sqrt(2 B tau)).
-        distance = m * (-e - cut) / (
-            np.sqrt(2 * cut * -e) * (np.sqrt(-e) + np.sqrt(cut)))
         return initial * erf(distance / (np.sqrt(2) * sigma))
     x, f = solve(L, field, strength, tau, cap, exponent, sigma)
     return np.interp(action, x, f)

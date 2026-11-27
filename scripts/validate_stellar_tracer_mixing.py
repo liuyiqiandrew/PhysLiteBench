@@ -96,6 +96,23 @@ def main():
                / expected - 1) < 1e-10
     rows = json.loads(cal_path.read_text())
     cases = json.loads((private / "predictions.json").read_text())
+    # The coherent aperture can lie within a few floating-point energy units
+    # of the query. Compute the physical separation without subtracting actions.
+    q = dict(slow=[1., 1.], steps=[], peri=1.4, apo=3.)
+    e, L, _ = oracle.orbit_bin(q)
+    j = 1/np.sqrt(-2*e) - oracle.offset(L, 1, 1)
+    train = dict(coupling=[1e-12, 0], exposure=.1, hold=24.)
+    width = np.sqrt(.1 * oracle.coherent_variance(np.array([j]), L, [1, 1],
+                                                  train["coupling"], 24.)[0])
+    from math import erf
+    for units in [1, 5, 10]:
+        cut = -e - units*np.spacing(-e)
+        train["binding_limit"] = cut
+        distance = (-e-cut)/(np.sqrt(2*cut*-e)*(np.sqrt(cut)+np.sqrt(-e)))
+        expected = (-e/.4)**ref.TRUE_PARAMETER * erf(distance / (np.sqrt(2)*width))
+        measured = oracle.train_density(e, L, [1., 1.], train, ref.TRUE_PARAMETER)
+        assert abs(measured/expected-1) < 1e-6
+
     for impl in (oracle, control):
         check_aperture(impl)
         model = impl.Model().fit(rows)
