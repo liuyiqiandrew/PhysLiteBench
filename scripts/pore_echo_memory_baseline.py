@@ -1,53 +1,48 @@
-"""Temporal Gaussian approximation with the exact phase second moments."""
 import numpy as np
+from scipy.optimize import brentq
 
 
-def step(p):
-    walk = np.eye(4)
-    return (1 - p) * walk + p / 2 * (np.roll(walk, 1, axis=1) + np.roll(walk, -1, axis=1))
+def single(private, common, diffusion):
+    width = (2 * np.pi**2 * diffusion / (private + common))**(1/3)
+    return 1.5 * (private + common) * width
 
 
-def phase_moments(scan):
-    signs = np.array(scan["signs"])
-    hops = [step(p) for p in scan["hops"]]
-    position = np.eye(4)[scan["start"]]
-    mean_counts = np.zeros(4)
-    variance = float(len(signs))
-    for i, sign in enumerate(signs):
-        mean_counts += sign * position
-        propagator = np.eye(4)
-        for j in range(i + 1, len(signs)):
-            propagator = propagator @ hops[j - 1]
-            match = position @ np.diag(propagator)
-            variance += 2 * sign * signs[j] * match
-        if i < len(hops):
-            position = position @ hops[i]
-    return variance, mean_counts
+def overlap_rate(row, common):
+    private = np.array([row["a"], row["b"]])
+    confinement = np.pi**2 * np.array([row["D_A"], row["D_B"]])
+    spacing = row["s"]
+    best = (2 * confinement / private)**(1/3)
+
+    def slope(total):
+        return common + np.minimum(private - 2 * confinement / total**3, 0).sum()
+
+    total = max(spacing, brentq(slope, 1e-4, max(best)))
+    widths = np.minimum(total, best)
+    if widths.sum() < spacing:
+        def split_slope(x):
+            return (private[0] - private[1] - 2 * confinement[0] / x**3
+                    + 2 * confinement[1] / (spacing - x)**3)
+        left = brentq(split_slope, 1e-5, spacing - 1e-5)
+        widths = np.array([left, spacing - left])
+    return common * total + np.sum(private * widths + confinement / widths**2)
+
+
+def pair(row, common):
+    # Retain both contributions to the uncentered product of the coil readings.
+    separate = single(row["a"], common, row["D_A"]) + single(row["b"], common, row["D_B"])
+    return min(separate, overlap_rate(row, common))
 
 
 class Model:
-    def __init__(self):
-        self.width = None
-
     def fit(self, records):
-        records = list(records)
-        x = np.array([phase_moments(row["scan"])[0] for row in records])
-        y = np.array([row["curvature"] for row in records])
-        self.width = float(np.sqrt((x @ y) / (x @ x)))
+        estimates = []
+        for r in records:
+            x = r["input"]
+            rate = r["value"]
+            estimates.append(np.sqrt((rate / 1.5)**3 / (2 * np.pi**2 * x["D_A"])) - x["a"])
+        self.intensity = np.mean(estimates)
         return self
 
-    def predict_calibration(self, records):
-        return np.array([self.width**2 * phase_moments(r["scan"])[0] for r in records])
-
-    def predict(self, experiments):
-        answers = []
-        for row in experiments:
-            a = (self.width * row["gain"])**2 / 2
-            var, counts = phase_moments(row["scan"])
-            if row["mode"] == "echo":
-                answers.append(np.exp(-a * var))
-            else:
-                var2, counts2 = phase_moments(row["partner"])
-                mixed = np.exp(-a * (var + var2 - 2 * counts @ counts2))
-                answers.append(mixed - np.exp(-a * (var + var2)))
-        return np.array(answers)
+    def predict(self, inputs):
+        return np.array([single(x["a"], self.intensity, x["D_A"]) if x["mode"] == "single"
+                         else pair(x, self.intensity) for x in inputs])

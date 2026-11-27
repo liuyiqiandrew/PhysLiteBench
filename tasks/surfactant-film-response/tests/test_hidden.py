@@ -25,12 +25,14 @@ def evaluated():
     result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
               'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
               'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
+    result['hidden_limits'] = {}
     for name, experiments in reference.hidden_inputs().items():
         truth = reference.predict(experiments, reference.TRUE_PARAMETER)
         actual = model.predict(experiments)
         assert isinstance(actual, np.ndarray) and actual.shape == truth.shape
         assert np.isfinite(actual).all()
         scale = np.sqrt(np.mean(truth**2))
+        result['hidden_limits'][name] = max(METADATA['prediction_limit'], .0002 / scale)
         result['hidden'][name] = float(np.sqrt(np.mean(((actual-truth)/scale)**2)))
     log = Path('/logs/verifier/metrics.json')
     if log.parent.exists():
@@ -48,4 +50,4 @@ def test_parameter_recovery(evaluated):
 
 @pytest.mark.parametrize('case', list(reference.hidden_inputs()))
 def test_prediction(evaluated, case):
-    assert evaluated['hidden'][case] < METADATA['prediction_limit']
+    assert evaluated['hidden'][case] < evaluated['hidden_limits'][case]

@@ -1,47 +1,43 @@
-"""Propagate each site's complex magnetization on a Fourier grid."""
+"""Optimize the four Brownian extrema directly in laboratory coordinates."""
 import numpy as np
+from scipy.optimize import Bounds, LinearConstraint, minimize
 
-TRUE_WIDTH = 1.073
-
-
-def magnetization(scan, phases):
-    amplitude = np.zeros_like(phases)
-    amplitude[..., scan["start"]] = 1
-    for i, sign in enumerate(scan["signs"]):
-        if i:
-            p = scan["hops"][i - 1]
-            neighbors = np.roll(amplitude, 1, axis=-1) + np.roll(amplitude, -1, axis=-1)
-            amplitude = (1 - p) * amplitude + (p / 2) * neighbors
-        amplitude *= phases if sign == 1 else np.conj(phases)
-    return amplitude.sum(axis=-1)
+TRUE_PARAMETER = .873
 
 
-def integrate(values, charge, scale, curvature=False):
-    # Site 3 supplies the common phase. Its Fourier index follows by total charge.
-    coefficients = np.fft.fftn(values) / values.size
-    modes = np.rint(np.fft.fftfreq(values.shape[0]) * values.shape[0])
-    i, j, k = np.meshgrid(modes, modes, modes, indexing="ij", sparse=True)
-    norm = i**2 + j**2 + k**2 + (charge - i - j - k)**2
-    kernel = scale**2 * norm if curvature else np.exp(-0.5 * scale**2 * norm)
-    answer = np.sum(coefficients * kernel)
-    assert abs(answer.imag) < 1e-9
-    return float(answer.real)
+def single_rate(a, c, d):
+    optimum = np.cbrt(2 * np.pi**2 * d / (a + c))
+    return (a+c)*optimum + np.pi**2*d/optimum**2
 
 
-def evaluate(scan, scale, partner=None, curvature=False):
-    # N samples per axis resolve all Fourier modes of the product exactly.
-    count = len(scan["signs"]) + (len(partner["signs"]) if partner else 0)
-    n = 2 * count + 1
-    unit = np.exp(2j * np.pi * np.arange(n) / n)
-    phases = np.ones((n, n, n, 4), dtype=complex)
-    for axis, grid in enumerate(np.meshgrid(unit, unit, unit, indexing="ij", sparse=True)):
-        phases[..., axis] = grid
-    first = magnetization(scan, phases)
-    q = sum(scan["signs"])
-    echo = integrate(first, q, scale, curvature)
-    if partner is None:
-        return echo
-    second = magnetization(partner, phases)
-    s = sum(partner["signs"])
-    joint = integrate(first * second.conjugate(), q - s, scale)
-    return joint - echo * integrate(second, s, scale)
+def pair_rate(q, c):
+    # x=(left A, right A, left B, right B, left union, right union).
+    # Endpoints contain the starts. The two ranges intersect. The last
+    # interval surrounds both ranges and pays the common-defect cost.
+    s = q["s"]
+    constraints = np.array([[0, 1,-1, 0, 0, 0], [-1, 0, 0, 1, 0, 0],
+                            [1, 0, 0, 0,-1, 0], [0, 0, 1, 0,-1, 0],
+                            [0,-1, 0, 0, 0, 1], [0, 0, 0,-1, 0, 1],
+                            [-1,1, 0, 0, 0, 0], [0, 0,-1, 1, 0, 0]])
+    minimum = np.array([0, 0, 0, 0, 0, 0, .01, .01])
+    bounds = Bounds([-np.inf, 0, -np.inf, s, -np.inf, s],
+                    [0, np.inf, s, np.inf, 0, np.inf])
+    d = np.pi**2 * np.array([q["D_A"], q["D_B"]])
+    rates = np.array([q["a"], q["b"]])
+
+    def objective(x):
+        w = x[[1,3]] - x[[0,2]]
+        f = rates*w + d/w**2
+        g = rates - 2*d/w**3
+        return f.sum()+c*(x[5]-x[4]), np.array([-g[0],g[0],-g[1],g[1],-c,c])
+
+    start = [-1, s+1, -1, s+1, -1, s+1]
+    result = minimize(objective, start, jac=True, bounds=bounds, method="SLSQP",
+                      constraints=[LinearConstraint(constraints, minimum, np.inf)],
+                      options={"ftol":1e-12,"maxiter":200})
+    assert result.success, result.message
+    return result.fun
+
+
+def predict(x, c=TRUE_PARAMETER):
+    return single_rate(x["a"], c, x["D_A"]) if x["mode"] == "single" else pair_rate(x,c)

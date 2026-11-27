@@ -1,6 +1,6 @@
-# Surfactant film response, revision 1
+# Surfactant film response, revision 2
 
-The calibration cell has reflection symmetry through the film. Fitting a surface viscosity in this cell leaves a physical question open. What velocity will a lateral force produce perpendicular to the film when one plate is brought closer? A force in a real Fourier mode can induce a response in spatial quadrature. The upper and lower liquids make opposite contributions to this coupling. The scalar impedances in the starter retain the finite-wall correction to each diagonal drag but miss the coupling.
+The calibration cell has reflection symmetry through the film. The driven measurements fix surface shear viscosity. The fluctuation measurements in calibration have a uniform temperature. In a cell with a temperature gradient, thermal stress at different depths drives distinct combinations of height and surfactant density. A force in a real Fourier mode can induce a response in spatial quadrature. The upper and lower liquids make opposite contributions to this coupling. The completed control uses the full coupled deterministic response. It applies the equilibrium fluctuation relation at the film temperature in every preparation.
 
 ## Derivation
 
@@ -23,11 +23,21 @@ Inverting the resulting matrix against the applied traction gives the measured v
 
 The independent reference integrates the first-order bulk equations for (U,W,σxz,σzz) with matrix exponentials, using the unknown wall tractions as degrees of freedom. It solves both wall-to-film matching conditions and both surface balances alongside the density and height equations. Mirror reflection of the cell reverses both cross responses and leaves the diagonal entries invariant.
 
+## Thermal preparation
+
+Put q = (c,h), with stiffness K = diag(0.8, 1.3 k²), and let R be the x–z drag above with the surface viscosity terms. Include the static viscous surface stress in R. The kinematic matrix B = diag(−ik, 1) maps (U,W) to the material rate of q. Surfactant diffusion adds mobility F = diag(0.18 k²/0.8, 0). Eliminating velocity gives deterministic relaxation dq/dt = −M K q, where M = B R⁻¹ B† + F.
+
+A unit boundary velocity determines the bulk strain rate at each depth. In one layer the dissipation form per unit depth is 4μk² U*U + τ*xz τxz/μ, where τxz = μ(∂z U + ikW). Replace each product by its two-by-two Gram matrix for the pair of unit boundary velocities. The thermal drag Rₜ is the sum over layers of this local form integrated against T(z)/T₀, plus the film's viscous drag at unit temperature. Then the normalized noise covariance is N = B R⁻¹ Rₜ R⁻¹ B† + F. With G = (M K − iωI)⁻¹ the spectrum of the two measured fields is G N G†. At uniform temperature N = M and the time-antisymmetric density–height spectrum vanishes. With a temperature gradient the lag can be nonzero.
+
+The reference propagates the covariance of the fluctuating total-stress bulk state from each wall. White shear stress enters the U derivative with normalized variance T/μ. The random difference of normal stresses enters the σxz derivative with variance 4Tμk². Eliminating the unknown wall tractions enforces the given interface velocity and gives a random excess film traction. A joint system for U, W, c and h combines the liquid tractions, surface viscous stress noise and conserved diffusive current noise. This checks the oracle's virtual-dissipation quadrature independently.
+
 ## Reproduction
 
-Run `python scripts/validate_surfactant_film_response.py` from the repository root. Add `--generate` to regenerate the public and private records intentionally. Seed 31873 sets the 39 calibration preparations. Each response is rounded to 0.0001. The standard uncertainty is one quantization step divided by √12. The validator reproduces the stored meter readings and checks independent solutions at the fitted viscosity and the ends of its allowed interval. It also checks reversal under reflection and cancellation in a symmetric cell.
+Run `python scripts/validate_surfactant_film_response.py` from the repository root. Add `--generate` to regenerate the data. Seed 31873 fixes the 39 driven preparations and 12 isothermal spectra. Each response is rounded to 0.0001. The standard uncertainty is one meter step divided by √12. The validator reproduces the meter readings and compares the two calculations at the fitted viscosity and both ends of its allowed interval. It checks reversal under reflection, the equilibrium cross lag, Hermitian symmetry and quadrature convergence.
 
-Hidden groups use seed 31879. Each relative RMS error is the Euclidean norm of the prediction error divided by the norm of its group's reference signal. At 2.5%, the accepted absolute RMS error for the cross responses is about 0.00047, several meter steps. The oracle and shortcut both fit 1.13690 for a true value of 1.137, with reduced χ² of 1.2212. The oracle's largest hidden error is 0.0022%. Omitting longitudinal–normal traction coupling gives 100% on each cross response and 41.0% on the mixed response.
+Hidden groups use seed 31879. Each group's RMS error must be below the larger of 2.5% of its reference RMS and 0.0002 (two meter steps). Both completed controls fit 1.136897 for a true viscosity of 1.137, with reduced χ² of 1.0975. The oracle's largest relative error is below 0.0025%. The isothermal control passes all driven groups and density power. Its height power, cross lag and in-phase cross spectrum have relative errors of 9.29%, 100% and 31.71%.
+
+Revision 1 measured driven responses alone. Its frozen source is in commit `981c19d8`. Revision 2 retains those preparations and adds the spontaneous fluctuation readout.
 
 The target is three independent unhinted GPT-5.6 Luna High trials. From the root, run
 

@@ -29,6 +29,11 @@ def calibration(reference):
                  part='imag' if i % 6 in (3, 5) else 'real')
         value = reference.component(e, reference.TRUE_PARAMETER)
         records.append(dict(input=e, value=round(float(value), 4), sigma=1e-4 / np.sqrt(12)))
+    for i in range(12):
+        e = {k: v for k, v in records[i]['input'].items() if k not in ('fx','fy','fz','part','axis')}
+        e.update(pair='cc' if i % 2 else 'hh', part='real', temperature_lower=1., temperature_upper=1.)
+        value = reference.noise_spectrum(e, reference.TRUE_PARAMETER)
+        records.append(dict(input=e, value=round(float(value), 4), sigma=1e-4/np.sqrt(12)))
     return records
 
 
@@ -63,7 +68,11 @@ def main():
         if name == 'oracle':
             assert max(errors.values()) < .025
         else:
-            assert min(errors.values()) > .025
+            assert max(errors[key] for key in ('normal_drive','lateral_drive','mixed_drive')) < .025
+            assert min(errors[key] for key in ('cross_lag', 'height_power', 'cross_in_phase')) > .025
+        for key in ('height_power', 'density_power', 'cross_lag', 'cross_in_phase'):
+            rms = np.linalg.norm(model.predict(cases[key]) - truth[key])/np.sqrt(len(truth[key]))
+            assert (rms < max(.0002, .025*np.sqrt(np.mean(truth[key]**2)))) == (name == 'oracle' or key == 'density_power')
 
     # At fixed drive the surfactant can only compress longitudinally. Mirror
     # the apparatus: the x response to a normal force must change sign.
@@ -85,7 +94,15 @@ def main():
         exact = reference.predict(inputs, viscosity)
         closed = np.array([oracle.response(e, viscosity) for e in inputs])
         assert np.max(abs(exact - closed)) < 1e-11
-    print('Mirror, symmetry, and independent boundary-value checks passed.')
+    # Detailed balance makes the equilibrium time-antisymmetric cross spectrum vanish.
+    # The driven non-equilibrium pair obeys Hermitian symmetry at each frequency.
+    for e in cases['cross_lag']:
+        eq = dict(e, temperature_lower=1., temperature_upper=1.)
+        assert abs(reference.noise_spectrum(eq, 1.0)) < 1e-11
+        reverse = dict(e, pair='hc')
+        assert abs(reference.noise_spectrum(reverse, 1.0) + reference.noise_spectrum(e, 1.0)) < 1e-11
+        assert np.max(abs(oracle.bulk_noise(e, 24)-oracle.bulk_noise(e, 16))) < 1e-11
+    print('Mirror, detailed balance, Hermitian spectra, quadrature and independent BVP checks passed.')
 
 
 if __name__ == '__main__':

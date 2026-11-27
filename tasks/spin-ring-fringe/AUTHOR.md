@@ -1,4 +1,6 @@
-# Spin ring fringe, revision 1
+# Spin ring fringe
+
+## Revision 1
 
 The spin Hamiltonian conserves the parity of the number of up spins. Let
 `n_j = (1+Z_j)/2`. The Jordan–Wigner map attaches the string
@@ -56,3 +58,26 @@ gives RMSE 0.0772 for thermal quenches, 0.8163 for full-ring returns, and
 
 Fermionic trace phases in general paired systems are discussed in
 [Klich, J. Stat. Mech. P11006 (2014)](https://arxiv.org/abs/1403.7824).
+
+## Revision 2
+
+Revision 2 brackets one selected arm-1 pulse with two local π rotations. All
+three hidden families exercise this operation. The calibration is unchanged.
+The positive π rotations both act as −iX₀, giving a minus sign in the tagged
+arm. With the Jordan–Wigner string starting at site zero, X₀ is the first
+Majorana operator. It changes P = ∏Zⱼ and hence the boundary bond during the
+tagged interval. The returned thermal trace still projects on the initial P.
+
+The R2 solver diagonalizes the real antisymmetric Majorana coupling matrix
+of each layer. It writes each mode's exponential as a scalar plus a product
+of two Majoranas. The normalized trace of an even Majorana string is the
+Pfaffian of its pairwise contractions. In the implementation, the extra
+entry inside each pair supplies its scalar term. Inserting the full string
+for P gives the parity projection. The sign of the complex fringe is kept
+through each layer. The independent spin reference conjugates the selected
+propagator by X₀, either in spin space or in site zero's transfer matrix.
+The completed R2 control retains the initial boundary bond throughout a tag.
+It predicts the visibility and the ordinary fringe. Its tagged family RMS
+errors at fitted visibility are approximately 0.083, 1.63, and 0.159.
+R1 measurements and the original momentum-block implementation are retained
+at commit 981c19d8.

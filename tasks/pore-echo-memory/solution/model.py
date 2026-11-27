@@ -1,61 +1,42 @@
-"""Average over signed exposure counts of each diffusion path."""
-from collections import defaultdict
-
 import numpy as np
-from scipy.spatial.distance import cdist
+from scipy.optimize import brentq
 
 
-def exposures(scan):
-    start = scan["start"]
-    counts = [0] * 4
-    counts[start] = scan["signs"][0]
-    states = {(start, tuple(counts)): 1.0}
-    for p, sign in zip(scan["hops"], scan["signs"][1:]):
-        after = defaultdict(float)
-        for (site, counts), mass in states.items():
-            for shift, weight in ((-1, p / 2), (0, 1 - p), (1, p / 2)):
-                if weight:
-                    dest = (site + shift) % 4
-                    updated = list(counts)
-                    updated[dest] += sign
-                    after[dest, tuple(updated)] += mass * weight
-        states = after
-    marginal = defaultdict(float)
-    for (_, counts), mass in states.items():
-        marginal[counts] += mass
-    return np.array(list(marginal)), np.array(list(marginal.values()))
+def single(private, common, diffusion):
+    width = (2 * np.pi**2 * diffusion / (private + common))**(1/3)
+    return 1.5 * (private + common) * width
 
 
-def second_moment(scan):
-    counts, mass = exposures(scan)
-    return mass @ (counts**2).sum(axis=1)
+def pair(row, common):
+    private = np.array([row["a"], row["b"]])
+    confinement = np.pi**2 * np.array([row["D_A"], row["D_B"]])
+    spacing = row["s"]
+    best = (2 * confinement / private)**(1/3)
 
+    def slope(total):
+        return common + np.minimum(private - 2 * confinement / total**3, 0).sum()
 
-def signal(experiment, width):
-    coeff = -0.5 * (experiment["gain"] * width)**2
-    counts, mass = exposures(experiment["scan"])
-    echo = mass @ np.exp(coeff * (counts**2).sum(axis=1))
-    if experiment["mode"] == "echo":
-        return echo
-    other, weights = exposures(experiment["partner"])
-    partner_echo = weights @ np.exp(coeff * (other**2).sum(axis=1))
-    joint = mass @ np.exp(coeff * cdist(counts, other, "sqeuclidean")) @ weights
-    return joint - echo * partner_echo
+    total = max(spacing, brentq(slope, 1e-4, max(best)))
+    widths = np.minimum(total, best)
+    if widths.sum() < spacing:
+        def split_slope(x):
+            return (private[0] - private[1] - 2 * confinement[0] / x**3
+                    + 2 * confinement[1] / (spacing - x)**3)
+        left = brentq(split_slope, 1e-5, spacing - 1e-5)
+        widths = np.array([left, spacing - left])
+    return common * total + np.sum(private * widths + confinement / widths**2)
 
 
 class Model:
-    def __init__(self):
-        self.width = None
-
     def fit(self, records):
-        records = list(records)
-        x = np.array([second_moment(row["scan"]) for row in records])
-        y = np.array([row["curvature"] for row in records])
-        self.width = float(np.sqrt((x @ y) / (x @ x)))
+        estimates = []
+        for r in records:
+            x = r["input"]
+            rate = r["value"]
+            estimates.append(np.sqrt((rate / 1.5)**3 / (2 * np.pi**2 * x["D_A"])) - x["a"])
+        self.intensity = np.mean(estimates)
         return self
 
-    def predict_calibration(self, records):
-        return np.array([self.width**2 * second_moment(r["scan"]) for r in records])
-
-    def predict(self, experiments):
-        return np.array([signal(row, self.width) for row in experiments])
+    def predict(self, inputs):
+        return np.array([single(x["a"], self.intensity, x["D_A"]) if x["mode"] == "single"
+                         else pair(x, self.intensity) for x in inputs])

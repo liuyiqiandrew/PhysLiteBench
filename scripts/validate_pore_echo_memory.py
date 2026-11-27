@@ -1,4 +1,4 @@
-"""Compare the independent Fourier reference to both controls and the shipped data."""
+"""Reproduce both data files and check the range contraction against an endpoint optimization."""
 import argparse
 import importlib.util
 import json
@@ -20,73 +20,67 @@ def load(path):
 ref = load(TASK / "tests/reference.py")
 
 
-def sample_scan(rng, size):
-    return {"start": int(rng.integers(4)),
-            "signs": rng.choice([-1, 1], size=size).tolist(),
-            "hops": rng.choice([0.15, 0.4, 0.65, 0.85, 1.0], size=size-1).tolist()}
-
-
-def samples():
-    rng = np.random.default_rng(426007)
+def records():
     calibration = []
-    for size in [1, 2, 3, 4, 5, 6] * 2:
-        scan = sample_scan(rng, size)
-        curvature = ref.evaluate(scan, ref.TRUE_WIDTH, curvature=True)
-        calibration.append({"scan": scan, "curvature": round(curvature, 7)})
-    truth = []
-    for group in ["moving_echo", "same_scan", "two_scans"]:
-        for size in range(3, 10):
-            scan = sample_scan(rng, size)
-            gain = float(rng.choice([0.85, 1.15, 1.45, 1.8]))
-            query = {"mode": "echo", "gain": gain, "scan": scan}
-            if group != "moving_echo":
-                query["mode"] = "covariance"
-                query["partner"] = scan if group == "same_scan" else sample_scan(rng, size - 1)
-            target = ref.evaluate(scan, gain * ref.TRUE_WIDTH, query.get("partner"))
-            truth.append({"group": group, "input": query, "value": target})
-    return calibration, truth
+    for a in [.17, .85, 1.9, 2.4]:
+        for d in [.18, .94, 2.23]:
+            x = dict(mode="single", a=a, D_A=d)
+            calibration.append(dict(input=x, value=round(ref.predict(x), 8)))
+    cases = {}
+    for name, spacings in [("near", [0., 1.8, 3.2]), ("separated", [7.1, 10.4, 14.6]),
+                            ("unequal", [4.7, 8.7, 17.5])]:
+        rows = []
+        for i, s in enumerate(spacings):
+            for a,b,d,g in [(.25,1.78,2.19,.24), (1.65,1.21,.31,.89), (.67,.36,.63,1.8)]:
+                x = dict(mode="pair", a=a, b=b, D_A=d, D_B=g, s=s)
+                rows.append(dict(input=x, value=ref.predict(x)))
+        cases[name] = rows
+    return calibration, cases
 
 
-def validate(regenerate):
-    calibration, truth = samples()
-    for path, expected in [(TASK / "tests/data/calibration.json", calibration),
-                           (TASK / "environment/data/calibration.json", calibration),
-                           (TASK / "tests/data/predictions.json", truth)]:
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--regenerate", action="store_true")
+    regenerate = parser.parse_args().regenerate
+    calibration, cases = records()
+    for path in [TASK / "environment/data/calibration.json", TASK / "tests/data/calibration.json"]:
         if regenerate:
-            path.write_text(json.dumps(expected, indent=2) + "\n")
-        actual = json.loads(path.read_text())
-        if expected is truth:
-            assert [r["group"] for r in actual] == [r["group"] for r in expected]
-            assert [r["input"] for r in actual] == [r["input"] for r in expected]
-            np.testing.assert_allclose([r["value"] for r in actual], [r["value"] for r in expected], atol=2e-12, rtol=0)
+            path.write_text(json.dumps(calibration, indent=2) + "\n")
+        assert json.loads(path.read_text()) == calibration
+    path = TASK / "tests/data/predictions.json"
+    if regenerate:
+        path.write_text(json.dumps(cases, indent=2) + "\n")
+    stored = json.loads(path.read_text())
+    assert stored.keys() == cases.keys()
+    for name, rows in cases.items():
+        assert [r["input"] for r in rows] == [r["input"] for r in stored[name]]
+        np.testing.assert_allclose([r["value"] for r in rows], [r["value"] for r in stored[name]], atol=1e-8, rtol=0)
+    for role, source in [("oracle", TASK / "solution/model.py"),
+                         ("shortcut", ROOT / "scripts/pore_echo_memory_baseline.py")]:
+        model = load(source).Model().fit(calibration)
+        assert abs(model.intensity - ref.TRUE_PARAMETER) < 1e-7
+        calibration_error = max(abs(model.predict([r["input"] for r in calibration]) - [r["value"] for r in calibration]))
+        assert calibration_error < 1e-6
+        errors = {}
+        for name, rows in cases.items():
+            actual = model.predict([r["input"] for r in rows])
+            truth = np.array([r["value"] for r in rows])
+            errors[name] = float(max(abs(actual/truth - 1)))
+        print(role, model.intensity, calibration_error, errors)
+        assert errors["near"] < 1e-6
+        if role == "oracle":
+            assert max(errors.values()) < 1e-6
         else:
-            assert actual == expected
-    # A sealed pore gives a Brownian-free single-site phase; different sealed sites factor.
-    pinned = {"start": 1, "signs": [1, -1, 1], "hops": [0, 0]}
-    echo = np.exp(-ref.TRUE_WIDTH**2 / 2)
-    assert abs(ref.evaluate(pinned, ref.TRUE_WIDTH) - echo) < 1e-12
-    assert abs(ref.evaluate(pinned, ref.TRUE_WIDTH, pinned) - (1 - echo**2)) < 1e-12
-    assert abs(ref.evaluate(pinned, ref.TRUE_WIDTH, dict(pinned, start=2))) < 1e-12
+            assert min(errors["separated"], errors["unequal"]) > .2
 
-    for name, path in [("oracle", TASK / "solution/model.py"),
-                       ("shortcut", ROOT / "scripts/pore_echo_memory_baseline.py")]:
-        model = load(path).Model().fit(calibration)
-        assert abs(model.width - ref.TRUE_WIDTH) < 1e-5
-        measured = [r["curvature"] for r in calibration]
-        np.testing.assert_allclose(model.predict_calibration(calibration), measured, atol=1e-5, rtol=0)
-        results = {}
-        for group in ["moving_echo", "same_scan", "two_scans"]:
-            cases = [r for r in truth if r["group"] == group]
-            actual = model.predict([r["input"] for r in cases])
-            results[group] = float(np.max(abs(actual - [r["value"] for r in cases])))
-        if name == "oracle":
-            assert max(results.values()) < 1e-7
-        else:
-            assert min(results.values()) > 0.002
-        print(name, "width", model.width, "maximum absolute errors", results)
+    # Identical private defects and dynamics: symmetry forces equal widths.
+    # At zero spacing the ranges coincide; at large spacing each spans s/2.
+    for s in [0, 18]:
+        x = dict(mode="pair", a=1, b=1, D_A=.5, D_B=.5, s=s)
+        w = (2*np.pi**2/(2+ref.TRUE_PARAMETER))**(1/3) if s == 0 else s/2
+        expected = 2*w + np.pi**2/w**2 + ref.TRUE_PARAMETER*max(w,s)
+        np.testing.assert_allclose(ref.predict(x), expected, atol=1e-8, rtol=0)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--regenerate", action="store_true")
-    validate(parser.parse_args().regenerate)
+    main()

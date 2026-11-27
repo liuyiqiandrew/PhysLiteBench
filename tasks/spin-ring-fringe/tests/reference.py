@@ -26,6 +26,9 @@ def hidden_inputs():
                   [.46, [0, -.67, .67, 2.1]]]
         for angle in [0, np.pi/2]:
             echoes.append(experiment(n, 2.8, prep, pulses, angle))
+    for family in (quench, winding, echoes):
+        for q in family:
+            q["tag"] = 0
     return {"thermal-quench": quench, "winding": winding, "pulse-echo": echoes}
 
 
@@ -47,8 +50,11 @@ def spin_trace(expt):
     e, vec = np.linalg.eigh(spin_hamiltonian(n, expt["prep"]))
     thermal = np.exp(-expt["beta"] * (e - e.min()))
     matrix = (vec * (thermal * np.exp(1j * total * e))) @ vec.conj().T
-    for dt, setting in expt["pulses"]:
+    for j, (dt, setting) in enumerate(expt["pulses"]):
         e, vec = np.linalg.eigh(spin_hamiltonian(n, setting))
+        if expt.get("tag") == j:
+            vec = vec[np.arange(2**n) ^ 1]
+            matrix = -matrix
         matrix = (vec * np.exp(-1j * dt * e)) @ (vec.conj().T @ matrix)
     return np.trace(matrix) / thermal.sum()
 
@@ -76,12 +82,23 @@ def spatial_trace(expt):
     # A column is one site's list of spin outcomes, one per time layer.
     columns = np.array(list(product(range(2), repeat=len(bases))))
     spins = signs[columns]
-    local = np.exp(spins @ fields)
-    for i, basis in enumerate(bases):
-        overlap = basis.conj().T @ bases[i - 1]
-        local *= overlap[columns[:, i], columns[:, i - 1]]
-    transfer = local[:, None] * np.exp((spins * edges) @ spins.T)
-    return np.trace(np.linalg.matrix_power(transfer / (2 * np.cosh(beta * h / 2)), n))
+    bonds = np.exp((spins * edges) @ spins.T)
+    normalization = 2 * np.cosh(beta * h / 2)
+
+    def transfer(local_bases):
+        local = np.exp(spins @ fields)
+        for i, basis in enumerate(local_bases):
+            overlap = basis.conj().T @ local_bases[i - 1]
+            local *= overlap[columns[:, i], columns[:, i - 1]]
+        return local[:, None] * bonds / normalization
+
+    ordinary = transfer(bases)
+    tag = expt.get("tag")
+    if tag is None:
+        return np.trace(np.linalg.matrix_power(ordinary, n))
+    site_zero = bases.copy()
+    site_zero[tag+1] = site_zero[tag+1][::-1]  # the two physical pi rotations
+    return -np.trace(transfer(site_zero) @ np.linalg.matrix_power(ordinary, n-1))
 
 
 def predict(inputs, visibility):

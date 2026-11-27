@@ -17,6 +17,12 @@ setting throughout the experiment. On arm 1 it passes through `pulses` in the
 listed time order. Each pulse is `[duration, setting]`. Switching is
 instantaneous. Both arms have the same total duration.
 
+When an input has a non-null integer `tag`, it indexes a pulse starting from
+zero. Immediately before and immediately after that pulse, arm 1 alone applies
+an ideal positive π rotation about laboratory x to site zero. Each rotation
+has generator X/2, negligible duration and no other action on the ring. An
+absent or null tag leaves the drive as listed.
+
 The analyzer compares the final arm-1 amplitude against arm 0. For a pure
 initial ring state its signed signal is the real part of
 `exp(-i angle) <final_0 | final_1>` times the unknown detector visibility.

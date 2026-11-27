@@ -44,7 +44,8 @@ def component(e, viscosity):
 
 
 def predict(experiments, viscosity):
-    return np.array([component(e, viscosity) for e in experiments])
+    return np.array([noise_spectrum(e, viscosity) if 'pair' in e else component(e, viscosity)
+                     for e in experiments])
 
 
 def hidden_inputs():
@@ -61,4 +62,66 @@ def hidden_inputs():
             groups['lateral_drive'].append(dict(e, fx=1., fz=0., axis='z', part=part))
             for axis in ('x', 'z'):
                 groups['mixed_drive'].append(dict(e, fx=.8, fz=-.9, axis=axis, part=part))
+    spectra = {'height_power': ('hh', 'real'), 'density_power': ('cc', 'real'),
+               'cross_lag': ('ch', 'imag'), 'cross_in_phase': ('ch', 'real')}
+    for name, (pair, part) in spectra.items():
+        groups[name] = []
+        for i in range(16):
+            e = dict(h_lower=rng.uniform(.5, 1.6), h_upper=rng.uniform(.5, 1.6),
+                     mu_lower=rng.uniform(.55, 1.6), mu_upper=rng.uniform(.55, 1.6),
+                     k=rng.uniform(.7, 1.9), omega=rng.uniform(.25, 2.4))
+            if i % 4 == 0:
+                e.update(h_upper=e['h_lower'], mu_upper=e['mu_lower'])
+            lo, hi = rng.uniform(.45, .62), rng.uniform(1.55, 1.8)
+            if i % 4 == 1:
+                lo = hi
+            if i % 2:
+                lo, hi = hi, lo
+            groups[name].append(dict(e, temperature_lower=lo, temperature_upper=hi,
+                                     pair=pair, part=part))
     return groups
+
+
+def local_random_traction(k, e, side):
+    from scipy.integrate import solve_ivp
+    mu, depth = e['mu_' + side], e['h_' + side]
+    orientation = 1 if side == 'lower' else -1
+    prop = transfer(k, orientation*depth, mu)
+    raw = prop[2:] @ np.linalg.inv(prop[:2])
+    # Propagate random bulk stresses from wall to film in the total-stress
+    # state formulation. Wall tractions are free to impose the end velocity.
+    generator = orientation * np.array([[0, -1j*k, 1/mu, 0],
+                                        [-1j*k, 0, 0, 0],
+                                        [4*mu*k*k, 0, 0, -1j*k],
+                                        [0, 0, -1j*k, 0]])
+    strength = np.diag([1/mu, 0., 4*mu*k*k, 0.])
+    def evolve(distance, flat):
+        C = flat.reshape(4, 4)
+        temp = 1 + (e['temperature_' + side] - 1) * (1-distance/depth)
+        return (generator @ C + C @ generator.conj().T + temp*strength).ravel()
+    solution = solve_ivp(evolve, (0, depth), np.zeros(16, complex),
+                         method='DOP853', rtol=2e-11, atol=1e-13)
+    C = solution.y[:, -1].reshape(4, 4)
+    project = np.column_stack([-raw, np.eye(2)])
+    return orientation*raw, project @ C @ project.conj().T
+
+
+def noise_spectrum(e, viscosity):
+    k, omega = e['k'], e['omega']
+    A = np.zeros((4, 4), complex)  # vx, vz, c, height
+    N = np.zeros_like(A)
+    for side in ('lower', 'upper'):
+        resistance, random_stress = local_random_traction(k, e, side)
+        A[:2, :2] += resistance
+        N[:2, :2] += random_stress
+    A[0, 0] += (viscosity+.42)*k*k
+    N[0, 0] += (viscosity+.42)*k*k
+    A[0, 2], A[1, 3] = 1j*k*.8, 1.3*k*k
+    A[2, 0], A[2, 2] = 1j*k, .18*k*k - 1j*omega
+    A[3, 1], A[3, 3] = -1, -1j*omega
+    N[2, 2] = .18*k*k/.8
+    inv = np.linalg.inv(A)
+    result = inv @ N @ inv.conj().T
+    a, b = (2+'ch'.index(c) for c in e['pair'])
+    value = result[a, b]
+    return value.real if e['part'] == 'real' else value.imag

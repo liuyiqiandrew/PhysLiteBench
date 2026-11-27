@@ -1,1 +1,4 @@
-For a single walk, collect the signed number of exposures at each site. At fixed counts the disorder average of the complex phase is a Gaussian characteristic function. For the pair of readings, first form the difference of the count vectors for independent walks in the two scans of one pore.
+Condition first on the ranges visited by the two Brownian paths, then perform
+the Poisson average. Check which path pairs survive the centering operation.
+Compare the probability of clearing a suitable interval with the probability
+of confining a trajectory there.

@@ -1,16 +1,41 @@
-# Echoes from a four-site pore
+# Echo attenuation in narrow capillaries
 
-Each pore has four equivalent traps numbered clockwise around a ring. Trap j carries an angular frequency offset ω_j in radians/ms. Fabrication draws the four offsets independently from a normal distribution with zero mean and common standard deviation width in [0.55, 1.45] radians/ms. A pore keeps all four offsets throughout every scan. We average over a large batch of pores with equal weight per pore.
+Each sample is an infinite one-dimensional capillary. Three independent,
+homogeneous Poisson point processes mark defects on the line. The first species
+of defect extinguishes spins of isotope A, the second extinguishes spins of
+isotope B, and the third extinguishes either. They have respective intensities
+a, b, and c per unit length. The first two are controlled. The third is the
+same unknown intensity in every run. The defects remain fixed during all
+measurements on one sample. Average over independently fabricated samples.
 
-Each scan loads many independent spins at a specified trap (start = 0, 1, 2 or 3). Every spin starts with unit transverse magnetization on the real axis. During each exposure its trap is sealed for 1 ms. Its transverse phase advances by gain × sign × ω_j × 1 ms at its current site j. The signs list gives one +1 or −1 for each exposure (1 to 9 exposures). Between successive exposures the offsets are switched off and the ring gates open briefly. For each opening, hops gives the probability p in [0,1] of moving one site. Left and right are equally likely; otherwise the spin stays put. Choices are independent between spins and openings. There is no gate before the first exposure. The offsets return to their original values after each opening. All other evolution and relaxation are negligible.
+Each shot releases many noninteracting spins of one isotope at its source.
+A spin follows unbiased Brownian motion of diffusivity D (variance 2Dt).
+On first hitting an active defect its transverse signal is lost for the
+remainder of that shot. Other defects have no effect. Every surviving spin
+has unit signal. At time t the coil measures the surviving fraction. Take the
+infinite-spin limit in each sample before averaging over samples. Time and
+length are numerical values in fixed instrument units.
 
-The coil averages the complex transverse magnetization exp(i phase) over the spins at the end of a scan. Take the limit of infinitely many spins per pore. Denote the complex reading by M. The receiver supports two modes:
+In single-coil mode release A at 0. Write M_A for that sample's coil reading.
+The receiver reports the large-time limit of minus the natural logarithm of
+the sample mean ⟨M_A⟩, divided by t^(1/3).
 
-- An echo returns the real part of the batch mean of M.
-- For a covariance the instrument performs two scans on each pore with freshly loaded spins. It subtracts each scan's own complex batch mean from that scan's reading, multiplies the first centered reading by the complex conjugate of the second centered reading, then reports the real part averaged over pores. Sites and gate settings in both scans refer to the same physical ring. The two scans use the same gain.
+In two-coil mode release A at 0 and B at s t^(1/3) in the same capillary, using
+independent spins. At each t, subtract the corresponding sample-ensemble mean
+from each coil's reading. The instrument multiplies the two centered readings
+and averages over samples. It reports
 
-Calibration records contain scan (start, signs, hops) and curvature. Curvature is minus the second derivative of the batch echo with respect to dimensionless gain, at gain = 0, rounded to seven decimals. Prediction inputs contain mode ("echo" or "covariance"), gain in [0,2], and scan. Covariance inputs also contain a second scan under partner. All reported means and covariances are dimensionless.
+    lim_{t→∞} -log ⟨(M_A - ⟨M_A⟩)(M_B - ⟨M_B⟩)⟩ / t^(1/3).
 
-Model.fit(records) stores the inferred width in self.width and returns self. Model.predict_calibration(records) returns the calibrated curvature for each input. Model.predict(experiments) returns the requested outputs. Both prediction methods return a finite 1D NumPy array in input order. The arrays may be empty.
+The source placement is reset for each observation time. Both coils read at
+that same time. Averages ⟨ ⟩ give equal weight to each capillary.
 
-Prediction accuracy is assessed to 0.002 in absolute signal units. Calibration accuracy is assessed to 0.00001 in curvature units.
+Single inputs have keys `mode="single"`, `a`, and `D_A`. Two-coil inputs
+have `mode="pair"`, `a`, `b`, `D_A`, `D_B`, and `s`. Each controlled
+intensity is in [0.15, 2.5], each diffusivity in [0.15, 2.5], and s is in
+[0, 18]. The common intensity c is in [0.3, 1.4]. Calibration rows contain
+`input` and the measured rate `value` rounded to eight decimal places.
+
+Implement `Model.fit(records)` returning self with fitted float `intensity`.
+Implement `Model.predict(inputs)` returning the rates in input order as a
+finite NumPy array of shape `(len(inputs),)`, including empty input.
