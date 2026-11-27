@@ -30,3 +30,19 @@ A peer independently evolved the three finite-delay Vlasov harmonics in position
 With self-gravity off, the first calibration row has an amplitude proportional to exp[−(0.75σ)²/2], strictly monotone on the allowed range. The free-streaming shortcut and oracle both recover σ=0.947. The shortcut's largest absolute errors on joint density, cross-population transfer and spectral bands are 0.00722, 0.00636 and 0.00684. The gravitationally mediated readout can remain finite when no single population receives both kicks.
 
 Run `python scripts/validate_stellar_tracer_mixing.py` to check the shipped records, independent solver, controls and Galilean-shift symmetry. Use `--generate` only to regenerate both calibration copies and the private predictions. Seed 48712 sets the preparations. The target is three unhinted GPT-5.6 Luna High trials. Run `scripts/run_science.py tasks/stellar-tracer-mixing` with `--agent oracle --trials 1` for the physical control; add `--solution-model scripts/stellar_tracer_mixing_baseline.py` for the free-streaming control. Use `--model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3 --restricted-network` for the candidate.
+
+## Revision 5 – two further echoes
+
+The intercept selects the term independent of T in the ordinary quadratic readout. Factoring out the first filament's velocity phase leaves a derivative of its dressed amplitude. During the second acceleration history the time multiplying the phase derivative is T plus the elapsed time since the second kick. Its finite part is obtained by differentiating the second pulse susceptibility with respect to v. For each population the bare intercept spectrum replacing F_s is
+
+    [(f′_s A₁)′ A₂ + (a/b) f′_s A₁ A₂′]/4,
+
+where A₁ = A_s(−a,v;first), A₂ = A_s(b,v;second), and primes denote v derivatives. The mixed wave is dressed at b−a as in revision 4. Direct split-step finite-T Vlasov checks at two settings gave −0.000661505 and −0.00321098 against the oracle's −0.000661525 and −0.00321087.
+
+For the relay define q=b−a, h=b−2a, and let L₂(v)=Σ_s F_s(v)/[1−Σ_s H_s(q,v)] be the total density spectrum of the first echo. At its center t₂=bT/q the first echo creates an acceleration of order T. This acts on the first pulse's surviving −a velocity filament, whose derivative also grows with T. Free flight at harmonic h subsequently refocuses at t₃=bT/h. The other cubic sources scale as T or less. Integrating over both sides of the first echo introduces its full Fourier transform and gives a bare cubic spectrum for population s of
+
+    −(2π a μ b/q³) f′_s(v) A₁(v) L₂(v).
+
+The factor from differentiating twice with respect to the first amplitude accounts for the two identical first-kick factors. Apply the usual band-limited receiver and the final gravitational response at h. The oracle treats the first echo as a source in velocity Fourier space. The retarded-time reference instead convolves its complete first-echo waveform with the surviving velocity filament and propagates the final wake.
+
+An independent check evolved five Vlasov harmonics through cubic order at T=10, 20 and 40 and extrapolated the normalized relay signal quadratically in 1/T. At two settings it returned 0.0000609879 and 0.0020011467 compared with the predicted 0.0000609772 and 0.0020013265. For all hidden intercepts and relays the oracle and the independently discretized time convolution agree within 0.0000025. The absolute tolerance remains 0.00045. A completed control retains the collective primary signal and the ballistic finite part, while omitting the higher collective terms. Its maximum errors are 0.02947 for the intercept and 0.02321 for the relay.

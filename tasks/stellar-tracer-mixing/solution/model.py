@@ -25,7 +25,14 @@ def ballistic(q, sigma):
     z = (b-a)*q["delay"]
     fourier = -mass*weight/width**2 * (shift-mean-1j*z*spread**2)
     fourier *= np.exp(-1j*z*shift - .5*(z*spread)**2)
-    return (1j*a/4*q["first"][s]*q["second"][s]*fourier*np.exp(-1j*q["angle"])).real
+    drive = q["first"][s]*q["second"][s]/4
+    if q.get("channel") == "relay":
+        return 0.
+    if q.get("channel") == "intercept":
+        transformed = mass*weight*np.exp(-1j*z*shift - .5*(z*spread)**2)
+        second = transformed * (((shift-mean-1j*z*spread**2)**2+spread**2)/width**4-1/width**2)
+        return (drive * second * np.exp(-1j*q["angle"])).real
+    return (1j*a*drive*fourier*np.exp(-1j*q["angle"])).real
 
 
 def response(q, sigma):
@@ -37,7 +44,7 @@ def response(q, sigma):
     v = np.linspace(-14,14,1025)
     data = list(population_data(q,sigma))
 
-    def susceptibility(harmonic, band):
+    def susceptibility(harmonic, band, derivative=False):
         values = []
         for mass, mean, width in data:
             weight, shift, spread = filtered(mean,width,band)
@@ -45,6 +52,10 @@ def response(q, sigma):
             z = np.sign(harmonic)*dv/(np.sqrt(2)*spread)
             i0 = np.sqrt(np.pi/2)*wofz(z)/(abs(harmonic)*spread)
             i1 = (1 + 1j*harmonic*dv*i0)/(harmonic*spread)**2
+            if derivative:
+                # Only the unfiltered susceptibility is differentiated.
+                values.append(mu*mass*(1j*harmonic*i0-harmonic**2*dv*i1)/(harmonic*spread)**2)
+                continue
             values.append(mu*mass*weight/width**2 * (
                 spread**2*i1 + 1j*(shift-mean)/harmonic*i0))
         return np.array(values)
@@ -52,11 +63,27 @@ def response(q, sigma):
     def impulse(harmonic, pattern):
         chi = susceptibility(harmonic,None)
         drive = np.asarray(pattern)[:,None]
-        return drive + np.sum(chi*drive,axis=0)/(1-chi.sum(axis=0))
+        pole = 1-chi.sum(axis=0)
+        common = np.sum(chi*drive,axis=0)/pole
+        dressed = drive + common
+        slope = np.sum(susceptibility(harmonic,None,True)*dressed,axis=0)/pole
+        return dressed, slope
 
-    derivative = np.array([-mass*(v-mean)*np.exp(-.5*((v-mean)/width)**2)
-                           /(np.sqrt(2*np.pi)*width**3) for mass,mean,width in data])
-    source = 1j*a/4 * derivative * impulse(-a,q["first"]) * impulse(b,q["second"])
+    first, first_slope = impulse(-a,q["first"])
+    second, second_slope = impulse(b,q["second"])
+    distribution = np.array([mass*np.exp(-.5*((v-mean)/width)**2)/(np.sqrt(2*np.pi)*width)
+                             for mass,mean,width in data])
+    slope = np.array([-(v-mean)/width**2 for _,mean,width in data])
+    df = distribution * slope
+    source = 1j*a/4 * df * first * second
+    channel = q.get("channel","primary")
+    if channel == "intercept":
+        ddf = distribution * (slope**2 - np.array([1/w**2 for _,_,w in data])[:,None])
+        source = ((ddf*first + df*first_slope)*second + (a/b)*df*first*second_slope)/4
+    if channel == "relay":
+        intermediate = source.sum(axis=0)/(1-susceptibility(k,None).sum(axis=0))
+        source = -2*np.pi*a*mu*b/k**3 * df*first*intermediate
+        k = b-2*a
     s = "AB".index(q["population"])
     band = q["band"]
     window = 1. if band is None else np.exp(-.5*((v-band[0])/band[1])**2)

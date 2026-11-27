@@ -32,6 +32,6 @@ def test_fit(metrics):
     assert metrics["max_absolute_error"]["calibration"] < 2e-5
 
 
-@pytest.mark.parametrize("group",["joint_density","transferred_echo","spectral_band"])
+@pytest.mark.parametrize("group",["joint_density","transferred_echo","spectral_band","intercept","relay"])
 def test_echo(metrics,group):
     assert metrics["max_absolute_error"][group] < .00045

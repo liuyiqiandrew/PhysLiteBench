@@ -22,7 +22,14 @@ def ballistic(q, sigma):
     z = (b-a)*q["delay"]
     fourier = -mass*weight/width**2 * (shift-mean-1j*z*spread**2)
     fourier *= np.exp(-1j*z*shift - .5*(z*spread)**2)
-    return (1j*a/4*q["first"][s]*q["second"][s]*fourier*np.exp(-1j*q["angle"])).real
+    drive = q["first"][s]*q["second"][s]/4
+    if q.get("channel") == "relay":
+        return 0.
+    if q.get("channel") == "intercept":
+        transformed = mass*weight*np.exp(-1j*z*shift - .5*(z*spread)**2)
+        second = transformed * (((shift-mean-1j*z*spread**2)**2+spread**2)/width**4-1/width**2)
+        return (drive * second * np.exp(-1j*q["angle"])).real
+    return (1j*a*drive*fourier*np.exp(-1j*q["angle"])).real
 
 
 class Model:

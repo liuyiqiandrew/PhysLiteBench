@@ -44,11 +44,36 @@ def preparations():
             rows.append(q)
     groups["calibration"][0] = dict(k=[1,2],first=[1,0],second=[1,0],drift=[0,0],
                                     strength=0.,delay=.75,angle=0.,population="A",band=None)
+    for g in ["intercept","relay"]:
+        rows=[]
+        for i in range(14):
+            rows.append(dict(k=[[1,3],[1,4],[2,5]][i%3],first=rng.choice([-.95,.95],2).tolist(),
+                        second=rng.choice([-.85,.85],2).tolist(),drift=rng.uniform(-.8,.8,2).tolist(),
+                        strength=rng.uniform(.35,.5),delay=rng.uniform(-1.15,1.15),
+                        angle=rng.uniform(-2.5,2.5),population="AB"[i%2],
+                        band=[rng.uniform(-1,1),rng.uniform(.36,1.2)] if i%3 else None,channel=g))
+        groups[g]=rows
     return groups
 
 
 def encode(path,obj):
     path.write_text(json.dumps(obj,indent=2)+"\n")
+
+
+def check_finite_delays():
+    samples=[
+        dict(k=[1,3],first=[1,-.3],second=[-.6,.85],drift=[-.48,.79],strength=.47,
+             delay=.54,angle=1.15,population="B",band=[.8,.53]),
+        dict(k=[1,4],first=[.8,.92],second=[1,0],drift=[.76,-.45],strength=.42,
+             delay=-.8,angle=-.7,population="A",band=None)]
+    for sample in samples:
+        relay = dict(sample,channel="relay")
+        values=[ref.finite_delay(relay,ref.TRUE_PARAMETER,t) for t in (10.,20.,40.)]
+        assert abs((values[0]-6*values[1]+8*values[2])/3
+                   - oracle.response(relay,ref.TRUE_PARAMETER)) < 8e-6
+        offset=dict(sample,channel="intercept")
+        low,high=[ref.finite_delay(offset,ref.TRUE_PARAMETER,t) for t in (16.,32.)]
+        assert abs(2*low-high-oracle.response(offset,ref.TRUE_PARAMETER)) < 2e-5
 
 
 def verify(generate):
@@ -77,7 +102,8 @@ def verify(generate):
         errors=[np.max(abs(m.predict(inputs)-y)) for m in models]
         print(group,"grid delta",delta,"oracle/shortcut errors",errors)
         assert delta<4e-5 and errors[0] < 2e-5
-        assert errors[1]<2e-5 if group=="calibration" else errors[1]>.00045
+        assert errors[1]>.00045 if group in ("intercept","relay") else errors[1]<2e-5
+    check_finite_delays()
     # Shifting both mean velocities and a receiver band translates the echo in phase.
     for q in groups["spectral_band"][:3]:
         u=.04
