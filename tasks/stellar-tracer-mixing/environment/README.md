@@ -1,41 +1,19 @@
-# Stellar tracer counts
+# Echoes in a stellar stream
 
-Massless collisionless tracers orbit an imposed spherical potential
-Φ(r) = −m/(b + √(b² + r²)). Adopt units with G = 1. Length, speed and tracer
-number are in fixed instrument units throughout. Initially (m,b) = (1,1).
-The stationary, isotropic number density in six-dimensional phase space
-(dN per d³x d³v) is (−E/0.4)^p for negative specific energy E and zero
-otherwise. Its normalization is known. The common exponent p lies in [2,4].
+Two labelled collisionless stellar populations move on a periodic line of length 2π. Use dimensionless length, time and mass-density units. Initially the mass density per unit velocity of population s at every position is Gaussian, with total density 0.62 for A and 0.38 for B. Its mean velocity is the corresponding entry of `drift`. The velocity standard deviations are σ for A and 1.25σ for B. The same positive σ in [0.8,1.2] applies throughout.
 
-Each experiment starts with a fresh population. The apparatus first changes
-the potential arbitrarily slowly to the pair in `slow`. Take the adiabatic
-limit for every finite bound orbit. It then switches, in order, to the
-potentials in `steps`, each in negligible time. After each switch unbound
-tracers escape, and the readout averages over complete radial phase mixing
-in the current potential before the next operation. The system is isolated
-and tracers never collide. There is no thermal bath or replenishment.
+Between preparations each star follows dx/dt=v and dv/dt=g(x,t). The periodic gravitational acceleration has zero spatial mean and obeys ∂g/∂x = −strength (ρ_A + ρ_B − 1), where each ρ is the integral of the current velocity distribution. The imposed uniform background removes the mean source. The force acts equally on both populations. There are no collisions, noise sources or external fields between preparations. Use the continuum limit. All allowed settings are linearly Jeans stable.
 
-In the final potential the counter resolves a narrow bin in specific energy E
-and angular momentum **magnitude** L. The orbit at the bin center has turning
-radii `peri` and `apo`. The readout is the differential d²N/(dE dL) there,
-integrated over all positions, velocity directions and orbital phases. Take
-the limit of vanishing bin widths. Counting units include the full angular
-solid angles.
+A numerical experiment prepares two tidal velocity patterns, which can be assigned separately to the two populations. Each experiment starts from the uniform state. At time zero add ε₁ d₁ₛ cos(k₁x) to the velocity of every star of type s. At time T add ε₂ d₂ₛ cos(k₂x) in the same manner, using its position at that instant. Positions stay continuous. These externally imposed velocity maps are the only operations that depend on the population label. Keep the self-gravity of the system on throughout, including after the second operation.
 
-Inputs are dictionaries with `slow` = [m,b], `steps` a list of zero to two
-[m,b] pairs, and 0.12 ≤ peri < apo ≤ 10. Each mass is in [0.45,2.5] and each
-scale length in [0.12,2.5]. Calibration uses static fields. Each row of
-`data/calibration.json` has an `input` and a positive `value` rounded to
-nine significant figures. Implement `Model.fit(records)` returning self with
-fitted scalar `exponent`, and `Model.predict(experiments)` returning a finite
-one-dimensional NumPy array in input order.
+A spectrometer observes the difference harmonic k=k₂−k₁ of one population. For its velocity distribution f(x,v,t) it returns
 
-Some experiments replace the list of instantaneous steps by a long sequence of weak potential fluctuations. In these runs `steps` is empty and `train` supplies a positive dimensionless exposure, a coupling [a,c] and a positive binding_limit. The population first reaches the stated slow field (m,b). A detector removes all stars whose binding energy −E is at or below binding_limit in that field. Each cycle then:
+    Re[ exp(−i angle) (1/2π) ∫dx exp(−ikx) ∫dv W(v) f(x,v,t) ].
 
-1. Changes (m,b) instantaneously to (m exp(a ε), b exp(c ε)).
-2. Allows complete radial phase mixing there, with unbound tracers escaping.
-3. Restores (m,b) arbitrarily slowly, repeats the binding-energy cut and allows complete radial phase mixing before the next cycle.
+If `band` is null the response W is 1. Otherwise `band` = [center, width] specifies W(v)=exp(−(v−center)²/(2 width²)), with unit peak transmission. At time t=(k₂/k)T+delay take the mixed derivative of the reading with respect to ε₁ and ε₂ at zero amplitudes. The requested signal is the limit of this derivative divided by T as T → ∞ at fixed delay. Each derivative is taken before the long-delay limit. The spectrometer measures mass density; it does not normalize by the fraction in the selected band.
 
-The counter measures the same final differential number after N cycles. Take ε → 0 and N → ∞ with N ε² tending to exposure. Use the stated order of mixing and restoration within each cycle. Exposure lies in [0.05, 0.65], both coupling entries in [−1,1], and binding_limit in [0.025,0.25] in energy units. For bins outside the surviving energy range the count is zero. The initial distribution, calibration and detector units are the same for both protocols.
+Each input has `k` = [k₁,k₂], integers with 1 ≤ k₁ < k₂ ≤ 5; `first` and `second` are the pairs of d coefficients in A,B order, each in [−1,1]. The two drift speeds lie in [−0.9,0.9], `strength` in [0,0.5], `delay` in [−2,2] and `angle` in radians. The observed `population` is "A" or "B". Band centers lie in [−2,2] and widths in [0.25,2]. Calibration uses the same procedure with self-gravity switched off. Values are rounded to eight decimal places.
 
-A train may also specify a `hold` time in [0.5,30]. For this setting only, each cycle switches instantaneously to the perturbed field, follows each tracer's collisionless orbit there for precisely `hold` in the time units above, then switches back instantaneously. Remove any tracer unbound at a switch. The detector checks binding_limit after each return. Complete radial phase mixing occurs between cycles; no phase averaging or random reset occurs between the two switches of a single cycle. The same N ε² limit and differential count apply. Omitting hold selects the original slow-return cycle.
+Implement Model.fit(records) returning self and setting self.dispersion, and Model.predict(inputs) returning a finite real one-dimensional NumPy array in input order. Each calibration row has an input and its measured value.
+
+The numerical accuracy requested for a mixed echo is 0.00045 in the normalized signal units above. For calibration the absolute tolerance is 0.00002.

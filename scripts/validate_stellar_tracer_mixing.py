@@ -1,140 +1,93 @@
-"""Regenerate rounded calibration and frozen counts only with --generate."""
+"""Check signed stellar echoes by direct propagation of retarded fields."""
 import argparse
 import importlib.util
 import json
 from pathlib import Path
-
 import numpy as np
 
-
-ROOT = Path(__file__).resolve().parents[1]
-TASK = ROOT / "tasks/stellar-tracer-mixing"
-
-
-def load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+ROOT=Path(__file__).resolve().parents[1]
+TASK=ROOT/"tasks/stellar-tracer-mixing"
 
 
-ref = load("ref", TASK / "tests/reference.py")
-oracle = load("oracle", TASK / "solution/model.py")
-control = load("control", ROOT / "scripts/stellar_tracer_mixing_baseline.py")
+def load(name,path):
+    spec=importlib.util.spec_from_file_location(name,path)
+    mod=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def inputs(field, steps, radii):
-    return [dict(slow=field, steps=steps, peri=rp, apo=ra) for rp, ra in radii]
+ref=load("stream_reference",TASK/"tests/reference.py")
+oracle=load("stream_oracle",TASK/"solution/model.py")
+control=load("ballistic_control",ROOT/"scripts/stellar_tracer_mixing_baseline.py")
 
 
-def write(path, obj):
-    path.write_text(json.dumps(obj, indent=2) + "\n")
+def preparations():
+    rng=np.random.default_rng(48712)
+    groups={g:[] for g in ("calibration","joint_density","transferred_echo","spectral_band")}
+    for group,rows in groups.items():
+        for i in range(16):
+            s=i%2
+            modes=([1,2],[2,3],[1,3],[2,4])[i%4]
+            first=rng.uniform(-1,1,2)
+            second=rng.uniform(-1,1,2)
+            if group=="calibration":
+                first[s],second[s]=1.,1.
+            if group=="transferred_echo":
+                first[:],second[:]=([1.,0.],[0.,1.]) if i%3 else ([0.,1.],[1.,0.])
+            band=None
+            if group=="spectral_band" or (group=="calibration" and i%3==0):
+                band=[rng.uniform(-1.15,1.15),rng.uniform(.3,.95)]
+            q=dict(k=modes,first=first.tolist(),second=second.tolist(),drift=rng.uniform(-.85,.85,2).tolist(),
+                   strength=0. if group=="calibration" else rng.uniform(.34,.5),
+                   delay=rng.uniform(-1.35,1.35),angle=rng.uniform(-2.8,2.8),
+                   population="AB"[s],band=band)
+            rows.append(q)
+    groups["calibration"][0] = dict(k=[1,2],first=[1,0],second=[1,0],drift=[0,0],
+                                    strength=0.,delay=.75,angle=0.,population="A",band=None)
+    return groups
 
 
-def check_aperture(module):
-    # For a very weak drive at fixed aperture, the local half-line solution
-    # tends to erf(distance / sqrt(2 B tau)) times the unperturbed density.
-    from math import erf
-
-    field = [1., 1.]
-    q = dict(slow=field, steps=[], peri=1.4, apo=3.)
-    e, L, _ = module.orbit_bin(q)
-    j = 1 / np.sqrt(-2*e) - module.offset(L, *field)
-    initial = (-e / .4)**ref.TRUE_PARAMETER
-    train = dict(coupling=[1e-12, 0.], exposure=.1, binding_limit=-e-1e-6)
-    assert abs(module.train_density(e,L,field,train,ref.TRUE_PARAMETER)/initial - 1) < 1e-10
-    for amplitude in [1e-7, 1e-4, 1e-3]:
-        train["coupling"] = [amplitude, 0.]
-        width = np.sqrt(.1 * module.variance(np.array([j]), L, field, train["coupling"])[0])
-        for z in [.1, 1., 3.]:
-            cap = j + z*width
-            train["binding_limit"] = .5/(cap + module.offset(L, *field))**2
-            observed = module.train_density(e, L, field, train, ref.TRUE_PARAMETER) / initial
-            assert abs(observed - erf(z/np.sqrt(2))) < .002
+def encode(path,obj):
+    path.write_text(json.dumps(obj,indent=2)+"\n")
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--generate", action="store_true")
-    args = parser.parse_args()
-    cal_path = TASK / "environment/data/calibration.json"
-    private = TASK / "tests/data"
-    if args.generate:
-        cal = inputs([1, 1], [], [(.2, .6), (.3, 1.8), (.8, 2.3), (1.2, 4.8),
-                                   (.5, 6.7), (1.6, 3.9), (.7, 1.1), (2, 7.4)])
-        rows = [dict(input=q, value=float(format(ref.signal(q), ".9g"))) for q in cal]
-        write(cal_path, rows)
-        write(private / "calibration.json", rows)
-        a, b, c = [1.9, .41], [.64, 1.7], [1.28, .69]
-        bins = [(.2, 1.2), (.65, 2.8), (.31, 5.2), (1.1, 4.9)]
-        groups = {"slow": inputs(a, [], bins), "one_switch": inputs(c, [a], bins),
-                  "mixed_cycle": inputs(a, [b, a], bins),
-                  "two_switches": inputs(b, [a, c], bins)}
-        for name, field, coupling, exposure, limit in [
-                ("mass_train", [1., 1.], [1., 0.], .25, .09),
-                ("shape_train", [.85, .44], [0., -1.], .38, .12),
-                ("mixed_train", [1.3, .7], [-.72, .88], .21, .16)]:
-            train = dict(exposure=exposure, coupling=coupling, binding_limit=limit)
-            groups[name] = [dict(q, train=train) for q in inputs(field, [], [
-                (.22, .77), (.35, 1.85), (.54, 3.52), (.38, 4.25)])]
-        for name, field, coupling, exposure, limit, hold in [
-                ("coherent_mass", [1., 1.], [1., 0.], .085, .08, 14.),
-                ("coherent_shape", [1.2, .7], [.4, -.7], .15, .1, 6.2)]:
-            train = dict(exposure=exposure, coupling=coupling, binding_limit=limit, hold=hold)
-            groups[name] = [dict(q, train=train) for q in inputs(field, [], [
-                (.3, .8), (.65, 1.5), (.55, 2.2), (.3, 3.5)])]
-        write(private / "predictions.json", {g: [dict(input=q, value=ref.train_signal(q) if "train" in q else ref.signal(q, order=80))
-                                                 for q in qs] for g, qs in groups.items()})
-    assert cal_path.read_bytes() == (private / "calibration.json").read_bytes()
-    # An integral number of radial periods cancels the pair's first-order kick.
-    q = dict(slow=[1., 1.], steps=[], peri=.4, apo=2.)
-    e, angular, _ = oracle.orbit_bin(q)
-    period = 2*np.pi/(-2*e)**1.5
-    train = dict(coupling=[.8,-.5], exposure=.3, binding_limit=.1, hold=period)
-    expected = (-e/.4)**ref.TRUE_PARAMETER
-    assert abs(oracle.train_density(e, angular, q["slow"], train, ref.TRUE_PARAMETER)
-               / expected - 1) < 1e-10
-    rows = json.loads(cal_path.read_text())
-    cases = json.loads((private / "predictions.json").read_text())
-    # The coherent aperture can lie within a few floating-point energy units
-    # of the query. Compute the physical separation without subtracting actions.
-    q = dict(slow=[1., 1.], steps=[], peri=1.4, apo=3.)
-    e, L, _ = oracle.orbit_bin(q)
-    j = 1/np.sqrt(-2*e) - oracle.offset(L, 1, 1)
-    train = dict(coupling=[1e-12, 0], exposure=.1, hold=24.)
-    width = np.sqrt(.1 * oracle.coherent_variance(np.array([j]), L, [1, 1],
-                                                  train["coupling"], 24.)[0])
-    from math import erf
-    for units in [1, 5, 10]:
-        cut = -e - units*np.spacing(-e)
-        train["binding_limit"] = cut
-        distance = (-e-cut)/(np.sqrt(2*cut*-e)*(np.sqrt(cut)+np.sqrt(-e)))
-        expected = (-e/.4)**ref.TRUE_PARAMETER * erf(distance / (np.sqrt(2)*width))
-        measured = oracle.train_density(e, L, [1., 1.], train, ref.TRUE_PARAMETER)
-        assert abs(measured/expected-1) < 1e-6
-
-    for impl in (oracle, control):
-        check_aperture(impl)
-        model = impl.Model().fit(rows)
-        assert abs(model.exponent - ref.TRUE_PARAMETER) < 1e-7
-        assert np.allclose(model.predict([r["input"] for r in rows]),
-                           [r["value"] for r in rows], rtol=1e-7)
-        errors = {}
-        for group, sample in cases.items():
-            qs = [r["input"] for r in sample]
-            truth = np.array([r["value"] for r in sample])
-            if impl is oracle:
-                check = [ref.train_signal(q, level=12, cells_per_level=70)
-                         if "train" in q else ref.signal(q, order=56) for q in qs]
-                assert np.max(abs(check / truth - 1)) < .004
-            errors[group] = float(np.max(abs(model.predict(qs) / truth - 1)))
-        if impl is oracle:
-            assert max(errors.values()) < 0.004
-        else:
-            assert max(v for k, v in errors.items() if not k.startswith("coherent_")) < .001
-            assert min(v for k, v in errors.items() if k.startswith("coherent_")) > .02
-        print(impl.__name__, "exponent", model.exponent, "max relative errors", errors)
+def verify(generate):
+    groups=preparations()
+    folder=TASK/"tests/data"
+    if generate:
+        # Free streaming is analytic. The time-domain convolution checks that limit below.
+        cal=[{"input":q,"value":round(oracle.ballistic(q,ref.TRUE_PARAMETER),8)}
+             for q in groups["calibration"]]
+        encode(folder/"calibration.json",cal)
+        encode(TASK/"environment/data/calibration.json",cal)
+        encode(folder/"predictions.json",{g:[{"input":q,"value":ref.signal(q,spacing=.0125)}
+                                             for q in qs] for g,qs in groups.items() if g!="calibration"})
+    assert (folder/"calibration.json").read_bytes()==(TASK/"environment/data/calibration.json").read_bytes()
+    rows=json.loads((folder/"calibration.json").read_text())
+    truth=json.loads((folder/"predictions.json").read_text())
+    assert [r["input"] for r in rows]==groups["calibration"]
+    models=[cls.Model().fit(rows) for cls in (oracle,control)]
+    assert all(abs(m.dispersion-ref.TRUE_PARAMETER)<1e-6 for m in models)
+    for group,measurements in [("calibration",rows),*truth.items()]:
+        inputs=[r["input"] for r in measurements]
+        assert inputs==groups[group]
+        y=np.array([r["value"] for r in measurements])
+        check=[ref.signal(q,spacing=.025) for q in inputs]
+        delta=np.max(abs(np.array(check)-y))
+        errors=[np.max(abs(m.predict(inputs)-y)) for m in models]
+        print(group,"grid delta",delta,"oracle/shortcut errors",errors)
+        assert delta<4e-5 and errors[0] < 2e-5
+        assert errors[1]<2e-5 if group=="calibration" else errors[1]>.00045
+    # Shifting both mean velocities and a receiver band translates the echo in phase.
+    for q in groups["spectral_band"][:3]:
+        u=.04
+        shifted=dict(q,drift=[x+u for x in q["drift"]],band=[q["band"][0]+u,q["band"][1]],
+                     angle=q["angle"]-(q["k"][1]-q["k"][0])*u*q["delay"])
+        vals=models[0].predict([q,shifted])
+        assert abs(vals[0]-vals[1])<1e-10
 
 
-if __name__ == "__main__":
-    main()
+if __name__=="__main__":
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--generate",action="store_true")
+    verify(parser.parse_args().generate)
