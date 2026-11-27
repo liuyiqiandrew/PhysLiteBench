@@ -113,3 +113,18 @@ On 2026-10-10, after qualification, the changes below were made without new mode
 The current five revised validators are `validate_entropy_anomaly.py`, `validate_magnetic_tracer.py`, `validate_reaction_diffusion.py`, `validate_rotating_reservoir.py` and `validate_superconducting_heat.py`. Run them from `scripts/` with Python 3.13, NumPy 2.3.3 and SciPy 1.16.3. They read fixed calibration and hidden truth by default. Required regression predecessors are included under `archives/qualification-20261011-dependencies/`; do not regenerate data merely to reproduce a result. The magnetic, reaction, rotor and superconducting validators fit 256 noisy datasets and evaluate hidden sensitivity at nine parameter quantiles including extrema; entropy checks every hidden input for every draw. These are explicitly different checks.
 
 Use `--restricted-network` on ordinary `run_science.py` trials to reproduce the OpenAI-host allowlist. Qualification kept Codex CLI 0.154.0. The fresh GPT-6 comparison records its client migration separately because the older runner rejected GPT-6 before model execution. All final task and grading bytes stay frozen.
+
+## November candidate interfaces
+
+Each candidate exposes `Model.fit(records)` and `Model.predict(experiments)`.
+The public apparatus document specifies the inputs, observables and units.
+
+| Apparatus | Fitted attribute |
+|---|---|
+| [Two-isotope capillary](../tasks/pore-echo-memory/environment/README.md) | `intensity` |
+| [Slab pickups and voltage taps](../tasks/slab-flux-pump/environment/README.md) | `pinning` |
+| [Spin ring interferometer](../tasks/spin-ring-fringe/environment/README.md) | `visibility` |
+| [Stellar tracer counter](../tasks/stellar-tracer-mixing/environment/README.md) | `exponent` |
+| [Surfactant film](../tasks/surfactant-film-response/environment/README.md) | `surface_viscosity` |
+
+The [candidate report](../results/five-luna-high-20261127/README.md) records source revisions, measurements and reproduction commands.

@@ -2,6 +2,14 @@
 
 The Desktop roster now contains **thirteen physics tasks**: the ten locally qualified snapshots below plus three additions from the remote branch. The [full roster](results/task-roster.json) records each exact revision, source hashes and evaluation status. The latest evidence does **not** establish 0/3 passes for all thirteen.
 
+## Five new Luna High candidates
+
+This branch adds five tasks on capillary transmission, superconducting flux
+transport, spin-ring interferometry, stellar tracer mixing and surfactant-film
+flow. The [evaluation report](results/five-luna-high-20261127/README.md)
+gives the three-trial scores and controls for each revision. The historical
+thirteen-task roster and its results retain their original scope.
+
 ## Current presentation and reproducible analysis
 
 - [Final PowerPoint](%21PhysLiteBench-FINAL.pptx), including the latest saved text edits.

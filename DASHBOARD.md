@@ -1,5 +1,13 @@
 # PhysLiteBench evaluation dashboard
 
+## November candidate screen
+
+Five new tasks were screened with three unhinted GPT-5.6 Luna High attempts
+per revision. The [candidate report](results/five-luna-high-20261127/README.md)
+lists every batch, its control results and the timeouts. The
+[trial manifest](results/five-luna-high-20261127/trials.json) identifies the
+frozen inputs and graded submissions.
+
 ## Current study artifacts
 
 [Final presentation](%21PhysLiteBench-FINAL.pptx) · [Unified Python plots and source data](output/presentation-20261014/PhysLiteBench-no-pilot-figures-20261016/README.txt) · [Completed High-effort hint comparison](results/hint-comparison-20261014/FINAL-REPORT.txt) · [DeepSeek execution errors](results/deepseek-failure-review-20261016/diagnosis.json)

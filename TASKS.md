@@ -40,3 +40,15 @@ Weak and superseded candidates and their prior results are preserved under `arch
 Each public task must define its initial and boundary conditions, preparation, observables and limit order. These determine the physical problem. The missing correction, derivation, fitted true value, hidden cases and diagnostic hint stay outside the agent image. No particular solver, discretization or oracle representation is required.
 
 Each completed shortcut must fit calibration and identify the unknown parameter before failing an allowed prediction. Independent references, repeated-noise checks and oracle/shortcut controls establish scientific validity. Only fresh frozen agent runs establish observed difficulty. Earlier outcomes stay attached to their evaluated sources.
+
+## November candidates
+
+| Task | Physical question |
+|---|---|
+| [Pore echo memory](tasks/pore-echo-memory/AUTHOR.md) | How do the end conditions of a rare, long capillary segment affect the transmission of two isotopes? |
+| [Slab flux pump](tasks/slab-flux-pump/AUTHOR.md) | What voltage does a probe measure when vortices move and cut under rotating magnetic induction? |
+| [Spin ring fringe](tasks/spin-ring-fringe/AUTHOR.md) | How do local transverse rotations change the sign and magnitude of the interference signal in a periodic quantum spin chain? |
+| [Stellar tracer mixing](tasks/stellar-tracer-mixing/AUTHOR.md) | How do repeated changes in a spherical potential redistribute stars across an escape threshold? |
+| [Surfactant film response](tasks/surfactant-film-response/AUTHOR.md) | How do shear, compression and normal motion of a fluid interface sample thermal stress from the two adjoining liquids? |
+
+The [three-trial results](results/five-luna-high-20261127/README.md) cover these five candidates.
