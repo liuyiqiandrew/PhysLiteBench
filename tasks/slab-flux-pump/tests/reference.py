@@ -1,5 +1,6 @@
 """Finite-volume flux balance. Advance the critical fronts from both edges."""
 import numpy as np
+from scipy.integrate import solve_ivp
 
 TRUE_PARAMETER = 1.063
 
@@ -51,3 +52,33 @@ def signal(q, j=TRUE_PARAMETER, n=800, increments=240):
             impulse += dx * np.sum(delta[:front])
             b = new
     return float(impulse)
+
+
+def rotary(q, pinning, seed=3e-7):
+    # Integrate Faraday and Ampere directly from a near-front seed, using
+    # arbitrary initial orientation. Finally align the surface phasor with y.
+    ratio, h = q['cutting'], q['amplitude']
+    pitch = np.sqrt(2.) * ratio
+    depth0 = seed * np.sqrt(3.) / pinning
+    electric = seed * depth0 / (2 + 1j*pitch)
+    def rates(x, state):
+        b, e = state
+        axis = b / abs(b)
+        v = e * axis.conjugate()
+        current = (ratio**2*v.real + 1j*v.imag) / np.hypot(ratio*v.real, v.imag)
+        return [1j * pinning / (1+abs(b)) * axis * current, b]
+
+    def surface(x, state):
+        return abs(state[0]) - h
+    surface.terminal = True
+    sol = solve_ivp(rates, (depth0, 4), [seed, electric], events=surface,
+                    method="DOP853", dense_output=True, rtol=2e-10, atol=2e-24)
+    d = sol.t_events[0][0]
+    assert d < 1.0
+    if d-q['depth'] <= depth0:
+        return 0.
+    b, e = sol.sol(d-q['depth']) * np.conj(sol.y[0,-1]) / h
+    val = b if q['readout'] == 'induction' else e
+    if q['sense'] == -1:
+        val = val.conjugate() * (1 if q['readout'] == 'induction' else -1)
+    return val.real if q['axis'] == 'y' else val.imag

@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.optimize import minimize_scalar
+from scipy.integrate import solve_ivp
+from scipy.optimize import brentq, minimize_scalar
 
 
 def transform(b):
@@ -44,7 +45,42 @@ def ramp_voltage(h0, h1, bias, history, pinning):
     return (h1 - h0) * np.mean(rate)
 
 
+def rotary(q, pinning):
+    h, ratio = q["amplitude"], q["cutting"]
+    sense = q["sense"]
+    start = 1e-7
+    mobility = ratio**2
+    pitch = np.sqrt(2 * mobility)
+    scale = np.sqrt(1 + (pitch/ratio)**2) / pinning
+    k0 = scale * start**2 / (2 + 1j*pitch)
+
+    def slope(b, y):
+        re, im, _, _ = y
+        tan = -mobility * re / im
+        dx = (1 + b) * np.hypot(1, tan / ratio) / pinning
+        dangle = tan / b
+        return [b * dx + im * dangle, -re * dangle, dangle, dx]
+
+    sol = solve_ivp(slope, (start, h), [k0.real, k0.imag, 0, scale*start],
+                    method="DOP853", rtol=1e-9, atol=[1e-22, 1e-22, 1e-9, 1e-14],
+                    dense_output=True)
+    _, _, angle, depth = sol.y[:, -1]
+    x = q["depth"]
+    if x >= depth - scale*start:
+        return 0.
+    b = h if x == 0 else brentq(lambda b: sol.sol(b)[3] - depth + x, start, h)
+    re, im, local, _ = sol.sol(b)
+    orientation = np.exp(1j*sense*(local-angle))
+    if q["readout"] == "induction":
+        value = b * orientation
+    else:
+        value = (sense*re + 1j*im) * orientation
+    return value.real if q["axis"] == "y" else value.imag
+
+
 def signal(q, pinning):
+    if q["readout"] in ("induction", "electric"):
+        return rotary(q, pinning)
     bias, low, high = q["bias"], q["low"], q["high"]
     history = [faces(h, bias) for h in [0, low, high, low]]
     if q["readout"] == "impulse":

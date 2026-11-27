@@ -33,6 +33,7 @@ def test_fit(metrics):
     assert metrics["max_abs_errors"]["calibration"] < 1e-5
 
 
-@pytest.mark.parametrize("readout,tolerance", [("crest", .003), ("trough", .003), ("impulse", .008)])
+@pytest.mark.parametrize("readout,tolerance", [("crest", .003), ("trough", .003), ("impulse", .008),
+                                               ("induction", .001), ("electric", .0006)])
 def test_signal(metrics, readout, tolerance):
     assert metrics["max_abs_errors"][readout] < tolerance

@@ -46,6 +46,19 @@ def validate(generate):
     for r in ["crest", "trough", "impulse"]:
         inputs = [query(*params, r) for params in settings]
         truth[r] = records(inputs, ref, 4800 if r == "impulse" else 16384, 1280)
+    for mode in ("induction", "electric"):
+        rows = []
+        for ratio, h, x in [(.48,.31,.14), (2.4,.29,.19), (.66,.21,.08), (1.9,.30,.27),
+                            (1.,.25,.11), (2.45,.15,.67)]:
+            for sense, axis in [(1, "y"),(-1,"z")]:
+                q = dict(readout=mode, amplitude=h, cutting=ratio, depth=x, sense=sense, axis=axis)
+                value = ref.rotary(q, ref.TRUE_PARAMETER)
+                assert abs(value - ref.rotary(q, ref.TRUE_PARAMETER, seed=1e-6)) < 2e-8
+                mirror = ref.rotary(dict(q, sense=-sense), ref.TRUE_PARAMETER)
+                sign = (1 if axis == "y" else -1) * (1 if mode == "induction" else -1)
+                assert abs(value - sign * mirror) < 1e-9
+                rows.append(dict(input=q, value=float(value)))
+        truth[mode] = rows
     for path in [TASK / "environment/data/calibration.json", TASK / "tests/data/calibration.json"]:
         if generate:
             path.write_text(json.dumps(calibration, indent=2) + "\n")
@@ -89,8 +102,10 @@ def validate(generate):
         assert abs(model.pinning - j) < 1e-4 and errors["calibration"] < 1e-5
         if name == "oracle":
             assert max(errors["crest"], errors["trough"]) < 0.003 and errors["impulse"] < 0.008
+            assert errors["induction"] < .001 and errors["electric"] < .0006
         else:
-            assert min(errors["crest"], errors["trough"]) > 0.003 and errors["impulse"] > 0.008
+            assert max(errors["crest"], errors["trough"]) < 0.003 and errors["impulse"] < 0.008
+            assert errors["induction"] > .001 and errors["electric"] > .0006
 
 
 if __name__ == "__main__":

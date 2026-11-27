@@ -11,6 +11,8 @@ def induction(u):
 
 
 def signal(q, pinning):
+    if q["readout"] in ("induction", "electric"):
+        raise NotImplementedError("Rotating-field readout")
     if q["readout"] == "impulse":
         return 0.0
     x = -1 + (np.arange(2048) + 0.5) / 1024

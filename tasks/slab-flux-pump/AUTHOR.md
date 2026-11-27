@@ -1,4 +1,6 @@
-# Slab flux pump, revision 1
+# Slab flux pump
+
+## Revision 1
 
 A transport current remains on while an external magnetic field cycles. The same critical state must satisfy the induction specified at both slab faces. Adding an unbiased magnetic cycle to an independently prepared, static self-field fits the zero-bias calibration. It misses the redistribution of moving flux between the two faces and the resulting DC voltage.
 
@@ -41,3 +43,29 @@ python3 scripts/run_science.py tasks/slab-flux-pump --agent oracle --trials 1
 python3 scripts/run_science.py tasks/slab-flux-pump --agent oracle --trials 1 --solution-model scripts/slab_flux_pump_baseline.py
 python3 scripts/run_science.py tasks/slab-flux-pump --model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3 --restricted-network
 ```
+
+## Revision 2
+
+Steady rotation permits simultaneous flux cutting and depinning. The electric
+field is normal to the local critical ellipse. The R2 control solves the
+axial experiments correctly and assumes E is parallel to J during rotation.
+The two directions coincide for a circular critical surface.
+
+Write B = b exp(iθ) in the yz plane and measure distance u outwards from
+the pinned front. For positive ω define K = (E/ω) exp(−iθ).
+Ampère gives J = (b θ′ − i b′) exp(iθ), and Faraday gives (E/ω)′ = B,
+with primes denoting u derivatives. Normality fixes
+b dθ/db = −γ² Re K / Im K for cutting ratio γ. The critical ellipse then
+fixes du/db. The oracle integrates these relations from the front to the
+known surface amplitude and aligns the phase at the surface. At small b
+the critical current tends to j, the distance tends to √3 b/j and
+K tends to √3 b²/[j(2+i√2 γ)]. This follows by substituting a leading
+power B proportional to u^(1+i√2 γ) into Maxwell's equations. Reversing
+rotation conjugates B and reverses the sign of the conjugate E.
+
+The independent solver integrates both Cartesian complex fields in physical
+depth with an event at the specified surface amplitude. The validator checks
+the front seed sensitivity and rotational symmetry. The accepted maximum
+errors in B and E/|ω| are 0.001 and 0.0006 in the instrument units.
+The distinction between current and electric field directions in critical
+state laws is discussed by [Clem et al. (2011)](https://arxiv.org/abs/1103.1393).
