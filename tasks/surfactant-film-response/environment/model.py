@@ -1,52 +1,36 @@
 import numpy as np
+from scipy.optimize import minimize_scalar
 
 
-def response(e, surface_viscosity):
-    k, omega = e['k'], e['omega']
-    if 'pair' in e:
-        return spontaneous(e, surface_viscosity)
-    axis = e['axis']
-    if axis == 'x':
-        impedance = k**2 * (surface_viscosity + 0.42 + 0.8 / (0.18 * k**2 - 1j * omega))
-    elif axis == 'y':
-        impedance = k**2 * surface_viscosity
-    else:
-        impedance = 1.3 * k**2 / (-1j * omega)
-    for side in ('lower', 'upper'):
-        a = k * e['h_' + side]
-        mu_k = e['mu_' + side] * k
-        sh, ch = np.sinh(a), np.cosh(a)
-        if axis == 'y':
-            impedance += mu_k * ch / sh
-        else:
-            correction = a if axis == 'z' else -a
-            impedance += 2 * mu_k * (sh * ch + correction) / (sh**2 - a**2)
-    value = e['f' + axis] / impedance
-    return value.real if e['part'] == 'real' else value.imag
+def fractions(e, rate):
+    """Single-molecule fractions across the camera's speed range."""
+    low = (1 + e['lo'] / rate) / 2
+    high = (1 - e['hi'] / rate) / 2
+    return {'L': low, 'M': 1-low-high, 'H': high, '*': 1.0}
 
 
-def spontaneous(e, surface_viscosity):
-    if 'grating' in e:
-        return 0.
-    # Film fluctuation channels in a uniform-temperature cell.
-    pair, k = e['pair'], e['k']
-    if pair[0] != pair[1] or e['part'] == 'imag':
-        return 0.
-    is_density = pair == 'cc'
-    drag = (surface_viscosity + .42)*k**2 if is_density else 0.
-    for side in ('lower', 'upper'):
-        a = k * e['h_' + side]
-        sh, ch = np.sinh(a), np.cosh(a)
-        correction = -a if is_density else a
-        drag += 2*e['mu_' + side]*k*(sh*ch + correction)/(sh**2 - a**2)
-    mobility = k**2/drag + .18*k**2/.8 if is_density else 1/drag
-    stiffness = .8 if is_density else 1.3*k**2
-    return mobility/((mobility*stiffness)**2 + e['omega']**2)
+def response(e, rate):
+    if e['mode'] == 'bands':
+        p = fractions(e, rate)
+        return np.prod([p[c] for c in e['word']])
+    # Integrate over speeds selected by the reference molecule's window.
+    x, weight = np.polynomial.legendre.leggauss(8)
+    velocity = (e['lo'] + e['hi'] + x*(e['hi']-e['lo'])) / 2
+    low = (1 + velocity/rate) / 2
+    probability = np.ones_like(x)
+    for c in e['word'][:-1]:
+        probability *= {'L': low, 'H': 1-low, 'M': 0., '*': 1.}[c]
+    return weight @ probability / 2
 
 
 class Model:
     def fit(self, records):
-        raise NotImplementedError
+        def cost(rate):
+            return sum((fractions(row['input'], rate)[row['input']['word']] - row['value'])**2
+                       for row in records)
+        self.rate = float(minimize_scalar(cost, bounds=(.85, 1.15), method='bounded',
+                                          options={'xatol': 1e-12}).x)
+        return self
 
-    def predict(self, experiments):
-        return np.array([response(e, self.surface_viscosity) for e in experiments])
+    def predict(self, inputs):
+        return np.array([response(e, self.rate) for e in inputs])

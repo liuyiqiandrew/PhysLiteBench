@@ -1,54 +1,37 @@
-import importlib.util
 import json
 from pathlib import Path
+
 import numpy as np
 import pytest
+
 from model import Model
 
-HERE = Path(__file__).parent
-spec = importlib.util.spec_from_file_location('physical_reference', HERE/'reference.py')
-reference = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(reference)
-METADATA = json.loads((HERE/'metadata.json').read_text())
+
+DATA = Path(__file__).parent/'data'
 
 
 @pytest.fixture(scope='module')
-def evaluated():
-    records = json.loads((HERE/'data/calibration.json').read_text())
-    model = Model()
-    assert model.fit(records) is model
-    parameters = np.array([getattr(model, name) for name in METADATA['parameters']])
-    y = model.predict([r['input'] for r in records])
-    assert isinstance(y, np.ndarray) and y.shape == (len(records),)
-    assert np.isfinite(y).all()
-    residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
-    result = {'parameters': dict(zip(METADATA['parameters'], parameters.tolist())),
-              'parameter_relative_error_max': float(np.max(abs(parameters/np.array(METADATA['true_parameters'])-1))),
-              'calibration_chi2': float(residual@residual)/(len(records)-len(parameters)), 'hidden': {}}
-    result['hidden_limits'] = {}
-    stored = json.loads((HERE/'data/hidden_truth.json').read_text())
-    for name, experiments in reference.hidden_inputs().items():
-        truth = np.asarray(stored[name])
-        actual = model.predict(experiments)
-        assert isinstance(actual, np.ndarray) and actual.shape == truth.shape
-        assert np.isfinite(actual).all()
-        scale = np.sqrt(np.mean(truth**2))
-        result['hidden_limits'][name] = max(METADATA['prediction_limit'], .0002 / scale)
-        result['hidden'][name] = float(np.sqrt(np.mean(((actual-truth)/scale)**2)))
-    log = Path('/logs/verifier/metrics.json')
+def errors():
+    rows=json.loads((DATA/'calibration.json').read_text())
+    groups=json.loads((DATA/'probabilities.json').read_text())
+    model=Model()
+    assert model.fit(rows) is model
+    result={'rate': float(model.rate), 'max_probability_error': {}}
+    for name,records in [('calibration',rows),*groups.items()]:
+        y=model.predict([r['input'] for r in records])
+        assert isinstance(y,np.ndarray) and y.shape==(len(records),) and np.isfinite(y).all()
+        result['max_probability_error'][name]=float(max(abs(y-[r['value'] for r in records])))
+    log=Path('/logs/verifier/metrics.json')
     if log.parent.exists():
-        log.write_text(json.dumps(result, indent=2)+'\n')
+        log.write_text(json.dumps(result,indent=2)+'\n')
     return result
 
 
-def test_private_calibration(evaluated):
-    assert evaluated['calibration_chi2'] < 1.5
+def test_calibration(errors):
+    assert abs(errors['rate']-1.061)<.0001
+    assert errors['max_probability_error']['calibration']<2e-5
 
 
-def test_parameter_recovery(evaluated):
-    assert evaluated['parameter_relative_error_max'] < .03
-
-
-@pytest.mark.parametrize('case', list(reference.hidden_inputs()))
-def test_prediction(evaluated, case):
-    assert evaluated['hidden'][case] < evaluated['hidden_limits'][case]
+@pytest.mark.parametrize('group',['bands','locked','reversible_bands','reversible_lock'])
+def test_joint(errors,group):
+    assert errors['max_probability_error'][group]<.001

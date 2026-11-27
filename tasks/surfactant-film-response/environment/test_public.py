@@ -1,35 +1,17 @@
 import json
 from pathlib import Path
+
 import numpy as np
-import pytest
+
 from model import Model
 
-PARAMETERS = ['surface_viscosity']
-BOUNDS = [0.75, 1.45]
 
-
-@pytest.fixture(scope='module')
-def records():
-    return json.loads((Path(__file__).parent/'data/calibration.json').read_text())
-
-
-@pytest.fixture(scope='module')
-def fitted(records):
-    model = Model()
-    assert model.fit(records) is model
-    return model
-
-
-def test_interface(fitted, records):
-    for parameter in PARAMETERS:
-        value = getattr(fitted, parameter)
-        assert np.isfinite(value) and BOUNDS[0] <= value <= BOUNDS[1]
-    y = fitted.predict([r['input'] for r in records])
-    assert isinstance(y, np.ndarray) and y.shape == (len(records),)
-    assert np.isfinite(y).all()
-
-
-def test_calibration(fitted, records):
-    y = fitted.predict([r['input'] for r in records])
-    residual = (y-np.array([r['value'] for r in records]))/np.array([r['sigma'] for r in records])
-    assert float(residual@residual)/(len(records)-len(PARAMETERS)) < 1.5
+def test_camera():
+    rows=json.loads((Path(__file__).parent/'data/calibration.json').read_text())
+    model=Model()
+    assert model.fit(rows) is model
+    assert .85 <= model.rate <= 1.15
+    assert model.predict([]).shape == (0,)
+    y=model.predict([r['input'] for r in rows])
+    assert isinstance(y,np.ndarray) and y.shape==(len(rows),) and np.isfinite(y).all()
+    assert max(abs(y-[r['value'] for r in rows])) < 2e-5

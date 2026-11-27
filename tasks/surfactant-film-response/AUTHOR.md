@@ -1,60 +1,19 @@
-# Surfactant film response, revision 3
+# Velocity imaging on a driven film, revision 4
 
-The calibration cell has reflection symmetry through the film. The driven measurements fix surface shear viscosity. The fluctuation measurements in calibration have a uniform temperature. In a cell with a temperature gradient, thermal stress at different depths drives distinct combinations of height and surfactant density. A force in a real Fourier mode can induce a response in spatial quadrature. The upper and lower liquids make opposite contributions to this coupling. The revision 2 control uses the full coupled deterministic response. It applies the equilibrium fluctuation relation at the film temperature in every preparation.
+This revision uses a driven monolayer with oriented exchanges. Revisions 1–3 measured continuum velocity and fluctuation spectra. Their sources and evaluations remain in Git, with revision 3 at commit 48724235. The solve and verifier limits for revision 4 are 1800 and 180 seconds.
 
-## Derivation
+## The stationary speed law
 
-Use complex amplitudes with spatial and temporal derivatives ik and −iω. For one liquid, measure distance s from its rigid wall toward the film, in units of 1/k. Let W denote bulk velocity in this inward direction. Incompressibility gives U = iW′ for the longitudinal velocity. Eliminating the pressure from Stokes' equation gives (∂²s − 1)² W = 0. The wall conditions W(0) = W′(0) = 0 leave the basis s cosh s − sinh s and s sinh s. At the film, W(a) and W′(a) are known from the two interface velocities, with a = kh. The required tangential and normal tractions are iμk(W″+W) and μk(3W′−W‴) in these local coordinates.
+With site spacing one, the right- and left-oriented exchange rates are ν and qν. Each tagged molecule's limiting speed is uniform on [−ν(1−q),ν(1−q)]. Color-position symmetry makes the ordered sequence of limiting speeds stationary for the multispecies asymmetric exclusion dynamics. Thresholding the camera speeds therefore gives its stationary class law, with cumulative densities λ=(1+lo/ν)/2 and μ=(1+hi/ν)/2. Each single threshold alone gives independent Bernoulli classes, which leaves correlations between two thresholds undetermined. [Amir, Angel and Valkó (2011)](https://arxiv.org/abs/0811.3706) [Aggarwal, Corwin and Ghosal (2022)](https://arxiv.org/abs/2204.05395)
 
-In global x, z coordinates, define b = 2μk/(sinh²a − a²), S = sinh a cosh a. The resistance matrix for one liquid is
+The three-class measure has a queue construction. Scan molecule labels from right to left; this reflection accounts for the jump direction in Martin's construction. Independent Bernoulli arrivals and services have rates λ and μ per slot. An arrival without service increments occupancy n and emits H. No service always emits H. A simultaneous arrival and service emits L and leaves n unchanged. If a service occurs without arrival, it goes unused with probability qⁿ (emit M), or removes one customer (emit L). Therefore the stationary weights satisfy π(n+1)/π(n)=r/(1−qⁿ⁺¹), with r=λ(1−μ)/[(1−λ)μ]. The oracle propagates these weights for the observed word. [Martin (2020)](https://arxiv.org/abs/1810.10650)
 
-```text
-             [ b (S − a)       −i ε b a² ]
-R(x,z)  =    [ i ε b a²         b (S + a) ]
-```
+For a locked exposure, bin the reference's uniform quantile in [x,x+dx] and let dx shrink. In the queue, observing the reference in the middle class selects an unused service. The resulting occupancy weights are proportional to π(n)qⁿ. As λ and μ approach x, r approaches 1; the tilted distribution has the same stationary-weight formula with ratio parameter q instead. Subsequent letters use equal arrival and service rates x, starting with those tilted weights. Non-reference M letters then select the same speed. One way to obtain this limit is to partition the reference window into bins and sum cylinder probabilities for the corresponding middle-class anchor. Distinct speeds eventually lie in distinct bins almost surely. Integrate uniformly over x in the retained window. For a word of length seven or less, the conditional integrand is a polynomial of degree at most twelve; eight Gauss nodes suffice.
 
-Here ε = +1 for the lower layer and −1 for the upper. The transverse resistance is μk coth a. Sum upper and lower matrices. Write U, V, W for the surface velocities in global x, y, z. The height follows −iωH = W. Conservation of the insoluble species gives (0.18 k² − iω)c = −ikU. Eliminating c and H adds the following diagonal impedances, in x, y, z order.
+## Verification
 
-```text
-k² [ηs + 0.42 + 0.8/(0.18 k² − iω)],   k² ηs,   1.3 k²/(−iω)
-```
+The independent reference applies the stationary matrices to a polynomial in qⁿ. The q-binomial identity gives E[(qⁿ)ʲ] as the product of 1−r qᵐ for m=0,…,j−1. It contracts this small polynomial in high precision and integrates the anchor speed with a separate interpolatory rule. At q=0 the reference takes a 10⁻¹² positive limit. The physical oracle uses the exact q=0 queue. The validator also verifies normalization over all 81 four-letter outcomes, the known two-tag density on the decreasing-speed triangle, and the mass on the diagonal for two adjacent tags. In quantile coordinates the latter is (1−q)x(1−x) dx. At q=0 its full mass is 1/6. Time rescaling preserves the one-label speed law when the bias changes; it does not preserve the diagonal mass.
 
-Inverting the resulting matrix against the applied traction gives the measured velocity. The transverse response with nonzero forcing is strictly monotone in ηs, so it fixes the unknown even though calibration cannot distinguish the two closures. Each hidden group changes only stated apparatus controls.
+Run `python scripts/validate_surfactant_film_response.py` in the repository root. Add `--generate` only to regenerate the checked-in data. Seed 94923 selects the 15 calibration readings and 80 prediction inputs. The calibration rounds to eight decimal places. Any calibration M reading has probability (hi−lo)/(2ν) and identifies the frequency. At the fitted ν the oracle's worst prediction error is below 6×10⁻⁹. The verifier allows 0.001 absolute probability error in each group. The completed approximation keeps all totally asymmetric queue correlations and slows the clock when q>0. It fits calibration and passes both q=0 prediction groups. It misses the reversible band and lock readings by as much as 0.0123 and 0.1137.
 
-The independent reference integrates the first-order bulk equations for (U,W,σxz,σzz) with matrix exponentials, using the unknown wall tractions as degrees of freedom. It solves both wall-to-film matching conditions and both surface balances alongside the density and height equations. Mirror reflection of the cell reverses both cross responses and leaves the diagonal entries invariant.
-
-## Thermal preparation
-
-Put q = (c,h), with stiffness K = diag(0.8, 1.3 k²), and let R be the x–z drag above with the surface viscosity terms. Include the static viscous surface stress in R. The kinematic matrix B = diag(−ik, 1) maps (U,W) to the material rate of q. Surfactant diffusion adds mobility F = diag(0.18 k²/0.8, 0). Eliminating velocity gives deterministic relaxation dq/dt = −M K q, where M = B R⁻¹ B† + F.
-
-A unit boundary velocity determines the bulk strain rate at each depth. In one layer the dissipation form per unit depth is 4μk² U*U + τ*xz τxz/μ, where τxz = μ(∂z U + ikW). Replace each product by its two-by-two Gram matrix for the pair of unit boundary velocities. The thermal drag Rₜ is the sum over layers of this local form integrated against T(z)/T₀, plus the film's viscous drag at unit temperature. Then the normalized noise covariance is N = B R⁻¹ Rₜ R⁻¹ B† + F. With G = (M K − iωI)⁻¹ the spectrum of the two measured fields is G N G†. At uniform temperature N = M and the time-antisymmetric density–height spectrum vanishes. With a temperature gradient the lag can be nonzero.
-
-The reference propagates the covariance of the fluctuating total-stress bulk state from each wall. White shear stress enters the U derivative with normalized variance T/μ. The random difference of normal stresses enters the σxz derivative with variance 4Tμk². Eliminating the unknown wall tractions enforces the given interface velocity and gives a random excess film traction. A joint system for U, W, c and h combines the liquid tractions, surface viscous stress noise and conserved diffusive current noise. This checks the oracle's virtual-dissipation quadrature independently.
-
-## Reproduction
-
-Run `python scripts/validate_surfactant_film_response.py` from the repository root. Add `--generate` to regenerate the data. Seed 31873 fixes the 39 driven preparations and 12 isothermal spectra. Each response is rounded to 0.0001. The standard uncertainty is one meter step divided by √12. The validator reproduces the meter readings and compares the two calculations at the fitted viscosity and both ends of its allowed interval. It checks reversal under reflection, the equilibrium cross lag, Hermitian symmetry and quadrature convergence.
-
-Hidden groups use seed 31879. Each group's RMS error must be below the larger of 2.5% of its reference RMS and 0.0002 (two meter steps). Both completed controls fit 1.136897 for a true viscosity of 1.137, with reduced χ² of 1.0975. The oracle's largest relative error is below 0.0025%. The isothermal control passes all driven groups and density power. Its height power, cross lag and in-phase cross spectrum have relative errors of 9.29%, 100% and 31.71%.
-
-Revision 1 measured driven responses alone. Its frozen source is in commit `981c19d8`. Revision 2 retains those preparations and adds the spontaneous fluctuation readout.
-
-## Revision 3
-
-A travelling temperature pattern correlates two optical channels at different lateral wavevectors and frequencies. The relevant local temperature is its complex Fourier coefficient (a−ib)/2 at the probe difference. The spatially averaged background contributes only to diagonal wavevector correlations.
-
-For probe j, write uⱼ for the longitudinal unit-boundary flow, Sⱼ for its vertical shear rate ∂z uⱼ + ikⱼ wⱼ and nⱼ for its lateral unit direction. With x = n₁·n₂, the bulk cross-dissipation integrand is
-
-    2 μ k₁ k₂ (1 + x²) u₁* u₂ + μ x S₁* S₂.
-
-The horizontal normal strains project on nⱼ nⱼ; the normal strain along z has the opposite trace. The film's two-dimensional traceless shear and dilation give a cross drag k₁ k₂ [0.42 + ηs(2x²−1)]. Its conservative surfactant flux has cross mobility 0.18 k₁ k₂ x/0.8. Multiply each contribution by the Fourier coefficient of its local temperature. Propagate the resulting noise with the first and second probe's own causal Green functions on the left and conjugate right.
-
-The independent reference instead integrates a two-wave covariance for the random total-stress bulk states and eliminates their wall tractions. The validator also interchanges the two channels and checks complex conjugation. Both implementations reproduce all earlier response groups. The completed collinear control accounts for temperature and frequency mixing but aligns both strain fields before computing their covariance. This is exact for every calibration observation and each revision 2 diagnostic. On the oblique height, density and density–height groups it has 96.3%, 368.7% and 310.9% relative RMS errors. The full solution stays below 0.0032%. The meter floor and percentage tolerance are unchanged. Revision 2 is archived in commit `c20dc106`.
-
-The target is three independent unhinted GPT-5.6 Luna High trials. From the root, run
-
-```bash
-python3 scripts/run_science.py tasks/surfactant-film-response --agent oracle --trials 1
-python3 scripts/run_science.py tasks/surfactant-film-response --agent oracle --trials 1 --solution-model scripts/surfactant_film_response_baseline.py
-python3 scripts/run_science.py tasks/surfactant-film-response --model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3 --restricted-network
-```
+Target a clean 0/3 unhinted GPT-5.6 Luna High panel. Run `python3 scripts/run_science.py tasks/surfactant-film-response --agent oracle --trials 1` for the oracle; add `--solution-model scripts/surfactant_film_response_baseline.py` for the control. Run the same task with `--model gpt-5.6-luna --reasoning-effort high --trials 3 --concurrency 3 --restricted-network` for ordinary attempts.
