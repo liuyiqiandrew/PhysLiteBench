@@ -125,6 +125,6 @@ The public apparatus document specifies the inputs, observables and units.
 | [Slab pickups and voltage taps](../tasks/slab-flux-pump/environment/README.md) | `pinning` |
 | [Spin ring interferometer](../tasks/spin-ring-fringe/environment/README.md) | `visibility` |
 | [Stellar stream spectrometer](../tasks/stellar-tracer-mixing/environment/README.md) | `dispersion` |
-| [Surfactant film](../tasks/surfactant-film-response/environment/README.md) | `surface_viscosity` |
+| [Driven surfactant monolayer](../tasks/surfactant-film-response/environment/README.md) | `rate` |
 
 The [evaluation report](../results/five-luna-high-20261127/README.md) records source revisions, measurements and reproduction commands.

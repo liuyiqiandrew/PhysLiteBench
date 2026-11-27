@@ -3,8 +3,9 @@
 ## November five-task evaluation
 
 Each delivered task scored **0/3** on unhinted GPT-5.6 Luna High. All 15
-submissions were graded. Eight reached the 600-second solve limit. The pore
-and stellar trials all finished within the limit.
+attempts passed calibration and failed private physics predictions. All 15
+agents and verifiers completed normally. The earlier timeout batches remain
+in the revision history.
 [Evaluation report](results/five-luna-high-20261127/README.md) · [Trial manifest](results/five-luna-high-20261127/trials.json)
 
 ## Current study artifacts

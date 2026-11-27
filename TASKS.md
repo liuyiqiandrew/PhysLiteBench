@@ -46,9 +46,9 @@ Each completed shortcut must fit calibration and identify the unknown parameter 
 | Task | Physical question |
 |---|---|
 | [Pore echo memory](tasks/pore-echo-memory/AUTHOR.md) | How often do two tracers in a disordered capillary survive and reach the same valley inside the detector window? |
-| [Slab flux pump](tasks/slab-flux-pump/AUTHOR.md) | What voltage does a probe measure when vortices move and cut under rotating magnetic induction? |
-| [Spin ring fringe](tasks/spin-ring-fringe/AUTHOR.md) | How do local transverse rotations change the sign and magnitude of the interference signal in a periodic quantum spin chain? |
+| [Slab flux pump](tasks/slab-flux-pump/AUTHOR.md) | How do a rotating field and a conducting sheet affect the voltage and dissipation in a pre-threaded superconducting slab? |
+| [Spin ring fringe](tasks/spin-ring-fringe/AUTHOR.md) | What interference signal results when two thermal spin rings exchange selected physical spins? |
 | [Stellar tracer mixing](tasks/stellar-tracer-mixing/AUTHOR.md) | How does the gravity of two drifting stellar populations shape the echoes that follow two velocity impulses? |
-| [Surfactant film response](tasks/surfactant-film-response/AUTHOR.md) | How do shear, compression and normal motion of a fluid interface sample thermal stress from the two adjoining liquids? |
+| [Surfactant film response](tasks/surfactant-film-response/AUTHOR.md) | How often do labelled molecules in a driven monolayer travel in specified speed bands or at the speed of a reference molecule? |
 
 The [three-trial results](results/five-luna-high-20261127/README.md) cover these five tasks.
