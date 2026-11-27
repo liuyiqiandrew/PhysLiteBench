@@ -2,13 +2,14 @@
 
 The Desktop roster now contains **thirteen physics tasks**: the ten locally qualified snapshots below plus three additions from the remote branch. The [full roster](results/task-roster.json) records each exact revision, source hashes and evaluation status. The latest evidence does **not** establish 0/3 passes for all thirteen.
 
-## Five new Luna High candidates
+## Five new Luna High tasks
 
-This branch adds five tasks on capillary transmission, superconducting flux
-transport, spin-ring interferometry, stellar tracer mixing and surfactant-film
-flow. The [evaluation report](results/five-luna-high-20261127/README.md)
-gives the three-trial scores and controls for each revision. The historical
-thirteen-task roster and its results retain their original scope.
+Each of the five new tasks scored **0/3** on unhinted GPT-5.6 Luna High.
+All 15 saved submissions received a failing grade. Eight reached the
+600-second solve limit. The tasks cover tracer coincidences in disordered
+capillaries, superconducting flux transport, spin-ring interferometry,
+gravitational echoes in a stellar stream and surfactant-film flow.
+[Evaluation report and revision history](results/five-luna-high-20261127/README.md)
 
 ## Current presentation and reproducible analysis
 

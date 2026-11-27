@@ -114,17 +114,17 @@ The current five revised validators are `validate_entropy_anomaly.py`, `validate
 
 Use `--restricted-network` on ordinary `run_science.py` trials to reproduce the OpenAI-host allowlist. Qualification kept Codex CLI 0.154.0. The fresh GPT-6 comparison records its client migration separately because the older runner rejected GPT-6 before model execution. All final task and grading bytes stay frozen.
 
-## November candidate interfaces
+## November task interfaces
 
-Each candidate exposes `Model.fit(records)` and `Model.predict(experiments)`.
+Each task exposes `Model.fit(records)` and `Model.predict(experiments)`.
 The public apparatus document specifies the inputs, observables and units.
 
 | Apparatus | Fitted attribute |
 |---|---|
-| [Two-isotope capillary](../tasks/pore-echo-memory/environment/README.md) | `intensity` |
+| [Disordered capillary](../tasks/pore-echo-memory/environment/README.md) | `intensity` |
 | [Slab pickups and voltage taps](../tasks/slab-flux-pump/environment/README.md) | `pinning` |
 | [Spin ring interferometer](../tasks/spin-ring-fringe/environment/README.md) | `visibility` |
-| [Stellar tracer counter](../tasks/stellar-tracer-mixing/environment/README.md) | `exponent` |
+| [Stellar stream spectrometer](../tasks/stellar-tracer-mixing/environment/README.md) | `dispersion` |
 | [Surfactant film](../tasks/surfactant-film-response/environment/README.md) | `surface_viscosity` |
 
-The [candidate report](../results/five-luna-high-20261127/README.md) records source revisions, measurements and reproduction commands.
+The [evaluation report](../results/five-luna-high-20261127/README.md) records source revisions, measurements and reproduction commands.

@@ -1,12 +1,11 @@
 # PhysLiteBench evaluation dashboard
 
-## November candidate screen
+## November five-task evaluation
 
-Five new tasks were screened with three unhinted GPT-5.6 Luna High attempts
-per revision. The [candidate report](results/five-luna-high-20261127/README.md)
-lists every batch, its control results and the timeouts. The
-[trial manifest](results/five-luna-high-20261127/trials.json) identifies the
-frozen inputs and graded submissions.
+Each delivered task scored **0/3** on unhinted GPT-5.6 Luna High. All 15
+submissions were graded. Eight reached the 600-second solve limit. The pore
+and stellar trials all finished within the limit.
+[Evaluation report](results/five-luna-high-20261127/README.md) · [Trial manifest](results/five-luna-high-20261127/trials.json)
 
 ## Current study artifacts
 
