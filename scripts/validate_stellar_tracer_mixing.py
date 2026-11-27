@@ -31,6 +31,28 @@ def write(path, obj):
     path.write_text(json.dumps(obj, indent=2) + "\n")
 
 
+def check_aperture(module):
+    # For a very weak drive at fixed aperture, the local half-line solution
+    # tends to erf(distance / sqrt(2 B tau)) times the unperturbed density.
+    from math import erf
+
+    field = [1., 1.]
+    q = dict(slow=field, steps=[], peri=1.4, apo=3.)
+    e, L, _ = module.orbit_bin(q)
+    j = 1 / np.sqrt(-2*e) - module.offset(L, *field)
+    initial = (-e / .4)**ref.TRUE_PARAMETER
+    train = dict(coupling=[1e-12, 0.], exposure=.1, binding_limit=-e-1e-6)
+    assert abs(module.train_density(e,L,field,train,ref.TRUE_PARAMETER)/initial - 1) < 1e-10
+    for amplitude in [1e-7, 1e-4, 1e-3]:
+        train["coupling"] = [amplitude, 0.]
+        width = np.sqrt(.1 * module.variance(np.array([j]), L, field, train["coupling"])[0])
+        for z in [.1, 1., 3.]:
+            cap = j + z*width
+            train["binding_limit"] = .5/(cap + module.offset(L, *field))**2
+            observed = module.train_density(e, L, field, train, ref.TRUE_PARAMETER) / initial
+            assert abs(observed - erf(z/np.sqrt(2))) < .002
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--generate", action="store_true")
@@ -55,12 +77,27 @@ def main():
             train = dict(exposure=exposure, coupling=coupling, binding_limit=limit)
             groups[name] = [dict(q, train=train) for q in inputs(field, [], [
                 (.22, .77), (.35, 1.85), (.54, 3.52), (.38, 4.25)])]
+        for name, field, coupling, exposure, limit, hold in [
+                ("coherent_mass", [1., 1.], [1., 0.], .085, .08, 14.),
+                ("coherent_shape", [1.2, .7], [.4, -.7], .15, .1, 6.2)]:
+            train = dict(exposure=exposure, coupling=coupling, binding_limit=limit, hold=hold)
+            groups[name] = [dict(q, train=train) for q in inputs(field, [], [
+                (.3, .8), (.65, 1.5), (.55, 2.2), (.3, 3.5)])]
         write(private / "predictions.json", {g: [dict(input=q, value=ref.train_signal(q) if "train" in q else ref.signal(q, order=80))
                                                  for q in qs] for g, qs in groups.items()})
     assert cal_path.read_bytes() == (private / "calibration.json").read_bytes()
+    # An integral number of radial periods cancels the pair's first-order kick.
+    q = dict(slow=[1., 1.], steps=[], peri=.4, apo=2.)
+    e, angular, _ = oracle.orbit_bin(q)
+    period = 2*np.pi/(-2*e)**1.5
+    train = dict(coupling=[.8,-.5], exposure=.3, binding_limit=.1, hold=period)
+    expected = (-e/.4)**ref.TRUE_PARAMETER
+    assert abs(oracle.train_density(e, angular, q["slow"], train, ref.TRUE_PARAMETER)
+               / expected - 1) < 1e-10
     rows = json.loads(cal_path.read_text())
     cases = json.loads((private / "predictions.json").read_text())
     for impl in (oracle, control):
+        check_aperture(impl)
         model = impl.Model().fit(rows)
         assert abs(model.exponent - ref.TRUE_PARAMETER) < 1e-7
         assert np.allclose(model.predict([r["input"] for r in rows]),
@@ -77,8 +114,8 @@ def main():
         if impl is oracle:
             assert max(errors.values()) < 0.004
         else:
-            assert max(v for k, v in errors.items() if not k.endswith("_train")) < .001
-            assert min(v for k, v in errors.items() if k.endswith("_train")) > .02
+            assert max(v for k, v in errors.items() if not k.startswith("coherent_")) < .001
+            assert min(v for k, v in errors.items() if k.startswith("coherent_")) > .02
         print(impl.__name__, "exponent", model.exponent, "max relative errors", errors)
 
 

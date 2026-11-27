@@ -1,3 +1,5 @@
+from math import erf
+
 import numpy as np
 from scipy.linalg import eigh_tridiagonal
 
@@ -62,19 +64,29 @@ def variance(J, L, field, strength, order=72):
     return np.mean(weight * centered**2, axis=1) / omega**2
 
 
+def grid_faces(cap, sigma, bins):
+    # Resolve a narrow absorbing layer on its own length scale.
+    if sigma < 8 * cap / bins:
+        split = cap - 8 * sigma
+        return np.r_[np.linspace(0, split, bins + 1)[:-1],
+                     np.linspace(split, cap, 81)]
+    return np.linspace(0, cap, bins + 1)
 
-def solve(L, field, strength, tau, cap, exponent, bins=280):
-    # Backward, centered action increments with the exact local second moment.
-    # Noise vanishes on a circular orbit. The upper endpoint is absorbing.
-    x = np.linspace(0, cap, bins+1)
-    f = (.5/.4/(x + offset(L,1,1))**2)**exponent
-    f[-1] = 0.
-    c = variance(x[1:-1],L,field,strength)/(2*(cap/bins)**2)
-    stationary = f[0]*(1 - x/cap)
-    vals, vecs = eigh_tridiagonal(-2*c, np.sqrt(c[1:]*c[:-1]))
-    w = (f-stationary)[1:-1] / np.sqrt(c)
-    g = np.sqrt(c) * (vecs @ (np.exp(tau*vals) * (vecs.T @ w)))
-    return x, np.r_[f[0], stationary[1:-1] + g, 0.]
+
+def solve(L, field, strength, tau, cap, exponent, sigma, bins=280):
+    faces = grid_faces(cap, sigma, bins)
+    widths = np.diff(faces)
+    x = (faces[1:] + faces[:-1]) / 2
+    f = (0.5 / 0.4 / (x + offset(L, 1, 1))**2)**exponent
+    distances = np.r_[widths[0] / 2, np.diff(x), widths[-1] / 2]
+    conductance = variance(faces, L, field, strength) / (2 * distances)
+    conductance[0] = 0.
+    diag = -(conductance[:-1] + conductance[1:]) / widths
+    offdiag = conductance[1:-1] / np.sqrt(widths[:-1] * widths[1:])
+    vals, vecs = eigh_tridiagonal(diag, offdiag)
+    roots = np.sqrt(widths)
+    density = (vecs @ (np.exp(tau * vals) * (vecs.T @ (f * roots)))) / roots
+    return np.r_[0., x, cap], np.r_[1.5*density[0] - 0.5*density[1], density, 0.]
 
 
 def train_density(e, L, field, train, exponent):
@@ -84,9 +96,21 @@ def train_density(e, L, field, train, exponent):
         return 0.
     cap = m / np.sqrt(2*cut) - offset(L, m, b)
     action = m / np.sqrt(-2*e) - offset(L, m, b)
-    if not any(train["coupling"]):
-        return (.5/.4/(action + offset(L, 1, 1))**2)**exponent
-    x, f = solve(L, field, train["coupling"], train["exposure"], cap, exponent)
+    strength, tau = train["coupling"], train["exposure"]
+    if "hold" in train:
+        # Independent radial phases at the two switches double the variance.
+        tau *= 2
+    initial = (0.5 / 0.4 / (action + offset(L, 1, 1))**2)**exponent
+    sigma = np.sqrt(tau * variance(np.array([cap]), L, field, strength)[0])
+    if sigma == 0:
+        return initial
+    if sigma < 1e-7 * cap:
+        # Locally constant diffusivity and flat initial density to O(sigma).
+        # The half-line absorbing solution is erf(distance / sqrt(2 B tau)).
+        distance = m * (-e - cut) / (
+            np.sqrt(2 * cut * -e) * (np.sqrt(-e) + np.sqrt(cut)))
+        return initial * erf(distance / (np.sqrt(2) * sigma))
+    x, f = solve(L, field, strength, tau, cap, exponent, sigma)
     return np.interp(action, x, f)
 
 

@@ -36,6 +36,6 @@ def test_fit(metrics):
 
 
 @pytest.mark.parametrize("group", ["slow", "one_switch", "mixed_cycle", "two_switches",
-                                   "mass_train", "shape_train", "mixed_train"])
+                                   "mass_train", "shape_train", "mixed_train", "coherent_mass", "coherent_shape"])
 def test_prediction(metrics, group):
     assert metrics["max_relative_error"][group] < 0.02

@@ -77,7 +77,48 @@ def signal(q, exponent=TRUE_PARAMETER, order=48):
     return float(volume * density(e, len(fields)-1))
 
 
-def remap(L, field, strength, eps, cap, exponent, tau, bins=900, order=120):
+def eccentric_anomaly(theta, ecc):
+    theta = (theta + np.pi) % (2*np.pi) - np.pi
+    psi = theta / (1 + ecc)
+    for _ in range(13):
+        psi -= (psi + ecc*np.sin(psi) - theta) / (1 + ecc*np.cos(psi))
+    return psi
+
+
+def amplitude(axis, m, b, L):
+    return np.sqrt(np.maximum((axis-b)**2 - L**2*axis/m, 0.))
+
+
+def backward_map(J,L,field,strength,eps,hold,order):
+    m,b=field
+    m1,b1=np.array(field)*np.exp(eps*np.array(strength))
+    axis=(J+offset(L,m,b))[:,None]**2/m
+    amp=amplitude(axis,m,b,L)
+    phi=2*np.pi*(np.arange(order)+.5)/order
+    s=axis + amp*np.cos(phi)
+    r2=s**2-b*b
+    st=np.sqrt(r2+b1*b1)
+    # At the second kick, old (temporary) energy is computed at fixed r,v.
+    et=-m/(2*axis) - m1/(b1+st) + m/(b+s)
+    bound=et<0
+    at=-m1/(2*np.where(bound,et,-0.1))
+    amp_t=amplitude(at,m1,b1,L)
+    cos_t=np.clip((st-at)/np.maximum(amp_t,1e-15),-1,1)
+    sin_t=np.sign(np.sin(phi))*np.sqrt(1-cos_t**2)
+    psi_t=np.arctan2(sin_t,cos_t)
+    ecc=amp_t / at
+    omega=np.sqrt(m1/at**3)
+    at_first=eccentric_anomaly(psi_t+ecc*sin_t - omega*hold,ecc)
+    sts=at + amp_t*np.cos(at_first)
+    ss=np.sqrt(np.maximum(sts**2-b1*b1+b*b,0))
+    ep=et - m/(b+ss) + m1/(b1+sts)
+    old=m/np.sqrt(np.maximum(-2*ep,1e-28)) - offset(L,m,b)
+    return np.where(bound & (ep<0),np.maximum(0,old),np.inf), s/axis/order
+
+
+
+
+def remap(L, field, strength, eps, cap, exponent, tau, bins=900, order=120, hold=None):
     from scipy.sparse import coo_matrix
     # A post-kick orbit at a specified J has the same action after slow return.
     # Integrate over its phase in the transient field, mapping every phase point
@@ -86,19 +127,23 @@ def remap(L, field, strength, eps, cap, exponent, tau, bins=900, order=120):
     m1,b1=np.array(field)*np.exp(eps*np.array(strength))
     x=np.linspace(0,cap,bins,endpoint=False)
     spacing=cap/bins
-    moment=x + offset(L,m1,b1)
-    e=-(m1/moment)**2/2
-    axis=moment**2/m1
-    amp=np.sqrt(np.maximum((axis-b1)**2 - L**2*axis/m1,0))
-    theta=np.pi*(np.arange(order)+.5)/order
-    s=axis[:,None]+amp[:,None]*np.cos(theta)
-    r=np.sqrt(np.maximum(s*s-b1*b1,0))
-    e0=e[:,None]+potential(r,(m,b))-potential(r,(m1,b1))
-    z=np.where(e0<0,m/np.sqrt(np.maximum(-2*e0,1e-18))-offset(L,m,b),cap)
-    z=np.maximum(z,0)/spacing
+    if hold is not None:
+        old, weights = backward_map(x, L, field, strength, eps, hold, order)
+        z = np.minimum(old/spacing, bins)
+    else:
+        moment=x + offset(L,m1,b1)
+        e=-(m1/moment)**2/2
+        axis=moment**2/m1
+        amp=np.sqrt(np.maximum((axis-b1)**2 - L**2*axis/m1,0))
+        theta=np.pi*(np.arange(order)+.5)/order
+        s=axis[:,None]+amp[:,None]*np.cos(theta)
+        r=np.sqrt(np.maximum(s*s-b1*b1,0))
+        e0=e[:,None]+potential(r,(m,b))-potential(r,(m1,b1))
+        z=np.where(e0<0,m/np.sqrt(np.maximum(-2*e0,1e-18))-offset(L,m,b),cap)
+        z=np.maximum(z,0)/spacing
+        weights=s/axis[:,None]/order
     index=np.floor(z).astype(int)
     frac=z-index
-    weights=s/axis[:,None]/order
     rows=np.broadcast_to(np.arange(bins)[:,None],index.shape)
     rr,cc,dd=[],[],[]
     for loc,w in [(index,1-frac),(index+1,frac)]:
@@ -134,7 +179,7 @@ def train_signal(q, exponent=TRUE_PARAMETER, level=20, cells_per_level=100):
         pair=[]
         for sign in (-1,1):
             x,f=remap(L,(m,b),train["coupling"],sign*eps,cap,exponent,
-                      train["exposure"],bins=cells_per_level*n,order=96)
+                      train["exposure"],bins=cells_per_level*n,order=96,hold=train.get("hold"))
             pair.append(np.interp(action,np.r_[x,cap],np.r_[f,0.]))
         values.append(np.mean(pair))
     period=2*np.pi*m/(-2*e)**1.5
