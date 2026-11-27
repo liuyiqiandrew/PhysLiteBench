@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the two-isotope capillary experiment described in /app/README.md. Fit the common defect intensity from /app/data/calibration.json and predict the coil readouts.
+Implement the two-isotope capillary transmission model in /app/model.py. Use the apparatus, calibration readings and prediction API in /app/README.md.

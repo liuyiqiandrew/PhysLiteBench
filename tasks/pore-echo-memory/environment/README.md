@@ -1,41 +1,49 @@
-# Echo attenuation in narrow capillaries
+# Two-isotope capillary transmission
 
-Each sample is an infinite one-dimensional capillary. Three independent,
-homogeneous Poisson point processes mark defects on the line. The first species
-of defect extinguishes spins of isotope A, the second extinguishes spins of
-isotope B, and the third extinguishes either. They have respective intensities
-a, b, and c per unit length. The first two are controlled. The third is the
-same unknown intensity in every run. The defects remain fixed during all
-measurements on one sample. Average over independently fabricated samples.
+An infinite capillary has impermeable walls at the points of a homogeneous
+Poisson process of unknown intensity c in [0.3,1.4] per unit length. Fabricate
+a large batch of independent capillaries. Each isotope diffuses in one
+dimension with variance 2Dt in the absence of walls. For a given isotope
+the faces at the left and right ends of **every pore** can each absorb the
+spin on contact (D) or reflect it (N). The coating code lists the left then
+right face; allowed codes are DD, DN and ND. All other relaxation is negligible.
+Length and time are numerical values in fixed instrument units.
 
-Each shot releases many noninteracting spins of one isotope at its source.
-A spin follows unbiased Brownian motion of diffusivity D (variance 2Dt).
-On first hitting an active defect its transverse signal is lost for the
-remainder of that shot. Other defects have no effect. Every surviving spin
-has unit signal. At time t the coil measures the surviving fraction. Take the
-infinite-spin limit in each sample before averaging over samples. Time and
-length are numerical values in fixed instrument units.
+In one sample let K_i(t;x,y) be the surviving number density at y at time t
+after releasing unit mass of isotope i at x. Across a wall the transmission
+is zero. Detect with point receivers (density per unit length). Take the
+infinite-spin limit at fixed walls and average over samples with equal
+weight. Write this average as ⟨ ⟩.
 
-In single-coil mode release A at 0. Write M_A for that sample's coil reading.
-The receiver reports the large-time limit of minus the natural logarithm of
-the sample mean ⟨M_A⟩, divided by t^(1/3).
+For calibration use one isotope with DD walls and measure the log attenuation
+of the same-point signal. For `mode="single"` return
+lim[-log ⟨K_A(t;0,0)⟩]/t^(1/3) as t tends to infinity.
+The diffusivity input is `D_A`.
 
-In two-coil mode release A at 0 and B at s t^(1/3) in the same capillary, using
-independent spins. At each t, subtract the corresponding sample-ensemble mean
-from each coil's reading. The instrument multiplies the two centered readings
-and averages over samples. It reports
+For `mode="pair"` set both diffusivities and both coating codes from the
+input. The instrument uses a reference length for those settings. In a
+preliminary scan let L be the full wall-to-wall length of the pore containing
+0 and weight each sample by B(t)=K_A(t;0,0) K_B(t;0,0). Define
 
-    lim_{t→∞} -log ⟨(M_A - ⟨M_A⟩)(M_B - ⟨M_B⟩)⟩ / t^(1/3).
+    w = lim_{t→∞} ⟨L B(t)⟩ / [t^(1/3) ⟨B(t)⟩].
 
-The source placement is reset for each observation time. Both coils read at
-that same time. Averages ⟨ ⟩ give equal weight to each capillary.
+For each subsequent t release isotopes A and B at positions x_i =
+left_i × t^(1/6). Their point receivers are at y_i =
+w × t^(1/3) + right_i × t^(1/6). Record the product of the two densities on
+each sample, then average. Report the limit of the normalized product
 
-Single inputs have keys `mode="single"`, `a`, and `D_A`. Two-coil inputs
-have `mode="pair"`, `a`, `b`, `D_A`, `D_B`, and `s`. Each controlled
-intensity is in [0.15, 2.5], each diffusivity in [0.15, 2.5], and s is in
-[0, 18]. The common intensity c is in [0.3, 1.4]. Calibration rows contain
-`input` and the measured rate `value` rounded to eight decimal places.
+    ⟨K_A(t;x_A,y_A) K_B(t;x_B,y_B)⟩
+    -----------------------------------      as t → ∞ .
+    ⟨K_A(t;0,w t^(1/3)) K_B(t;0,w t^(1/3))⟩
 
-Implement `Model.fit(records)` returning self with fitted float `intensity`.
-Implement `Model.predict(inputs)` returning the rates in input order as a
-finite NumPy array of shape `(len(inputs),)`, including empty input.
+The four offsets are signed. Use the same w, coatings and diffusivities in
+the denominator. The wall distribution is stationary in space. Diffusion of
+the two isotopes is independent on a given sample.
+
+Pair inputs contain `D_A`, `D_B` (each in [0.2,2]), `coat` (two
+coating codes), `left` and `right` (each a two-element list of offsets in
+[-2,2]). All pairs are in A,B order. Calibration rows contain `input` and
+`value` rounded to eight decimal places. Implement `Model.fit(records)`
+returning self with the fitted `intensity`. Implement `Model.predict(inputs)`
+returning a finite NumPy array of shape `(len(inputs),)` in input order,
+including an empty array for empty input.

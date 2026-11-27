@@ -22,17 +22,17 @@ ref = load(TASK / "tests/reference.py")
 
 def records():
     calibration = []
-    for a in [.17, .85, 1.9, 2.4]:
-        for d in [.18, .94, 2.23]:
-            x = dict(mode="single", a=a, D_A=d)
-            calibration.append(dict(input=x, value=round(ref.predict(x), 8)))
+    for d in np.linspace(.21,1.97,12):
+        x = dict(mode="single", D_A=d)
+        calibration.append(dict(input=x, value=round(ref.predict(x), 8)))
     cases = {}
-    for name, spacings in [("near", [0., 1.8, 3.2]), ("separated", [7.1, 10.4, 14.6]),
-                            ("unequal", [4.7, 8.7, 17.5])]:
+    for name, coats in [("absorbing", ["DD","DD"]), ("opposite_faces", ["ND","DN"]),
+                        ("mixed_faces", ["DD","ND"])]:
         rows = []
-        for i, s in enumerate(spacings):
-            for a,b,d,g in [(.25,1.78,2.19,.24), (1.65,1.21,.31,.89), (.67,.36,.63,1.8)]:
-                x = dict(mode="pair", a=a, b=b, D_A=d, D_B=g, s=s)
+        for da,db in [(.3,.65), (.78,1.55), (1.67,.27)]:
+            for left,right in [([.31,-.62],[-.48,.83]), ([-.65,.9],[.8,-.34]),
+                               ([1.48,.25],[-.92,-1.56]), ([-1.85,-1.22],[1.2,.74])]:
+                x = dict(mode="pair", D_A=da, D_B=db, coat=coats, left=left, right=right)
                 rows.append(dict(input=x, value=ref.predict(x)))
         cases[name] = rows
     return calibration, cases
@@ -67,19 +67,21 @@ def main():
             truth = np.array([r["value"] for r in rows])
             errors[name] = float(max(abs(actual/truth - 1)))
         print(role, model.intensity, calibration_error, errors)
-        assert errors["near"] < 1e-6
         if role == "oracle":
             assert max(errors.values()) < 1e-6
         else:
-            assert min(errors["separated"], errors["unequal"]) > .2
+            assert min(errors.values()) > .2
 
-    # Identical private defects and dynamics: symmetry forces equal widths.
-    # At zero spacing the ranges coincide; at large spacing each spans s/2.
-    for s in [0, 18]:
-        x = dict(mode="pair", a=1, b=1, D_A=.5, D_B=.5, s=s)
-        w = (2*np.pi**2/(2+ref.TRUE_PARAMETER))**(1/3) if s == 0 else s/2
-        expected = 2*w + np.pi**2/w**2 + ref.TRUE_PARAMETER*max(w,s)
-        np.testing.assert_allclose(ref.predict(x), expected, atol=1e-8, rtol=0)
+    for group, rows in cases.items():
+        for row in rows:
+            q = row["input"]
+            # Refine the finite observation time and both wall quadratures.
+            fine = ref.predict(q, T=4e8, order=96)
+            np.testing.assert_allclose(row["value"], fine, rtol=3e-6, atol=1e-12)
+        q = rows[0]["input"]
+        translated = q | {"left":[u+.4 for u in q["left"]], "right":[u+.4 for u in q["right"]]}
+        np.testing.assert_allclose(ref.predict(translated), ref.predict(q), atol=1e-12)
+        assert ref.predict(q | {"left":[1.,1.],"right":[1.,1.]}) == 1.
 
 
 if __name__ == "__main__":

@@ -1,67 +1,59 @@
-# Pore echo memory, revision 2
+# Pore echo memory, revision 3
 
-Revision 1 studied signed exposure counts in a four-site capillary. Three
-unhinted Luna High agents solved it. Revision 2 asks how connected spin loss
-signals scale in an extended disordered capillary.
+R1 studied spin phases in a four-site pore. R2 measured the leading log rate
+of a two-isotope survival covariance. Luna High solved both revisions in all
+three trials. R3 measures the shape of a transmission crossover. At this
+scale, the spatial profile of a surviving diffusion mode enters the result.
 
-## The effect of centering
+## Wall and diffusion contributions
 
-After averaging the spin paths in a sample, subtracting the product of the
-sample-ensemble means is equivalent to subtracting the same two-path experiment
-with independent defects for the two paths. In one dimension a continuous
-path visits its whole range. For two path ranges I and J, the Poisson
-void probabilities give the following integrand for the covariance:
+Write T=t^(1/3). In a pore of length L the ground wavenumber is k/L,
+where k=π for DD walls and π/2 for a mixed pair. The normalized eigenfunction
+is √(2/L) sin(kx/L) with a left absorbing wall, or √(2/L) cos(kx/L)
+with a left reflecting wall, with x measured from the left wall. Spectral
+gaps suppress the other modes exponentially on the contributing length scale.
+For a single DD isotope the cost is cL + π²D t/L². Minimizing gives the
+reported log rate 3(π²D c²/4)^(1/3).
 
-    exp[-a|I| - b|J| - c|I ∪ J|] (1 - exp[-c|I ∩ J|]).
+Set A=D_A k_A²+D_B k_B². In the preliminary scan the leading negative
+log weight is cL+A t/L², including the Poisson cost for an empty pore.
+The locations of 0 within a pore and the two local eigenfunction products
+contribute algebraic factors. Consequently the weighted L/T concentrates
+at w=(2A/c)^(1/3).
 
-Disjoint paths contribute exactly zero. For ranges with a strictly positive
-overlap on the scaled length axis, the last factor tends to one.
+For large t both transmission paths cross the same interval between the
+leftmost source and the rightmost receiver. All four points must be in one
+pore. The outer walls have joint weight c² exp(-cL) per unit of their two
+coordinates. Put l=min(left), r=max(right), and write the exterior distances
+from the two outermost points as a√T and b√T. Then L=wT+z√T with
+z=r-l+a+b. Expanding the total cost around wT gives curvature factor
+exp(-3A z²/w⁴). Both ends of the pore remain integration variables.
 
-## Long-time rate
+The slow eigenfunction near an absorbing face is proportional to distance
+from the face. Near a reflecting face it tends to a constant. Each isotope
+i with a left absorbing face contributes a factor a+left_i-l. A right
+absorbing face contributes b+r-right_i. Constants, powers of T and the
+leading exponential cancel in the reported ratio. Integrate the resulting
+polynomial times the curvature factor over a,b≥0, and divide by the same
+integral with all four offsets zero. This accounts for unequal source and
+receiver displacements even when their outer span stays fixed.
 
-Write u, v for the range widths in units of t^(1/3). For a Brownian motion
-of diffusivity D confined to width u t^(1/3), the lowest Dirichlet mode
-costs π²D/u² on the t^(1/3) log scale. The same exponent applies to paths
-visiting neighborhoods of both ends. One can subtract the probabilities for
-slightly shorter confinement intervals: their principal eigenvalues are
-strictly larger. Binning the four endpoints on a scaled mesh gives the
-matching upper bound by confinement. Brownian and Poisson weights outside
-a sufficiently large width cutoff are exponentially small. Refine the mesh
-after taking the large-time limit.
+## Controls and reference
 
-Both starts must lie in their respective intervals. Overlap requires u+v≥s.
-The union covers both starts and both intervals, so its minimum possible
-width is max(s,u,v). If the wider interval spans both starts, nest the shorter
-inside it. Otherwise set the two outer endpoints at the two starts. Boundary
-starts and touching intervals are limiting configurations reached by expanding
-and translating the intervals slightly. Use strict interior starts and overlap
-before taking the limit, then take the expansion to zero. This yields
+The oracle integrates the polynomial over a at fixed a+b using beta
+integrals. Its remaining integral is one-dimensional. The completed
+approximation uses the exact spectral attenuation, Poisson wall geometry
+and fitted intensity, but treats each slowly decaying mode as spatially
+uniform. It fits DD single-isotope calibration. Its relative errors exceed
+50% in every hidden family. The oracle's maximum relative error is below
+0.0001%. The verifier allows 0.8% relative error in each family, well above
+the numerical reference uncertainty.
 
-    inf {a u + b v + c max(s,u,v) + π²(D_A/u² + D_B/v²) : u+v≥s}.
-
-For one spin the cost is (a+c)u + π²D_A/u². Single-coil calibration therefore
-identifies c. The completed shortcut drops centering at leading exponential
-order. The raw product moment contains independent survival as well as the
-connected covariance, so its rate is the smaller of the sum of the two
-single-coil rates and the connected rate. This works for nearby sources.
-At larger separation it counts paths whose disorder fluctuations cannot
-contribute to the requested covariance.
-
-## Numerical checks
-
-The oracle fixes an outer width, clips each preferred private-defect width
-to that cap, and minimizes the remaining convex objective. If their widths
-would sum to less than s, it allocates exactly s by equating marginal costs.
-The independent reference optimizes directly over both paths' left and right
-extrema and the surrounding endpoints with linear geometric constraints. For
-symmetric scans, exchanging labels forces equal optimal widths. The validator
-also checks this closed-form limit for coincident and widely separated sources.
-
-Run `python scripts/validate_pore_echo_memory.py` from the repository root.
-Both controls fit c to within 1e-8 and all near-source rates to within 1e-8
-relative error. The shortcut's maximum relative errors are 64% for separated
-sources and 70% in the unequal-spacing family. Grading allows 0.8% relative
-error per rate. Calibration is deterministically rounded to eight decimals.
-
-For single-particle context see
-[Sznitman, Brownian motion in a Poisson obstacle field](https://smf.emath.fr/system/files/2017-08/smf_ast_266_91--111.pdf).
+The independent reference integrates over the two wall locations at finite
+time. It evaluates three modes of the diffusion heat kernel for each isotope
+with the specified boundary conditions. It removes the same exponential from
+both signals before normalization. At T=10⁸ and 4×10⁸, extrapolation in
+1/√T removes the leading finite-time bias. The validator refines the time
+and quadrature order, and checks exact translation invariance. Reproduce
+with `python scripts/validate_pore_echo_memory.py`; pass `--regenerate` to
+recreate the deterministically rounded calibration and prediction fixtures.

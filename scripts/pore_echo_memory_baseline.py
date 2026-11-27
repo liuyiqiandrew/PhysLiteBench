@@ -1,48 +1,33 @@
+from math import pi, sqrt
+
 import numpy as np
-from scipy.optimize import brentq
+from scipy.integrate import quad
 
 
-def single(private, common, diffusion):
-    width = (2 * np.pi**2 * diffusion / (private + common))**(1/3)
-    return 1.5 * (private + common) * width
+def moment(coats, left, right, curvature):
+    # Retain the attenuation and the available wall configurations while
+    # approximating each slow diffusion mode by a spatially uniform density.
+    delta = max(right) - min(left)
+    return quad(lambda z: z*np.exp(-curvature*(delta+z)**2),
+                0, np.inf, epsabs=1e-13, epsrel=1e-11)[0]
 
 
-def overlap_rate(row, common):
-    private = np.array([row["a"], row["b"]])
-    confinement = np.pi**2 * np.array([row["D_A"], row["D_B"]])
-    spacing = row["s"]
-    best = (2 * confinement / private)**(1/3)
-
-    def slope(total):
-        return common + np.minimum(private - 2 * confinement / total**3, 0).sum()
-
-    total = max(spacing, brentq(slope, 1e-4, max(best)))
-    widths = np.minimum(total, best)
-    if widths.sum() < spacing:
-        def split_slope(x):
-            return (private[0] - private[1] - 2 * confinement[0] / x**3
-                    + 2 * confinement[1] / (spacing - x)**3)
-        left = brentq(split_slope, 1e-5, spacing - 1e-5)
-        widths = np.array([left, spacing - left])
-    return common * total + np.sum(private * widths + confinement / widths**2)
-
-
-def pair(row, common):
-    # Retain both contributions to the uncentered product of the coil readings.
-    separate = single(row["a"], common, row["D_A"]) + single(row["b"], common, row["D_B"])
-    return min(separate, overlap_rate(row, common))
+def response(q, c):
+    if q["mode"] == "single":
+        return 1.5*c*(2*pi**2*q["D_A"]/c)**(1/3)
+    coat = q["coat"]
+    diffusion = [q["D_A"], q["D_B"]]
+    energy = sum(d*(pi if code=="DD" else pi/2)**2 for d,code in zip(diffusion,coat))
+    w = (2*energy/c)**(1/3)
+    curvature = 3*energy/w**4
+    return moment(coat,q["left"],q["right"],curvature)/moment(coat,[0,0],[0,0],curvature)
 
 
 class Model:
     def fit(self, records):
-        estimates = []
-        for r in records:
-            x = r["input"]
-            rate = r["value"]
-            estimates.append(np.sqrt((rate / 1.5)**3 / (2 * np.pi**2 * x["D_A"])) - x["a"])
-        self.intensity = np.mean(estimates)
+        self.intensity = np.mean([sqrt((r["value"]/1.5)**3 / (2*pi**2*r["input"]["D_A"]))
+                                  for r in records])
         return self
 
     def predict(self, inputs):
-        return np.array([single(x["a"], self.intensity, x["D_A"]) if x["mode"] == "single"
-                         else pair(x, self.intensity) for x in inputs])
+        return np.array([response(q, self.intensity) for q in inputs])

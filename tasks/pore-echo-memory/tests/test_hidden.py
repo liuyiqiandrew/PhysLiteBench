@@ -32,6 +32,6 @@ def test_fit(metrics):
     assert metrics["calibration_max_error"] < 1e-4 and abs(metrics["intensity"] - .873) < 1e-4
 
 
-@pytest.mark.parametrize("group", ["near", "separated", "unequal"])
+@pytest.mark.parametrize("group", ["absorbing", "opposite_faces", "mixed_faces"])
 def test_rate(metrics, group):
     assert metrics[group] < .008
