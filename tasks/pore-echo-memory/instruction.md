@@ -1,0 +1,1 @@
+Implement Model in /app/model.py for the magnetic resonance apparatus in /app/README.md. Fit its field width from /app/data/calibration.json and predict ensemble echoes and correlations between coil readings.

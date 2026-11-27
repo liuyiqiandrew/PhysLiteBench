@@ -1,0 +1,1 @@
+For a single walk, collect the signed number of exposures at each site. At fixed counts the disorder average of the complex phase is a Gaussian characteristic function. For the pair of readings, first form the difference of the count vectors for independent walks in the two scans of one pore.
