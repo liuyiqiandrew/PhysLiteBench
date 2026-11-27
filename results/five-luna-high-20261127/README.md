@@ -6,6 +6,10 @@ produced finite predictions. Each failed at least one private physics check.
 There were **zero solve timeouts, verifier timeouts or ungraded attempts** in
 the five selected batches. The reference solution passed for each task.
 
+The [grading and physics audit](AUDIT.md) reproduces all 25 submission and
+control grades, identifies two public/private fit discrepancies, and checks
+how many submissions retained the starter's physical predictions.
+
 | Delivered task | Solve time across its three trials | Physics error observed |
 |---|---:|---|
 | Pore echo memory R4 | 56–82 s | Approximating the lengths of surviving valleys gave the wrong probability of detecting two tracers together. |
