@@ -1,4 +1,4 @@
-Integrate over wall locations on the two sides of the measurement points.
-In the preliminary scan identify the most probable pore length after weighting.
-In a transmission scan expand the attenuation about that length and retain
-the ground-state amplitudes at all release and receiver positions.
+At logarithmic observation times, determine which starting points fall into
+the same surviving potential minimum. Average over the lengths of the two
+slopes leading to that minimum, including the absorber-free weight and the
+detector's location relative to the sources.

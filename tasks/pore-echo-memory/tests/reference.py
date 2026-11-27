@@ -1,52 +1,34 @@
-"""Finite-time Poisson average of the interval heat kernels, in wall coordinates."""
+"""First-passage resolvent on a spatial finite-difference mesh."""
+import math
+
 import numpy as np
-from numpy.polynomial.legendre import leggauss
+from scipy.integrate import quad
+from scipy.linalg import eigh_tridiagonal
 
 TRUE_PARAMETER = .873
 
 
-def single(d, c):
-    return 3*np.cbrt(np.pi**2*d*c*c/4)
+def tail_discrete(drift, loss, order):
+    # Generator d²/dx² - 2*drift*d/dx on [0,1], reflection at 0, exit at 1.
+    n = order
+    up, down = n*n-drift*n, n*n+drift*n
+    birth = np.full(n, up, dtype=float)
+    birth[0] = 2*n*n
+    eig, modes = eigh_tridiagonal(np.full(n,-2.*n*n),np.sqrt(birth[:-1]*down))
+    pi_end = math.prod(birth[:-1]/down)
+    shifted = loss-eig
+    weight = up*math.sqrt(pi_end)*modes[0]*modes[-1]/shifted
+    def tail(t):
+        return weight @ np.exp(-shifted*max(0,t))
+    return tail
 
 
-def transmission(q, c, T, order):
-    # t=T^3. Remove the common leading attenuation before forming the ratio.
-    d = np.array([q["D_A"],q["D_B"]])
-    settings = q["coat"]
-    k = np.array([np.pi if code=="DD" else .5*np.pi for code in settings])
-    energy = d @ k**2
-    w = np.cbrt(2*energy/c)
-    nodes, weights = leggauss(order)
-
-    def average(left, right):
-        left, right = np.array(left), np.array(right)
-        lo, hi = left.min(), right.max()
-        # Integrate exterior wall distances in units of sqrt(T).
-        cutoff = abs(hi-lo) + 16/np.sqrt(3*energy/w**4)
-        grid = (nodes+1)*cutoff/2
-        a,b = grid[:,None],grid[None,:]
-        z = hi-lo+a+b
-        ratio = 1 + z/(w*np.sqrt(T))
-        # cL + energy*t/L^2 - its saddle value, factored to avoid cancellation.
-        cost = energy*z**2/w**4*(2*ratio+1)/ratio**2
-        kernel = np.exp(-cost)
-        for i,code in enumerate(settings):
-            ur = (right.max()-right[i]+b)/(w*np.sqrt(T)*ratio)
-            ul = (left[i]-lo+a)/(w*np.sqrt(T)*ratio)
-            total = 0.
-            for mode in range(3):
-                wave = k[i] + np.pi*mode
-                f = np.sin(wave*ul)*np.sqrt(T) if code[0]=="D" else np.cos(wave*ul)
-                g = np.sin(wave*ur)*np.sqrt(T) if code[1]=="D" else np.cos(wave*ur)
-                decay = np.exp(-d[i]*(wave**2-k[i]**2)*T/(w*ratio)**2)
-                total += (-1)**mode * f*g*decay
-            kernel *= total/ratio
-        return weights @ kernel @ weights * (cutoff/2)**2
-    return average(q["left"], q["right"]) / average([0,0], [0,0])
-
-
-def predict(q, c=TRUE_PARAMETER, T=1.e8, order=64):
-    if q["mode"] == "single":
-        return single(q["D_A"], c)
-    # Remove the leading finite-time correction proportional to T^(-1/2).
-    return 2*transmission(q,c,4*T,order) - transmission(q,c,T,order)
+def predict(q, intensity=TRUE_PARAMETER, order=160):
+    unit = q["u"]**2
+    r, force = intensity*q["a"]*unit, q["u"]*q["f"]
+    s = q["y"]/unit
+    a, b = tail_discrete(force,r,order), tail_discrete(-force,r,order)
+    count = r/(1-a(0)*b(0))
+    lo, hi = (-np.inf,np.inf) if q["window"] is None else np.array(q["window"])/unit
+    points = [lo]+[z for z in sorted({0.,s}) if lo<z<hi]+[hi]
+    return count*sum(quad(lambda z: a(z)*b(s-z), l,h,epsabs=1e-9)[0] for l,h in zip(points,points[1:]))

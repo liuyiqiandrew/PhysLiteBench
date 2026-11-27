@@ -1,9 +1,9 @@
-"""Reproduce both data files and check the range contraction against an endpoint optimization."""
+"""Validate coincidence imaging against independent spatial first-exit calculations."""
 import argparse
 import importlib.util
 import json
+import math
 from pathlib import Path
-
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,78 +11,81 @@ TASK = ROOT / "tasks/pore-echo-memory"
 
 
 def load(path):
-    spec = importlib.util.spec_from_file_location(path.stem, path)
+    spec = importlib.util.spec_from_file_location(path.stem,path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
+oracle = load(TASK / "solution/model.py")
+shortcut = load(ROOT / "scripts/pore_echo_memory_baseline.py")
 ref = load(TASK / "tests/reference.py")
 
 
 def records():
-    calibration = []
-    for d in np.linspace(.21,1.97,12):
-        x = dict(mode="single", D_A=d)
-        calibration.append(dict(input=x, value=round(ref.predict(x), 8)))
-    cases = {}
-    for name, coats in [("absorbing", ["DD","DD"]), ("opposite_faces", ["ND","DN"]),
-                        ("mixed_faces", ["DD","ND"])]:
+    calibration, groups = [], {}
+    for u in [.53,.85,1.07,1.31]:
+        for strength in [.35,.9,1.41]:
+            q = dict(u=u,y=0,f=0,a=strength,window=None)
+            z = 2*u*math.sqrt(ref.TRUE_PARAMETER*strength)
+            calibration.append(dict(input=q,value=round(z/math.sinh(z),8)))
+    for name in ["separated","pickup","directed"]:
         rows = []
-        for da,db in [(.3,.65), (.78,1.55), (1.67,.27)]:
-            for left,right in [([.31,-.62],[-.48,.83]), ([-.65,.9],[.8,-.34]),
-                               ([1.48,.25],[-.92,-1.56]), ([-1.85,-1.22],[1.2,.74])]:
-                x = dict(mode="pair", D_A=da, D_B=db, coat=coats, left=left, right=right)
-                rows.append(dict(input=x, value=ref.predict(x)))
-        cases[name] = rows
-    return calibration, cases
+        for i,u in enumerate([.71,.95,1.35]):
+            for j,y in enumerate([.15,.55,1.4]):
+                f = 0. if name != "directed" else [.56,-.48,.39][(i+j)%3]
+                window = None if name=="separated" else [[-.95,-.08],[.31,.78],[y+.12,y+.96]][(i+j)%3]
+                q = dict(u=u,y=y,f=f,a=[.3,.81,1.56][(i+2*j)%3],window=window)
+                # Richardson extrapolation for the second-order mesh.
+                coarse, fine = [ref.predict(q, order=n) for n in [128,256]]
+                value = (4*fine - coarse)/3
+                assert abs(value-fine) < 5e-5
+                rows.append(dict(input=q,value=value))
+        groups[name] = rows
+    return calibration, groups
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--regenerate", action="store_true")
-    regenerate = parser.parse_args().regenerate
-    calibration, cases = records()
-    for path in [TASK / "environment/data/calibration.json", TASK / "tests/data/calibration.json"]:
+def validate(regenerate):
+    calibration, groups = records()
+    for path in [TASK/"environment/data/calibration.json", TASK/"tests/data/calibration.json"]:
         if regenerate:
-            path.write_text(json.dumps(calibration, indent=2) + "\n")
+            path.write_text(json.dumps(calibration,indent=2)+"\n")
         assert json.loads(path.read_text()) == calibration
-    path = TASK / "tests/data/predictions.json"
+    path = TASK/"tests/data/predictions.json"
     if regenerate:
-        path.write_text(json.dumps(cases, indent=2) + "\n")
+        path.write_text(json.dumps(groups,indent=2)+"\n")
     stored = json.loads(path.read_text())
-    assert stored.keys() == cases.keys()
-    for name, rows in cases.items():
-        assert [r["input"] for r in rows] == [r["input"] for r in stored[name]]
-        np.testing.assert_allclose([r["value"] for r in rows], [r["value"] for r in stored[name]], atol=1e-8, rtol=0)
-    for role, source in [("oracle", TASK / "solution/model.py"),
-                         ("shortcut", ROOT / "scripts/pore_echo_memory_baseline.py")]:
-        model = load(source).Model().fit(calibration)
-        assert abs(model.intensity - ref.TRUE_PARAMETER) < 1e-7
-        calibration_error = max(abs(model.predict([r["input"] for r in calibration]) - [r["value"] for r in calibration]))
-        assert calibration_error < 1e-6
-        errors = {}
-        for name, rows in cases.items():
-            actual = model.predict([r["input"] for r in rows])
-            truth = np.array([r["value"] for r in rows])
-            errors[name] = float(max(abs(actual/truth - 1)))
-        print(role, model.intensity, calibration_error, errors)
-        if role == "oracle":
-            assert max(errors.values()) < 1e-6
-        else:
-            assert min(errors.values()) > .2
+    assert stored.keys()==groups.keys()
+    for group, rows in groups.items():
+        assert [r["input"] for r in stored[group]] == [r["input"] for r in rows]
+        np.testing.assert_allclose([r["value"] for r in stored[group]], [r["value"] for r in rows], atol=1e-8, rtol=0)
+    for role, module in [("oracle",oracle),("shortcut",shortcut)]:
+        model = module.Model().fit(calibration)
+        assert abs(model.intensity-ref.TRUE_PARAMETER) < 1e-6
+        cal = model.predict([r["input"] for r in calibration])
+        error = max(abs(cal - [r["value"] for r in calibration]))
+        assert error < 1e-6
+        errors = {k: float(max(abs(model.predict([r["input"] for r in rows])-[r["value"] for r in rows])))
+                  for k,rows in groups.items()}
+        print(role, model.intensity, error, errors)
+        assert max(errors.values()) < 1e-6 if role=="oracle" else min(errors.values()) > .003
 
-    for group, rows in cases.items():
-        for row in rows:
-            q = row["input"]
-            # Refine the finite observation time and both wall quadratures.
-            fine = ref.predict(q, T=4e8, order=96)
-            np.testing.assert_allclose(row["value"], fine, rtol=3e-6, atol=1e-12)
-        q = rows[0]["input"]
-        translated = q | {"left":[u+.4 for u in q["left"]], "right":[u+.4 for u in q["right"]]}
-        np.testing.assert_allclose(ref.predict(translated), ref.predict(q), atol=1e-12)
-        assert ref.predict(q | {"left":[1.,1.],"right":[1.,1.]}) == 1.
+    # Reflect the entire apparatus, then translate by the source separation.
+    q = groups["directed"][0]["input"]
+    a,b = q["window"]
+    reflected = q | {"f":-q["f"],"window":[q["y"]-b,q["y"]-a]}
+    np.testing.assert_allclose(oracle.response(q,ref.TRUE_PARAMETER),oracle.response(reflected,ref.TRUE_PARAMETER), atol=1e-10)
+    # Independent bulk-valley stop-loss expansion at zero field.
+    for row in groups["separated"]:
+        q = row["input"]
+        s = q["y"]/q["u"]**2
+        r = ref.TRUE_PARAMETER*q["a"]*q["u"]**2
+        k = (np.pi*(np.arange(64)+.5))**2
+        exact = r/np.tanh(np.sqrt(r))**2*np.sum(np.exp(-(k+r)*s) * ((4*k*s-2)/(k+r)**2+8*k/(k+r)**3))
+        np.testing.assert_allclose(row["value"],exact,atol=1e-7)
 
 
 if __name__ == "__main__":
-    main()
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--regenerate",action="store_true")
+    validate(parser.parse_args().regenerate)

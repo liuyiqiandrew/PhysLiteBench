@@ -1,59 +1,71 @@
-# Pore echo memory, revision 3
+# Pore echo memory, revision 4
 
-R1 studied spin phases in a four-site pore. R2 measured the leading log rate
-of a two-isotope survival covariance. Luna High solved both revisions in all
-three trials. R3 measures the shape of a transmission crossover. At this
-scale, the spatial profile of a surviving diffusion mode enters the result.
+The previous transmission crossover passed 2/3 Luna High trials. R4 asks for
+local coincidence of two activated tracers in a common random potential with
+dilute absorbers. Its full detector counts the atom at zero rescaled separation.
+That event includes survival to readout. A finite detector also localizes the
+bottom of the occupied valley. Exact lattice-site coincidence would retain
+microscopic thermal fluctuations and give a different observable.
 
-## Wall and diffusion contributions
+## Landscape average
 
-Write T=t^(1/3). In a pore of length L the ground wavenumber is k/L,
-where k=π for DD walls and π/2 for a mixed pair. The normalized eigenfunction
-is √(2/L) sin(kx/L) with a left absorbing wall, or √(2/L) cos(kx/L)
-with a left reflecting wall, with x measured from the left wall. Spectral
-gaps suppress the other modes exponentially on the contributing length scale.
-For a single DD isotope the cost is cL + π²D t/L². Minimizing gives the
-reported log rate 3(π²D c²/4)^(1/3).
+Use energy units u h and length units (u h)², so the scale of active barriers
+is one. The Gaussian walk in the spatial coordinate converges to Brownian
+motion with variance 2 per unit length and drift −2d, where d=fu. The
+absorber intensity in these units is r=c a u². Arrhenius crossing times
+separate barriers below and above the observation scale. The reversible
+site rates respect the specified potential. Microscopic attempt factors
+disappear from the leading logarithmic time scale.
 
-Set A=D_A k_A²+D_B k_B². In the preliminary scan the leading negative
-log weight is cL+A t/L², including the Poisson cost for an empty pore.
-The locations of 0 within a pore and the two local eigenfunction products
-contribute algebraic factors. Consequently the weighted L/T concentrates
-at w=(2A/c)^(1/3).
+At this scale a tracer is localized at the bottom of its surviving valley.
+In the finite-interval renormalization measure each absorbing endpoint has
+an edge region that collects its losses. Each remaining interior valley
+has two bulk slope lengths. In Laplace variables their transforms are
 
-For large t both transmission paths cross the same interval between the
-leftmost source and the rightmost receiver. All four points must be in one
-pore. The outer walls have joint weight c² exp(-cL) per unit of their two
-coordinates. Put l=min(left), r=max(right), and write the exterior distances
-from the two outermost points as a√T and b√T. Then L=wT+z√T with
-z=r-l+a+b. Expanding the total cost around wT gives curvature factor
-exp(-3A z²/w⁴). Both ends of the pore remain integration variables.
+    P_d(p) = exp(−d) k / [k cosh(k) − d sinh(k)], k = sqrt(p+d²).
 
-The slow eigenfunction near an absorbing face is proportional to distance
-from the face. Near a reflecting face it tends to a constant. Each isotope
-i with a left absorbing face contributes a factor a+left_i-l. A right
-absorbing face contributes b+r-right_i. Constants, powers of T and the
-leading exponential cancel in the reported ratio. Integrate the resulting
-polynomial times the curvature factor over a,b≥0, and divide by the same
-integral with all four offsets zero. This accounts for unequal source and
-receiver displacements even when their outer span stays fixed.
+The descending (left) flank uses d, and the ascending (right) flank uses
+−d. These are the exit-time laws at 1 for a Brownian motion with generator
+∂²−2d∂ on [0,1], reflected at 0 and started there. Poisson averaging weights
+the two lengths by exp(−r times their sum). Summing over neighboring valleys
+and the two edge regions multiplies the resulting measure per unit length
+by C=r/[1−P_d(r)P_{−d}(r)].
 
-## Controls and reference
+Let B_d(v) be the mass of the tilted slope-length law above v. For a valley
+with bottom at z to contain both sources, its left flank must exceed max(z,0)
+and its right flank must exceed max(y/u²−z,0). The signal is the integral
+over the scaled pickup window of C times these two tails. For coincident
+sources at zero field with full acceptance this gives 2√r/sinh(2√r).
+The limiting finite-interval measure, the Brownian units, and the full-line
+meeting observable are derived in sections 2, 3 and 7 of
+[Le Doussal, EPL 87, 20006 (2009), extended paper](https://arxiv.org/abs/0906.0267).
+The finite-window weighting here follows by restricting the bottom selected
+by that measure.
 
-The oracle integrates the polynomial over a at fixed a+b using beta
-integrals. Its remaining integral is one-dimensional. The completed
-approximation uses the exact spectral attenuation, Poisson wall geometry
-and fitted intensity, but treats each slowly decaying mode as spatially
-uniform. It fits DD single-isotope calibration. Its relative errors exceed
-50% in every hidden family. The oracle's maximum relative error is below
-0.0001%. The verifier allows 0.8% relative error in each family, well above
-the numerical reference uncertainty.
+## Controls and checks
 
-The independent reference integrates over the two wall locations at finite
-time. It evaluates three modes of the diffusion heat kernel for each isotope
-with the specified boundary conditions. It removes the same exponential from
-both signals before normalization. At T=10⁸ and 4×10⁸, extrapolation in
-1/√T removes the leading finite-time bias. The validator refines the time
-and quadrature order, and checks exact translation invariance. Reproduce
-with `python scripts/validate_pore_echo_memory.py`; pass `--regenerate` to
-recreate the deterministically rounded calibration and prediction fixtures.
+The oracle inverts P_d by residues at the roots q cot(q)=d. In the public
+domain |d|<1 all poles correspond to real q. It integrates the two tilted
+tails over pickup position. The independent numerical reference instead
+discretizes the reflected drifted Brownian generator in space, diagonalizes
+its birth-death matrix and integrates the exit flux. The validator refines
+the mesh from 128 to 256 intervals and checks the exact unbiased full-line
+stop-loss series and simultaneous reflection of force and detector.
+
+An independent direct simulation counted surviving valleys in finite random
+walk landscapes. At u=1 and r=0.7, unbiased full acceptance at separations
+0, 0.25, 0.8 and 1.6 gave 0.65145, 0.45514, 0.14650 and 0.019403, within
+0.0031 of the scaling law with spatial step 0.00005. For d=0.65 and
+separation 0.65, windows [−0.6,−0.1], [0.15,0.60] and [0.85,1.45] gave
+0.006018, 0.076409 and 0.049412 over 40,000 absorber intervals, compared with
+0.006001, 0.076232 and 0.048902 analytically.
+
+The completed shortcut models the two flanks by exponential domains with the
+correct unmarked directional mean lengths. It applies the measured zero-field
+survival and the probability that the source segment contains no mark. It fits
+all calibration readings and misses the broad, absorber-selected distribution
+of the two slopes around the measured bottom. Its maximum absolute errors in
+the three families are 0.0488, 0.0281 and 0.0263. Grading allows 0.003 absolute
+probability error, so probability tails have the same absolute resolution as
+the main signal. Run `python scripts/validate_pore_echo_memory.py` to check
+the shipped data and both controls. Use `--regenerate` for intentional updates.
