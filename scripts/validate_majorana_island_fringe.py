@@ -159,6 +159,38 @@ def dispersive_experiments():
     return result
 
 
+def dot_experiments():
+    rng=np.random.default_rng(5551731)
+    def rounded(a,b):return round(float(rng.uniform(a,b)),4)
+    groups={}
+    for tag in ('coherent_tunnel','charging_echo'):
+        rows=[]
+        for i,n in enumerate((3,4,6,9,17,32)):
+            count=3+i%3
+            used=rng.choice(2*n,6,replace=False)
+            def inds():return list(map(int,rng.choice(used,2,replace=False)))
+            charge=tag=='charging_echo'
+            regular=[[*inds(),rounded(-1.2,1.2),rounded(-.7,.7)] for j in range(count)]
+            arms=[regular,[p.copy() for p in regular]]
+            arms[1][1][2]+=.15
+            seq=[[j+1,j%2,*inds(),rounded(.6,1.8),rounded(-2.5,2.5),rounded(-2.9,2.9) if charge else 0.]
+                 for j in range(count)]
+            other=[p.copy() for p in seq]
+            if charge:
+                for seg in other:seg[-1]*=-1
+            else:
+                for j in range(1,count):other[j][1]=1-other[j][1]
+                other[-1][5]*=-1
+            initial=[[1.,0.],[rounded(-.85,.85),rounded(.45,1.05)]]
+            analyzer=[[rounded(.65,1.),rounded(-.35,.35)],[rounded(-.8,.9),rounded(.55,.9)]]
+            q=dict(n=n,frame='site' if i in (0,3) else 'wave',beta=rounded(1.,3.8),ripple=rounded(-.4,.4),
+                   parity=(-1)**i,phase=rounded(-1.5,1.5),meter_phase=rounded(-1.,1.),outcome=1,arms=arms,
+                   dots=dict(prepare=initial,analyze=analyzer,segments=[seq,other]))
+            rows.append(q)
+        groups[tag]=rows
+    return groups
+
+
 def validate(generate):
     calibration, groups = runs()
     cavity_ref = load("cavity_ref", TASK/"tests/cavity_reference.py")
@@ -181,6 +213,13 @@ def validate(generate):
         for q in inputs:
             accept,signal=dsp_ref.direct(q,19,26)
             assert accept>.025 and abs(signal)<1+1e-10
+            groups[family].append(dict(input=q,value=round(ref.TRUE_PARAMETER*signal,9)))
+    dot_ref=load('dot_ref',TASK/'tests/dot_reference.py')
+    for family,inputs in dot_experiments().items():
+        groups[family]=[]
+        for q in inputs:
+            accept,signal=dot_ref.reference(q)
+            assert accept>.025 and abs(signal)<1+1e-10,(family,accept)
             groups[family].append(dict(input=q,value=round(ref.TRUE_PARAMETER*signal,9)))
     for path, data in [(TASK/"environment/data/calibration.json",calibration),
                        (TASK/"tests/data/calibration.json",calibration),
@@ -208,8 +247,8 @@ def validate(generate):
         assert (max(errors.values())<1e-7) == (model is oracle)
         print(model.__name__,fitted.visibility,errors)
         if model is not oracle:
-            assert max(errors[k] for k in ("winding","meter","charge","extended","wavepacket","conditioned","pair_exchange","source_marker")) < 2e-8
-            assert min(errors[k] for k in ("thermal_echo","incident_echo")) > .003
+            assert max(errors[k] for k in ("winding","meter","charge","extended","wavepacket","conditioned","pair_exchange","source_marker","thermal_echo","incident_echo")) < 2e-8
+            assert min(errors[k] for k in ("coherent_tunnel","charging_echo")) > .003
     example = dict(n=3,beta=1.5,ripple=0.,parity=1,frame="site",meter_phase=0.,outcome=1,
                    phase=np.pi/2,arms=[[],[]],
                    cavity=dict(thermal=0.,angle=0.,mode=[[1.,0.]],transmission=[.5],
@@ -245,6 +284,12 @@ def validate(generate):
     print('zero mean, one parity rotation',expected)
     c['thermal']=0
     np.testing.assert_allclose(oracle.Model().fringe(example),1.,atol=1e-12)
+    tunnel=dict(n=3,frame='site',beta=1.5,ripple=0.,parity=1,phase=0.,meter_phase=0.,outcome=1,arms=[[],[]])
+    a=[0,1,0,1,np.pi/2,0.,0.]; b=[0,1,0,1,-np.pi/2,0.,0.]
+    tunnel['dots']=dict(prepare=[[1,0],[1,0]],analyze=[[1,0],[1,0]],segments=[[a,b],[a[:-1]+[np.pi],b]])
+    t=np.tanh(.75);p0=(1+(t+t*t)/(1+t**3))/2
+    np.testing.assert_allclose(dot_ref.reference(tunnel),[(1+p0)/2,2*p0/(1+p0)],atol=1e-12)
+    np.testing.assert_allclose(oracle.Model().fringe(tunnel),2*p0/(1+p0),atol=1e-12)
     q = dict(calibration[0]["input"],phase=0.,arms=[[],[[0,1,2*np.pi,0.]]])
     np.testing.assert_allclose(oracle.Model().fit(calibration).fringe(q),-1.,atol=1e-12)
 
