@@ -80,7 +80,7 @@ def collect(q, sources):
             two += 11.0 * (WEIGHTS @ (fz(z) * fx(x - z) * fy(y - r * z)))
             total[2] += w * two / abs(det)
     for den, num in total:
-        if den.real > 1e-13:
+        if den.real > 0:
             return float((np.exp(-1j * q["phase"]) * num).real / den.real)
     raise ValueError("zero accepted intensity")
 
