@@ -1,1 +1,1 @@
-At fixed defect counts the registered and unregistered flips of a defect are independent Poisson processes. The probability of silence throughout the listening window depends on those counts. Keep track of which recorded flips can be produced by one actual defect.
+Apply the two raising operators to the all-ground state. During storage each occupied pair acquires its own phase. When comparing two amplitudes that share a defect, its Gaussian coupling and polarity history are the same in both.

@@ -1,7 +1,7 @@
 from apparatus import Readout
-from spectrometer import passive
+from spectrometer import deterministic
 
 
 class Model(Readout):
     def fringe(self, q):
-        return passive(q)
+        return deterministic(q)
