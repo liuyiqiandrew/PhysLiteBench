@@ -29,7 +29,8 @@ def readout(q,D,N):
         band[2,:-1]=-theta*dt*low[1:]
         return solve_banded((1,1),band,rhs)
     def advance(p,left,right):
-        steps=max(8,round((right-left)*N*1.7))
+        narrow=min(width(left),width(right))
+        steps=max(8,round((right-left)*N*max(1.7,2*np.pi*D/narrow**2)))
         dt=(right-left)/steps
         for j in range(steps):
             at=left+(j+.5)*dt

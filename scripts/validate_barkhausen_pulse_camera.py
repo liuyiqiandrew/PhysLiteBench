@@ -53,6 +53,11 @@ base=dict(length=3.,walls=[[1.25,.25],[1.18,.48]],sizes=[2.24,2.2],
 print("worked",measure(base,.55),readout(base,.55,240),flush=True)
 alt=dict(base,gates=[base["gates"][1],base["gates"][0]])
 print("reverse conditioning",measure(alt,.55),flush=True)
+# Narrow legal strip: after enough diffusion the gate law is the stationary
+# squared ground mode. Compare the laboratory solver against that limit.
+edge=dict(length=3.,walls=[[1.,.5],[1.,.5]],sizes=[2.4,2.4],
+          gates=[[1.05,"reverse",.04,.13],[1.95,"forward",.29,.38]])
+assert abs(measure(edge,.70)-readout(edge,.70,180))<.00015
 for p,obj in [(task/"environment/data/calibration.json",cal),(task/"tests/data/calibration.json",cal),
               (task/"tests/data/predictions.json",groups)]:
     if "--write" in sys.argv:p.write_text(json.dumps(obj,indent=2)+"\n")
