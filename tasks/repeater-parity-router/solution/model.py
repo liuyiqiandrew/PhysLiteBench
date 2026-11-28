@@ -1,7 +1,7 @@
 from apparatus import Calibrated
-from tagged import value
+from swap import values
 
 
 class Model(Calibrated):
     def read(self, q):
-        return value(q, self.activity)
+        return values(q, self.activity)[q["observable"]]

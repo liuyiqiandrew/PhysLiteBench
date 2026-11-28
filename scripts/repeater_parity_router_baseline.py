@@ -1,8 +1,8 @@
-"""Use the correct pilot-selected inventories but an independent source phase for the remote readout."""
+"""Replace a jointly postselected four-spin mean by the product of its two marginal means."""
 from apparatus import Calibrated
-from tagged import value
+from swap import values
 
 
 class Model(Calibrated):
     def read(self, q):
-        return value(q, self.activity, detach=True)
+        return values(q, self.activity, shortcut="independent_outputs")[q["observable"]]

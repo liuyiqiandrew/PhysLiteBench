@@ -1,1 +1,1 @@
-Condition on both the phase reference and the raw count inventory. A monitored negative link contributes one pilot for every elementary pair on that link, including unused pairs. The same link signs determine the remote XX product.
+Trace the unread bank slots without learning the source label. Keep the two source-preparation amplitudes coherent through the marker outcome. Each actually measured Bell record has its own Born weight and Pauli correction.

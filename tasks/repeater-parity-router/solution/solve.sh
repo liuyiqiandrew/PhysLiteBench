@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eu
-cp /solution/model.py /solution/tagged.py /app/
+cp /solution/model.py /solution/swap.py /app/

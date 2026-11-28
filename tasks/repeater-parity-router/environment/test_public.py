@@ -24,30 +24,29 @@ def test_calibration():
 
 
 def examples():
-    a = np.log(2.0)
-    single = dict(
-        links=[[0, 1, a, a, -0.35]],
-        parities=[1, 1],
-        requests=[[0, 1], [0, 1]],
-        pilot=dict(links=[0], count=3),
+    lam = np.log(2.0)
+    bell = [np.pi / 4, 0.0, 0.0]
+    q = dict(
+        loading=lam,
+        parity=0,
+        marker=dict(sign=1, phase=0.0),
+        outer=[bell, bell],
+        bank=[[0, 0, 0], [np.pi / 2, 0, 0]],
+        analyzers=[0, 0],
+        report=0,
+        spin=["XX", "XX"],
     )
-    tri = dict(
-        links=[[0, 2, a, 0, 0.5], [0, 1, a, 0, 0.6], [1, 2, a, 0, -0.8]],
-        parities=[None] * 3,
-        requests=[[0, 2], [0, 2]],
-        pilot=dict(links=[0], count=1),
-    )
+    product = dict(q, bank=[[0.0, np.pi / 2, 0.0]] * 2, spin=["ZX", "XZ"])
     return [
-        (dict(q, observable=k), v)
-        for q, vs in [
-            (single, [0.875, 0.0, 1.0]),
-            (tri, [0.25, 0.75, 0.48 + 0.52 / 3 * (1 - a) ** 2]),
-        ]
-        for k, v in zip(("delivery", "contention", "fringe"), vs)
+        (q, [0.5, 0.125, 2 * lam**2]),
+        (dict(q, parity=1), [0.5, 0.125, 0.0]),
+        (product, [1.0, 0.125, 1.0]),
+        (dict(product, report=1), [1.0, 0.125, -1.0]),
     ]
 
 
-def test_one_link_and_triangle():
+def test_two_swaps():
     model = Model().fit([dict(input=dict(exposure=1.0), value=np.exp(-1.0))])
-    for q, value in examples():
-        assert abs(model.predict([q])[0] - value) < 0.003
+    for q, expected in examples():
+        inputs = [dict(q, observable=k) for k in ("marker", "herald", "fringe")]
+        assert np.max(abs(model.predict(inputs) - expected)) < 0.003

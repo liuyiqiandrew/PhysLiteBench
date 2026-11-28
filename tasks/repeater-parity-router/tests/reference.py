@@ -1,149 +1,84 @@
-"""Condition on the phase signs at monitored links, then split a Poisson total among their sources."""
-from functools import lru_cache
-from itertools import product
-import math, numpy as np
+"""Propagate the reduced source qubit through unobserved emissions and project the complete optical arms."""
+import numpy as np, math
 
 
-def simple_paths(edges, n, s, t):
-    found = []
-    for pattern in range(1, 1 << len(edges)):
-        adjacent = [[] for _ in range(n)]
-        for k, (u, v, *_) in enumerate(edges):
-            if pattern >> k & 1:
-                adjacent[u].append(v)
-                adjacent[v].append(u)
-        if any(
-            len(xs) not in ((1,) if i in (s, t) else (0, 2))
-            for i, xs in enumerate(adjacent)
-        ):
-            continue
-        used = {s}
-        stack = [s]
-        while stack:
-            v = stack.pop()
-            for w in adjacent[v]:
-                if w not in used:
-                    used.add(w)
-                    stack.append(w)
-        if used == {v for v, ns in enumerate(adjacent) if ns}:
-            found.append(pattern)
-    return found
+def ry(a):
+    h = a / 2
+    return np.array([[math.cos(h), -math.sin(h)], [math.sin(h), math.cos(h)]])
 
 
-def count_weights(mu, nu):
-    pm = np.zeros((2, 4))
-    for r in range(22):
-        pr = math.exp(-mu) * mu**r / math.factorial(r)
-        for b in range(22):
-            j = 0 if r + b == 0 else 1 if not r else 2 if r + b == 1 else 3
-            pm[(r + b) % 2, j] += pr * math.exp(-nu) * nu**b / math.factorial(b)
-    return pm
+def state(values):
+    b, t, p = values
+    return np.kron(np.array([1, 0]), ry(t)[:, 0]) * math.cos(b) + np.exp(
+        1j * p
+    ) * np.kron(np.array([0, 1]), ry(t)[:, 1]) * math.sin(b)
 
 
-def integer_compositions(z, k):
-    if k == 0:
-        if z == 0:
-            yield ()
-    elif k == 1:
-        yield (z,)
-    else:
-        for m in range(z + 1):
-            for tail in integer_compositions(z - m, k - 1):
-                yield (m,) + tail
+def gate(tensor, axis, M):
+    return np.moveaxis(np.tensordot(M, tensor, axes=([1], [axis])), 0, axis)
 
 
-def conditional(q, a):
-    links = q["links"]
-    watch = q["pilot"]["links"]
-    K = q["pilot"]["count"]
-    routes = [
-        (r, b)
-        for r in simple_paths(links, len(q["parities"]), *q["requests"][0])
-        for b in simple_paths(links, len(q["parities"]), *q["requests"][1])
+def reference(q, a):
+    b0, b1 = [state(v) for v in q["bank"]]
+    A, C = [state(v) for v in q["outer"]]
+    # First trace N-2 discarded copies in the computational basis by their four Kraus operators.
+    dist = np.exp(-a * q["loading"]) * (a * q["loading"]) ** 2 / 2
+    env = np.array([[0.5, 0.5], [0.5, 0.5]], complex)
+    mixed = np.zeros_like(env)
+    norm = 0.0
+    for n in range(2, 36):
+        if q["parity"] is None or n % 2 == q["parity"]:
+            mixed += dist * env
+            norm += dist
+        nextenv = np.zeros_like(env)
+        for v in range(4):
+            K = np.diag([b0[v], b1[v]])
+            nextenv += K @ env @ K.conj().T
+        env = nextenv
+        dist *= a * q["loading"] / (n + 1)
+    h = np.array(
+        [1, q["marker"]["sign"] * np.exp(1j * q["marker"]["phase"])]
+    ) / np.sqrt(2)
+    marker_op = np.diag(h.conj())
+    marked = marker_op @ mixed @ marker_op.conj().T / norm
+    vals, vecs = np.linalg.eigh(marked)
+    # Build the pair states in the physical bank port order L,R, including arm 1 wired from R to L.
+    branches = [
+        np.kron(np.kron(A, bank), np.kron(C, bank)).reshape((2,) * 8).swapaxes(6, 7)
+        for bank in (b0, b1)
     ]
-    m = len(links)
-    power = np.arange(m)
-    sz = 4**m
-    labels = np.arange(sz)
-    classes = (labels[None, :] >> (2 * power[:, None])) % 4
-    ok = np.zeros((len(routes), sz), bool)
-    each = np.zeros(sz, dtype=bool)
-    for k, (r, b) in enumerate(routes):
-        possible = np.ones(sz, dtype=bool)
-        for i in range(m):
-            if r >> i & 1:
-                possible &= classes[i] >= 2
-            if b >> i & 1:
-                possible &= classes[i] >= 1
-        each |= possible
-        for i in range(m):
-            if r & b & (1 << i):
-                possible &= classes[i] == 3
-        ok[k] = possible
-    viable = ok.sum(axis=0)
-    joint = viable > 0
-    budget = np.zeros(4)
-    u = np.arange(1 << m)
-    raw = (u[:, None] >> power) & 1
-    syn = np.zeros(len(u), dtype=int)
-    for i, (v, w, *_) in enumerate(links):
-        syn ^= raw[:, i] * ((1 << v) | (1 << w))
-    keep = np.ones(len(u), dtype=bool)
-    for j, p in enumerate(q["parities"]):
-        if p is not None:
-            keep &= (syn >> j & 1) == p
-    patterns = raw[keep]
-    rates = np.array([e[2:4] for e in links]) * a
-    full = [count_weights(*rate) for rate in rates]
-    for signs in product((1, -1), repeat=len(watch)):
-        vis = np.array([e[4] for e in links])
-        pw = 1.0
-        neg = []
-        for i, sgn in zip(watch, signs):
-            pw *= (1 + vis[i] * sgn) / 2
-            vis[i] = sgn
-            if sgn < 0:
-                neg.append(i)
-        if not pw:
+    X = np.array([[0, 1], [1, 0]], complex)
+    ops = {
+        "X": X,
+        "Y": np.array([[0, -1j], [1j, 0]]),
+        "Z": np.diag([1, -1]),
+        "I": np.eye(2),
+    }
+    measure = [ops[x] for pair in q["spin"] for x in pair]
+    marker = accepted = signal = 0.0
+    for k, p in enumerate(vals):
+        if p <= 1e-16:
             continue
-        ex = np.array(
-            [np.prod([vis[i] for i in range(m) if (r ^ b) >> i & 1]) for r, b in routes]
-        )
-        fr = np.zeros(sz)
-        fr[joint] = (ex @ ok[:, joint]) / viable[joint]
-        weights = np.zeros(sz)
-        for nums in integer_compositions(K, len(neg)):
-            extra = pw
-            tables = [*full]
-            selected = np.ones(len(patterns), dtype=bool)
-            for e, t in zip(neg, nums):
-                l, n = rates[e]
-                s = l + n
-                extra *= math.exp(-s) * s**t / math.factorial(t)
-                pi = l / s if s else 0.0
-                mass = np.zeros((2, 4))
-                p = t % 2
-                if t == 0:
-                    mass[p, 0] = 1.0
-                else:
-                    mass[p, 1] = (1 - pi) ** t
-                    mass[p, 2 if t == 1 else 3] = 1 - mass[p, 1]
-                tables[e] = mass
-                selected &= patterns[:, e] == p
-            if not extra:
-                continue
-            for rawbits in patterns[selected]:
-                prob = np.full(sz, extra)
-                for e, t in enumerate(tables):
-                    prob *= t[rawbits[e], classes[e]]
-                weights += prob
-        budget += [
-            weights.sum(),
-            weights[each].sum(),
-            weights[joint].sum(),
-            weights @ fr,
-        ]
-    norm, sep, success, fringe = budget
-    return dict(
-        delivery=success / norm, contention=1 - success / sep, fringe=fringe / success
-    )
+        psi = sum(vecs[j, k] * branches[j] for j in (0, 1))
+        marker += p * np.vdot(psi, psi).real
+        for axis, angle in ((2, q["analyzers"][0]), (6, q["analyzers"][1])):
+            psi = gate(psi, axis, ry(angle))
+        for b in (0, 1):
+            for d in (0, 1):
+                if q["report"] is not None and (b + d) % 2 != q["report"]:
+                    continue
+                # First and second conclusive measurements are actual Bell bras; erase their labels only after the two corrections.
+                first = (psi[:, 0, 1] + (-1) ** b * psi[:, 1, 0]) / np.sqrt(2)
+                psi4 = (
+                    first[:, :, :, 0, 1, :] + (-1) ** d * first[:, :, :, 1, 0, :]
+                ) / np.sqrt(2)
+                for axis, bit in ((1, b), (3, d)):
+                    if bit:
+                        psi4 = gate(psi4, axis, ops["Z"])
+                    psi4 = gate(psi4, axis, X)
+                accepted += p * np.vdot(psi4, psi4).real
+                observed = psi4
+                for axis, pauli in enumerate(measure):
+                    observed = gate(observed, axis, pauli)
+                signal += p * np.vdot(psi4, observed).real
+    return dict(marker=marker, herald=accepted / marker, fringe=signal / accepted)

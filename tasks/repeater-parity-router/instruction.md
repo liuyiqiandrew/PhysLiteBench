@@ -1,1 +1,1 @@
-Fit the loading activity and predict the pilot-count-conditioned probabilities and remote fringes of the two-receiver repeater in `/app/README.md`. Implement `Model` in `/app/model.py`.
+Fit the source loading activity and predict the erased-marker heralds and remote spin correlations of the two-arm repeater described in `/app/README.md`. Implement `Model` in `/app/model.py`.

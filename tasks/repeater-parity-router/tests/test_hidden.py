@@ -33,6 +33,6 @@ def test_fit(metrics):
     assert metrics["max_absolute_error"]["calibration"] < 0.00002
 
 
-@pytest.mark.parametrize("family", ["delivery", "contention", "fringe"])
+@pytest.mark.parametrize("family", ["marker", "herald", "fringe"])
 def test_transfer(metrics, family):
     assert metrics["max_absolute_error"][family] < 0.003
