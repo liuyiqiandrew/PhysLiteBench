@@ -1,10 +1,9 @@
-"""Each dye has the right individual wall-conditioned law, on independent chains."""
 from camera import Camera
-from passage import density
+from passage import cumulative
 
 
 class Model(Camera):
     @staticmethod
-    def response(z, w, walls, gate):
-        total, _, second, _ = density(z,w,walls)
-        return second/total
+    def response(radius,z,w,walls):
+        one,both=cumulative(radius,z,w,walls)
+        return both/one

@@ -1,34 +1,39 @@
 from scipy.special import hyp2f1
 import numpy as np
 
-H = 5.0 / 8
+
+def bulk(z, w):
+    # Unbounded bubble measure for enclosing the first dye and for enclosing both.
+    a, b = -(1/z).imag, -(1/w).imag
+    s = abs((z-w)/(z-w.conjugate()))**2
+    g = 1 - s*hyp2f1(1., 4/3, 5/3, 1-s)
+    return np.array([a*a, a*b*g])/4
 
 
-def unconditioned(z, w):
-    rz, rw = (1 + z.real / abs(z)) / 2, (1 + w.real / abs(w)) / 2
-    s = abs((z - w) / (z - w.conjugate())) ** 2
-    shape = 1 - s * hyp2f1(1, 4/3, 5/3, 1-s)
-    both = rz * rw + z.imag * w.imag * shape / (4 * abs(z) * abs(w))
-    return np.array([1., rz, rw, both])
-
-
-def density(z, w, walls):
+def contacts(z, w, walls):
     if not walls:
-        return unconditioned(z, w)
+        return bulk(z,w)
     x, *tail = walls
-    v = lambda p: 1 / (p - x) + 1 / x
-    # Derivative of both transported dye coordinates and remaining contact sites.
-    step = 0.0007 * min([abs(x), abs(z-x), abs(w-x), *[abs(y-x) for y in tail]]) ** 2
-    def transported(a):
-        return density(z+a*v(z), w+a*v(w), [y+a*v(y) for y in tail])
-    derivative = (transported(-2*step) - 8*transported(-step)
-                  + 8*transported(step) - transported(2*step)) / (12*step)
-    weight = H / x**2 + sum(2 / (y-x)**2 for y in tail)
-    return weight * density(z, w, tail) - derivative
+    def v(p):
+        return 1/(p-x)+1/x
+    h = .0006*min(abs(x),abs(z-x),abs(w-x),*[abs(x-y) for y in tail])**2
+    def moved(a):
+        return contacts(z+a*v(z),w+a*v(w),[y+a*v(y) for y in tail])
+    derivative = (moved(-2*h)-8*moved(-h)+8*moved(h)-moved(2*h))/(12*h)
+    weight = 2/x**2 + sum(2/(y-x)**2 for y in tail)
+    return weight*contacts(z,w,tail)-derivative
 
 
-def response(z, w, walls, gate):
-    total, first, second, both = density(z, w, walls)
-    if gate == "right":
-        return both / first
-    return (second - both) / (total - first)
+def cumulative(radius, z, w, walls):
+    def disk(p):
+        return p/(1+(p/radius)**2)
+    jac = [((1-(x/radius)**2)/(1+(x/radius)**2)**2)**2 for x in walls]
+    return np.prod(jac)*contacts(disk(z),disk(w),[disk(x) for x in walls])
+
+
+def response(radius, z, w, walls):
+    h=.0015*radius
+    def measure(r):
+        return cumulative(r,z,w,walls)
+    one,both=(measure(radius-2*h)-8*measure(radius-h)+8*measure(radius+h)-measure(radius+2*h))/(12*h)
+    return both/one

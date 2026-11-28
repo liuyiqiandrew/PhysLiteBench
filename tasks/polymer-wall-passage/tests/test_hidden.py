@@ -29,6 +29,6 @@ def test_calibration(errors):
     assert 0.78 <= errors["aspect"] <= 1.22 and errors["calibration"] < 0.00002
 
 
-@pytest.mark.parametrize("group", ["one", "same", "opposite"])
+@pytest.mark.parametrize("group", ["bare", "one", "two"])
 def test_conditioned_side(errors, group):
     assert errors[group] < 0.004
