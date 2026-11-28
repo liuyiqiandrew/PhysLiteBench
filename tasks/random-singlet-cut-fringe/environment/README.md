@@ -1,6 +1,6 @@
-# Returning a carrier spin through a random-singlet chain
+# Passing a carrier spin along a random-singlet chain
 
-Two copies of an infinite antiferromagnetic spin-½ XX chain have identical fixed random exchange couplings. Prepare both in the strong-disorder singlet ground state. A single carrier spin interacts twice with each crossing singlet in the signal copy. The Ramsey ancilla controls those exchanges. A herald detector acts on the other copy. Pool repeated shots over fresh disorder realizations.
+Two copies of an infinite antiferromagnetic spin-½ XX chain have identical fixed random exchange couplings. Prepare both in the strong-disorder singlet ground state. A single carrier spin travels from left to right, interacting with the two members of each spectrally selected singlet as it reaches their physical sites. The Ramsey ancilla controls those exchanges. A herald detector acts on the other copy. Pool repeated shots over fresh disorder realizations.
 
 ## Geometry and cutoff flow
 
@@ -16,33 +16,37 @@ Use Γ=ln(Ω₀/Ω), μ=ln(Γ/Γ_start) and x=ln(Ω/J)/Γ. Numerical targets use
 
 If an interior singlet consumes the two central spins, its replacement spans both cuts. If separate singlets first consume the central spins at the boundaries, the resulting common link still follows the same exchange rule. No reset is made merely because the two cuts now share a link.
 
-## Carrier passes
+## Spatial carrier circuit
 
-The carrier and the two chain copies start independently. The carrier begins in the normalized spin state `prepare`, given as two [real,imaginary] amplitudes in the ↑,↓ order. The signal-chain pair states are singlets (|↑↓⟩−|↓↑⟩)/√2, with the left member written first. The Ramsey ancilla starts in (|0⟩+|1⟩)/√2 and selects corresponding arm settings throughout both passes.
+The carrier begins in the normalized spin state `prepare` (two [real,imaginary] amplitudes in ↑,↓ order). It and the chains start independently. The signal-chain pair states are (|↑↓⟩−|↓↑⟩)/√2 with the left member first. Prepare the Ramsey ancilla in (|0⟩+|1⟩)/√2. On arm j rotate the carrier by `launch[j]=[axis,θ]`, using exp(−iθσ_axis/2).
 
-First, visit every crossing pair in increasing order of its formation coordinate μ. On the outbound pass the carrier couples to each pair's **left** member. After all outbound interactions apply the arm's specified `turnaround` to the carrier. Next visit the **same pairs in exactly reverse order**, coupling the carrier to each pair's right member. The carrier retains its state throughout. No member of a pair is measured between passes.
+First use the bands to identify all crossing pairs that formed in the scanned μ range. The carrier then arrives from the left and visits the **physical sites of all selected pair members in increasing original lattice-site order**, regardless of formation energy or crossing label. There is exactly one visit to each selected site. Other sites cause no interaction. The carrier stays coherent throughout. The spatial order follows from the original chain and the neighboring-active-spin decimation rule.
 
-Each band contains `width` in μ and entries named `left`, `right`, and `both` for the three crossing geometries. Each entry's `arms` contains one [a,b,c,d] for each Ramsey arm. For a singlet with left sublattice s, the outbound unitary is exp[−i(a+s b) SWAP] on carrier and left member. The return unitary is exp[−i(c−s d) SWAP] on carrier and right member. SWAP interchanges the two spin states; the stated operator includes its complete phase. The two top-level `turnaround` entries [axis,θ] apply exp(−iθσ_axis/2) to the carrier on the corresponding arm, with axis x, y or z and ⟨↑|σ_y|↓⟩=−i.
+Each band contains `width` and entries `left`, `right` and `both` for singlets of the three crossing geometries. Each geometry has two `arms`, each [a,b,c,d]. If s is the left member's original sublattice, couple the carrier to that member by exp[−i(a+s b) SWAP] on the appropriate arm. At the right member use exp[−i(c−s d) SWAP]. SWAP interchanges the two spin states and the complete phase of each exchange matters. The same geometry has `field=[[axis_L,θ_L],[axis_R,θ_R]]`. Immediately **after** each exchange, apply its corresponding field rotation exp(−iθσ_axis/2) to the carrier. These lab-frame rotations are common to both Ramsey arms. Axes are "x", "y" or "z" with ⟨↑|σ_y|↓⟩=−i.
 
-If `analyze` is a normalized pure spin state specified in the same format as `prepare`, postselect that carrier state at the end. Normalize a nonzero input list before using it. If null, discard the carrier without measuring it. The entire signal chain is finally unobserved. Measure the Ramsey ancilla along cos(λ)X+sin(λ)Y with λ=`phase`.
+After the final site, select the carrier spin state `analyze`, in the same amplitude format as `prepare`. If null, discard the carrier without measuring it. Normalize each nonzero amplitude list before use. The chain is unobserved. Measure the Ramsey ancilla along cos(λ)X+sin(λ)Y with λ=`phase`.
 
-In the herald copy of the same disorder realization, each geometry's `herald=[efficiency,h,g]` rotates the left member of that singlet about z by angle h+s g. Measure singlet versus triplet. A triplet independently registers a click with the stated efficiency, and a singlet never clicks. If `count` is an integer, retain exactly that many clicks across all bands. If null, retain every herald outcome. Report the pooled conditional Ramsey expectation after all required herald and carrier selections, times V. The joint retained probability exceeds 0.025 for supplied probes.
+In the matched herald copy, `herald=[efficiency,h,g]` rotates the left member of that singlet about z by angle h+s g. Measure singlet versus triplet. A triplet independently registers one click with the specified efficiency; a singlet never clicks. There are separate counters for left-only, right-only and joint crossings. The top-level `counts` array has entries in that order. Each integer selects exactly that many registered clicks in its channel across all bands. Each null entry leaves that channel unselected. Pool all jointly retained herald and carrier outcomes. Report the conditional Ramsey reading times visibility V.
 
-Inputs contain zero to three bands of width 0.2 to 1.8. Coupling parameters and rotation angles lie in [−π,π], efficiencies in [0,1] and integer click counts in [0,2].
+Scans have zero to three bands of width 0.2 to 1.8. Angles lie within [−π,π], efficiencies in [0,1], and each integer click count in [0,2]. At most two channels are selected at once. The supplied probes have retained fraction above 0.025.
 
-## Worked exchange
+## Worked spatial scan
 
-Let one central spin be active, with left_sign null, phase 0, and a single width-one band. At every geometry, let the herald register every crossing: efficiency=1,h=π,g=0. Select exactly one click. Prepare an up carrier, use identity turnarounds and discard the carrier at the end. Arm 0 has no exchanges. Arm 1 performs a full −i SWAP on each pass. The conditioned fringe is 0.5 V and the retained fraction is 0.757402756814. Selecting the final up carrier as well gives a conditioned fringe of (2/3) V.
+Choose two central spins, a single band of width 1, and perfect herald clicks on every one-sided pair. Select exactly one left-only and one right-only click. Give every spin zero field. Both angles on the left-only pair are zero in arm 0 and π/2 in arm 1. The right-only pair has zero left exchange and π/2 right exchange in both arms. The joint-pair exchanges are all zero. Use identity launch rotations, an up carrier and no final carrier selection, with phase zero.
+
+The selected one-sided singlets are disjoint. The common rightmost swap cancels in the Ramsey overlap, leaving the two full swaps applied to the left singlet on arm 1. The retained probability is 0.2775250920 and the conditional fringe is 0.5 V.
 
 ```json
-{"central":1,"left_sign":null,"phase":0,"count":1,
- "prepare":[[1,0],[0,0]],"analyze":null,"turnaround":[["z",0],["z",0]],
+{"central":2,"left_sign":null,"phase":0,"counts":[1,1,null],
+ "prepare":[[1,0],[0,0]],"analyze":null,"launch":[["z",0],["z",0]],
  "bands":[{"width":1,
-   "left":{"arms":[[0,0,0,0],[1.5707963267948966,0,1.5707963267948966,0]],"herald":[1,3.141592653589793,0]},
-   "right":{"arms":[[0,0,0,0],[1.5707963267948966,0,1.5707963267948966,0]],"herald":[1,3.141592653589793,0]},
-   "both":{"arms":[[0,0,0,0],[1.5707963267948966,0,1.5707963267948966,0]],"herald":[1,3.141592653589793,0]}}]}
+   "left":{"arms":[[0,0,0,0],[1.5707963267948966,0,1.5707963267948966,0]],"field":[["x",0],["z",0]],"herald":[1,3.141592653589793,0]},
+   "right":{"arms":[[0,0,1.5707963267948966,0],[0,0,1.5707963267948966,0]],"field":[["x",0],["z",0]],"herald":[1,3.141592653589793,0]},
+   "both":{"arms":[[0,0,0,0],[0,0,0,0]],"field":[["x",0],["z",0]],"herald":[1,3.141592653589793,0]}}]}
 ```
 
-Implement Model.fit(records), returning self and setting `visibility`, and Model.predict(inputs), returning a finite real NumPy array of shape (len(inputs),) in input order. Calibration records in data/calibration.json use empty scans with identical turnarounds and V in [0.65,0.95]. Maximum absolute calibration error must be below 0.000002. Maximum absolute error in each new family must be below 0.003.
+Implement Model.fit(records), returning self and setting `visibility`, and Model.predict(inputs), returning a finite real NumPy array of shape (len(inputs),) in input order. The empty calibration scans use identical launch rotations and a visibility in [0.65,0.95]. Maximum absolute calibration error must be below 0.000002. Maximum absolute error in each new family must be below 0.003.
 
-The supplied `words.ordered_average(q,event,v)` integrates the specified two-cut continuum flow exactly to numerical precision. Your callable `event(band,geometry,s)` supplies a square matrix M and the herald click probability p for that singlet. Given formation order 1,…,N, the helper averages M₁M₂…Mₙ v, weighted by the probability of the selected herald outcome. Its result has not been divided by the retained probability. The optional `partner` callback in `apparatus.interferometer` receives a pair of outbound angles and a pair of return angles in bra, ket order. It transforms the nested carrier map, whose matrix is indexed by output ket/bra and input ket/bra in row-major order. The calibrated starter gives the two partners independent maximally mixed spin states.
+The supplied `apparatus.pair_map(spec,sign,bra,ket)` returns the exact single-singlet transform and its herald click probability. The 16×16 transform acts on the row-major flattening of an interior 4×4 carrier map E and inserts the given singlet's left-site operation before E and its right-site operation after E. E is indexed by output ket/bra and input ket/bra in row-major order. The free carrier is the identity map. The calibrated starter wraps all earlier interactions in every newly formed crossing singlet.
+
+The supplied `walk.advance(q,start,step)` solves the entire two-cut disorder and herald process for an arbitrary linear record vector. It applies updates in **formation order**. Your callback `step(band,geometry,s,merges)` returns a square record-update matrix and the click probability for that newly formed singlet. If an interior pair merges the two cuts silently, geometry is None and merges is true. A left or right crossing can also complete the merger. The helper returns two unnormalized final record vectors: the contributions from samples with separate cuts and from samples with a common cut. The callback can be called for combinations that have zero weight. Their returned values must still have the specified shapes.

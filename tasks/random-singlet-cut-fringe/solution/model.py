@@ -1,7 +1,7 @@
-from apparatus import Readout,interferometer
-from partners import partner_map
+from apparatus import Readout,fringe
+from forest import records
 
 
 class Model(Readout):
     def fringe(self,q):
-        return interferometer(q,partner_map)[1]
+        return fringe(q,records)[1]

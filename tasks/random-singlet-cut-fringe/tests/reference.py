@@ -8,11 +8,13 @@ def rotation(angle):
         for b in (0,1):S[2*b+a,2*a+b]=1.
     return np.cos(angle)*np.eye(4)-1j*np.sin(angle)*S
 
-def instrument(early,late):
+def instrument(early,late,fields):
     pair=np.array([0,1,-1,0],float);rho=np.outer(pair,pair)*.5
-    initial=[np.kron(rotation(t),np.eye(2)) for t in early]
+    directions={'x':np.array([[0,1],[1,0]]),'y':np.array([[0,-1j],[1j,0]]),'z':np.diag([1.,-1.])}
+    spin=[expm(-.5j*t*directions[d]) for d,t in fields]
+    initial=[np.kron(np.kron(spin[0],np.eye(2))@rotation(t),np.eye(2)) for t in early]
     # First interchange the two pairs of spin axes to act directly on carrier, right.
-    final=[np.kron(rotation(t),np.eye(2)).reshape([2]*6).transpose(0,2,1,3,5,4).reshape(8,8) for t in late]
+    final=[np.kron(np.kron(spin[1],np.eye(2))@rotation(t),np.eye(2)).reshape([2]*6).transpose(0,2,1,3,5,4).reshape(8,8) for t in late]
     local=np.empty((4,4,4,4),complex)
     for p,input_matrix in enumerate(np.eye(4).reshape(4,2,2)):
         carried=(initial[1]@np.kron(input_matrix,rho)@initial[0].conj().T).reshape(2,4,2,4)
@@ -25,55 +27,80 @@ def instrument(early,late):
     return local.reshape(16,16)
 
 
+from itertools import product
+from scipy.linalg import expm
+from scipy.special import roots_legendre
+
+def tomography(obj,s,a,b):
+    m,n=(obj['arms'][i] for i in (a,b))
+    gate=instrument([m[0]+s*m[1],n[0]+s*n[1]],[m[2]-s*m[3],n[2]-s*n[3]],obj['field'])
+    eff,h,g=obj['herald']
+    return gate,eff*(1-np.cos(h+s*g))/2
+
+
+
 def truth(q):
-    K=1 if q['count'] is None else q['count']+1
-    def state(raw):
-        a=np.array([complex(*r) for r in raw]);return np.outer(a,a.conj())/np.vdot(a,a)
-    rho=state(q['prepare']);F=np.eye(2) if q['analyze'] is None else state(q['analyze'])
-    axes={'x':np.array([[0,1],[1,0]]),'y':np.array([[0,-1j],[1j,0]]),'z':np.diag([1,-1])}
-    mid=[np.cos(t/2)*np.eye(2)-1j*np.sin(t/2)*axes[axis] for axis,t in q['turnaround']]
-    def pair_channel(a,b):
-        packed=np.zeros((K,2,7,16),complex)
-        for c,s in enumerate((1,-1)):
-            mass=.5 if q['left_sign'] is None else float(q['left_sign']==s)
-            packed[0,c,0 if q['central']==2 else 1]=mass*np.outer(F.T.ravel(),rho.ravel()).ravel()
-        cursor=0.
+    target=q['counts']
+    sizes=tuple(1 if k is None else k+1 for k in target)
+    keys=list(product(*(range(k) for k in sizes)));index={key:i for i,key in enumerate(keys)}
+    N=len(keys);spots=('left','right','both')
+    shifted={}
+    for j in range(3):
+        src=[];dst=[]
+        for i,key in enumerate(keys):
+            if key[j]+1<sizes[j]:
+                after=list(key);after[j]+=1;src.append(i);dst.append(index[tuple(after)])
+        shifted[j]=np.array(src,int),np.array(dst,int)
+    def pure(raw):
+        s=np.array([complex(*v) for v in raw]);s/=np.linalg.norm(s);return np.outer(s,s.conj())
+    rho=pure(q['prepare']);F=np.eye(2) if q['analyze'] is None else pure(q['analyze'])
+    dirs={'x':np.array([[0,1],[1,0]]),'y':np.array([[0,-1j],[1j,0]]),'z':np.diag([1.,-1.])}
+    us=[expm(-.5j*t*dirs[d]) for d,t in q['launch']]
+    def read(a,b):
+        X=us[b]@rho@us[a].conj().T
+        y=np.zeros((N,2,9,16),complex)
+        for o,s in enumerate((1,-1)):
+            m=.5 if q['left_sign'] is None else float(q['left_sign']==s)
+            y[0,o,int(q['central']==1)]=m*np.eye(4).ravel()
+        t=0.
         for band in q['bands']:
-            table={}
-            for place in ('left','right','both'):
-                obj=band[place]
-                for s in (1,-1):
-                    aa,bb=(obj['arms'][i] for i in (a,b))
-                    M=instrument([aa[0]+s*aa[1],bb[0]+s*bb[1]],[aa[2]-s*aa[3],bb[2]-s*bb[3]])
-                    efficiency,h,g=obj['herald']
-                    click=0. if q['count'] is None else efficiency*(1-np.cos(h+s*g))/2
-                    table[place,s]=(M,click)
-            shape=packed.shape
-            def rhs(t,col):
-                y=col.reshape(shape);d=np.zeros_like(y);inner=np.exp(t)
-                # Common density (A+B*x)e^-x. B=1 directly after its creation.
-                d[:,:,0]=-(2+inner)*y[:,:,0]
-                d[:,:,1]=-2*y[:,:,1]+inner*(y[:,:,2]+y[:,:,3])
-                d[:,:,2]=-(1+inner)*y[:,:,2]
-                d[:,:,3]=-(1+inner)*y[:,:,3]
-                d[:,:,4]=-inner*y[:,:,4]
-                A=y[:,:,5];B=y[:,:,6]
-                d[:,:,5]=B-2*A
-                d[:,:,6]=A-B+inner*(y[:,:,0]+y[:,:,4])
-                def add(source,from_c,destination,to_c,kind,sign):
-                    op,p=table[kind,sign];val=y[:,from_c,source]@op
-                    d[:,to_c,destination]+=(1-p)*val
-                    d[1:,to_c,destination]+=p*val[:-1]
-                for c,s in enumerate((1,-1)):
-                    add(0,c,2,1-c,'left',s);add(0,c,3,c,'right',s)
-                    add(2,c,4,c,'right',-s);add(3,c,4,1-c,'left',s)
-                    add(1,c,6,1-c,'left',s);add(1,c,6,c,'right',-s)
-                    add(5,c,6,1-c,'both',s)
-                return d.ravel()
-            end=cursor+band['width']
-            sol=solve_ivp(rhs,(cursor,end),packed.ravel(),method='DOP853',atol=1e-11,rtol=1e-9)
-            packed=sol.y[:,-1].reshape(shape);cursor=end
-        inner=np.einsum('ij,IJ->iIjJ',mid[b],mid[a].conj()).ravel()
-        return packed[-1].sum(axis=(0,1))@inner
-    rate=.5*(pair_channel(0,0)+pair_channel(1,1)).real
-    return rate,(np.exp(-1j*q['phase'])*pair_channel(0,1)).real/rate
+            opt={(j,s):tomography(band[spot],s,a,b) for j,spot in enumerate(spots) for s in (1,-1)}
+            local={k:(m@np.eye(4).ravel()).reshape(4,4) for k,(m,p) in opt.items()}
+            shape=y.shape
+            def rhs(t,raw):
+                y=raw.reshape(shape);dy=np.zeros_like(y);rate=np.exp(t)
+                # 0 has two centers. 1,2,3 have one center and respectively no prior,
+                # a left prior or a right prior. 4,5 await the original interior bond;
+                # 6 is the pending common bond. 7,8 are the common density coefficients.
+                dy[:,:,0]=-(2+rate)*y[:,:,0]
+                dy[:,:,1]=-2*y[:,:,1]
+                dy[:,:,2]=rate*y[:,:,4]-2*y[:,:,2]
+                dy[:,:,3]=rate*y[:,:,5]-2*y[:,:,3]
+                dy[:,:,4]=-(1+rate)*y[:,:,4];dy[:,:,5]=-(1+rate)*y[:,:,5]
+                dy[:,:,6]=-rate*y[:,:,6]
+                dy[:,:,7]=y[:,:,8]-2*y[:,:,7]
+                dy[:,:,8]=y[:,:,7]-y[:,:,8]+rate*(y[:,:,0]+y[:,:,6])
+                def move(src,dst,o,new_o,j,sign,disjoint=False):
+                    val=y[:,o,src]
+                    m,p=opt[j,sign]
+                    if disjoint:
+                        prior=val.reshape(N,4,4);next_map=local[j,sign]
+                        val=(next_map@prior if j==1 else prior@next_map).reshape(N,16)
+                    else:val=val@m.T
+                    p=0. if target[j] is None else p
+                    dy[:,new_o,dst]+=(1-p)*val
+                    if p and sizes[j]>1:
+                        left,right=shifted[j];dy[right,new_o,dst]+=p*val[left]
+                for o,s in enumerate((1,-1)):
+                    move(0,4,o,1-o,0,s);move(0,5,o,o,1,s)
+                    move(4,6,o,o,1,-s,True);move(5,6,o,1-o,0,s,True)
+                    for j in (1,2,3):
+                        move(j,8,o,1-o,0,s,j==3);move(j,8,o,o,1,-s,j==2)
+                    move(7,8,o,1-o,2,s)
+                return dy.ravel()
+            end=t+band['width'];sol=solve_ivp(rhs,(t,end),y.ravel(),method='DOP853',rtol=1.5e-9,atol=2e-11)
+            y=sol.y[:,-1].reshape(shape);t=end
+        channel=y[-1].sum(axis=(0,1)).reshape(4,4)
+        return np.trace(F@(channel@X.ravel()).reshape(2,2))
+    p=.5*(read(0,0)+read(1,1)).real
+    return p,(np.exp(-1j*q['phase'])*read(0,1)).real/p

@@ -1,1 +1,1 @@
-Calibrate the Ramsey fringe of a carrier spin visiting opposite members of an entangled singlet on its outbound and return passes. Implement Model in /app/model.py using /app/README.md.
+Predict the calibrated Ramsey fringe of a carrier that visits the sites of an energy-selected random-singlet chain in their original spatial order. Implement Model in /app/model.py using the experiment in /app/README.md.
