@@ -1,0 +1,1 @@
+A seam selects a global winding sector of the domain walls. An even marked spin product measures the parity of intersections with strings joining the marked sites. The two films share one pair of thermal seam switches.

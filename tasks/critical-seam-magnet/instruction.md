@@ -1,0 +1,1 @@
+Calibrate the switch gain and predict the critical two-film measurements in /app/README.md. Replace the straight-wall approximation with the magnetic correlations and equilibrium populations for each seam condition. Implement Model in /app/model.py.
