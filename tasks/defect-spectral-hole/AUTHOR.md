@@ -1,0 +1,13 @@
+# Defect spectral-hole echo
+
+The fluctuator model follows the discrete, bistable dephasing mechanism studied by Paladino et al. The two emitters, Gaussian quenched couplings, slits and kicks specify this benchmark's idealized apparatus. [Paladino et al., Phys. Rev. Lett. 88, 228304 (2002)](https://doi.org/10.1103/PhysRevLett.88.228304)
+
+For one pocket let H be a defect's sum of signed kick areas along a telegraph history starting at +1. The probability of the same sign across an interval t is (1+exp(−2 gamma t))/2. With Fourier convention E[exp(ikX−iS)], the joint characteristic at fixed Poisson mean lambda is
+
+    G(k) = exp{lambda [E_H exp(−sigma² (k−H)² / 2) − 1]}.
+
+Setting H = 0 gives the preparation spectrum. An empty pocket contributes the same atom exp(−lambda) to the ordinary and Ramsey-weighted measures. The oracle inverts the remaining smooth transforms by FFT for each of the three pockets. It then sums the consequences of empty pockets at fixed measured coordinates. On the two-dimensional component this is a sum of the three terms with one empty pocket plus an integral over the shared Stark shift when all three pockets are occupied. On a line it retains only its one occupied pocket. An equal-width square slice through a line (a,b)t samples a length in t of 2 epsilon / max(|a|,|b|). The origin selects empty samples. Whenever different domains or absolute-value branches describe the same readout, the smallest power of epsilon present sets the conditional ensemble. Average the raw count and complex coherence over that ensemble before normalization.
+
+The private calculation conditions directly on Poisson occupancies n and the multinomial histogram of individual defect histories. At a fixed initial pocket sum x, the kick phase is Gaussian with mean x sum(H)/n and variance sigma² [sum(H²) − sum(H)²/n]. For each set of occupied pockets, least squares determines whether their fields can reach the meter reading and gives the dimensionality. For three occupied pockets, an SVD parameterizes the one-dimensional remaining freedom under the two exact constraints. Independent Poisson sums and quadrature supply the targets. The public example also follows by thinning its overlap into independent flipped and unflipped populations at the one kick time.
+
+Run `OPENBLAS_NUM_THREADS=1 python scripts/validate_defect_spectral_hole.py` from the repository root to reproduce all targets and controls. The complete shortcut samples a fresh independent cooldown at readout, with exact discrete spectra and dynamics at preparation and readout separately. The public starter uses the exact two-time covariance and Gaussian conditioning. Both fit the blank visibility.

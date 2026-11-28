@@ -1,0 +1,1 @@
+At fixed occupancies and fixed defect flip histories, the initial Stark shifts and accumulated phase are jointly Gaussian. The occupancy sum can also be performed in Fourier space. Consider what happens to the preparation probability as both slit widths shrink if one or more pockets are empty.
