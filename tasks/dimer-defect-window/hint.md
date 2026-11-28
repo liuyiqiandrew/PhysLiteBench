@@ -1,0 +1,1 @@
+A Kasteleyn orientation must apply to the lattice of *available* sites, including the faces formed by vacancies. The parity signal is the partition sum with signs reversed on all probed bonds, divided by the physical partition sum. Small-rank Pfaffian updates evaluate this ratio without assigning an independent occupation to each bond.
