@@ -39,70 +39,70 @@ def literal(n,links,src):
     return hist,seen
 
 
-@lru_cache(maxsize=32)
-def parents(links,n,s):
+@lru_cache(maxsize=48)
+def oriented(tracks,n,src):
     from itertools import product
-    choices=[[(None,None)] if j==s else [] for j in range(n)]
-    for e,(a,b,l) in enumerate(links):
-        if a>=0 and a!=s:choices[a].append((b,e))
-        if b>=0 and b!=s:choices[b].append((a,e))
-    arr=[]
-    for assignment in product(*choices):
-        depth=[]
-        for x in range(n):
-            visited=set();d=0;z=x
-            while z not in (s,-1) and z not in visited:
-                visited.add(z);z,e=assignment[z];d+=links[e][2]
-            if z in visited:break
-            depth.append(d if z==s else None)
-        else:
-            kept=set(e for z,e in assignment if e is not None)
-            w=1./np.prod([links[e][2] for e in kept])
-            arr.append((depth+[None],kept,w))
-    return arr
+    branches=[[] for j in range(n)]
+    for e,(i,j,*tail) in enumerate(tracks):
+        if i>=0:branches[i].append((j,e))
+        if j>=0:branches[j].append((i,e))
+    R=[l*(1/c+1/d)/2 for i,j,l,c,d in tracks]
+    def collect(roots):
+        allowed=[[(None,None)] if i in roots else ls for i,ls in enumerate(branches)]
+        for perm in product(*allowed):
+            dist=[]
+            for i in range(n):
+                history=set();k=i;t=0.
+                while k not in roots and k not in history:
+                    history.add(k);k,e=perm[k];t+=tracks[e][2]
+                if k in history:break
+                dist.append(t if k==src else None)
+            else:
+                feats={e for k,e in perm if k is not None}
+                yield dist+[None],feats,1./np.prod([R[e] for e in feats])
+    Z=sum(w for ds,kept,w in collect({-1}))
+    return [(ds,kept,w/Z) for ds,kept,w in collect({-1,src})]
 
 
-def finite(q,rate,N):
+def finite_mass(q,d,N,rate):
     from itertools import product
-    links=tuple(map(tuple,q["tracks"]));src=q["drive"]
+    tracks=tuple(map(tuple,d['tracks']));src=q['drive']
     num=den=0.
-    for depth,kept,wt in parents(links,q["sites"],src):
-        # The coarse forest is oriented towards its two roots. Place the
-        # omitted bond on each other track of N*l physical steps.
-        cuts={}
-        for i,(a,b,l) in enumerate(links):
-            if i in kept:continue
-            ns=N*l
-            bounds={0,ns}
-            for e,r in q["pickup"]:
-                if i==e:bounds.add(round(r*ns))
-            if src==a:bounds.add(1)
-            if src==b:bounds.add(ns-1)
-            h=sorted(bounds)
-            cuts[i]=[(y,(y-x)/ns) for x,y in zip(h,h[1:])]
-        for pattern in product(*cuts.values()):
-            cut={e:j for e,(j,p) in zip(cuts,pattern)}
-            w=wt*np.prod([p for j,p in pattern])
-            closed=[]
-            for e,j in cut.items():
-                a,b,l=links[e]
-                if (src==a and j==1 and depth[b] is None or
-                    src==b and j==N*l and depth[a] is None):
-                    closed.append(e)
-            if q["class"]=="last" and not closed:continue
-            if q["class"]=="port" and not set(closed).intersection(q["ports"]):continue
+    for dep,kept,weight in oriented(tracks,q["sites"],src):
+        cats={}
+        for e,(i,j,l,c,d2) in enumerate(tracks):
+            if e in kept:continue
+            length=l*N
+            bounds={0,length//2,length}
+            if i==src:bounds.add(1)
+            if j==src:bounds.add(length-1)
+            for k,r in q["pickup"]:
+                if k==e:bounds.add(round(r*length))
+            b=sorted(bounds)
+            cats[e]=[(y,(y-x)/(c if y<=length//2 else d2)/(length*(1/c+1/d2)/2))
+                     for x,y in zip(b,b[1:])]
+        for seq in product(*cats.values()):
+            cuts={e:y for e,(y,p) in zip(cats,seq)}
+            returned=0
+            for e,jcut in cuts.items():
+                a,b,l,c,d2=tracks[e]
+                if a==src and dep[b] is None and jcut==1:returned+=c
+                if b==src and dep[a] is None and jcut==l*N:returned+=d2
+            if returned!=q['deficit']:continue
             ds=[]
             for e,r in q["pickup"]:
-                a,b,l=links[e];m=round(N*l*r)
-                candidates=[]
-                if depth[a] is not None and (e in kept or cut[e]>m):
-                    candidates.append(depth[a]+m/N)
-                if depth[b] is not None and (e in kept or cut[e]<=m):
-                    candidates.append(depth[b]+l-m/N)
-                ds.append(min(candidates) if candidates else None)
+                a,b,l,c,d2=tracks[e];m=round(N*l*r);dist=[]
+                if dep[a] is not None and (e in kept or cuts[e]>m):dist.append(dep[a]+m/N)
+                if dep[b] is not None and (e in kept or cuts[e]<=m):dist.append(dep[b]+l-m/N)
+                ds.append(min(dist) if dist else None)
             g,p=ds
-            if g is None or not q["rounds"][0]<=g<=q["rounds"][1]:continue
-            den+=w*np.exp(-rate*g)
-            if p is not None and q["delay"][0]<=p-g<=q["delay"][1]:
-                num+=w*np.exp(-rate*max(g,p))
+            if g is None or not q['rounds'][0]<=g<=q['rounds'][1]:continue
+            weight_m=weight*np.prod([a for _,a in seq])
+            den+=weight_m*np.exp(-rate*g)
+            if p is not None and q['delay'][0]<=p-g<=q['delay'][1]:num+=weight_m*np.exp(-rate*max(p,g))
+    return np.array([den,num])
+
+
+def finite_joint(q,N,rate):
+    den,num=sum(d["weight"]*finite_mass(q,d,N,rate) for d in q["domains"])
     return num/den

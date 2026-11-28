@@ -3,79 +3,109 @@ from itertools import combinations,product
 import numpy as np
 
 
-@lru_cache(maxsize=48)
-def forests(n,links,src):
-    roots=(src,n)
-    edges=[(i if i>=0 else n,j if j>=0 else n,l) for i,j,l in links]
-    ans=[]
-    for used in combinations(range(len(edges)),n-1):
-        parent=list(range(n+1));parent[n]=src
-        def find(i):
-            while parent[i]!=i:
-                parent[i]=parent[parent[i]];i=parent[i]
+def resistance(e,at=1.):
+    _,_,length,c,d=e
+    return length*(min(.5,at)/c+max(0.,at-.5)/d)
+
+
+@lru_cache(maxsize=128)
+def trees(n,tracks,src):
+    R=np.array([resistance(e) for e in tracks])
+    # Dimensionless macroscopic tree count; the common microscopic factors
+    # cancel between the ordinary and the two-root tree partition functions.
+    G=np.zeros((n,n))
+    for (i,j,*_),r in zip(tracks,R):
+        for p in (i,j):
+            if p>=0:G[p,p]+=1/r
+        if i>=0 and j>=0:G[i,j]-=1/r;G[j,i]-=1/r
+    Z=np.linalg.det(G)
+    out=[]
+    for ids in combinations(range(len(tracks)),n-1):
+        parent=list(range(n+1));parent[-1]=src
+        def root(i):
+            i=i if i>=0 else n
+            while parent[i]!=i:i=parent[i]
             return i
-        for e in used:
-            i,j,_=edges[e];x,y=find(i),find(j)
-            if x==y:break
-            parent[x]=y
+        for e in ids:
+            i,j,*_=tracks[e];a,b=root(i),root(j)
+            if a==b:break
+            parent[a]=b
         else:
             adj=[[] for _ in parent]
-            for e in used:
-                i,j,l=edges[e];adj[i].append((j,l));adj[j].append((i,l))
-            # Distances (in macroscopic parallel rounds) exist only in the source component.
-            dep=[None]*(n+1);dep[src]=0.;todo=[src]
+            for e in ids:
+                i,j,l,*_=tracks[e];adj[i].append((j,l));adj[j].append((i,l))
+            dist=[None]*(n+1);dist[src]=0.;todo=[src]
             while todo:
                 i=todo.pop()
                 for j,l in adj[i]:
-                    if dep[j] is None:dep[j]=dep[i]+l;todo.append(j)
-            missing=set(range(len(edges)))-set(used)
-            exits=[e for e in missing if src in edges[e][:2] and
-                   dep[edges[e][1] if edges[e][0]==src else edges[e][0]] is None]
-            wt=np.prod([edges[e][2] for e in missing],dtype=float)
-            ans.append((edges,dep,missing,exits,wt))
+                    if dist[j] is None:dist[j]=dist[i]+l;todo.append(j)
+            missing=set(range(len(tracks)))-set(ids)
+            exits={}
+            for e in missing:
+                i,j,l,c,d=tracks[e]
+                if i==src and dist[j] is None:exits[e]=c
+                if j==src and dist[i] is None:exits[e]=d
+            out.append((dist,missing,exits,1/np.prod(R[list(ids)])/Z))
+    return out
+
+
+def clocks(q,tracks,dist,missing,src,pins,rate):
+    groups={}
+    for e,r in q["pickup"]:
+        if e in missing:groups.setdefault(e,set()).add(r)
+    opt=[]
+    for e,probes in groups.items():
+        if e in pins:
+            pos=0. if tracks[e][0]==src else 1.
+            opt.append([(e,pos,1.)])
+        else:
+            x=[0.,*sorted(probes),1.]
+            R=resistance(tracks[e])
+            opt.append([(e,(a+b)/2,(resistance(tracks[e],b)-resistance(tracks[e],a))/R)
+                        for a,b in zip(x,x[1:])])
+    den=num=0.
+    for pattern in product(*opt):
+        cut={e:x for e,x,p in pattern}
+        wt=np.prod([p for e,x,p in pattern])
+        times=[]
+        for e,r in q["pickup"]:
+            i,j,l,*_=tracks[e]
+            avail=[]
+            if dist[i] is not None and (e not in cut or r<cut[e]):avail.append(dist[i]+l*r)
+            if dist[j] is not None and (e not in cut or r>cut[e]):avail.append(dist[j]+l*(1-r))
+            times.append(min(avail) if avail else None)
+        g,p=times
+        if g is None or not q["rounds"][0]<=g<=q["rounds"][1]:continue
+        den+=wt*np.exp(-rate*g)
+        if p is not None and q["delay"][0]<=p-g<=q["delay"][1]:num+=wt*np.exp(-rate*max(g,p))
+    return den,num
+
+
+def masses(q,domain,rate):
+    tracks=tuple(map(tuple,domain["tracks"]))
+    src=q["drive"]
+    ans=np.zeros((q['deficit']+1,2))
+    for dist,missing,eligible,w in trees(q["sites"],tracks,src):
+        for count in range(1,len(eligible)+1):
+            for pins in combinations(eligible,count):
+                if sum(eligible[e] for e in pins)!=q["deficit"]:continue
+                p=np.prod([1/(eligible[e]*resistance(tracks[e])) for e in pins])
+                den,num=clocks(q,tracks,dist,missing,src,pins,rate)
+                ans[count]+=w*p*np.array([den,num])
     return ans
 
 
-def signal(q,rate,coarse=False):
-    links=tuple(map(tuple,q["tracks"]))
-    num=den=0.
-    for edges,dep,missing,exits,wt in forests(q["sites"],links,q["drive"]):
-        if q["class"]=="all":
-            pins=[(None,1.)]
-        else:
-            pins=[(e,1. if coarse else 1./edges[e][2]) for e in exits if q["class"]=="last" or e in q["ports"]]
-        for pin,pinweight in pins:
-            cut={}
-            for e,r in q["pickup"]:
-                if e in missing:
-                    key=e
-                    cut.setdefault(key,set()).add(r)
-            choices=[]
-            for key,probes in cut.items():
-                e=key
-                if e==pin:
-                    pos=0. if edges[e][0]==q["drive"] else 1.
-                    choices.append([(key,pos,1.)])
-                else:
-                    v=[0.,*sorted(probes),1.]
-                    choices.append([(key,(a+b)/2,b-a) for a,b in zip(v,v[1:])])
-            for pattern in product(*choices):
-                pos={k:x for k,x,_ in pattern}
-                w=wt*pinweight*np.prod([p for _,_,p in pattern])
-                d=[]
-                for e,r in q["pickup"]:
-                    i,j,l=edges[e]
-                    if e not in missing:
-                        if dep[i] is None:t=None
-                        else:t=min(dep[i]+r*l,dep[j]+(1-r)*l)
-                    elif r<pos[e]:
-                        t=None if dep[i] is None else dep[i]+r*l
-                    else:
-                        t=None if dep[j] is None else dep[j]+(1-r)*l
-                    d.append(t)
-                g,p=d
-                if g is None or not q["rounds"][0]<=g<=q["rounds"][1]:continue
-                den+=w*np.exp(-rate*g)
-                if p is not None and q["delay"][0]<=p-g<=q["delay"][1]:
-                    num+=w*np.exp(-rate*max(g,p))
+def signal(q,rate,reprepare=False):
+    bins=np.zeros((q["deficit"]+1,2))
+    averages=norm=0.
+    for d in q["domains"]:
+        vals=masses(q,d,rate)
+        bins+=d["weight"]*vals
+        if reprepare:
+            live=np.flatnonzero(vals[:,0])
+            if len(live):
+                a,b=vals[live[0]]
+                averages+=d["weight"]*b/a;norm+=d["weight"]
+    if reprepare:return averages/norm
+    den,num=bins[np.flatnonzero(bins[:,0])[0]]
     return num/den

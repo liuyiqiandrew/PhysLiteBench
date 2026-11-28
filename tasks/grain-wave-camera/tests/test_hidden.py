@@ -29,6 +29,6 @@ def test_calibration(errors):
     assert 0.09 <= errors["rate"] <= 0.24 and errors["calibration"] < 0.000002
 
 
-@pytest.mark.parametrize("group", ["all", "last", "port"])
+@pytest.mark.parametrize("group", ["one_grain", "competing", "multiple"])
 def test_grain_wave(errors, group):
     assert errors[group] < 0.004

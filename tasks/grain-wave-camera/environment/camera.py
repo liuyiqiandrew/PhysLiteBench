@@ -11,12 +11,13 @@ class Camera:
     def measure(self,q):
         # Travel along open tracks from the drive on the full undamaged graph.
         graph=np.zeros((q["sites"],q["sites"]))
-        for a,b,l in q["tracks"]:
+        tracks=q["domains"][0]["tracks"]
+        for a,b,l,_,_ in tracks:
             if min(a,b)>=0:graph[a,b]=graph[b,a]=l
         d=dijkstra(graph,indices=q["drive"])
         t=[]
         for e,r in q["pickup"]:
-            a,b,l=q["tracks"][e]
+            a,b,l,_,_=tracks[e]
             t.append(min(d[a]+r*l if a>=0 else np.inf,d[b]+(1-r)*l if b>=0 else np.inf))
         g,p=t
         return float(q["delay"][0]<=p-g<=q["delay"][1])*np.exp(-self.rate*max(0,p-g))
