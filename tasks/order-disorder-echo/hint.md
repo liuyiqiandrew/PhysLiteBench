@@ -1,0 +1,1 @@
+Each pulse preserves P. In a Jordan–Wigner representation both operators are ordered products of Majoranas, but one starts on a site and the other on an exchange bond. The physical spin-flip sector fixes the fermion boundary condition and the occupation of a periodic zero-energy mode. Keep the complex propagation time in cross-pulse contractions.
