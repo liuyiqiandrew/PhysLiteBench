@@ -1,8 +1,9 @@
-"""Exact bulk and phase means, with the two local probes sampled independently inside a phase."""
+"""Use the applied-field illumination of each port to collect its local noise."""
 from meter import Meter
-from duality import signal
+from film import signal
+from noise import voltage
 
 
 class Model(Meter):
     def read(self, q):
-        return signal(q, self.gain, independent=True)
+        return voltage(q, self.gain, adjoint=False) if q["mode"] == "noise" else signal(q, self.gain)

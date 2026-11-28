@@ -40,24 +40,23 @@ def experiments(q, scale, field, drive):
     return -1j * f, c, e, [electric(np.ones(2)), electric(c * c)]
 
 
-def signal(q, scale, independent=False):
+def phase_product(first, second, phase):
+    """Whole-cell phase contribution to the matrix ⟨conj(E_i) E'_j⟩."""
+    (_, c, e, L), (_, d, g, M) = first, second
+    raw = np.outer(e.conj(), g)
+    ratio = np.outer(c, d)
+    part = raw.real / (c[:, None] + d[None, :]) + 1j * raw.imag / (1 + ratio)
+    if phase == 0:
+        part *= ratio
+    return L[phase].conj() @ part @ M[phase].T
+
+
+def signal(q, scale):
     if q["mode"] == "bulk":
         current = experiments(q, scale, q["bias"], q["drive"])[0]
-        return float((np.exp(-1j * q["angle"]) * np.dot(q["contact"], current)).real)
-    p = q["phase"]
-    results = [experiments(q, scale, b, e) for b, e in zip(q["bias"], q["drives"])]
-    (_, c, e, L), (_, d, g, M) = results
-    left = np.asarray(q["contacts"][0]) @ L[p]
-    right = np.asarray(q["contacts"][1]) @ M[p]
-    if independent:
-        a = left @ ((c if p == 0 else 1.0) * e / (1 + c))
-        b = right @ ((d if p == 0 else 1.0) * g / (1 + d))
-        total = 2 * a.conjugate() * b
+        measured = np.dot(q["contact"], current)
     else:
-        raw = np.outer(e.conj(), g)
-        ratio = np.outer(c, d)
-        part = raw.real / (c[:, None] + d[None, :]) + 1j * raw.imag / (1 + ratio)
-        if p == 0:
-            part *= ratio
-        total = left.conj() @ part @ right
-    return float((np.exp(-1j * q["angle"]) * total).real)
+        first, second = [experiments(q, scale, b, e) for b, e in zip(q["bias"], q["drives"])]
+        u, v = np.asarray(q["contacts"])
+        measured = u @ phase_product(first, second, q["phase"]) @ v
+    return float((np.exp(-1j * q["angle"]) * measured).real)

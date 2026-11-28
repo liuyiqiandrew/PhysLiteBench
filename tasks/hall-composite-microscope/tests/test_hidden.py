@@ -30,6 +30,6 @@ def test_fit(metrics):
     assert metrics["max_absolute_error"]["calibration"] < 2e-6
 
 
-@pytest.mark.parametrize("family", ["bulk", "field_power", "cross_bias", "circulation"])
+@pytest.mark.parametrize("family", ["bulk", "field_power", "cross_bias", "circulation", "thermal_equilibrium", "split_baths", "bias_quench"])
 def test_film(family, metrics):
     assert metrics["max_absolute_error"][family] < 0.002

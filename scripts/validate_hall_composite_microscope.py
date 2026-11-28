@@ -8,7 +8,10 @@ TASK = ROOT / "tasks/hall-composite-microscope"
 sys.path[:0] = [str(TASK / "solution"), str(TASK / "environment"), str(TASK / "tests")]
 from meter import homogeneous
 from laminate import probe
-from duality import signal
+from film import signal
+from noise import voltage
+from hall_composite_noise_checks import shots as noise_shots, checks as noise_checks
+from laminate import noise_probe
 
 GAIN = 0.8736
 
@@ -117,6 +120,7 @@ def shots():
                 )
             )
         groups[family] = group
+    groups.update(noise_shots([d["materials"] for qs in groups.values() for d in qs]))
     return training, groups
 
 
@@ -188,10 +192,11 @@ def checks():
 
 def main(generate):
     checks()
+    noise_checks(sample()["materials"])
     training, groups = shots()
     cal = [dict(input=q, value=round(homogeneous(q, GAIN), 8)) for q in training]
     truth = {
-        g: [dict(input=q, value=round(probe(q, GAIN), 8)) for q in qs]
+        g: [dict(input=q, value=round(noise_probe(q, GAIN) if q["mode"] == "noise" else probe(q, GAIN), 8)) for q in qs]
         for g, qs in groups.items()
     }
     for path, rows in [
@@ -218,11 +223,10 @@ def main(generate):
             assert max(errors.values()) < 2e-7
         else:
             assert (
-                min(errors[g] for g in ("field_power", "cross_bias", "circulation"))
+                min(errors[g] for g in ("split_baths", "bias_quench"))
                 > 0.002
             )
-        if name == "control":
-            assert errors["bulk"] < 2e-7
+        assert max(errors[g] for g in ("bulk", "field_power", "cross_bias", "circulation", "thermal_equilibrium")) < 2e-7
     q = sample()
     for angle in (0.0, np.pi / 2):
         for p in (0, 1):
@@ -232,7 +236,10 @@ def main(generate):
             assert abs(value - probe(shot, 0.94, steps=14)) < 1e-11
     for family, qs in groups.items():
         for q in qs:
-            assert abs(probe(q, GAIN, steps=12) - signal(q, GAIN)) < 1e-10
+            if q["mode"] == "noise":
+                assert abs(noise_probe(q, GAIN, steps=12) - voltage(q, GAIN)) < 1e-10
+            else:
+                assert abs(probe(q, GAIN, steps=12) - signal(q, GAIN)) < 1e-10
 
 
 if __name__ == "__main__":
