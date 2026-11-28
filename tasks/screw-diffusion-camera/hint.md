@@ -1,0 +1,1 @@
+Follow the camera direction in the body frame and use a spatial Fourier mode along the camera axis. Moving the material origin to the tag changes the translational part of each rotational screw. The same orientational propagator carries information from the first exposure into the second.

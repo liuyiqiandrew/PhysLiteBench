@@ -1,0 +1,1 @@
+Implement Model in /app/model.py for the two-pulse microscope described in /app/README.md. Use the rotational calibrations to fit the solvent mobility and predict the fringe of the tagged point among accepted particles.
