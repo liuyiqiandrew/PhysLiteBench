@@ -1,0 +1,1 @@
+Predict a time-gated image of toppling waves on long granular tracks. The controls resolve all waves, only the last wave of each avalanche, or a last wave with a missing return on selected tracks. Fit the shutter rate and implement Model in /app/model.py. Use the recurrent pile ensemble and the long-track limit specified in /app/README.md.

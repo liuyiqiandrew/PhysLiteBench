@@ -1,0 +1,1 @@
+Each stationary wave corresponds to a forest with components rooted at the drive and at the drain. A site's parallel toppling time is its depth in the drive tree. On a long track omitted from the coarse forest, one microscopic bond is absent. Retaining a final wave probes the location of that missing bond next to the drive.
