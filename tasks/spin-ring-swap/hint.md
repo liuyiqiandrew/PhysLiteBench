@@ -1,0 +1,1 @@
+For separated spin blocks the Jordan–Wigner strings pass through the unexchanged gaps. Keeping the parity of every gap in both copies makes their action on a physical spin exchange explicit. Sum raw sector traces consistent with the actual meter records.
