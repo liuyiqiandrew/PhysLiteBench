@@ -1,52 +1,35 @@
+"""Killed interval modes after the Brownian-bridge change of coordinate."""
 import numpy as np
-from scipy.integrate import trapezoid
+from scipy.special import roots_legendre
+from meter import windows
+
+r,w=roots_legendre(36)
+j=np.arange(1,80)
+m=np.pi*j
 
 
-def single(wall,gain,s,T,times,load):
-    v,k,scale=wall
-    D=gain*scale
-    root=np.sqrt(k*k+4*D*s)
-    low=2*s/(root+k)
-    gap=root/D
-    def propagate(u,dt):
-        q=np.exp(-root*dt)
-        den=1+(u-low)*(-np.expm1(-root*dt))/gap
-        return low+(u-low)*q/den, q/den**2
-    # Infinite terminal Laplace load selects an already extinct wall.
-    dt=T-times[-1]
-    em=np.exp(-root*dt)
-    u=low+gap*em/(1-em)
-    ut=-gap*root*em/(1-em)**2
-    # The stable root includes all motion after the final flash for an unrestricted wall.
-    free=low
-    for j in range(len(times)-1,-1,-1):
-        dt=times[j]-(times[j-1] if j else 0)
-        u,sensitivity=propagate(u+load[j],dt)
-        ut*=sensitivity
-        free,_=propagate(free+load[j],dt)
-    dead=np.exp(-v*u)
-    return dead,-v*ut*dead,np.exp(-v*free)
-
-
-def transform(q,g,s,load):
-    flashes=np.array(q["flashes"])
-    law=[single(w,g,s,q["time"],flashes[:,0],load[:,i]) for i,w in enumerate(q["walls"])]
-    idx=(0,1) if q["identity"]=="blind" else (q["identity"],)
-    result=0
-    for i in idx:
-        dead,_,free=law[1-i]
-        other=dead if q["trigger"]=="last" else free-dead
-        result+=law[i][1]*other
-    return result
-
-
-def measure(q,g):
-    S=q["size"]
-    h=.25
-    freq=np.arange(0,1000.+h,h)
-    s=1.6+1j*freq
-    phase=np.exp(1j*freq*S)
-    load=np.array(q["flashes"])[:,1:]
-    def invert(weights):
-        return trapezoid((phase*transform(q,g,s,weights)).real,dx=h)
-    return invert(load)/invert(0*load)
+def measure(q,D):
+    a,b,g=windows(q)
+    (u,k),(v,h)=q["walls"]
+    low=lambda x:k*x-u
+    width=lambda x:v-h*(q["length"]-x)-low(x)
+    def clock(x):
+        return (x-a)/(width(a)*width(x))
+    def modes(x,lo,hi):
+        lo=max(0.,(lo-low(x))/width(x))
+        hi=min(1.,(hi-low(x))/width(x))
+        p=(hi+lo)/2+(hi-lo)*r/2
+        return np.sin(np.outer(m,p)),w*(hi-lo)/2
+    def decay(t):
+        return np.exp(-D*m*m*t)
+    def run(intervals):
+        # Entrance at the upper edge and absorption at the lower edge.
+        c=(-1.)**(j+1)*m
+        last=0.
+        for x,lo,hi in sorted(intervals):
+            t=clock(x)
+            H,wt=modes(x,lo,hi)
+            c=2*(H@(wt*((c*decay(t-last))@H)))
+            last=t
+        return np.sum(c*decay(clock(b)-last)*m)
+    return run(g)/run(g[:1])

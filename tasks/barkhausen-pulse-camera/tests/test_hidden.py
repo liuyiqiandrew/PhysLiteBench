@@ -26,9 +26,9 @@ def errors():
 
 
 def test_calibration(errors):
-    assert 0.72 <= errors["diffusivity"] <= 1.12 and errors["calibration"] < 0.000002
+    assert 0.38 <= errors["diffusivity"] <= 0.70 and errors["calibration"] < 0.000002
 
 
-@pytest.mark.parametrize("group", ["first", "last", "resolved"])
-def test_silent_flashes(errors, group):
+@pytest.mark.parametrize("group", ["forward", "reverse", "mixed"])
+def test_speed_gates(errors, group):
     assert errors[group] < 0.004
