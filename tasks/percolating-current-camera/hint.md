@@ -1,0 +1,1 @@
+Introduce a weight for every distinct conducting cluster of the chosen homology, then evaluate that count-generating function at the characteristic function of one signed tag. Each such conductor has two noncontractible boundary loops. Project the common signed current onto the observed residue before dividing by the accepted weight.

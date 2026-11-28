@@ -1,0 +1,15 @@
+# Winding-current camera
+
+An isotropic square-lattice bond film is made periodic by identifying sites separated by (N,0) or (N s,N r). Bonds in the horizontal and vertical lattice directions are open independently with probability 1/2. Take N to infinity through multiples of 8. The settings are aspect r in {1.25,2,3} and shear s in {−0.25,0,0.25,0.375}. A closed path returning to its starting site winds (a,b) if its displacement on the infinite covering lattice is a(N,0)+b(Ns,Nr).
+
+Select films on which the winding vectors of all open paths that close on the torus span one integer direction. This rejects films with no winding and films winding in two independent directions. The primitive vector (a,b) has coprime entries, oriented with a>0 or, for a=0, b>0. Several **distinct** open-bond clusters can wrap in this same direction; contractible clusters are silent.
+
+Each winding cluster takes an independent tag ε = +1 or −1, once for the entire readout. Conditional on its winding vector the mean tag is tanh[g(a hₓ+b hᵧ)], where the input `bias` is [hₓ,hᵧ] and g is a common poling gain in [0.7,1.1]. Each distinct winding cluster contributes exactly ε(a,b) to the integrated two-channel pickup J. Count the cluster once regardless of how many edges or winding circuits it contains. The finite film and its tags are common to both meters. Each film supplies at most one exposure.
+
+The first pickup is `gate=[x,y,m,c]`; it retains an exposure when x J₁ + y J₂ has remainder c modulo m. The second meter reads cos(phase + p₁ J₁ + p₂ J₂), with `probe=[p₁,p₂]`. Return the mean second-meter reading among retained exposures. The indices x and y are integers in [−2,2], m in {2,3,4,5}, and c in {0,…,m−1}. Angles use radians with absolute values ≤π. The bias components have absolute values ≤1. Operating gates retain at least 0.015 of the direction-selected film ensemble.
+
+The public helper supplies unnormalized critical winding-direction weights for the one-direction ensemble. Its normalization cancels in the pickup ratio. It fits the gain and performs the discrete modular projection. Its one-cluster approximation uses one tagged cluster on every retained film. The microscopic bond law above defines the full cluster multiplicities.
+
+For r=3, s=0, zero bias, `gate=[1,0,2,0]`, `probe=[1.1,0.83]`, and phase 0.2, the mean is 0.21539701. Assigning one tag to the entire winding direction gives the single-cluster approximation 0.54671606. Keeping the correct number of clusters but forcing all their tags to agree gives −0.53179607.
+
+Calibration measures the mean polarity of a single test loop at input `field`. It has mean tanh(g field). Each entry of data/calibration.json contains an `input` and a dimensionless `value` rounded to nine decimals. Model.fit(records) stores g in self.gain and returns self. Model.predict(inputs) returns a finite numeric NumPy vector in input order, including an empty vector for an empty list. The maximum absolute error must be below 0.000002 for calibration and below 0.004 for each neutral, nonzero-residue and oblique modular-pickup set.
