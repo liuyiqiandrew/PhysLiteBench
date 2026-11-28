@@ -1,0 +1,9 @@
+# Merged depth glass marks
+
+A frozen landscape is a tree of depth four. At depth j each node at depth j−1 has floor(exp(N s_j)) children. A branch to depth j has an independent centered Gaussian energy with variance N gain² v_j and an independent binary mark equal to +1 or −1 with equal prior probability. The arrays `entropies` and `variances` give the positive s_j and v_j in the stated order. The ratios s_j/v_j are allowed to decrease with depth.
+
+The energy of a leaf is its sum of branch energies minus the sum of h_j times its four branch marks. The entries of `fields` are the four h_j and are fixed as N grows. In a `marked_record`, use the same frozen tree for all draws at `inverse_temperature`. All such records are below the freezing temperature of the last thermodynamic level.
+
+Make one independent Gibbs draw per row of `record`. For any pair of rows, require that their drawn paths share exactly as many initial branches as the matching initial segment of their rows. The integer symbols only specify that relation. The same branch carries the same fixed mark for every draw that traverses it. A nonzero entry of `mark_filter` requires mark +1 or −1 on the branch at that depth for that row. A zero allows either mark. Return the joint probability satisfying every prefix and mark requirement, averaging over the frozen landscapes and taking N to infinity.
+
+For the separate `energy_density` calibration use zero fields and the specified high-temperature inverse_temperature. Return the mean Gibbs energy divided by N, averaged over disorder. Fit the common gain in [0.60,1.34]. Implement `Model.fit(records)` and `Model.predict(experiments)` in `model.py`. Each calibration record contains `input`, `value` and `sigma`. Store the fitted value as `self.gain` and return one finite scalar per supplied input in order.

@@ -1,0 +1,14 @@
+# Microcanonical sibling spectroscopy
+
+A sample of size N has floor(exp(N ratio*v_0)) families and floor(exp(N ratio*v_1)) sites per family. The `variances` array gives v_0,v_1. Draw a centered Gaussian X of variance N gain² v_0 for each family. Draw an independent centered Gaussian Y of variance N gain² v_1 for each site. All these Gaussian variables are independent except for the common family energy used by its sites. Put V=v_0+v_1, c=sqrt(2*ratio)/gain and
+
+    R = (X − v_0*(X+Y)/V)/sqrt(N),
+    U = X+Y−field*R + N gain sqrt(2*ratio)*V − log(N)/(2*c).
+
+Use the actual gain in defining U. A site's availability is the event that U is in the supplied `shell` window. If at least one site is available, microcanonical draws are uniform among the available site identities in that same frozen sample. There is no Gibbs weight inside that window.
+
+For `shell_available` return the ensemble probability that at least one site is available. For `sibling_spectrum`, take one independent microcanonical draw per entry of `sibling_bands`. The two to four drawn sites must be distinct and must all use one common actual family. Require each of their U readings in the corresponding sibling band. The common family's X+N gain sqrt(2*ratio)*v_0 must be in `parent_window`. Next take one microcanonical draw per entry of `other_bands`, between zero and two draws. Those families must be mutually distinct and different from the common family. Each other_bands entry gives [U band,R band] for that draw. Draws do not change the sample or remove sites. With `conditioning` equal to `all_samples`, empty shells contribute zero probability. With conditioning equal to `nonempty`, use the mean over samples with nonempty shells. Return sqrt(N) times the resulting exact event probability.
+
+Take N to infinity after applying all finite-sample rules. Main inputs have exactly `observable`, `variances`, `ratio`, `field`, and `shell`, with the four additional keys parent_window, sibling_bands, other_bands, and conditioning for sibling_spectrum. The bins are increasing two-entry intervals with null signifying an unbounded side, apart from shell which is finite, nonempty and has endpoints in [−1.6,2.1]. Non-null bounds of other windows lie in [−3,3], ratio in [.41,1.15], variances in [.42,1.24], and field in [−1.25,1.25].
+
+For `warm_energy` calibration turn off field and all spectral restrictions. Return the thermodynamic-limit mean unperturbed Gibbs energy per N at the high-temperature `inverse_temperature`. The input has exactly observable, variances, ratio and inverse_temperature. Fit gain in [.68,1.33]. Calibration rows contain `input`, `value`, and a positive Gaussian standard deviation `sigma`. Implement `Model.fit(records)` to store `self.gain` and return self. Implement `Model.predict(experiments)` to return a one-dimensional NumPy array in supplied order, including an empty array for empty input.

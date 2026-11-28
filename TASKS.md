@@ -1,6 +1,6 @@
 # Task physics
 
-The current set contains thirteen snapshots: ten locally qualified October 11 tasks and three imported additions. See the [full roster and evaluation status](README.md), [thirteen-task manifest](results/task-roster.json), unchanged [ten-task qualification manifest](results/qualified-tasks.json), and [reviewed local evidence](results/qualification-20261011). Entropy anomaly R9, magnetic tracer R9, reaction–diffusion R10, rotating reservoir R11 and superconducting heat R11 replace five earlier revisions. Each public README defines the apparatus and API; AUTHOR.md gives the derivation. Historical outcome paragraphs below refer to their original batches.
+The [active roster](results/task-roster.json) contains 30 evaluated snapshots. Each public README defines its apparatus and API, and AUTHOR.md gives the derivation. October outcomes below refer to their original batches.
 
 The hierarchical-glass task compares a quenched two-level Gaussian tree with an independent-coordinate approximation that has the same warm caloric law. It measures common-parent, common-state and exact labelled leaf partitions for two through six replicas. Selection of a parent reweights its descendants by a fractional power of the subtree partition sum; ignoring this correlation caused all three reviewed failures.
 
@@ -22,14 +22,36 @@ The original ten task instructions permit replacing all implementation code; nin
 | hard-rod-current | Rare currents select an atypically short block of crossed rods; using only global mean composition loses the annealed mixture fluctuation. | [README](tasks/hard-rod-current/environment/README.md) | [AUTHOR](tasks/hard-rod-current/AUTHOR.md) |
 | finite-ion-cloud | Three pair angles share three particle positions; independently averaging equilibrium pair angles misses angular frustration and finite-cell pressure. | [README](tasks/finite-ion-cloud/environment/README.md) | [AUTHOR](tasks/finite-ion-cloud/AUTHOR.md) |
 
+## November additions
+
+| Task | Physical issue | Derivation |
+|---|---|---|
+| [Weak-field condensate coincidences](tasks/weak-field-condensate-coincidences/environment/README.md) | A volume-scaled splitting biases the occupied condensate modes, whose coherent rotations affect same-shot coincidences. | [Author notes](tasks/weak-field-condensate-coincidences/AUTHOR.md) |
+| [Magnetization-constrained condensate](tasks/magnetization-constrained-condensate/environment/README.md) | Exact magnetization couples thermal saturation to the populations and phases seen after a mixing pulse. | [Author notes](tasks/magnetization-constrained-condensate/AUTHOR.md) |
+| [Switched axis heat tails](tasks/switched-axis-heat-tails/environment/README.md) | Ordered trap changes and endpoint heat terms determine the calorimeter's tails. | [Author notes](tasks/switched-axis-heat-tails/AUTHOR.md) |
+| [Two-charge condensate fringes](tasks/two-charge-condensate-fringes/environment/README.md) | Two fixed charges constrain the ground-mode sharing after thermal excitation. | [Author notes](tasks/two-charge-condensate-fringes/AUTHOR.md) |
+| [Band-edge emitter memory](tasks/band-edge-emitter-memory/environment/README.md) | Band-edge continuum and discrete spectral components jointly determine the return amplitude. | [Author notes](tasks/band-edge-emitter-memory/AUTHOR.md) |
+| [Marked branch glass overlap](tasks/marked-branch-glass-overlap/environment/README.md) | Shared branching labels propagate the Gibbs selection bias to both overlap depths. | [Author notes](tasks/marked-branch-glass-overlap/AUTHOR.md) |
+| [Shared-field glass families](tasks/shared-field-glass-families/environment/README.md) | Two fields change weights of the same frozen families and retain correlated draw probabilities. | [Author notes](tasks/shared-field-glass-families/AUTHOR.md) |
+| [Merged depth glass marks](tasks/merged-depth-glass-marks/environment/README.md) | Depths that freeze jointly change the effective random measure of the descendant branches. | [Author notes](tasks/merged-depth-glass-marks/AUTHOR.md) |
+| [Critical glass bridge marks](tasks/critical-glass-bridge-marks/environment/README.md) | Gaussian bridge feasibility and Gibbs tilting constrain paired critical-state marks. | [Author notes](tasks/critical-glass-bridge-marks/AUTHOR.md) |
+| [Coexisting frozen landscapes](tasks/coexisting-frozen-landscapes/environment/README.md) | Both phase partition sums compete in the same quenched normalization. | [Author notes](tasks/coexisting-frozen-landscapes/AUTHOR.md) |
+| [Two phase sites in selected families](tasks/two-phase-sites-in-selected-families/environment/README.md) | Phase mass within a selected family governs repeated-site probabilities as well as single-draw rates. | [Author notes](tasks/two-phase-sites-in-selected-families/AUTHOR.md) |
+| [Spectral hole feedback](tasks/spectral-hole-feedback/environment/README.md) | A Gibbs draw changes the posterior family populations that govern the next pulse. | [Author notes](tasks/spectral-hole-feedback/AUTHOR.md) |
+| [Double critical sibling cloud](tasks/double-critical-sibling-cloud/environment/README.md) | The ordinary cloud obeys cumulative Gaussian constraints and shares a normalizer with a rare family. | [Author notes](tasks/double-critical-sibling-cloud/AUTHOR.md) |
+| [Critical crossed address echo](tasks/critical-crossed-address-echo/environment/README.md) | A rare row and column contribute both strips and their intersection to the Gibbs mass. | [Author notes](tasks/critical-crossed-address-echo/AUTHOR.md) |
+| [Commensurate critical domain echo](tasks/commensurate-critical-domain-echo/environment/README.md) | Discrete addressed energies coexist with a cumulatively constrained ordinary Gaussian cloud. | [Author notes](tasks/commensurate-critical-domain-echo/AUTHOR.md) |
+| [Microcanonical sibling spectroscopy](tasks/microcanonical-sibling-spectroscopy/environment/README.md) | The count-normalized spectrum includes only ordinary extreme sites on the feasible bridge half-line. | [Author notes](tasks/microcanonical-sibling-spectroscopy/AUTHOR.md) |
+| [Aperture-selected critical roots](tasks/aperture-selected-critical-roots/environment/README.md) | Separate aperture-restricted Gibbs laws share a rare root and allow negative increments within feasible paths. | [Author notes](tasks/aperture-selected-critical-roots/AUTHOR.md) |
+
 The rows describe the installed revisions; the dashboard distinguishes original qualification from fresh confirmation. The three additions originally scored 0/3 each, while their fresh confirmation scored 1/3 for swirling heat tails and 0/3 for the other two. One finite-ion-cloud failure combines physical and mathematical errors. Earlier one-line descriptions of entropy anomaly, rotating reservoir and superconducting heat are preserved in the [pre-single-file documentation archive](archives/pre-singlefile-promotion/TASKS.md).
 
-Two folders under `tasks/` are inherited from the base branch and are not in the thirteen-task roster:
+The following inherited candidate folders are retained in the archive.
 
 | Inherited folder | Physical issue | Public apparatus | Derivation and validation |
 |---|---|---|---|
-| hydrodynamic-heating | Regional heating follows carrier drag dissipation while pressure transports conservative energy. | [README](tasks/hydrodynamic-heating/environment/README.md) | [AUTHOR](tasks/hydrodynamic-heating/AUTHOR.md) |
-| thermoelastic-rod | Mechanical equilibration requires the viscosity-weighted common-stress constraint. | [README](tasks/thermoelastic-rod/environment/README.md) | [AUTHOR](tasks/thermoelastic-rod/AUTHOR.md) |
+| hydrodynamic-heating | Regional heating follows carrier drag dissipation while pressure transports conservative energy. | [README](archives/excluded-inherited-20261127/hydrodynamic-heating/environment/README.md) | [AUTHOR](archives/excluded-inherited-20261127/hydrodynamic-heating/AUTHOR.md) |
+| thermoelastic-rod | Mechanical equilibration requires the viscosity-weighted common-stress constraint. | [README](archives/excluded-inherited-20261127/thermoelastic-rod/environment/README.md) | [AUTHOR](archives/excluded-inherited-20261127/thermoelastic-rod/AUTHOR.md) |
 
 Phoresis revision 2 has three reviewed physical failures in three completed unhinted Luna-high trials. Its [promotion audit](results/zero-three-phoresis-r2-promotion.json) also preserves one started outage interruption and two unstarted setup failures; those are not physics failures. It replaces [electric-dipole-force revision 1](archives/electric-dipole-force-r1), which passed the fresh confirmation 3/3. Source author notes describe the frozen pre-evaluation revision; current outcomes are in the dashboard.
 

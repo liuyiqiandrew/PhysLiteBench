@@ -1,0 +1,7 @@
+# Shared-field glass families
+
+This original experiment develops Gibbs replicas and correlated energy levels from [Princeton's graduate preliminary exams](https://phy.princeton.edu/academics/graduate-program/degree-requirements/preliminary-exams). Changing the field reweights the same frozen families. It leaves the distribution of leaves within any chosen family independent of that change.
+
+The family's effective weights form a marked stable Poisson process with index alpha_0. Its mark-dependent factors at the two fields multiply each of these same jumps. In a joint overlap probability the two partition-function normalizations need two Laplace variables. A factorial moment integral counts the required distinct families, using one factor per specified draw and mark. Factoring out a common radial scale reduces this to a normalized beta-weighted integral on the two time fractions. Conditional leaf overlaps within a selected family use PD(alpha_1,−alpha_0), due to the weighting by the family's own partition function. The completed approximation replaces the separate fields by their common mean weighted by the number of draws.
+
+The oracle uses beta-weighted Gauss quadrature. The independent reference integrates the log ratio with the other variable's radial scale and counts within-family overlaps sequentially. It checks one-field collapse, mark and setting reversal, and direct Poisson simulation of a two-field overlap.

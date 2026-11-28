@@ -16,6 +16,23 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def harbor_command():
+    installed = shutil.which("harbor")
+    if installed and subprocess.run([installed, "--version"], capture_output=True,
+                                    text=True).stdout.strip() == "0.21.0":
+        return [installed]
+    return ["uvx", "--python", "3.13", "harbor@0.21.0"]
+
+
+def restrict_network(task):
+    config = task / "task.toml"
+    content = config.read_text()
+    if "network_mode" in content or content.count("[agent]") != 1:
+        raise ValueError("expected one agent section without an existing network policy")
+    policy = '[agent]\nnetwork_mode = "allowlist"\nallowed_hosts = ["chatgpt.com", "*.openai.com"]'
+    config.write_text(content.replace("[agent]", policy))
+
+
 def save_diffs(job, original):
     for snapshot in job.glob("*/artifacts/app"):
         names = {p.relative_to(snapshot) for p in snapshot.rglob("*") if p.is_file()}
@@ -71,11 +88,10 @@ def main():
         task = Path(tmp) / source.name
         shutil.copytree(source, task, ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", ".git"))
         if args.restricted_network:
-            config = task / "task.toml"
-            content = config.read_text()
-            if "network_mode" in content or content.count("[agent]") != 1:
-                parser.error("restricted-network requires one agent section without an existing network policy")
-            config.write_text(content.replace("[agent]", '[agent]\nnetwork_mode = "allowlist"\nallowed_hosts = ["chatgpt.com", "*.openai.com"]'))
+            try:
+                restrict_network(task)
+            except ValueError as exc:
+                parser.error(str(exc))
         if args.hint:
             hint = source / "hint.md"
             if not hint.is_file():
@@ -84,7 +100,7 @@ def main():
             instruction.write_text(instruction.read_text().rstrip()+"\n\nPhysics hint:\n"+hint.read_text())
         if args.solution_model:
             shutil.copyfile(args.solution_model, task / "solution/model.py")
-        command = ["uvx", "--python", "3.13", "harbor@0.21.0", "run", "-p", str(task),
+        command = [*harbor_command(), "run", "-p", str(task),
                    "-a", args.agent, "--env", "docker", "-n", str(min(args.concurrency, args.trials)),
                    "-k", str(args.trials), "--job-name", name]
         if args.agent == "codex":
@@ -92,6 +108,8 @@ def main():
             command += ["-m", args.model, "--ak", "version=0.154.0",
                         "--ak", f"reasoning_effort={args.reasoning_effort}",
                         "--ae", f"CODEX_AUTH_JSON_PATH={auth}"]
+            if args.restricted_network:
+                command += ["--ak", "web_search=disabled"]
             if args.agent_setup_timeout_multiplier is not None:
                 command += ["--agent-setup-timeout-multiplier", str(args.agent_setup_timeout_multiplier)]
         if sys.platform == "darwin" and shutil.which("caffeinate"):

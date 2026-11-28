@@ -1,6 +1,12 @@
 # Benchmark interface and validation
 
-The current roster contains thirteen source snapshots. The original ten local snapshots are each at 0/3 completed GPT-5.6 Luna High passes with no infrastructure errors. See the [roster](../README.md), [full manifest](../results/task-roster.json), unchanged [ten-task qualification manifest](../results/qualified-tasks.json), and [new qualification evidence](../results/qualification-20261011). Five were retained from the fresh rerun; five received scientific revisions. Every current task file matches its recorded source hash. The earlier qualification and maintenance records below remain historical. The separate frozen five-model comparison covers the original ten only and is documented in the [dashboard](../DASHBOARD.md).
+The [active roster](../results/task-roster.json) contains the original thirteen task snapshots and seventeen November additions. The October [manifest](../results/original-task-roster.json) preserves those selection and confirmation records.
+
+## November qualification
+
+Each addition uses three independent fresh unhinted GPT-5.6 Luna High sessions. All three must finish with zero reward and without run exceptions. At least two failures must be predominantly physical after independent review. The oracle must pass and the completed shortcut must recover calibration and fail hidden physics. The solved task, public data and independent reference have recorded hashes.
+
+The [qualification files](../results/expansion-20261127/README.md) record Harbor 0.21.0, Codex 0.154.0, the OpenAI-only network allowlist, 600 seconds of agent time and 60 seconds of verifier time. The scientific validation uses the frozen calibration and hidden predictions. With NumPy and SciPy available, run `python3 scripts/validate_expansion_tasks.py aperture-selected-critical-roots --draws 0` to check the two completed models against the independent reference. The default runs 256 additional calibration-noise draws.
 
 ## Imported October 11 tasks
 

@@ -1,6 +1,10 @@
 # PhysLiteBench evaluation dashboard
 
-## Current study artifacts
+## Thirty-task release
+
+The 17 November additions each recorded three clean unhinted Luna High zero scores. [Qualification table](results/expansion-20261127/README.md) · [Active roster](results/task-roster.json)
+
+## October study artifacts
 
 [Final presentation](%21PhysLiteBench-FINAL.pptx) · [Unified Python plots and source data](output/presentation-20261014/PhysLiteBench-no-pilot-figures-20261016/README.txt) · [Completed High-effort hint comparison](results/hint-comparison-20261014/FINAL-REPORT.txt) · [DeepSeek execution errors](results/deepseek-failure-review-20261016/diagnosis.json)
 
@@ -22,7 +26,7 @@ The [general/physics hint summary](results/hint-comparison-20261015-005800/summa
 
 ## Qualification and task roster
 
-**October 11, 2026: thirteen tasks are installed; the original ten each have 0/3 completed unhinted GPT-5.6 Luna High passes.** The selected thirty trials have no infrastructure exceptions. Exact evaluated sources are installed in `tasks/`; the [full thirteen-task roster](results/task-roster.json) also records the imported additions below, while [the manifest](results/qualified-tasks.json) and [reviewed evidence](results/qualification-20261011) identify each outcome.
+**October 11, 2026: thirteen tasks are installed; the original ten each have 0/3 completed unhinted GPT-5.6 Luna High passes.** The selected thirty trials have no infrastructure exceptions. Exact evaluated sources are installed in `tasks/`; the [October thirteen-task roster](results/original-task-roster.json) also records the imported additions below, while [the manifest](results/qualified-tasks.json) and [reviewed evidence](results/qualification-20261011) identify each outcome.
 
 | Task and public apparatus | Revision | GPT-5.6 Luna High passes |
 |---|---:|---:|

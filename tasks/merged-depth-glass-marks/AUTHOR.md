@@ -1,0 +1,7 @@
+# Merged depth glass marks
+
+This original experiment develops Gibbs counting and nonuniform entropy scales from [Princeton's graduate preliminary exams](https://phy.princeton.edu/academics/graduate-program/degree-requirements/preliminary-exams). It reads physical marks on branch depths that can belong to a larger thermodynamic level.
+
+The convex minorant of cumulative entropy versus cumulative variance determines the effective levels. Two thermal paths can first separate only after an effective breakpoint, or at the root. A mark within a merged level modifies its entire extreme energy by an order-one shift. The marginal mark law on a chosen branch is therefore tilted at the critical inverse temperature of the merged level. This applies separately to each physical mark inside that block. Within a selected ancestor, the normalized family weights have the Poisson–Dirichlet parameter shift from the ancestor's partition-function bias.
+
+The oracle constructs the convex minorant by pooling adjacent blocks and uses the labelled partition formula. The independent reference chooses supporting lines against every later cumulative point and counts replicas sequentially. Validation checks the collapsed-depth zero and marked two-replica law by analytic factorization. The completed approximation uses the bare physical-depth temperatures to tilt the marks, keeping the same effective overlap hierarchy.

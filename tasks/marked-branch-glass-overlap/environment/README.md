@@ -1,0 +1,9 @@
+# Marked branch glass overlap
+
+Consider a random energy tree with three layers. Each vertex at depth j−1 has floor(exp(N s_j)) children. An edge to depth j has an independent Gaussian energy of mean zero and variance N gain² v_j and an independent equally likely mark of −1 or +1. The arrays `entropies` and `variances` give the positive s_j and v_j values in root-first order. The ratios s_j/v_j increase strictly with depth.
+
+For `marked_record`, a leaf's energy is the sum of its three edge energies minus the sum over edges of field times mark, with the three fixed fields in `fields`. A single frozen tree is used for every draw in the experiment. Make one independent Gibbs draw at `inverse_temperature` for each row of `record`. For any two rows their drawn paths must have the same shared prefix length as the longest matching initial segment of those rows. Thus [1,4,2] and [1,9,2] share one edge. The particular numeric labels only specify this prefix relation.
+
+The array `mark_filter` has one row of three entries per draw. An entry ±1 requires the edge at that depth in the corresponding draw to have that mark. A zero accepts either mark. The marks belong to the actual edges and are fixed in the tree. Return the probability that the full overlap and mark record holds, averaged over the frozen trees, taking N to infinity after forming the finite-tree probability. These experiments are colder than all three freezing temperatures with the given settings.
+
+For `energy_density`, measure the equilibrium mean leaf energy divided by N, averaged over the disorder at the specified inverse temperature. Calibration uses high-temperature runs with fields zero. Gain is in [0.59,1.38]. Implement `Model.fit(records)` and `Model.predict(experiments)` in `model.py`. Records contain `input`, `value` and `sigma`. Store the fit as `self.gain` and return one finite scalar per input in order.
