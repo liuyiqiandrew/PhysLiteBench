@@ -1,23 +1,26 @@
-"""A Gaussian spectrometer with fixed electronic noise in induced-charge units."""
-import numpy as np
+"""Three independent copies of the calibrated avalanche share the same gain and timing selection."""
 from current import Calibrated
+from single_gate import spectral_law
 from transport import packet_law
 
 
 class Model(Calibrated):
     def waveform(self, q):
-        sigma = 0.04
-        spec = q["spectrum"]
-        selected = tuple(slice(None) if c is None else c for c in q["multiplicities"])
-        raw, _ = packet_law(q, self.activity, 8)
-        noisy = dict(q, tag=[*spec["window"], spec["charge"], sigma])
-        mass, moment = packet_law(noisy, self.activity, 8)
-        m = mass[selected].sum()
+        base, moment = packet_law(q, self.activity, 9)
+        weight = base.sum()
         if q["observable"] == "waveform":
-            return moment[selected].sum() / m
-        acceptance = m / raw[selected].sum()
-        return (
-            acceptance
-            if spec["part"] == "line"
-            else acceptance / (np.sqrt(2 * np.pi) * sigma)
-        )
+            return moment.sum() / weight
+
+        def marginal(i, part):
+            spec = dict(window=q["gates"][i], charge=q["charges"][i], part=part)
+            return (
+                spectral_law(dict(q, spectrum=spec), self.activity, 9)[0].sum() / weight
+            )
+
+        if q["part"] == "point":
+            return marginal(0, "line") * marginal(1, "line")
+        if q["part"] == "area":
+            return marginal(0, "density") * marginal(1, "density")
+        return marginal(0, "line") * marginal(1, "density") + marginal(
+            0, "density"
+        ) * marginal(1, "line")

@@ -1,8 +1,9 @@
-"""Trigger a separate avalanche for the waveform read, keeping the same terminal selections."""
+"""Measure both charge coordinates on one avalanche; trigger the third read on an independent avalanche."""
 from current import Calibrated
-from geometry import reading
+from geometry import values
 
 
 class Model(Calibrated):
     def waveform(self, q):
-        return reading(q, self.activity, independent_read=True)
+        intensity, wave, base = values(q, self.activity, 10)
+        return base if q["observable"] == "waveform" else intensity

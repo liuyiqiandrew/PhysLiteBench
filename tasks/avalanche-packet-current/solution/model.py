@@ -1,7 +1,8 @@
 from current import Calibrated
-from geometry import reading
+from geometry import values
 
 
 class Model(Calibrated):
     def waveform(self, q):
-        return reading(q, self.activity)
+        intensity, wave, base = values(q, self.activity, 10)
+        return wave if q["observable"] == "waveform" else intensity

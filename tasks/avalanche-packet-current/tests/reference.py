@@ -43,11 +43,7 @@ def coefficients(q, parents, pins):
             constraints.extend(
                 [T[c] - e for e, r in zip(end[c::2], packets[c]) if r != pin + 1]
             )
-    marks = (
-        q["read"]
-        + (q["tag"][:2] if q["tag"] else [])
-        + (q["spectrum"]["window"] if "spectrum" in q else [])
-    )
+    marks = q["read"] + (q["tag"][:2] if q["tag"] else []) + sum(q["gates"], [])
     cuts = [t - v for t in start + end for v in marks]
 
     def transform(rows):
@@ -144,24 +140,27 @@ def strip_nodes(dim, T, ineq, cuts, n):
 
 def integration_nodes(q, parents, pins, n):
     dim, T, ineq, cuts, births, ends = coefficients(q, parents, pins)
-    if "charge_bin" not in q or dim == 0:
+    if "aperture" not in q or dim == 0:
         return strip_nodes(dim, T, ineq, cuts, n)
     sample, _ = strip_nodes(dim, T, ineq, cuts, 1)
     if sample is None:
         return None, None
     values = np.c_[np.ones(len(sample)), sample]
-    plane = np.zeros_like(values)
     one = np.eye(dim + 1)[0]
-    for gate, sign in zip(q["spectrum"]["window"], (-1.0, 1.0)):
-        for b, birth in enumerate(births):
-            active = (values @ birth < gate)[:, None]
-            for c, v in enumerate(q["velocities"]):
-                end = ends[2 * b + c]
-                done = (values @ end < gate)[:, None]
-                plane += sign * v * active * (np.where(done, end, gate * one) - birth)
-    forms = np.unique(np.round(plane, 11), axis=0)
-    for level in q["charge_bin"]:
-        cuts = np.vstack([cuts, forms - level * one])
+    for gate, z, h in zip(q["gates"], q["charges"], q["aperture"]):
+        plane = np.zeros_like(values)
+        for time, sign in zip(gate, (-1.0, 1.0)):
+            for b, birth in enumerate(births):
+                active = (values @ birth < time)[:, None]
+                for c, v in enumerate(q["velocities"]):
+                    end = ends[2 * b + c]
+                    done = (values @ end < time)[:, None]
+                    plane += (
+                        sign * v * active * (np.where(done, end, time * one) - birth)
+                    )
+        forms = np.unique(np.round(plane, 11), axis=0)
+        for level in [z - h, z + h]:
+            cuts = np.vstack([cuts, forms - level * one])
     return strip_nodes(dim, T, ineq, cuts, n)
 
 
@@ -267,11 +266,10 @@ def integrate_history(q, scale, parents, pins, u, weights, terminal=False):
             return sum((z <= t).astype(float) for z in finish[::2])
         return charge(one * t)
 
-    if "charge_bin" in q:
-        start, end = q["spectrum"]["window"]
-        y = signal(end) - signal(start)
-        lo, hi = q["charge_bin"]
-        density *= (y >= lo) & (y <= hi)
+    if "aperture" in q:
+        for (start, end), z, h in zip(q["gates"], q["charges"], q["aperture"]):
+            F = signal(end) - signal(start)
+            density *= abs(F - z) <= h
     if q["tag"] is not None:
         lo, hi, z, w = q["tag"]
         y = signal(hi) - signal(lo)
@@ -301,23 +299,26 @@ def packet_law(q, scale=1.0, order=36):
     return total, moment
 
 
-def finite(q, a=0.92, n=9, width=0.001):
-    base = dict(q)
-    spec = base.pop("spectrum")
-    M, _ = packet_law(base, a, n)
-    table = tuple(slice(None) if c is None else c for c in q["multiplicities"])
-    z = spec["charge"]
-    vals = []
-    for w in (width, width / 2, width / 4):
-        m, y = packet_law(dict(q, charge_bin=[z - w / 2, z + w / 2]), a, n)
-        vals.append(np.array([m[table].sum(), y[table].sum()]))
-    a, b, c = vals
-    density = (
-        (a - 6 * b + 8 * c) / 3
-        if spec["part"] == "line"
-        else (10 * b - 8 * c - 2 * a) / width
-    )
-    return (
-        density[0] / M[table].sum(),
-        density[1] / density[0] if density[0] > 1e-14 else None,
-    )
+def finite(q, a=0.92, n=7, h=0.001):
+    idx = tuple(slice(None) if s is None else s for s in q["multiplicities"])
+    norm = packet_law(q, a, n)[0][idx].sum()
+
+    def window(dx, dy):
+        tables = packet_law(dict(q, aperture=[dx, dy]), a, n)
+        return np.array([t[idx].sum() / norm for t in tables])
+
+    coarse = window(h, h)
+    fine = window(h / 2, h / 2)
+    if q["part"] == "point":
+        s = 2 * fine - coarse
+    elif q["part"] == "area":
+        s = (4 * fine / h**2 - coarse / (4 * h**2)) / 3
+    else:
+        # Before the first collection both derivatives of a free pair's gated
+        # charge are either zero or -(ve+vh). A non-crossing regular ridge is
+        # horizontal, vertical or diagonal. Compare rectangular acceptances to
+        # infer its direction and convert square width to Euclidean arclength.
+        ratios = [window(h / 2, h)[0] / coarse[0], window(h, h / 2)[0] / coarse[0]]
+        factor = np.sqrt(2.0) if max(ratios) < 0.8 else 1.0
+        s = (2 * fine / h - coarse / (2 * h)) / factor
+    return s[0], s[1] / s[0] if s[0] > 1e-12 else None

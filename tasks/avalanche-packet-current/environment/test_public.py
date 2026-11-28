@@ -23,8 +23,8 @@ def test_calibration():
     assert np.max(np.abs(y - [r["value"] for r in rows])) < 0.00002
 
 
-def worked():
-    return dict(
+def examples():
+    q = dict(
         depth=0.4,
         velocities=[1.0, 1.0],
         ionization=[2.0, 2.0],
@@ -32,24 +32,27 @@ def worked():
         feedback=0.0,
         gain=3,
         tag=None,
-        read=[0.0, 0.25],
         last_delays=[0.0, 0.6],
         multiplicities=[None, None],
-        spectrum=dict(window=[0.0, 0.15], charge=0.3, part="line"),
+        read=[0.0, 0.25],
+        gates=[[0.0, 0.15], [0.0, 0.23]],
     )
-
-
-def test_charge_spectrum():
-    model, _ = fitted()
-    q = worked()
+    results = []
     for part, z, intensity, current in [
-        ("line", 0.3, 0.5, 17 / 90),
-        ("density", 0.45, 5 / 3, 17 / 60),
+        ("point", [0.3, 0.46], 7 / 30, 59 / 350),
+        ("ridge", [0.3, 0.54], 5 / 3, 31 / 150),
+        ("ridge", [0.45, 0.77], 5 / (3 * np.sqrt(2)), 17 / 60),
+        ("area", [0.31, 0.83], 50 / 9, 113 / 400),
     ]:
-        q["spectrum"].update(part=part, charge=z)
-        q["observable"] = "spectrum"
-        assert abs(model.predict([q])[0] - intensity) < (
-            0.01 if part == "density" else 0.004
-        )
-        q["observable"] = "waveform"
-        assert abs(model.predict([q])[0] - current) < 0.004
+        if part == "area":
+            q.update(gain=4, gates=[[0.0, 0.1], [0.0, 0.2]])
+        results.append((dict(q, part=part, charges=z), intensity, current))
+    return results
+
+
+def test_joint_charge_spectrum():
+    m, _ = fitted()
+    for q, i, w in examples():
+        tol = {"point": 0.004, "ridge": 0.015, "area": 0.03}[q["part"]]
+        assert abs(m.predict([dict(q, observable="intensity")])[0] - i) < tol
+        assert abs(m.predict([dict(q, observable="waveform")])[0] - w) < 0.004

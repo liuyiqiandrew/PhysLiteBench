@@ -9,7 +9,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/avalanche-packet-current"
 sys.path[:0] = [str(TASK / "environment"), str(TASK / "solution"), str(TASK / "tests")]
-from geometry import reading
+from geometry import values
 from reference import finite
 
 
@@ -21,76 +21,94 @@ def calibration():
 
 
 def science():
-    rng = np.random.default_rng(784213)
+    rng = np.random.default_rng(194628)
 
-    def draw(a, b, size=None):
-        return np.round(rng.uniform(a, b, size), 6).tolist()
+    def draw(a, b):
+        return round(float(rng.uniform(a, b)), 6)
 
     groups = {}
-    for group in ("charge_lines", "charge_density", "gated_current"):
-        rows = []
-        for i in range(8):
-            joint = i % 3 != 0
-            g = (5 if i in (2, 5) else 4) if joint else (3 if i % 2 == 0 else 4)
-            x = draw(0.37, 0.56)
-            ve = draw(0.86, 1.18)
-            vh = draw(0.78, 1.08)
-            te = (1 - x) / ve
-            th = x / vh
-            em = te * draw(0.48, 0.71)
-            hm = th * draw(0.47, 0.72)
-            e = round(hm * (1 + vh / ve), 6)
-            h = round(em * (1 + ve / vh), 6)
-            if not joint:
-                if i % 2:
-                    e = 0.0
-                else:
-                    h = 0.0
-            tmark = min(em, hm) if joint else (em if e == 0 else hm)
-            lo = round(tmark * draw(0.39, 0.53), 6)
-            hi = round(tmark * draw(0.77, 0.92), 6)
-            step = (ve + vh) * (hi - lo)
-            line = group == "charge_lines" or group == "gated_current" and i % 2 == 0
-            charge = (
-                (1 + (i % 2 if group == "charge_lines" else int(i in (2, 6)))) * step
-                if line
-                else (1.0 + draw(0.24, 0.75)) * step
-            )
-            if line and i == 0:
-                charge = 2 * step
-            read = [
-                round(max(0, lo - tmark * draw(0.08, 0.18)), 6),
-                round(hi + tmark * draw(0.09, 0.33), 6),
-            ]
-            mult = [None, None]
-            if joint and i in (1, 5):
-                mult = [1, None] if i == 1 else [None, 2]
-            rows.append(
+    for group in (
+        "point_weights",
+        "ridge_density",
+        "area_density",
+        "conditioned_waveform",
+    ):
+        qs = []
+        for i in range(6):
+            part = {
+                "point_weights": "point",
+                "ridge_density": "ridge",
+                "area_density": "area",
+                "conditioned_waveform": ("point", "ridge", "area")[i % 3],
+            }[group]
+            g = 4 if part == "area" or i % 2 else 3
+            x = draw(0.37, 0.57)
+            ve = draw(0.88, 1.18)
+            vh = draw(0.83, 1.09)
+            p = i % 2
+            vs = [ve, vh]
+            s = ve + vh
+            prompt = [(1 - x) / ve, x / vh]
+            t = round(draw(0.65, 0.82) * min(prompt), 6)
+            delays = [0.0, 0.0]
+            delays[1 - p] = round(t * (1 + vs[p] / vs[1 - p]), 10)
+            ua = round(draw(0.07, 0.13) * t, 8)
+            va = round(draw(0.45, 0.54) * t, 8)
+            ub = round(draw(0.13, 0.23) * t, 8)
+            vb = round(draw(0.68, 0.75) * t, 8)
+            ga, gb = [ua, va], [ub, vb]
+            if part == "point":
+                # Both gates can lie entirely before the first free impact.
+                free = [t * draw(0.8, 0.9)] * (g - 2)
+                if i in (2, 5):
+                    ga[0] = round(draw(0.29, 0.37) * t, 8)
+                    gb[0] = round(draw(0.30, 0.36) * t, 8)
+                    free[0] = draw(0.14, 0.22) * t
+            elif part == "ridge":
+                # One free impact lies in both gates or only in the longer gate.
+                star = draw(0.32, 0.41) * t if i % 3 else draw(0.56, 0.65) * t
+                free = [star] + [t * draw(0.83, 0.90)] * (g - 3)
+            else:
+                free = [draw(0.31, 0.4) * t, draw(0.55, 0.65) * t]
+
+            def F(gate):
+                l, h = gate
+                return round(
+                    s * (h - l + sum(max(0.0, h - max(l, birth)) for birth in free)), 12
+                )
+
+            gates = [ga, gb]
+            z = list(map(F, gates))
+            if i % 3 == 1:
+                gates.reverse()
+                z.reverse()
+            read = [round(t * draw(0.12, 0.28), 8), round(t * draw(0.62, 0.92), 8)]
+            qs.append(
                 dict(
                     depth=x,
-                    velocities=[ve, vh],
-                    ionization=draw(1.65, 2.75, 2),
-                    dead_space=draw(0.035, 0.057, 2),
-                    feedback=draw(0.42, 1.05),
+                    velocities=vs,
+                    dead_space=[draw(0.026, 0.041), draw(0.026, 0.041)],
+                    ionization=[draw(1.65, 2.65), draw(1.65, 2.65)],
+                    feedback=draw(0.45, 0.93),
                     gain=g,
                     tag=None,
-                    last_delays=[e, h],
-                    multiplicities=mult,
+                    last_delays=delays,
+                    multiplicities=[None, None],
                     read=read,
-                    spectrum=dict(
-                        window=[lo, hi],
-                        charge=round(charge, 14),
-                        part="line" if line else "density",
-                    ),
-                    observable="waveform" if group == "gated_current" else "spectrum",
+                    gates=gates,
+                    charges=z,
+                    part=part,
+                    observable="waveform"
+                    if group == "conditioned_waveform"
+                    else "intensity",
                 )
             )
-        groups[group] = rows
+        groups[group] = qs
     return groups
 
 
-def worked():
-    return dict(
+def examples():
+    q = dict(
         depth=0.4,
         velocities=[1.0, 1.0],
         ionization=[2.0, 2.0],
@@ -98,80 +116,79 @@ def worked():
         feedback=0.0,
         gain=3,
         tag=None,
-        read=[0.0, 0.25],
         last_delays=[0.0, 0.6],
         multiplicities=[None, None],
-        spectrum=dict(window=[0.0, 0.15], charge=0.3, part="line"),
+        read=[0.0, 0.25],
+        gates=[[0.0, 0.15], [0.0, 0.23]],
     )
+    results = []
+    for part, z, intensity, current in [
+        ("point", [0.3, 0.46], 7 / 30, 59 / 350),
+        ("ridge", [0.3, 0.54], 5 / 3, 31 / 150),
+        ("ridge", [0.45, 0.77], 5 / (3 * np.sqrt(2)), 17 / 60),
+        ("area", [0.31, 0.83], 50 / 9, 113 / 400),
+    ]:
+        if part == "area":
+            q.update(gain=4, gates=[[0.0, 0.1], [0.0, 0.2]])
+        results.append((dict(q, part=part, charges=z), intensity, current))
+    return results
 
 
 def validate(generate):
-    import time
-
-    start = time.monotonic()
     cal = calibration()
-    nominal = 0.92
-    expected = {}
-    for family, qs in science().items():
+    a = 0.92
+    data = {}
+    for name, qs in science().items():
+        delta = []
         rows = []
-        differences = []
         for q in qs:
-            v = reading(q, nominal, 12)
-            intensity, current = finite(q, nominal, 9, 0.001)
-            assert intensity > 0.04 and current is not None and 0 <= current <= 1
-            alternate = intensity if q["observable"] == "spectrum" else current
-            differences.append(abs(v - alternate))
-            rows.append(dict(input=q, value=round(float(v), 8)))
-        assert max(differences) < 0.00055
-        print(family, "independent maximum difference", max(differences), flush=True)
-        expected[family] = rows
-    for path, values in [
+            intensity, wave, _ = values(q, a, 10)
+            other = finite(q, a, 8, 0.0004)
+            assert intensity > 0.007 and 0 <= wave <= 1 and np.isfinite(other).all()
+            delta.append(np.abs(np.array([intensity, wave]) - other))
+            value = wave if q["observable"] == "waveform" else intensity
+            rows.append(dict(input=q, value=round(float(value), 8)))
+        diff = np.max(delta, axis=0)
+        assert np.max(diff) < 0.0005
+        data[name] = rows
+        print(
+            name, "max independent intensity and waveform differences", diff, flush=True
+        )
+    for p, rows in [
         (TASK / "environment/data/calibration.json", cal),
         (TASK / "tests/data/calibration.json", cal),
-        (TASK / "tests/data/predictions.json", expected),
+        (TASK / "tests/data/predictions.json", data),
     ]:
         if generate:
-            path.write_text(json.dumps(values, indent=1) + "\n")
-        assert json.loads(path.read_text()) == values
-    for location, name in [
+            p.write_text(json.dumps(rows, indent=1) + "\n")
+        assert json.loads(p.read_text()) == rows
+    for p, label in [
         (TASK / "solution/model.py", "oracle"),
-        (TASK / "environment/model.py", "finite resolution"),
-        (
-            ROOT / "scripts/avalanche_packet_current_baseline.py",
-            "independent avalanche",
-        ),
+        (TASK / "environment/model.py", "independent channels"),
+        (ROOT / "scripts/avalanche_packet_current_baseline.py", "independent read"),
     ]:
-        model = runpy.run_path(str(location))["Model"]().fit(cal)
-        errors = {}
-        assert abs(model.activity - nominal) < 1.0e-7
-        for family, rows in expected.items():
-            prediction = model.predict([r["input"] for r in rows])
-            assert np.isfinite(prediction).all()
-            errors[family] = float(max(abs(prediction - [r["value"] for r in rows])))
-        if name == "oracle":
-            assert max(errors.values()) < 0.00002
-        if name == "finite resolution":
-            assert min(errors.values()) > 0.004 and errors["charge_density"] > 0.01
-        if name == "independent avalanche":
+        m = runpy.run_path(str(p))["Model"]().fit(cal)
+        err = {}
+        for name, rows in data.items():
+            raw = m.predict([r["input"] for r in rows])
+            assert np.isfinite(raw).all()
+            err[name] = float(max(abs(raw - [r["value"] for r in rows])))
+        if label == "oracle":
+            assert max(err.values()) < 0.0001
+        if label == "independent channels":
+            assert min(err.values()) > 0.01
+        if label == "independent read":
             assert (
-                errors["gated_current"] > 0.02
-                and max(errors["charge_density"], errors["charge_lines"]) < 0.00002
+                err["conditioned_waveform"] > 0.05
+                and max(v for k, v in err.items() if k != "conditioned_waveform")
+                < 0.0001
             )
-        print(name, errors, flush=True)
-    q = worked()
-    for part, z, intensity, current in [
-        ("line", 0.3, 0.5, 17 / 90),
-        ("density", 0.45, 5 / 3, 17 / 60),
-    ]:
-        q["spectrum"].update(part=part, charge=z)
+        print(label, err, flush=True)
+    for q, intensity, wave in examples():
+        np.testing.assert_allclose(values(q, a, 9)[:2], [intensity, wave], atol=1.0e-10)
         np.testing.assert_allclose(
-            finite(q, nominal, 8), [intensity, current], atol=1.0e-8
+            finite(q, a, 8, 0.0004), [intensity, wave], atol=1.0e-6
         )
-        for field, value in [("spectrum", intensity), ("waveform", current)]:
-            np.testing.assert_allclose(
-                reading(dict(q, observable=field), nominal), value, atol=1.0e-10
-            )
-    print("Elapsed seconds", round(time.monotonic() - start, 1))
 
 
 if __name__ == "__main__":

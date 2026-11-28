@@ -1,1 +1,1 @@
-Use the same carrier history for both gates. Within each region set by births and collections, the first gate charge is affine in free impact times. A flat region contributes probability mass, while a regular level selects a lower-dimensional set.
+A gate vector can be constant on a whole set of histories, can vary along one charge-plane direction, or can vary in both directions. Its local support dimension determines how a circular detector aperture changes the accepted probability.

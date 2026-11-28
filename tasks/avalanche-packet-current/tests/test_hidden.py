@@ -33,8 +33,14 @@ def test_fit(metrics):
     assert metrics["max_absolute_error"]["calibration"] < 0.00002
 
 
-@pytest.mark.parametrize("family", ["charge_lines", "charge_density", "gated_current"])
-def test_transfer(metrics, family):
-    assert metrics["max_absolute_error"][family] < (
-        0.01 if family == "charge_density" else 0.004
-    )
+@pytest.mark.parametrize(
+    "family,tolerance",
+    [
+        ("point_weights", 0.004),
+        ("ridge_density", 0.015),
+        ("area_density", 0.03),
+        ("conditioned_waveform", 0.004),
+    ],
+)
+def test_transfer(metrics, family, tolerance):
+    assert metrics["max_absolute_error"][family] < tolerance
