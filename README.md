@@ -4,7 +4,7 @@ The Desktop roster now contains **thirteen physics tasks**: the ten locally qual
 
 ## November 28 expansion
 
-The dimer microscope and terrace recorder each have **0/3** unhinted GPT-5.6 Luna High passes. All six attempts completed and passed calibration. Three additional experiments are under evaluation. [Reviewed trials and revision history](results/five-luna-high-20261128/README.md)
+Four additions each have **0/3** unhinted GPT-5.6 Luna High passes. All twelve attempts completed and passed calibration. The four experiments cover dimer connectivity, terrace contacts, critical magnetic films and rebound calorimetry. The fifth task is under evaluation. [Reviewed trials and revision history](results/five-luna-high-20261128/README.md)
 
 ## Five new Luna High tasks
 

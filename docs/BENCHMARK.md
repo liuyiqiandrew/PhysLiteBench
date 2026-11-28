@@ -135,7 +135,9 @@ Each model fits a common physical parameter from open readings and returns a fin
 
 | [Public apparatus](../TASKS.md) | Fitted attribute | Calibration tolerance | Held-out tolerance |
 | --- | --- | ---: | ---: |
+| [Critical seam magnet](../tasks/critical-seam-magnet/environment/README.md) | `gain` | 0.00002 | 0.004 |
 | [Dimer microscope](../tasks/dimer-defect-window/environment/README.md) | `activity` | 0.00002 | 0.004 |
+| [Rebound calorimeter](../tasks/inelastic-collapse-calorimeter/environment/README.md) | `diffusivity` | 0.000002 | 0.004 |
 | [Terrace contact recorders](../tasks/terrace-winding-camera/environment/README.md) | `rate` | 0.00002 | 0.004 |
 
 Run each validator from the repository root, for example `OPENBLAS_NUM_THREADS=1 python scripts/validate_dimer_defect_window.py`. The [evaluation report](../results/five-luna-high-20261128/README.md) records the individual trials, controls and failure diagnoses.

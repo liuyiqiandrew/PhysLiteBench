@@ -57,7 +57,9 @@ The [three-trial results](results/five-luna-high-20261127/README.md) cover these
 
 | Apparatus | Measured quantity |
 | --- | --- |
+| [Critical seam magnet](tasks/critical-seam-magnet/AUTHOR.md) | Normalized spin-product overlap, connected correlation and bias response of two critical films sharing the same thermal seam switches. |
 | [Dimer defect window](tasks/dimer-defect-window/AUTHOR.md) | Probability that two boundary contacts share a cycle across four dimer coverings, conditional on a second pair of contacts sharing a cycle in the same image. |
+| [Inelastic collapse calorimeter](tasks/inelastic-collapse-calorimeter/AUTHOR.md) | Sticking probability and timer- and heat-selected collapse of a randomly accelerated bead with impact-dependent restitution. |
 | [Terrace winding camera](tasks/terrace-winding-camera/AUTHOR.md) | A tagged step's position and the local times spent by a reflected pair at the two contact boundaries on a cylinder. |
 
 [Qualification and revision history](results/five-luna-high-20261128/README.md)
