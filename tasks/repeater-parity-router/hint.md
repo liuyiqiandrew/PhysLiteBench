@@ -1,0 +1,1 @@
+Condition on the same station parity image in both protocols. Enumerate admissible paths or path flows on each herald loading. A single elementary pair can support one route through its link. When two distinct stored pairs are used on one link, their phase signs agree.
