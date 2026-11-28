@@ -1,41 +1,100 @@
-"""Time evolution from the depth-resolved complete-graph master equation."""
+"""Direct integral of the joint disorder transform, retaining its mixed moments."""
+from functools import lru_cache
+from itertools import combinations
+from math import factorial
 import numpy as np
 from scipy.special import roots_legendre
 
-def evolve(weight,v,w,shape,t,degree=24):
-    rate=v**(1/shape)
-    j=np.arange(degree)
-    theta=j*np.pi/degree
-    cot=1/np.tan(theta[1:])
-    delta=np.r_[.4*degree,.4*degree*theta[1:]*(cot+1j)]
-    coeff=np.r_[.5,np.ones(degree-1)+1j*theta[1:]*(1+cot**2)-1j*cot]*np.exp(delta)*.4/t
-    s=(delta/t)[:,None]
-    denom=s+rate
-    if weight is None:
-        incoming=1
-    else:
-        incoming=(rate/denom)@weight
-        incoming=incoming[:,None]
-    recycle=(np.sin(np.pi*shape)/(np.pi*shape))*s**(-shape)*incoming/denom
-    out=w*(coeff@recycle).real
-    if weight is not None:
-        out+=weight*np.exp(-rate*t)
-    return out
+
+@lru_cache(None)
+def panels(n, edges):
+    t, w = roots_legendre(n)
+    y = np.concatenate(
+        [(a + b) / 2 + (b - a) / 2 * t for a, b in zip(edges, edges[1:])]
+    )
+    return np.exp(y), np.concatenate(
+        [(b - a) * w / 2 for a, b in zip(edges, edges[1:])]
+    ) * np.exp(y)
 
 
-def reading(q,Tg,order=700):
-    z,w=roots_legendre(order);v=np.exp(44*z-6);w=w*44*v
-    ts=q['temperatures'];a=ts[0]/Tg;A,D=q['write']
-    m=evolve(None,v,w,a,A)*np.exp(-D*v**(1/a))
-    def run(lock):
-        p=m.copy()
-        for i,(dt,keep) in enumerate(q['pulses']):
-            b=ts[i+1]/Tg
-            if lock and i>=q['read'][0]:
-                f=q['read'][1] if i==q['read'][0] else 0
-            else:f=1
-            if f:p=evolve(p,v,w,b,f*dt)
-            p*=np.exp(-((1-f)*dt+keep)*v**(1/b))
-        return p@np.exp(-q['recovery']*v**(1/a))
-    p=run(False)
-    return run(True)/p, p
+def joined(n, links):
+    labs = list(range(n))
+    for a, b in links:
+        old = labs[b]
+        new = labs[a]
+        labs = [new if t == old else t for t in labs]
+    return tuple(
+        tuple(i for i, t in enumerate(labs) if t == k) for k in dict.fromkeys(labs)
+    )
+
+
+def exact(q, tg, n=48, nd=100):
+    temps, fields = np.array(q["settings"]).T
+    types = np.array(q["preparations"])
+    dim = len(types)
+    na = int((types == 0).sum())
+    nb = dim - na
+    s, ds = panels(n, (-57.0, -9.0, 2.0, 12.0))
+    x, dx = panels(nd, (-49.0, -8.0, 12.0, 96.0))
+    signs = [-1, 1]
+    mom = {}
+    phi = 0.0
+    modes = []
+    for m in signs:
+        a, b = np.exp(fields[:, None] * m / temps[:, None]) * x[None, :] ** (
+            -tg / temps[:, None]
+        )
+        A = np.exp(-s[:, None] * a)
+        B = np.exp(-s[:, None] * b)
+        missingA = -np.expm1(-s[:, None] * a)
+        missingB = -np.expm1(-s[:, None] * b)
+        phi += 0.5 * ((missingA @ dx)[:, None] + (A * dx) @ missingB.T)
+        modes.append((a, b, A, B))
+    factors = (
+        np.outer(ds * s ** (na - 1), ds * s ** (nb - 1))
+        * np.exp(-phi)
+        / (factorial(na - 1) * factorial(nb - 1))
+    )
+
+    def cumulant(indices):
+        if indices in mom:
+            return mom[indices]
+        ix = list(indices)
+        u = int((types[ix] == 0).sum())
+        v = len(ix) - u
+        out = 0.0
+        for m, (a, b, A, B) in zip(signs, modes):
+            if 0 in ix and q.get("tag") and q["tag"] != m:
+                continue
+            w = dx * a**u * b**v
+            if dim - 1 in ix:
+                w = w * np.exp(-q["exposure"] * x)
+            out += 0.5 * (A * w) @ B.T
+        mom[indices] = out
+        return out
+
+    @lru_cache(None)
+    def raw(parts):
+        if not parts:
+            return 1.0
+        first, *rest = parts
+        val = 0.0
+        for h in range(len(rest) + 1):
+            for subset in combinations(range(len(rest)), h):
+                whole = tuple(sorted(first + sum((rest[j] for j in subset), ())))
+                tail = tuple(g for j, g in enumerate(rest) if j not in subset)
+                val += cumulant(whole) * raw(tail)
+        return val
+
+    def eval_event(links):
+        same = [(a, b) for a, b, w in links if w]
+        diff = [(a, b) for a, b, w in links if not w]
+        total = 0.0
+        for h in range(len(diff) + 1):
+            for subset in combinations(diff, h):
+                groups = joined(dim, same + list(subset))
+                total += (-1) ** h * float(np.sum(factors * raw(groups)))
+        return total
+
+    d = eval_event(q["gate"])
+    return eval_event(q["gate"] + [[dim - 1, q["mark"], True]]) / d, d

@@ -1,5 +1,6 @@
-from glass import Readout, effective_age
+from glass import Readout, one_temperature
+
 
 class Model(Readout):
     def memory(self, q):
-        return effective_age(q,self.depth_scale)
+        return one_temperature(q, self.depth_scale)

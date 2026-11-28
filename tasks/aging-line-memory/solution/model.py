@@ -1,6 +1,7 @@
 from glass import Readout
-from renewal import line
+from landscape import marked
+
 
 class Model(Readout):
     def memory(self, q):
-        return line(q,self.depth_scale)[0]
+        return marked(q, self.depth_scale)[0]

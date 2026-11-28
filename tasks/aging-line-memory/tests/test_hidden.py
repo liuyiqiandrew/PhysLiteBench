@@ -30,6 +30,6 @@ def test_fit(errors):
     assert errors['calibration'] < 1e-5
 
 
-@pytest.mark.parametrize('group',['temperature_jump','return_cycle','successive_pulses'])
+@pytest.mark.parametrize('group',['thermal_tags','line_selection','quenched_memory'])
 def test_memory(errors,group):
     assert errors[group] < .004
