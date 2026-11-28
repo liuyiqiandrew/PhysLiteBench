@@ -1,1 +1,1 @@
-Calibrate and predict a Ramsey fringe conditioned on the two detectors' first spectral lines in a random-singlet chain. Implement Model in /app/model.py according to the instrument and worked scan in /app/README.md.
+Predict the Ramsey signal conditioned on a spectrograph center and splitting for two first lines of a disordered spin chain. Implement Model in /app/model.py using /app/README.md.

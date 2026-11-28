@@ -1,4 +1,4 @@
 from apparatus import Readout
-from lines import measurement
+from resolution import reading
 class Model(Readout):
-    def fringe(self,q):return measurement(q)[1]
+    def fringe(self,q):return reading(q)[1]

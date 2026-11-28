@@ -1,5 +1,5 @@
 from apparatus import Readout
-from lines import measurement
+from resolution import reading
 class Model(Readout):
-    """Use independent spin outcomes at the two ends of a common singlet."""
-    def fringe(self,q):return measurement(q,independent=True)[1]
+    """The demodulator samples a separate reference with identical detuning statistics."""
+    def fringe(self,q):return reading(q,independent_phase=True)[1]

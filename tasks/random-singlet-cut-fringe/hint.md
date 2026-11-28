@@ -1,1 +1,1 @@
-Two first clicks at one exact formation coordinate can come from a single spanning singlet. Their probability in one short common gate can have a different leading power of gate width from the probability in two separated gates.
+A shared physical line and a pair of distinct physical lines have different density units before the spectrometer. A common detuning changes their measured separation and fixes the demodulation phase on the same shot.

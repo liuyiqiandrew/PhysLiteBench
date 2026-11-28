@@ -1,3 +1,3 @@
-from apparatus import Readout,poisson
+from apparatus import Readout,mean_reference
 class Model(Readout):
-    def fringe(self,q):return poisson(q)
+    def fringe(self,q):return mean_reference(q)
