@@ -1,0 +1,1 @@
+For two Slater determinants the many-body parity matrix element is a determinant of one-particle sign overlaps. Use the same residue class of ring fillings in the numerator and reference. Coherent superpositions require off-diagonal matrix elements as well as the ordinary full counting statistics.
