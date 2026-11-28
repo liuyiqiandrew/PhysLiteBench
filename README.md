@@ -2,6 +2,10 @@
 
 The Desktop roster now contains **thirteen physics tasks**: the ten locally qualified snapshots below plus three additions from the remote branch. The [full roster](results/task-roster.json) records each exact revision, source hashes and evaluation status. The latest evidence does **not** establish 0/3 passes for all thirteen.
 
+## November 28 expansion
+
+The dimer microscope and terrace recorder each have **0/3** unhinted GPT-5.6 Luna High passes. All six attempts completed and passed calibration. Three additional experiments are under evaluation. [Reviewed trials and revision history](results/five-luna-high-20261128/README.md)
+
 ## Five new Luna High tasks
 
 Each of the five new tasks scored **0/3** on unhinted GPT-5.6 Luna High.

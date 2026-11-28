@@ -52,3 +52,15 @@ Each completed shortcut must fit calibration and identify the unknown parameter 
 | [Surfactant film response](tasks/surfactant-film-response/AUTHOR.md) | How often do labelled molecules in a driven monolayer travel in specified speed bands or at the speed of a reference molecule? |
 
 The [three-trial results](results/five-luna-high-20261127/README.md) cover these five tasks.
+
+## Additional November physics tasks
+
+| Apparatus | Measured quantity |
+| --- | --- |
+| [Dimer defect window](tasks/dimer-defect-window/AUTHOR.md) | Probability that two boundary contacts share a cycle across four dimer coverings, conditional on a second pair of contacts sharing a cycle in the same image. |
+| [Majorana island fringe](tasks/majorana-island-fringe/AUTHOR.md) | Arm interference after an island interacts with a meter and a lossy resonator fed by overlapping photon packets. |
+| [Photon transfer fringe](tasks/photon-transfer-fringe/AUTHOR.md) | A number-transfer fringe after two photon operations draw energy from the same finite quantum pump, with optional postselection on the outgoing pump state. |
+| [Screw diffusion camera](tasks/screw-diffusion-camera/AUTHOR.md) | Gated scattering by a rotating rigid particle, resolved by the sign a transported spinor acquires when the material frame returns. |
+| [Terrace winding camera](tasks/terrace-winding-camera/AUTHOR.md) | A tagged step's position and the local times spent by a reflected pair at the two contact boundaries on a cylinder. |
+
+[Qualification and revision history](results/five-luna-high-20261128/README.md)

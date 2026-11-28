@@ -128,3 +128,17 @@ The public apparatus document specifies the inputs, observables and units.
 | [Driven surfactant monolayer](../tasks/surfactant-film-response/environment/README.md) | `rate` |
 
 The [evaluation report](../results/five-luna-high-20261127/README.md) records source revisions, measurements and reproduction commands.
+
+## Additional November task interfaces
+
+Each model fits a common physical parameter from open readings and returns a finite, real NumPy vector on fresh preparations. Each threshold below is a strict bound on the largest absolute error in its group.
+
+| [Public apparatus](../TASKS.md) | Fitted attribute | Calibration tolerance | Held-out tolerance |
+| --- | --- | ---: | ---: |
+| [Dimer microscope](../tasks/dimer-defect-window/environment/README.md) | `activity` | 0.00002 | 0.004 |
+| [Majorana island](../tasks/majorana-island-fringe/environment/README.md) | `visibility` | 0.000002 | 0.003 |
+| [Photon transfer](../tasks/photon-transfer-fringe/environment/README.md) | `visibility` | 0.00002 | 0.001 |
+| [Rigid screw diffusion](../tasks/screw-diffusion-camera/environment/README.md) | `mobility` | 0.000002 | 0.003 |
+| [Terrace contact recorders](../tasks/terrace-winding-camera/environment/README.md) | `rate` | 0.00002 | 0.004 |
+
+Run each validator from the repository root, for example `OPENBLAS_NUM_THREADS=1 python scripts/validate_dimer_defect_window.py`. The [evaluation report](../results/five-luna-high-20261128/README.md) records the individual trials, controls and failure diagnoses.

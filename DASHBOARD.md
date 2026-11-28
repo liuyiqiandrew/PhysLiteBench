@@ -1,5 +1,9 @@
 # PhysLiteBench evaluation dashboard
 
+## November 28 expansion
+
+The dimer microscope and terrace recorder each have **0/3** unhinted GPT-5.6 Luna High passes. All six attempts completed and passed calibration. Three additional experiments are under evaluation. [Reviewed trials and revision history](results/five-luna-high-20261128/README.md)
+
 ## November five-task evaluation
 
 Each delivered task scored **0/3** on unhinted GPT-5.6 Luna High. All 15
