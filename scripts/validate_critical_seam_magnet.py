@@ -1,36 +1,61 @@
 import argparse, json, runpy, sys
+from functools import lru_cache
 from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/critical-seam-magnet"
 sys.path[:0] = [str(TASK / d) for d in ("environment", "solution", "tests")]
-from sectors import normalized
-from chain import channel
-from spin_basis import literal
+from sectors import blocks, M
+from film import device
+from lattice import fermions
+from spin_enumeration import explicit
 
 
-def settings():
-    rng = np.random.default_rng(27414003)
+@lru_cache(None)
+def substrate(nx, ny, points):
+    return fermions(nx, ny, points)
+
+
+def calc(q, scale):
+    def measure(f):
+        nx = 16 * scale
+        ny = round(nx * f["aspect"])
+        p = tuple(map(tuple, np.rint(np.array(f["marks"]) * [nx, ny]).astype(int)))
+        return M @ substrate(nx, ny, p), M @ substrate(nx, ny, ())
+
+    return device(q, 0.9268, measure)
+
+
+def choices():
+    rng = np.random.default_rng(827361)
+    library = []
+    for k in range(12):
+        n = 2 + 2 * (k % 3)
+        alpha = [0.75, 1.0, 1.25][(k + k // 3) % 3]
+        while True:
+            p = rng.integers(1, 8, size=(n, 2))
+            dif = abs(p[:, None, :] - p[None, :, :])
+            d = np.minimum(dif, 8 - dif).astype(float)
+            if (np.triu((d * d).sum(2) < 4, 1)).any() or len(set(p[:, 1])) == 1:
+                continue
+            break
+        library.append(dict(aspect=alpha, marks=(p / 8).tolist()))
     groups = {}
-    for g in ("clamped", "annealed", "response"):
-        rs = []
-        for j in range(8):
-            count = 2 * (1 + j % 4)
-            while True:
-                t = sorted(rng.choice(np.arange(1, 64), size=count, replace=False))
-                if min(np.diff(t + [t[0] + 64])) >= 3:
-                    break
+    for g in ["overlap", "connected", "response"]:
+        rows = []
+        for i in range(8):
+            I, J = rng.choice(len(library), size=2, replace=False)
             q = dict(
-                sites=[float(i / 64) for i in t],
-                aspect=round(float(rng.uniform(0.43, 1.38)), 3),
-                bias=round(float(rng.uniform(-0.95, 0.95)), 3),
-                seam=(-1 if j % 3 else 1) if g == "clamped" else "free",
-                parity=(-1 if j % 2 else 1),
-                read="response" if g == "response" else "spin",
+                films=[library[I], library[J]],
+                bias=np.round(rng.uniform(-0.9, 0.9, 2), 3).tolist(),
+                coupling=round(float(rng.uniform(-1, 1)), 3),
+                read=g,
             )
-            rs.append(q)
-        groups[g] = rs
+            if g == "response":
+                q["dial"] = int(i % 2)
+            rows.append(q)
+        groups[g] = rows
     return groups
 
 
@@ -43,27 +68,32 @@ def main(generate):
     data = {}
     worst = 0.0
     finite = 0.0
-    for g, qs in settings().items():
+    for g, qs in choices().items():
         rows = []
         for q in qs:
-            exact = normalized(q, gain)
-            short, long = (channel(q, gain, N) for N in (256, 512))
-            limit = (4 * long - short) / 3
-            worst = max(worst, abs(limit - exact))
+            exact = device(q, gain, blocks)
+            short, long = (calc(q, l) for l in (2, 4))
+            worst = max(worst, abs((4 * long - short) / 3 - exact))
             finite = max(finite, abs(long - exact))
-            assert abs(limit - exact) < 2e-7
+            assert abs((4 * long - short) / 3 - exact) < 2e-6
             if q["read"] == "response":
-                h = 0.00002
+                axis = q["dial"]
+                h = 0.00001
+                vec = np.eye(2)[axis]
 
-                def spin(shift):
-                    return normalized(
-                        dict(q, read="spin", bias=q["bias"] + shift), gain
+                def g0(shift):
+                    return device(
+                        dict(q, read="overlap", bias=np.array(q["bias"]) + shift * vec),
+                        gain,
+                        blocks,
                     )
 
-                assert abs((spin(h) - spin(-h)) / (2 * h) - exact) < 1e-8
+                assert abs((g0(h) - g0(-h)) / (2 * h) - exact) < 1e-8
             rows.append(dict(input=q, value=round(exact, 9)))
         data[g] = rows
-    print("Finite chain maximum at 512 sites", finite, "after extrapolation", worst)
+    print(
+        "Maximum finite-film error at 64 columns and after extrapolation", finite, worst
+    )
     for name, obj in [
         ("tests/data/calibration.json", cal),
         ("environment/data/calibration.json", cal),
@@ -90,31 +120,32 @@ def main(generate):
         assert (
             max(err.values()) < 1e-6 if role == "oracle" else min(err.values()) > 0.004
         )
-    q = dict(
-        sites=[0.125, 0.4375],
-        aspect=0.85,
-        bias=0.32,
-        read="spin",
-        seam="free",
-        parity=-1,
-    )
-    for t, read, target in [
-        ("free", "spin", 1.11506357),
-        ("free", "response", 0.15321969),
-        (-1, "spin", 0.49761299),
-        (1, "spin", 1.20252516),
+    for pts in [
+        [(0, 0), (2, 2)],
+        [(0, 0), (2, 1), (1, 2), (0, 3)],
+        [(1, 0), (2, 1), (0, 2), (1, 3)],
     ]:
-        assert abs(normalized(dict(q, seam=t, read=read), 1.0) - target) < 1e-8
-    err = 0.0
-    for p in [-1, 0, 1]:
-        for t in [-1, 1, "free"]:
-            for read in ["spin", "response"]:
-                row = dict(
-                    q, sites=[0.125, 0.375, 0.625, 0.875], seam=t, parity=p, read=read
-                )
-                err = max(err, abs(literal(row, 1.0, 8) - channel(row, 1.0, 8)))
-    print("Explicit eight-spin thermal traces", err)
-    assert err < 1e-11
+        obs, Z = explicit(3, 4, pts)
+        np.testing.assert_allclose(obs, M @ fermions(3, 4, pts), rtol=0, atol=2e-12)
+        np.testing.assert_allclose(Z, M @ fermions(3, 4, []), rtol=0, atol=2e-12)
+    q = dict(
+        films=[
+            dict(aspect=0.75, marks=[[0.25, 0.25], [0.625, 0.75]]),
+            dict(
+                aspect=1.0,
+                marks=[[0.125, 0.25], [0.25, 0.5], [0.625, 0.25], [0.75, 0.75]],
+            ),
+        ],
+        bias=[0.35, -0.2],
+        coupling=0.4,
+        dial=1,
+    )
+    for read, y in [
+        ("connected", 0.09834891),
+        ("overlap", 0.86751282),
+        ("response", 0.17310032),
+    ]:
+        assert abs(device(dict(q, read=read), 1.0, blocks) - y) < 1e-8
 
 
 if __name__ == "__main__":

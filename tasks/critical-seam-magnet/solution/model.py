@@ -1,7 +1,8 @@
 from magnet import Magnet
-from sectors import normalized
+from sectors import blocks
+from film import device
 
 
 class Model(Magnet):
     def measure(self, q):
-        return normalized(q, self.gain)
+        return device(q, self.gain, blocks)

@@ -29,6 +29,6 @@ def test_calibration(errors):
     assert 0.75 <= errors["gain"] <= 1.15 and errors["calibration"] < 0.00002
 
 
-@pytest.mark.parametrize("group", ["clamped", "annealed", "response"])
+@pytest.mark.parametrize("group", ["overlap", "connected", "response"])
 def test_spin_contrast(errors, group):
     assert errors[group] < 0.004

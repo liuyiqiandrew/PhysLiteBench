@@ -11,7 +11,7 @@ class Magnet:
     def predict(self, inputs):
         return np.asarray(
             [
-                np.tanh(self.gain * q["bias"]) if "sites" not in q else self.measure(q)
+                np.tanh(self.gain * q["bias"]) if "films" not in q else self.measure(q)
                 for q in inputs
             ],
             dtype=float,

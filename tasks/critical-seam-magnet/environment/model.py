@@ -1,13 +1,16 @@
 import numpy as np
 from magnet import Magnet
+from film import device
+
+
+def straight(f):
+    # On each reversed seam allow one straight domain wall with a uniform transverse position.
+    edge = np.sort(np.asarray(f["marks"]), axis=0)
+    sx, sy = 1 - 2 * np.sum(edge[1::2] - edge[::2], axis=0)
+    traces = np.array([1.0, sy, sx, sx * sy])
+    return traces, np.ones(4)
 
 
 class Model(Magnet):
     def measure(self, q):
-        # A single randomly positioned domain wall in a negative-seam ring.
-        s = np.asarray(q["sites"])
-        fraction = np.sum(s[1::2] - s[::2])
-        avg = np.tanh(self.gain * q["bias"]) if q["seam"] == "free" else q["seam"]
-        if q["read"] == "response":
-            return self.gain * fraction * (1 - avg**2) if q["seam"] == "free" else 0.0
-        return 1.0 - fraction * (1.0 - avg)
+        return device(q, self.gain, straight)

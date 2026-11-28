@@ -1,1 +1,1 @@
-Projecting onto spin-flip parity changes the boundary condition of the fermionic ring. A sector that cancels in a partition trace can still contribute when the spin product is inserted.
+A seam selects a global winding sector of the domain walls. An even marked spin product measures the parity of intersections with strings joining the marked sites. The two films share one pair of thermal seam switches.

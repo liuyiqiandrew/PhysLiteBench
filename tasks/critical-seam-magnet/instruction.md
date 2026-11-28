@@ -1,1 +1,1 @@
-Calibrate the seam gain and calculate the parity-selected spin contrasts and their bias response for the critical ring specified in /app/README.md. Include the equilibrium coupling of the seam, parity and measured spins. Implement Model in /app/model.py.
+Calibrate the switch gain and predict the critical two-film measurements in /app/README.md. Replace the straight-wall approximation with the magnetic correlations and equilibrium populations for each seam condition. Implement Model in /app/model.py.
