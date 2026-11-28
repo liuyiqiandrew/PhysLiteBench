@@ -2,7 +2,7 @@
 
 ## November 28 expansion
 
-Four additions each have **0/3** unhinted GPT-5.6 Luna High passes. All twelve attempts completed and passed calibration. The four experiments cover dimer connectivity, terrace contacts, critical magnetic films and rebound calorimetry. The fifth task is under evaluation. [Reviewed trials and revision history](results/five-luna-high-20261128/README.md)
+Five additional tasks each had **0/3 passes** on unhinted GPT-5.6 Luna High. All 15 submissions finished within the time limits and passed calibration. Each missed a physical prediction involving dimer connectivity, terrace contacts, magnetic seams, rebound calorimetry or spin exchange across disjoint arcs. [Reviewed trials and revision history](results/five-luna-high-20261128/README.md)
 
 ## November five-task evaluation
 
