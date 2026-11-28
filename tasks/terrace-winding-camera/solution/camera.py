@@ -1,90 +1,75 @@
+"""Boundary-clock propagator of a reflecting gap on an interval."""
 import numpy as np
-from scipy.special import eval_hermitenorm, roots_legendre
+from scipy.special import roots_legendre, iv, ndtr
 
 
-def orders(pins):
-    out = np.zeros(len(pins), dtype=int)
-    for j in range(1,len(pins)):
-        if pins[j] == pins[j-1]:
-            out[j] = out[j-1] + 1
-    return out
+def gap_kernel(x, y, t, L, D, killed=False):
+    k = np.arange(1, 56) * np.pi / L
+    trig = np.sin if killed else np.cos
+    return (
+        (0 if killed else 1)
+        + 2
+        * np.sum(
+            trig(np.asarray(x)[..., None] * k)
+            * trig(np.asarray(y)[..., None] * k)
+            * np.exp(-D * t * k * k),
+            axis=-1,
+        )
+    ) / L
 
 
-def heat(x,y,dx,dy,time,rate,length,lifts,drift):
-    scale = np.sqrt(2*rate*time)
-    distance = (y[None,None,:]-x[None,:,None]+length*lifts[:,None,None]-drift*time)/scale
-    degree = dx[:,None]+dy
-    return (np.exp(-.5*distance**2) * eval_hermitenorm(degree,distance) * (-1.)**dy
-            / (np.sqrt(2*np.pi) * scale**(degree+1)))
+def camera(q, gamma):
+    L = q["circumference"]
+    x0, x1 = q["bottom"]
+    t = q["level"] * q["height"]
+    T = q["height"]
+    end = [
+        q["top"][(i + q["winding"]) % 2] + L * ((i + q["winding"]) // 2)
+        for i in range(2)
+    ]
+    L0, L1 = q["clocks"]
+    D = 2 * gamma
+    g0 = x1 - x0
+    gT = end[1] - end[0]
+    frac = q["level"]
+    mid = ((1 - frac) * (x0 + x1) + frac * sum(end)) / 2
+    sd = np.sqrt(gamma * T * frac * (1 - frac))
+    y, w = roots_legendre(44)
+    y = (1 + y) * L / 2
+    w = w * L / 2
+    shift = np.arange(-6, 7) * L
+    loc = mid + y[:, None] * (q["tag"] - 0.5)
+    lo, hi = q["window"]
+    p = np.sum(ndtr((hi + shift - loc) / sd) - ndtr((lo + shift - loc) / sd), axis=1)
+    measure = w * p * gap_kernel(y, gT, T - t, L, D) / gap_kernel(g0, gT, T, L, D)
+    if L0 == 0 and L1 == 0:
+        return float(measure @ gap_kernel(g0, y, t, L, D, True))
+    # Talbot's time contour. Lengths of positive camera readings are scaled by L.
+    M = 22
+    theta = np.pi * np.arange(1, M) / M
+    cot = 1 / np.tan(theta)
+    r = 0.4 * M
+    z = np.r_[r, r * theta * (cot + 1j)]
+    weights = np.exp(z) * np.r_[0.5, 1 + 1j * (theta * (1 + cot * cot) - cot)]
+    alpha = np.sqrt(z / (t * D))
+    c = alpha / np.tanh(alpha * L)
+    d = alpha / np.sinh(alpha * L)
 
+    def boundary(x):
+        return np.sinh(alpha[:, None] * x) / np.sinh(alpha * L)[:, None]
 
-def camera_mesh(length, cuts):
-    # Split at all discontinuities of the detector.
-    bounds = sorted(set([0.,length,*cuts]))
-    xs, ws = [], []
-    nodes,weights = roots_legendre(12)
-    for lo,hi in zip(bounds,bounds[1:]):
-        edges = np.linspace(lo,hi,1+int(np.ceil(4*(hi-lo)/length)))
-        for a,b in zip(edges,edges[1:]):
-            xs.extend((a+b+(b-a)*nodes)/2)
-            ws.extend((b-a)*weights/2)
-    return np.array(xs), np.array(ws)
-
-
-def masses(q,rate,db):
-    bot,top=np.array(q['bottom']),np.array(q['top'])
-    n=len(bot);length=q['circumference'];s,t=np.array(q['levels'])*q['height']
-    # A fixed winding and fixed pins fix total displacement, so a common drift
-    # cancels from the conditional law. Center it on the selected sector.
-    drift=(sum(top)-sum(bot)+length*q['winding'])/(n*q['height'])
-    ranks=np.arange(n);sec=19
-    roots=np.exp(2j*np.pi*np.arange(n+1)/(n+1))
-    phases=np.exp(2j*np.pi*np.arange(sec)/sec)*(-1)**(n-1)
-    early=np.exp(2j*np.pi*ranks/n)
-    lifts=np.arange(-7,8)
-    left_nodes,w1=camera_mesh(length,q['window']);right_nodes,w2=camera_mesh(length,q['count_window'])
-    z1=np.zeros(len(w1),dtype=int);z2=np.zeros(len(w2),dtype=int)
-    l=heat(bot,left_nodes,db,z1,s,rate,length,lifts,drift)*w1
-    m=heat(left_nodes,right_nodes,z1,z2,t-s,rate,length,lifts,drift)*w2
-    r=heat(right_nodes,top,z2,orders(top),q['height']-t,rate,length,lifts,drift)
-    f=heat(bot,top,db,orders(top),q['height'],rate,length,lifts,drift)
-    left=np.einsum('aji,ixy->ajxy',(phases[:,None,None]*early[None,:,None])**lifts,l)
-    middle=np.einsum('ai,ixy->axy',phases[:,None]**lifts,m)
-    right=np.einsum('ai,ixy->axy',phases[:,None]**lifts,r)
-    full=np.einsum('ai,ixy->axy',phases[:,None]**lifts,f)
-    lo,hi=q['count_window']; detected=(lo<=right_nodes)&(right_nodes<hi)
-    d0=middle[:,:,~detected]@right[:,~detected,:]
-    d1=middle[:,:,detected]@right[:,detected,:]
-    winding=q['winding']%sec
-    with np.errstate(divide="ignore", invalid="ignore"):
-        norm=np.fft.fft(np.linalg.det(full))[winding].real/sec
-    def cumulative(x):
-        if x==0:return 0.
-        flag=left_nodes<x
-        kernel=np.empty((sec,n,n+1,n+1),complex)
-        z,y=roots[:,None,None,None],roots[None,:,None,None]
-        for j in range(sec):
-            for k in range(n):
-                c=left[j,k]
-                mat=(c[:,~flag]@d0[j,~flag]+z*(c[:,flag]@d0[j,flag])
-                     +y*(c[:,~flag]@d1[j,~flag])+z*y*(c[:,flag]@d1[j,flag]))
-                # Some counting phases make the transfer matrix exactly singular.
-                with np.errstate(divide="ignore", invalid="ignore"):
-                    kernel[j,k]=np.linalg.det(mat)
-        joint=(np.fft.fftn(kernel)/kernel.size)[winding,:,:,q['count']].real
-        return sum(joint[k,(q['tag']+k)%n+1:].sum() for k in range(n))
-    return cumulative(q['window'][1])-cumulative(q['window'][0]), norm
-
-def image(q, rate):
-    db = orders(q['bottom'])
-    numerator, norm = masses(q, rate, db)
-    probability = numerator/norm
-    doublet = q.get('open_pair')
-    if doublet is None:
-        return float(probability)
-    third, mixed = db.copy(), db.copy()
-    third[doublet+1] = 3
-    mixed[doublet:doublet+2] = [1,2]
-    n3,z3 = masses(q,rate,third)
-    n12,z12 = masses(q,rate,mixed)
-    return float(q['circumference']**2*((n3-probability*z3)/24-(n12-probability*z12)/8)/norm)
+    left = boundary(L - y) @ measure
+    right = boundary(y) @ measure
+    s = np.sinh(alpha * (L - g0)) / np.sinh(alpha * L)
+    h = np.sinh(alpha * g0) / np.sinh(alpha * L)
+    if L0 == 0 or L1 == 0:
+        v = (s * left if L0 else h * right) * np.exp(-c * L * (L0 + L1)) * L / D
+    else:
+        A, B = L * L0, L * L1
+        arg = 2 * d * np.sqrt(A) * np.sqrt(B)
+        scaled = np.ones_like(arg)
+        np.divide(2 * iv(1, arg), arg, out=scaled, where=abs(arg) > 1e-8)
+        diag = d * scaled * (A * s * left + B * h * right)
+        off = iv(0, arg) * (s * right + h * left)
+        v = d * np.exp(-c * L * (L0 + L1)) * (diag + off) * L**2 / D
+    return float(0.4 / t * np.real(weights @ v))

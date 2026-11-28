@@ -1,44 +1,90 @@
-"""Independent Gaussian bridges with a point-nucleation approximation."""
+"""The two contact recorders see independent half-line bridges given the exposure gap."""
 import numpy as np
-from scipy.special import ndtr, roots_legendre
+from scipy.special import roots_legendre, ndtr
 
 
-def image(q,rate):
-    if q.get('open_pair') is not None:
-        # This approximation treats a slit as a point at every small opening.
-        return 0.
-    bottom,top=q['bottom'],q['top']
-    n=len(bottom);L=q['circumference'];a,b=q['levels']
-    variation=2*rate*q['height'];sigma=np.sqrt(variation*a*(1-a))
-    lo,hi=q['window'];cl,ch=q['count_window']
-    nodes,weights=roots_legendre(24)
-    shifts=L*np.arange(-5,6)
-    def band(mu,sd,low,high):
-        x=mu[...,None] if np.ndim(mu) else mu
-        return np.sum(ndtr((high+shifts-x)/sd)-ndtr((low+shifts-x)/sd),axis=-1)
-    poly=np.ones(1)
-    for i,x0 in enumerate(bottom):
-        winding,j=divmod(i+q['winding'],n)
-        end=top[j]+winding*L
-        mean1=x0+a*(end-x0);mean2=x0+b*(end-x0)
-        later=band(mean2,np.sqrt(variation*b*(1-b)),cl,ch)
-        early=1.
-        if i==q['tag']:
-            early=band(mean1,sigma,lo,hi)
-            position=(lo+hi+(hi-lo)*nodes[:,None])/2+shifts
-            density=np.exp(-.5*((position-mean1)/sigma)**2)/(np.sqrt(2*np.pi)*sigma)
-            conditional=mean2+(1-b)/(1-a)*(position-mean1)
-            inside=band(conditional,np.sqrt(variation*(b-a)*(1-b)/(1-a)),cl,ch)
-            later=(hi-lo)/2*np.sum(weights[:,None]*density*inside)
-        poly=np.convolve(poly,[early-later,later])
-    return float(poly[q['count']])
+def local_clock(x, y, t, rate, L, u):
+    reflected = np.exp(-x * y / (rate * t))
+    if u == 0:
+        return (1 - reflected) / (1 + reflected)
+    ell = L * u
+    return (
+        L
+        * (x + y + ell)
+        / (rate * t)
+        * reflected
+        / (1 + reflected)
+        * np.exp(-ell * (2 * (x + y) + ell) / (4 * rate * t))
+    )
+
+
+def image(q, rate):
+    L = q["circumference"]
+    T = q["height"]
+    t = T * q["level"]
+    D = 2 * rate
+    tag = q["tag"]
+    start = q["bottom"][1] - q["bottom"][0]
+    w = q["winding"]
+    end = [q["top"][(j + w) % 2] + ((j + w) // 2) * L for j in (0, 1)]
+    last = end[1] - end[0]
+    mid = (sum(end) * t / T + sum(q["bottom"]) * (1 - t / T)) / 2
+    z, weight = roots_legendre(40)
+    g = (z + 1) * L / 2
+    weight *= L / 2
+    k = np.arange(1, 45) * np.pi / L
+
+    def transition(x, y, h):
+        return (
+            1
+            + 2
+            * np.sum(
+                np.cos(np.asarray(x)[..., None] * k)
+                * np.cos(np.asarray(y)[..., None] * k)
+                * np.exp(-D * h * k**2),
+                axis=-1,
+            )
+        ) / L
+
+    distribution = (
+        weight
+        * transition(start, g, t)
+        * transition(g, last, T - t)
+        / transition(start, last, T)
+    )
+    dev = np.sqrt(rate * t * (1 - t / T))
+    lo, hi = q["window"]
+    offsets = np.arange(-7, 8) * L
+    location = mid + (tag - 0.5) * g[:, None]
+    pose = np.sum(
+        ndtr((hi + offsets - location) / dev) - ndtr((lo + offsets - location) / dev),
+        axis=1,
+    )
+    a, b = q["clocks"]
+    return float(
+        distribution
+        @ (
+            pose
+            * local_clock(start, g, t, D, L, a)
+            * local_clock(L - start, L - g, t, D, L, b)
+        )
+    )
 
 
 class Model:
     def fit(self, records):
-        self.rate = float(np.mean([row["value"]/(2*row["input"]["height"]) for row in records]))
+        self.rate = float(
+            np.mean([row["value"] / (2 * row["input"]["height"]) for row in records])
+        )
         return self
 
     def predict(self, inputs):
-        return np.array([2*self.rate*q["height"] if q["mode"]=="wandering" else image(q,self.rate)
-                         for q in inputs],dtype=float)
+        return np.array(
+            [
+                2 * self.rate * q["height"]
+                if q["mode"] == "wandering"
+                else image(q, self.rate)
+                for q in inputs
+            ],
+            dtype=float,
+        )

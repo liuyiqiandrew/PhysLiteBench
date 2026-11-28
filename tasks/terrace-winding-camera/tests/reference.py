@@ -1,78 +1,124 @@
-"""Plane-wave propagation and exact interval overlap matrices."""
+"""Real-frequency inversion using a series over visits between the two walls."""
+from decimal import Decimal, localcontext
+from functools import lru_cache
+from math import factorial
 import numpy as np
+from scipy.special import roots_legendre, ndtr
 
 
-def derivative_orders(coords):
-    return [sum(v == x for v in coords[:i]) for i,x in enumerate(coords)]
+@lru_cache
+def stehfest(order):
+    coeff = []
+    for k in range(1, 2 * order + 1):
+        weight = Decimal(0)
+        for j in range((k + 1) // 2, min(k, order) + 1):
+            num = j**order * factorial(2 * j)
+            den = (
+                factorial(order - j)
+                * factorial(j)
+                * factorial(j - 1)
+                * factorial(k - j)
+                * factorial(2 * j - k)
+            )
+            weight += Decimal(num) / Decimal(den)
+        coeff.append((-1) ** (k + order) * weight)
+    return coeff
 
 
-def wave_grid(size, phase, modes):
-    return (2*np.pi*np.arange(-modes,modes+1)-phase)/size
+def image(q, gamma, terms=18):
+    L = q["circumference"]
+    D = 2 * gamma
+    T = q["height"]
+    t = T * q["level"]
+    a, b = q["clocks"]
+    b0, b1 = q["bottom"]
+    top = q["top"]
+    winding = q["winding"]
+    f0 = top[winding % 2] + (winding // 2) * L
+    f1 = top[(winding + 1) % 2] + ((winding + 1) // 2) * L
+    start = b1 - b0
+    end = f1 - f0
+    mid = ((b0 + b1) * (1 - t / T) + (f0 + f1) * t / T) / 2
+    sig = np.sqrt(gamma * t * (1 - t / T))
+    xx, ww = roots_legendre(56)
+    x = (1 + xx) * L / 2
+    ww *= L / 2
 
+    def free(s, dt):
+        return np.exp(-s * s / (4 * D * dt)) / np.sqrt(4 * np.pi * D * dt)
 
-def window_overlap(p, q, lo, hi, size):
-    delta = p[:,None]-q[None,:]
-    return ((hi-lo)/size * np.exp(0.5j*(lo+hi)*delta)
-            * np.sinc((hi-lo)*delta/(2*np.pi)))
+    def images(x0, x1, dt, sign):
+        shift = 2 * L * np.arange(-9, 10)
+        return np.sum(
+            free(np.asarray(x1 - x0)[..., None] + shift, dt)
+            + sign * free(np.asarray(x1 + x0)[..., None] + shift, dt),
+            axis=-1,
+        )
 
+    lo, hi = q["window"]
+    shifts = np.arange(-7, 8) * L
+    loc = mid + (-0.5 if q["tag"] == 0 else 0.5) * x
+    tag = np.sum(
+        ndtr((hi + shifts - loc[:, None]) / sig)
+        - ndtr((lo + shifts - loc[:, None]) / sig),
+        axis=1,
+    )
+    sampled = ww * tag * images(x, end, T - t, 1) / images(start, end, T, 1)
+    if a == 0 and b == 0:
+        return float(sampled @ images(start, x, t, -1))
 
-def probability(ex, diffusion, modes=19, sectors=22):
-    L=ex['circumference']; tag=ex['tag'];total=ex['height']
-    s,t=np.array(ex['levels'])*total
-    top=np.array(ex['top']);bottom=np.array(ex['bottom']);n=len(top)
-    db=np.array(derivative_orders(bottom));dt=np.array(derivative_orders(top))
-    drift=(sum(top)-sum(bottom)+L*ex['winding'])/(n*total)
-    def evolve(k,height):
-        return np.exp(-height*(diffusion*k*k+1j*drift*k))
-    theta=np.arange(sectors)*2*np.pi/sectors
-    eta=np.arange(n)*2*np.pi/n
-    z=np.exp(2j*np.pi*np.arange(n+1)/(n+1))
-    signphase=(n-1)*np.pi
-    normalization=[]
-    result=np.zeros(2)
-    for h,cut in enumerate(ex['window']):
-        if cut==0: continue
-        sums=np.zeros((sectors,n,n+1,n+1),complex)
-        for b,angle in enumerate(theta):
-            last=wave_grid(L,np.angle(np.exp(1j*(angle+signphase))),modes)
-            lastpin=np.exp(1j*last[:,None]*top)*(1j*last[:,None])**dt/L
-            bpin=np.exp(-1j*bottom[:,None]*last)*(-1j*last)**db[:,None]
-            if not h or ex['window'][0]==0:
-                with np.errstate(divide="ignore",invalid="ignore"):
-                    normalization.append(np.linalg.det((bpin*evolve(last,total))@lastpin))
-            end=evolve(last[:,None],total-t)*lastpin
-            late=window_overlap(last,last,*ex['count_window'],L)
-            late_gate=end[None,:,:]+(z[:,None,None]-1)*(late@end)
-            middle_phase=evolve(last[:,None],t-s)
-            for j,stage in enumerate(eta):
-                first=wave_grid(L,np.angle(np.exp(1j*(angle+signphase+stage))),modes)
-                initial=np.exp(-1j*bottom[:,None]*first)*(-1j*first)**db[:,None]*evolve(first,s)
-                all_sites=window_overlap(first,last,0.,L,L)
-                below=window_overlap(first,last,0.,cut,L)
-                before=initial@all_sites+(z[:,None,None]-1)*(initial@below)
-                matrix=(before[:,None,:,:]*middle_phase.T)@late_gate[None,:,:,:]
-                with np.errstate(divide="ignore",invalid="ignore"):
-                    sums[b,j]=np.linalg.det(matrix)
-        weight=np.fft.fftn(sums)[ex['winding']%sectors,:,:,ex['count']].real / sums.size
-        for crossings in range(n):
-            result[h]+=weight[crossings,(tag+crossings)%n+1:].sum()
-    mass=np.fft.fft(normalization)[ex['winding']%sectors].real/sectors
-    return (result[1]-result[0])/mass
+    def dec(v):
+        return Decimal(str(v))
 
-def image(ex, diffusion, step=.006):
-    i=ex.get('open_pair')
-    if i is None:
-        return probability(ex,diffusion)
-    def split(s):
-        pins=list(ex['bottom'])
-        half=ex['circumference']*s/2
-        pins[i]-=half
-        pins[i+1]+=half
-        return probability(dict(ex,bottom=pins),diffusion)
-    p1,p2,p4=[split(s) for s in (step,2*step,4*step)]
-    fine=(p2-p1)/(3*step**2)
-    coarse=(p4-p2)/(12*step**2)
-    return (4*fine-coarse)/3
+    with localcontext() as ctx:
+        ctx.prec = 2 * terms + 22
+        width, diffusion, initial = map(dec, [L, D, start])
+        A, B = dec(a) * width, dec(b) * width
+        freq = Decimal(2).ln() / dec(t)
+        nodes = list(map(dec, x))
+        measure = list(map(dec, sampled))
 
+        def density(p):
+            z = (p / diffusion).sqrt()
+            pos = (z * width).exp()
+            v = 2 / (pos - 1 / pos)
+            h = z * v
+            c = z * v * (pos + 1 / pos) / 2
 
-TRUE_PARAMETER = .927
+            def edges(y):
+                p0 = (z * y).exp()
+                p1 = pos / p0
+                return v * (p1 - 1 / p1) / 2, v * (p0 - 1 / p0) / 2
+
+            l0, r0 = edges(initial)
+            l1 = r1 = Decimal(0)
+            for y, w in zip(nodes, measure):
+                front, back = edges(y)
+                l1 += front * w
+                r1 += back * w
+            if a == 0 or b == 0:
+                return (
+                    (l0 * l1 if a > 0 else r0 * r1)
+                    * width
+                    / diffusion
+                    * (-c * (A + B)).exp()
+                )
+            xab = h * h * A * B
+            series = off = diag = Decimal(1)
+            for j in range(1, 100):
+                series *= xab / (j * j)
+                off += series
+                diag += series / (j + 1)
+                if series < Decimal("1e-52") * off:
+                    break
+            return (
+                width**2
+                / diffusion
+                * (-c * (A + B)).exp()
+                * h
+                * ((l0 * r1 + r0 * l1) * off + h * (A * l0 * l1 + B * r0 * r1) * diag)
+            )
+
+        return float(
+            freq * sum(w * density(j * freq) for j, w in enumerate(stehfest(terms), 1))
+        )

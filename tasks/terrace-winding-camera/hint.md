@@ -1,1 +1,1 @@
-At positive pin separation, absorbing collisions can be imposed by antisymmetrizing a winding-weighted propagator. Conditioning first and merging pins second requires retaining the leading antisymmetric term. The finite-slit response also probes the next term in the accepted pin ensemble.
+Separate the material pair into its center and its reflected gap. Laplace weights for the two boundary residence histories impose Robin conditions. Remember that positive readings and exactly zero readings use different parts of the joint measure.

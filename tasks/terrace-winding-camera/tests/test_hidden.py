@@ -31,7 +31,6 @@ def test_fit(errors):
     assert errors["max_absolute_error"]["calibration"] < 2e-5
 
 
-@pytest.mark.parametrize(("group", "tolerance"), [("separate", .003), ("nucleated", .003),
-                                               ("joint", .003), ("slit", .015)])
-def test_image(errors, group, tolerance):
-    assert errors["max_absolute_error"][group] < tolerance
+@pytest.mark.parametrize("group", ["avoiding", "one_recorder", "two_recorders", "tagged"])
+def test_image(errors, group):
+    assert errors["max_absolute_error"][group] < 0.004
