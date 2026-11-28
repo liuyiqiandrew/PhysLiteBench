@@ -1,0 +1,1 @@
+With fixed gain, enumerate the possible parents of each ionization. Electron impacts inherit an electron arrival packet; hole impacts can start a new packet. The observed latest packet pins a hole impact time when its delay is positive.
