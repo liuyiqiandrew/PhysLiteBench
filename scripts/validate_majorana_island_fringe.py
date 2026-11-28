@@ -82,8 +82,47 @@ def runs():
     return calibration, groups
 
 
+def cavity_experiments():
+    rng=np.random.default_rng(20273431)
+    groups={}
+    for family in ("wavepacket","conditioned"):
+        rows=[]
+        for j,n in enumerate([3,4,5,10,21,32]):
+            num=2 if j in (0,2,4) else 3
+            used=list(map(int,rng.choice(2*n,size=min(6,2*n),replace=False)))
+            def pair():return list(map(int,rng.choice(used,size=2,replace=False)))
+            def pulse():return pair()+np.round(rng.uniform(-1.1,1.1,2),4).tolist()
+            arms=[[pulse() for _ in range(num+1)] for a in range(2)]
+            # Recombine nearby arms with a measurable spin fringe.
+            arms[1]=[p.copy() for p in arms[0]]
+            arms[1][0][2]+=.65
+            arms[1][-1][3]*=-.6
+            q=dict(n=n,beta=round(rng.uniform(.7,4.5),3),ripple=.25,parity=(-1)**j,
+                   frame="wave" if j%3 else "site",phase=round(rng.uniform(-1.5,1.5),3),
+                   meter_phase=.68,outcome=1,arms=arms)
+            bins=[[k+1 if k<num-1 else num+1,*pair(),*np.round(rng.uniform(-.54,.54,2),4)]for k in range(num)]
+            other=[r.copy() for r in bins]
+            for k in range(num):
+                other[k][-2]*=-1 if k%2==0 else 1
+                if k==num-1:other[k][1:3]=pair()
+            q['cavity']=dict(thermal=round(rng.uniform(.12,.6),3),angle=round(rng.uniform(-1.8,1.8),3),
+                transmission=np.round(rng.uniform(.18,.77,num),3).tolist(),
+                mode=np.round(rng.uniform(-1,1,(num,2)),3).tolist(),
+                window=[-.3,.9] if family=="wavepacket" else [.25,1.25],segments=[bins,other])
+            rows.append(q)
+        groups[family]=rows
+    return groups
+
+
 def validate(generate):
     calibration, groups = runs()
+    cavity_ref = load("cavity_ref", TASK/"tests/cavity_reference.py")
+    for family, inputs in cavity_experiments().items():
+        groups[family] = []
+        for q in inputs:
+            accept, value = cavity_ref.reference(q)
+            assert accept > .025 and abs(value) < 1+1e-12
+            groups[family].append(dict(input=q, value=round(ref.TRUE_PARAMETER*value,9)))
     for path, data in [(TASK/"environment/data/calibration.json",calibration),
                        (TASK/"tests/data/calibration.json",calibration),
                        (TASK/"tests/data/hidden.json",groups)]:
@@ -100,7 +139,7 @@ def validate(generate):
     for group, rows in groups.items():
         for row in rows:
             q = row["input"]
-            if q["n"] <= 6:
+            if q["n"] <= 6 and "cavity" not in q:
                 np.testing.assert_allclose(ref.dense(q),ref.measurement(q),atol=1e-12,rtol=0)
     for model in (oracle, baseline, starter):
         fitted = model.Model().fit(calibration)
@@ -109,6 +148,15 @@ def validate(generate):
                                     - [r["value"] for r in rows]))) for name,rows in groups.items()}
         assert (max(errors.values())<.003) == (model is oracle)
         print(model.__name__,fitted.visibility,errors)
+        if model is not oracle:
+            assert max(errors[k] for k in ("winding","meter","charge","extended")) < 2e-8
+            assert min(errors[k] for k in ("wavepacket","conditioned")) > .003
+    example = dict(n=3,beta=1.5,ripple=0.,parity=1,frame="site",meter_phase=0.,outcome=1,
+                   phase=np.pi/2,arms=[[],[]],
+                   cavity=dict(thermal=0.,angle=0.,mode=[[1.,0.]],transmission=[.5],
+                               window=[.3,1.2],segments=[[[0,0,1,0.,0.]],[[0,0,1,0.,.6]]]))
+    for compare in (cavity_ref.reference(example)[1],oracle.Model().fringe(example)):
+        assert abs(compare + .286820) < 5e-7
     q = dict(calibration[0]["input"],phase=0.,arms=[[],[[0,1,2*np.pi,0.]]])
     np.testing.assert_allclose(oracle.Model().fit(calibration).fringe(q),-1.,atol=1e-12)
 
