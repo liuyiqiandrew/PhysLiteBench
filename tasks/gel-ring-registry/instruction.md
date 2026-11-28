@@ -1,1 +1,1 @@
-Calibrate the filament activity and replace the starter's taut-only growth approximation. Predict the registered ring measurements in /app/README.md, including the effects of erased excursions and stems. Implement Model in /app/model.py.
+Calibrate the material activity and replace the empty-trunk approximation for the paired growth experiment in /app/README.md. Account for the common initial path and cancellations across the growth fork. Implement Model in /app/model.py.

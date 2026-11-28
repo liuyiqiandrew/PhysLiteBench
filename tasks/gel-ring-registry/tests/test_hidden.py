@@ -29,6 +29,6 @@ def test_calibration(errors):
     assert 0.75 <= errors["activity"] <= 1.15 and errors["calibration"] < 0.00002
 
 
-@pytest.mark.parametrize("group", ["seam", "windings", "mixed_readouts"])
+@pytest.mark.parametrize("group", ["seam", "shifted", "winding"])
 def test_registered_rings(errors, group):
     assert errors[group] < 0.004

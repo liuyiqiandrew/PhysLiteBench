@@ -1,16 +1,20 @@
 from functools import lru_cache
 import numpy as np
 
+REV = np.arange(4) ^ 1
 
-def transitions(p, activity):
-    weights = np.array(p["routes"], float)
-    weights /= weights.sum(axis=1)[:, None]
-    stop = 1 / (1 + activity * np.array(p["feed"]))
-    Q = np.zeros((4, 2, 2))
-    for j in range(4):
-        f, g = p["switch"][j]
-        Q[j] = ((1 - stop) * weights[:, j])[:, None] * [[1 - f, f], [g, 1 - g]]
-    return Q, stop, np.array([1 - p["blue"], p["blue"]])
+
+def hits(p, z):
+    v = np.array(p["routes"], float)
+    q = v / v.sum() * (1 - 1 / (1 + z * p["feed"]))
+    f = q.copy()
+    for _ in range(160):
+        excursion = q * f[REV]
+        new = q / (1 - excursion.sum() + excursion)
+        if max(abs(new - f)) < 1e-15:
+            break
+        f = new
+    return f
 
 
 @lru_cache(None)
@@ -30,30 +34,33 @@ def loops(n):
     return words, np.unique(key, return_inverse=True)[1]
 
 
-def ring_weights(p, z, words, dynamics):
-    F, S = dynamics(p, z)
-    mat = F[words[:, 0]]
-    for j in range(1, words.shape[1]):
-        mat = mat @ F[words[:, j]]
-    return np.einsum("nij,nji->n", mat, S[words[:, 0], words[:, -1]])
+@lru_cache(None)
+def pictures(n):
+    w, c = loops(n)
+    left = []
+    right = []
+    order = np.argsort(c, kind="stable")
+    for group in np.split(order, np.flatnonzero(np.diff(c[order])) + 1):
+        left.extend(np.repeat(group, len(group)))
+        right.extend(np.tile(group, len(group)))
+    return w, np.array(left), np.array(right)
 
 
-def shot(q, z, dynamics):
-    words, classes = loops(q["length"])
-    w, v = [ring_weights(p, z, words, dynamics) for p in q["rings"]]
-    g = np.isin(words[:, 0], q["gate"])
-    w = w * g
-    group = classes
-    left = np.bincount(group, weights=w)[group]
-    coupled = left * v
-    den = coupled.sum()
+def observable(q, z, pair_weights):
+    w, ix, iy = pictures(q["length"])
+    ok = np.isin(w[ix, 0], q["gate"])
+    if q["shifted"]:
+        ok &= ix != iy
+    u = w[ix[ok]]
+    v = w[iy[ok]]
+    f0, f1, f2 = [hits(k, z) for k in [q["trunk"], *q["arms"]]]
+    p = pair_weights(f0, f1, f2, u, v)
     if "probe" in q:
-        obs = np.isin(words[:, -1], q["probe"])
+        obs = np.isin(v[:, -1], q["probe"])
     else:
-        phase = q["flux"][0] * ((words == 0).sum(1) - (words == 1).sum(1))
-        phase += q["flux"][1] * ((words == 2).sum(1) - (words == 3).sum(1))
-        obs = 0.5 * (1 + np.cos(q["phase"] + phase))
-    return float(coupled @ obs / den), float(den / (max(w.sum(), 1e-300) * v.sum()))
+        angles = np.array([q["flux"][0], -q["flux"][0], q["flux"][1], -q["flux"][1]])
+        obs = 0.5 + 0.5 * np.cos(angles[v].sum(1) + q["phase"])
+    return float(p @ obs / p.sum())
 
 
 class Printer:
@@ -64,17 +71,16 @@ class Printer:
         return self
 
     @staticmethod
-    def dynamics(p, z):
-        # Count exactly the exposed core; its raw contour has no erased excursions.
-        Q, stop, pi = transitions(p, z)
-        return Q, np.broadcast_to(np.outer(stop, pi), (4, 4, 2, 2))
+    def pair_weights(f0, f1, f2, u, v):
+        # Grow the daughter routes from the starting clasp, removing the contribution of the common lay.
+        return f1[u].prod(axis=1) * f2[v].prod(axis=1)
 
     def predict(self, inputs):
         return np.array(
             [
                 1 / (1 + self.activity * q["dose"])
                 if "dose" in q
-                else shot(q, self.activity, self.dynamics)[0]
+                else observable(q, self.activity, self.pair_weights)
                 for q in inputs
             ],
             dtype=float,

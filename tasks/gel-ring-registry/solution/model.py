@@ -1,6 +1,6 @@
 from registry import Printer
-from gel import tightened
+from gel import joint
 
 
 class Model(Printer):
-    dynamics = staticmethod(tightened)
+    pair_weights = staticmethod(joint)
