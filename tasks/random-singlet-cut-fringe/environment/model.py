@@ -1,6 +1,6 @@
-from apparatus import Readout,poisson
+from apparatus import Readout,interferometer
 
 
 class Model(Readout):
     def fringe(self,q):
-        return poisson(q)
+        return interferometer(q)[1]

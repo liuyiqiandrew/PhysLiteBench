@@ -1,89 +1,75 @@
-"""Regenerate the two-cut disorder ensemble and reproduce the competing-exchange witnesses."""
+"""Calibrate the carrier interferometer and compare backward nested channels with forward tomography."""
 import argparse,json,runpy,sys
 from pathlib import Path
 import numpy as np
-from scipy.integrate import quad
 
-base=Path(__file__).resolve().parents[1]
-task=base/'tasks/random-singlet-cut-fringe'
-sys.path[:0]=[str(task/s) for s in ('environment','solution','tests')]
-from reference import reference
-from renewal import response
+base=Path(__file__).resolve().parents[1];t=base/'tasks/random-singlet-cut-fringe'
+sys.path[:0]=[str(t/s) for s in ('environment','solution','tests')]
+from apparatus import interferometer
+from partners import partner_map
+from reference import truth
 
-visibility=.8217
+V=.8217
 
-
-def pick(arms=None,herald=None):
-    return dict(arms=[[],[]] if arms is None else arms,herald=[0.,0.,0.] if herald is None else herald)
-
+def example():
+    ports=dict(arms=[[0.,0.,0.,0.],[np.pi/2,0.,np.pi/2,0.]],herald=[1.,np.pi,0.])
+    return dict(central=1,left_sign=None,count=1,phase=0.,prepare=[[1,0],[0,0]],analyze=None,
+                turnaround=[['z',0.],['z',0.]],bands=[dict(width=1.,left=ports,right=ports,both=ports)])
 
 def make():
-    rng=np.random.default_rng(431582)
-    def draw(a,b):return round(float(rng.uniform(a,b)),4)
-    def q(n,count):return dict(central=n,left_sign=[-1,1,None][int(rng.integers(3))],count=count,
-                                phase=draw(-.98,.98),bands=[])
+    rng=np.random.default_rng(553962)
+    def u(a,b):return round(float(rng.uniform(a,b)),4)
     cal=[]
     for _ in range(12):
-        query=q(1,None)
-        cal.append(dict(input=query,value=round(visibility*np.cos(query['phase']),8)))
+        q=example();q.update(bands=[],count=None,phase=u(-3.1,3.1))
+        cal.append(dict(input=q,value=round(V*np.cos(q['phase']),8)))
     groups={}
-    for name in ('one_center','two_centers','paired_herald'):
+    for name in ('outbound_only','singlet_echo','selected_carrier'):
         rows=[]
-        for i in range(8):
-            for _ in range(80):
-                count=None if i%3==0 else i%2
-                if name=='paired_herald':count=2 if i%3 else 1
-                query=q(1 if name=='one_center' else 2,count)
+        for i in range(6):
+            for _ in range(35):
+                q=example();q.update(central=1+i%2,left_sign=[-1,1,None][i%3],phase=u(-2.3,2.3),bands=[],
+                    count=None if i%3==0 else i%2,
+                    turnaround=[[str(rng.choice(['x','y','z'])),u(-1.8,1.8)] for _ in range(2)],
+                    prepare=np.round(rng.normal(size=(2,2)),3).tolist())
+                if name=='selected_carrier':
+                    q['analyze']=np.round(rng.normal(size=(2,2)),3).tolist()
+                    q['count']=i%3
                 for j in range(1+i%3):
-                    width=draw(.75,1.6)
-                    band=dict(width=width)
-                    def pulse():return [str(rng.choice(['L','R'])),str(rng.choice(['x','y','z'])),draw(-3.,3.),draw(-2.8,2.8)]
+                    band=dict(width=u(.65,1.4))
                     for spot in ('left','right','both'):
-                        arms=[[pulse() for _ in range(int(rng.integers(3)))] for _ in range(2)]
-                        herald=[draw(.3,.97),draw(-2.9,2.9),draw(-2.8,2.8)]
-                        if name=='paired_herald':
-                            herald=[draw(.88,.99),draw(2.4,3.12),draw(-.25,.25)] if spot!='both' else [draw(0,.12),1.1,.12]
-                            if spot!='both':arms=[[],[]]
-                            else:arms=[[],[['L','x',draw(2.1,3.1),draw(-.2,.2)]]]
-                        band[spot]=pick(arms,herald)
-                    query['bands'].append(band)
-                prob,fringe=response(query)
-                if prob>.025:break
-            assert prob>.025
-            bench=reference(query)
-            np.testing.assert_allclose(bench,[prob,fringe],rtol=0,atol=4e-9)
-            rows.append(dict(input=query,value=round(visibility*bench[1],9)))
+                        arms=[[u(-1.6,1.6),u(-.9,.9),u(-1.6,1.6),u(-.9,.9)] for _ in range(2)]
+                        if name=='outbound_only':
+                            for arm in arms:arm[2:]=[0.,0.]
+                        band[spot]=dict(arms=arms,herald=[u(.55,.98),u(1.1,3.1),u(-1.1,1.1)])
+                    q['bands'].append(band)
+                p,fringe=interferometer(q,partner_map)
+                if p>.025:break
+            assert p>.025
+            direct=truth(q);np.testing.assert_allclose([p,fringe],direct,atol=2e-8,rtol=0)
+            rows.append(dict(input=q,value=round(V*direct[1],9)))
         groups[name]=rows
     return cal,groups
 
-
 def main(write):
     cal,groups=make()
-    for p,x in [(task/'environment/data/calibration.json',cal),(task/'tests/data/calibration.json',cal),
-                (task/'tests/data/hidden.json',groups)]:
-        if write:p.write_text(json.dumps(x,separators=(',',':'))+'\n')
-        assert json.loads(p.read_text())==x
-    for name,path in [('oracle',task/'solution/model.py'),('starter',task/'environment/model.py'),
-                      ('control',base/'scripts/random_singlet_cut_fringe_baseline.py')]:
-        m=runpy.run_path(str(path))['Model']().fit(cal)
-        errs={g:float(np.max(abs(m.predict([x['input'] for x in rows])-[x['value'] for x in rows])))
-              for g,rows in groups.items()}
-        print(name,errs,flush=True)
-        if name=='oracle':assert max(errs.values())<2e-8
-        elif name=='starter':assert min(errs.values())>.003
-        else:assert errs['one_center']<2e-8 and errs['paired_herald']>.003
-    t=1.
-    dark=pick();off=pick([[],[['L','z',np.pi,0.]]])
-    b=dict(width=t,left=off,right=off,both=dark)
-    query=dict(central=2,left_sign=None,count=None,phase=0.,bands=[b])
-    witness=1-quad(lambda u:2*np.exp(-2*u+1-np.exp(u)),0,t)[0]
-    print('no one-sided crossing, two/one center',witness,np.exp(-2))
-    for fn in (reference,response):
-        np.testing.assert_allclose(fn(query),[1.,witness],atol=2e-10,rtol=0)
-        np.testing.assert_allclose(fn(dict(query,central=1)),[1.,np.exp(-2)],atol=2e-10,rtol=0)
-        split=dict(query,bands=[dict(b,width=.3),dict(b,width=.7)])
-        np.testing.assert_allclose(fn(split),fn(query),atol=2e-10,rtol=0)
-
+    for dest,v in [(t/'environment/data/calibration.json',cal),(t/'tests/data/calibration.json',cal),(t/'tests/data/hidden.json',groups)]:
+        if write:dest.write_text(json.dumps(v,separators=(',',':'))+'\n')
+        assert json.loads(dest.read_text())==v
+    for name,path in [('oracle',t/'solution/model.py'),('starter',t/'environment/model.py'),('control',base/'scripts/random_singlet_cut_fringe_baseline.py')]:
+        model=runpy.run_path(str(path))['Model']().fit(cal)
+        errors={g:float(np.max(abs(model.predict([r['input'] for r in rows])-[r['value'] for r in rows]))) for g,rows in groups.items()}
+        print(name,errors,flush=True)
+        assert errors['outbound_only']<2e-8
+        if name=='oracle':assert max(errors.values())<2e-8
+        else:assert min(errors[g] for g in ('singlet_echo','selected_carrier'))>.003
+    q=example()
+    for calc in (lambda q:interferometer(q,partner_map),truth):
+        np.testing.assert_allclose(calc(q),[.7574027568135,.5],atol=2e-10,rtol=0)
+        np.testing.assert_allclose(calc(dict(q,analyze=q['prepare']))[1],2/3,atol=2e-10)
+    np.testing.assert_allclose(interferometer(q)[1],-.25,atol=2e-10)
+    classical=lambda e,l:partner_map(e,l,resolve=True)
+    np.testing.assert_allclose(interferometer(q,classical)[1],0.,atol=2e-10)
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--generate',action='store_true')

@@ -1,56 +1,54 @@
-"""Uniform rotations, staggered rotations, and a singlet analyzer on an individual pair."""
+"""Carrier preparation, turnaround, readout, and a reference instrument with independent partner spins."""
 import numpy as np
+from words import ordered_average
 
-pauli={
-    'x':np.array([[0.,1.],[1.,0.]],complex),
-    'y':np.array([[0.,-1j],[1j,0.]]),
-    'z':np.diag([1.,-1.]),
-}
-singlet=np.array([0.,1.,-1.,0.])/np.sqrt(2.)
+pauli={'x':np.array([[0.,1.],[1.,0.]],complex),'y':np.array([[0.,-1j],[1j,0.]]),'z':np.diag([1.,-1.])}
 
 
-def pair_response(band,left_sign):
-    """Return complex Ramsey overlap and click probability for one crossing."""
-    states=[]
-    for pulses in band['arms']:
-        state=singlet
-        for side,axis,uniform,staggered in pulses:
-            spin_sign=left_sign if side=='L' else -left_sign
-            a=(uniform+spin_sign*staggered)/2
-            u=np.cos(a)*np.eye(2)-1j*np.sin(a)*pauli[axis]
-            gate=np.kron(u,np.eye(2)) if side=='L' else np.kron(np.eye(2),u)
-            state=gate@state
-        states.append(state)
-    efficiency,uniform,staggered=band['herald']
-    click=efficiency*np.sin(.5*(uniform+left_sign*staggered))**2
-    return np.vdot(*states),click
+def pure(raw):
+    x=np.array([complex(*w) for w in raw]);x/=np.linalg.norm(x)
+    return np.outer(x,x.conj())
+
+
+def exchange(a,b):
+    """One encounter with an independent unpolarized spin. The bra pulse is a, the ket pulse b."""
+    factor=np.cos(a)*np.cos(b)+.5j*np.sin(a-b)
+    return factor*np.eye(4)+.5*np.sin(a)*np.sin(b)*np.outer(np.eye(2).ravel(),np.eye(2).ravel())
+
+
+def independent(early,late):
+    return np.kron(exchange(*late),exchange(*early).T)
+
+
+def interferometer(q,partner=independent):
+    initial=pure(q['prepare'])
+    analyzer=np.eye(2) if q['analyze'] is None else pure(q['analyze'])
+    mids=[np.cos(t/2)*np.eye(2)-1j*np.sin(t/2)*pauli[axis] for axis,t in q['turnaround']]
+    def channel(a,b):
+        def event(band,geometry,s):
+            spec=band[geometry]
+            angles=np.asarray(spec['arms'])
+            early=angles[:,0]+s*angles[:,1];late=angles[:,2]-s*angles[:,3]
+            eta,h,g=spec['herald']
+            return partner(early[[a,b]],late[[a,b]]),eta*np.sin(.5*(h+s*g))**2
+        terminal=np.kron(mids[b],mids[a].conj()).ravel()
+        word=ordered_average(q,event,terminal).reshape(4,4)
+        output=(word@initial.ravel()).reshape(2,2)
+        return np.trace(analyzer@output)
+    if q['analyze'] is None:
+        def counts(band,geometry,s):
+            eta,h,g=band[geometry]['herald']
+            return np.ones((1,1)),eta*np.sin(.5*(h+s*g))**2
+        p=ordered_average(q,counts,[1.])[0].real
+    else:p=.5*(channel(0,0)+channel(1,1)).real
+    cross=channel(0,1)
+    return p,float((np.exp(-1j*q['phase'])*cross).real/p)
 
 
 class Readout:
     def fit(self,records):
-        basis=np.cos([r['input']['phase'] for r in records])
-        values=np.array([r['value'] for r in records])
-        self.visibility=float(np.clip(basis@values/(basis@basis),.65,.95))
+        phase=np.cos([r['input']['phase'] for r in records]);y=[r['value'] for r in records]
+        self.visibility=float(np.clip(phase@y/(phase@phase),.65,.95))
         return self
-
     def predict(self,inputs):
         return self.visibility*np.array([self.fringe(q) for q in inputs],float)
-
-
-def poisson(q):
-    """Three independent stationary streams, each with rate 1/6 per log-scale unit."""
-    count=q['count']
-    def average(signal):
-        offset=0j; tagged=0j
-        for band in q['bands']:
-            for spot in ('left','right','both'):
-                for sign in (-1,1):
-                    gain,click=pair_response(band[spot],sign)
-                    if not signal:gain=1.
-                    if count is None:click=0.
-                    lam=band['width']/12
-                    offset+=lam*(gain*(1-click)-1)
-                    tagged+=lam*gain*click
-        return np.exp(offset)*(1 if count is None else tagged**count)
-    rate=average(False).real
-    return 0. if rate==0 else float((np.exp(-1j*q['phase'])*average(True)).real/rate)

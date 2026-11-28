@@ -1,1 +1,1 @@
-Predict the calibrated Ramsey fringe from singlets crossing one or both cuts in a disordered spin chain. Implement Model in /app/model.py using the experiment in /app/README.md.
+Calibrate the Ramsey fringe of a carrier spin visiting opposite members of an entangled singlet on its outbound and return passes. Implement Model in /app/model.py using /app/README.md.

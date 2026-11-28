@@ -1,1 +1,1 @@
-The effective bond when the last central spin is removed depends on which links survived the earlier decimations. You can condition on the starting strength of the interior bond. Before they interact with it, the two exterior boundaries have identical statistics.
+The late exchange on an earlier singlet encloses both exchanges on every later singlet. A map on the carrier for all inner pairs can be placed between the two couplings to one outer singlet before its spins are traced.

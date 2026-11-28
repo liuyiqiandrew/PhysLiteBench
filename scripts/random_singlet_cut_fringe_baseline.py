@@ -1,8 +1,8 @@
-from apparatus import Readout
-from renewal import response
+from apparatus import Readout,interferometer
+from partners import partner_map
 
 
 class Model(Readout):
-    """Start a regenerated common bond immediately after both outer removals."""
+    """Read the left member of each singlet in the z basis and discard that result."""
     def fringe(self,q):
-        return response(q,instant=True)[1]
+        return interferometer(q,lambda early,late:partner_map(early,late,resolve=True))[1]
