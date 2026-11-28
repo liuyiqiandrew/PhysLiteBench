@@ -1,0 +1,1 @@
+Remove one small slit by a conformal map fixing the origin. Its map transports the dyes and also changes the position and capacity of any remaining contact probe. Use the avoidance law before expanding the map. The contact and dye gate select a joint probability measure.
