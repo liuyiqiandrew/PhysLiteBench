@@ -1,1 +1,1 @@
-Predict the calibrated Ramsey fringe of a carrier that visits the sites of an energy-selected random-singlet chain in their original spatial order. Implement Model in /app/model.py using the experiment in /app/README.md.
+Calibrate and predict a Ramsey fringe conditioned on the two detectors' first spectral lines in a random-singlet chain. Implement Model in /app/model.py according to the instrument and worked scan in /app/README.md.

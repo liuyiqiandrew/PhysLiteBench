@@ -1,6 +1,3 @@
-from apparatus import Readout,fringe,all_nested
-
-
+from apparatus import Readout,poisson
 class Model(Readout):
-    def fringe(self,q):
-        return fringe(q,all_nested)[1]
+    def fringe(self,q):return poisson(q)

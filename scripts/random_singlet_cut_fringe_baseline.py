@@ -1,8 +1,5 @@
-from apparatus import Readout,fringe
-from forest import records
-
-
+from apparatus import Readout
+from lines import measurement
 class Model(Readout):
-    """Traverse the right disjoint arc before the left in the carrier circuit."""
-    def fringe(self,q):
-        return fringe(q,lambda q,a,b:records(q,a,b,reverse_disjoint=True))[1]
+    """Use independent spin outcomes at the two ends of a common singlet."""
+    def fringe(self,q):return measurement(q,independent=True)[1]

@@ -1,1 +1,1 @@
-Consecutive active-spin decimations imply noncrossing arcs in the original chain. Determine which earlier arc a new pair can enclose and where the carrier sees each disjoint arc.
+Two first clicks at one exact formation coordinate can come from a single spanning singlet. Their probability in one short common gate can have a different leading power of gate width from the probability in two separated gates.

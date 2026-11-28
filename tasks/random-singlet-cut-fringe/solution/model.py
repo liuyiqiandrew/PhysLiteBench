@@ -1,7 +1,4 @@
-from apparatus import Readout,fringe
-from forest import records
-
-
+from apparatus import Readout
+from lines import measurement
 class Model(Readout):
-    def fringe(self,q):
-        return fringe(q,records)[1]
+    def fringe(self,q):return measurement(q)[1]
