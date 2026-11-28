@@ -1,9 +1,9 @@
 from apparatus import Calibrated
-from tree import solve
+from arch import reading
 
 
 class Model(Calibrated):
     def read(self, q):
-        return solve(q, self.diffusivity, 88)[
-            ("red", "coincidence", "clean").index(q["observable"])
+        return reading(q, self.diffusivity)[
+            ("final", "history", "duration").index(q["observable"])
         ]

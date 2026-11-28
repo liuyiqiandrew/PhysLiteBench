@@ -1,4 +1,4 @@
-"""Regenerate family count readings with an independent complex generating-function solver."""
+"""Compare the time-resolved strip flux with the conformal mixed-boundary Green solution."""
 import argparse
 import json
 import runpy
@@ -9,8 +9,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/cauchy-island-camera"
 sys.path[:0] = [str(TASK / "environment"), str(TASK / "solution"), str(TASK / "tests")]
-from tree import solve
-from reference import solve as renewal
+from arch import reading as solve
+from reference import reading as renewal
 from test_public import examples
 
 
@@ -30,31 +30,49 @@ def calibration():
     return [
         dict(
             input=dict(mode="free", wave_number=k, lag=t),
-            value=round(float(np.exp(-0.89 * abs(k) * t)), 8),
+            value=round(float(np.exp(-0.89 * k**2 * t)), 8),
         )
         for k, t in pairs
     ]
 
 
 def science():
-    rng = np.random.default_rng(274282)
+    rng = np.random.default_rng(248139)
 
-    def draw(low, high):
-        return round(float(rng.uniform(low, high)), 6)
+    def draw(a, b):
+        return round(float(rng.uniform(a, b)), 6)
 
-    groups = {}
+    rows = []
     for i in range(27):
-        q = dict(
-            rate=draw(0.15, 0.35),
-            recoil=draw(0.2, 0.44),
-            thresholds=[draw(0.13, 0.7), draw(0.13, 0.7)],
-            efficiencies=[draw(0.39, 0.95), draw(0.39, 0.95)],
-            source=["single", "pair"][i % 2],
-            launch=draw(-0.44, 0.44),
+        rows.append(
+            dict(
+                launch=draw(-0.64, 0.64),
+                landing=(-1 if i % 2 == 0 else 1) * (1 + draw(0.26, 0.86)),
+                heights=[0.0 if i % 6 == 0 else draw(0.23, 0.62), draw(0.82, 1.61)],
+                prior=None if i % 8 == 0 and i // 9 != 1 else draw(0.46, 1.32),
+                window=[draw(0.055, 0.23), draw(0.46, 1.2)],
+            )
         )
-        label = ["red", "coincidence", "clean"][i // 9]
-        groups.setdefault(label, []).append(dict(q, observable=label))
-    return groups
+    return {
+        k: [dict(q, observable=k) for q in rows[i * 9 : (i + 1) * 9]]
+        for i, k in enumerate(("final", "history", "duration"))
+    }
+
+
+def analytic(x, y, h):
+    a = np.pi / h
+    l = np.exp(-a)
+    u = np.exp(a)
+    s = np.exp(a * x)
+    t = np.exp(a * y)
+    at = (
+        np.sqrt((s - l) * (u - s))
+        / (np.pi * np.sqrt(abs((t - l) * (t - u))) * abs(t - s))
+        * a
+        * t
+    )
+    total = np.sqrt(1 - x * x) / (np.pi * np.sqrt(y * y - 1) * abs(y - x))
+    return at / total
 
 
 def validate(generate):
@@ -64,15 +82,18 @@ def validate(generate):
         diff = np.zeros(3)
         rows = []
         for q in shots:
-            v = renewal(q, 0.89, 138, 6)
-            diff = np.maximum(diff, abs(v - solve(q, 0.89, 88)))
+            v = renewal(q, 0.89, 100)
+            diff = np.maximum(diff, abs(v - solve(q, 0.89, 60)))
             rows.append(dict(input=q, value=round(float(v[i]), 8)))
+            same = dict(q, heights=[0.0, 0.96], prior=0.96)
+            z = solve(same, 0.89)
+            assert abs(z[0] * z[1] - analytic(q["launch"], q["landing"], 0.96)) < 1.0e-7
         assert np.max(diff) < 0.00018
         data[k] = rows
         print(k, "independent weak errors", diff)
     for q, expected in examples():
         np.testing.assert_allclose(solve(q, 0.89, 96), expected, atol=0.00006)
-        np.testing.assert_allclose(renewal(q, 0.89, 120, 6), expected, atol=0.00012)
+        np.testing.assert_allclose(renewal(q, 0.89, 100), expected, atol=0.00012)
     for path, value in [
         (TASK / "environment/data/calibration.json", cal),
         (TASK / "tests/data/calibration.json", cal),
@@ -93,8 +114,8 @@ def validate(generate):
             assert frozen == value
     for path, control in [
         (TASK / "solution/model.py", "oracle"),
-        (TASK / "environment/model.py", "one fission"),
-        (ROOT / "scripts/cauchy_island_camera_baseline.py", "same recoil"),
+        (TASK / "environment/model.py", "one arch"),
+        (ROOT / "scripts/cauchy_island_camera_baseline.py", "independent duration"),
     ]:
         model = runpy.run_path(str(path))["Model"]().fit(cal)
         errors = {}
@@ -107,7 +128,9 @@ def validate(generate):
         if control == "oracle":
             assert max(errors.values()) < 0.00018
         else:
-            assert errors["clean"] > 0.013
+            assert errors["duration"] > 0.1
+            if control == "independent duration":
+                assert max(errors["history"], errors["final"]) < 1.0e-6
 
 
 if __name__ == "__main__":

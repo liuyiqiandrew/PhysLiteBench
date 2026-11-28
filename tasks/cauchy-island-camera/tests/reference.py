@@ -1,94 +1,82 @@
-"""Independent first-exit Green equation for the terminal two-color probability generating function."""
+"""Conformal strip Green function and direct integration of the physical-time heat current."""
 import numpy as np
-from scipy.linalg import solve as linear_solve
+from scipy.special import roots_legendre
 
 
-def solve(q, D, n=110, order=6):
-    grid = np.linspace(0, np.pi, n + 2)
-    x = np.cos(grid)
-    rate = q["rate"]
-    d = q["recoil"]
-    a, b = q["thresholds"]
-    wl, wr = q["efficiencies"]
-    split = [
-        np.arccos(z)
-        for p in (-1.0, 1.0, -1.0 - a, 1.0 + b)
-        for shift in (-d, d)
-        if -1.0 < (z := p - shift) < 1.0
-    ]
-    intervals = np.unique(np.r_[grid, split])
-    v, w = np.polynomial.legendre.leggauss(14)
-    t = (v + 1) / 2
-    w = w / 2
-    v = np.r_[0.5 * t * t, 1.0 - 0.5 * t * t]
-    w = np.r_[w * t, w * t]
-    rad = np.diff(intervals)
-    phi = (intervals[:-1, None] + rad[:, None] * v).ravel()
-    W = (rad[:, None] * w).ravel() * np.sin(phi)
-    z = np.cos(phi)
-    h = grid[1:-1, None]
-    G = np.log(np.abs(np.sin((h + phi) / 2) / np.sin((h - phi) / 2))) / (np.pi * D) * W
-    zb = np.exp(2j * np.pi * np.arange(order) / order) * 0.12
-    r, s = np.meshgrid(zb, zb, indexing="ij")
-    R = np.r_[0.0, 1.0, 0.0, r.ravel()]
-    S = np.r_[1.0, 0.0, 0.0, s.ravel()]
+def quadrature(a, b, n):
+    x, w = roots_legendre(n)
+    return (a + b) / 2 + (b - a) / 2 * x, w * (b - a) / 2
 
-    def tail(theta, offset):
-        return np.maximum(
-            0.0,
-            (np.pi - theta) / np.pi
-            - 2 / np.pi * np.arctan2(np.sqrt(offset / (2 + offset)), np.tan(theta / 2)),
-        )
 
-    terminal = wl * tail(np.pi - grid[1:-1], a)[:, None] * (1 - R) + wr * tail(
-        grid[1:-1], b
-    )[:, None] * (1 - S)
+def green(x, z, h):
+    if h is None:
+        theta = np.arccos(x)
+        phi = np.arccos(z)
+    else:
 
-    def sampler(z):
-        angle = np.arccos(np.clip(z, -1.0, 1.0))
-        j = np.minimum(n, np.floor(angle * (n + 1) / np.pi).astype(int))
-        v = (angle - grid[j]) / (grid[j + 1] - grid[j])
-        ext = wl * (z <= -1.0 - a)[..., None] * (1 - R) + wr * (z >= 1.0 + b)[
-            ..., None
-        ] * (1 - S)
+        def angle(v):
+            return np.arccos(
+                np.clip(
+                    2 * np.expm1((v + 1) * np.pi / h) / np.expm1(2 * np.pi / h) - 1,
+                    -1.0,
+                    1.0,
+                )
+            )
 
-        def sample(values):
-            return (1 - v)[..., None] * values[j] + v[..., None] * values[j + 1] + ext
+        theta = angle(x)
+        phi = angle(z)
+    return np.log(abs(np.sin((theta + phi) / 2) / np.sin((theta - phi) / 2))) / np.pi
 
-        return sample
 
-    left = sampler(z - d)
-    right = sampler(z + d)
-    one = sampler(np.asarray(q["launch"]))
-    l = sampler(np.asarray(q["launch"] - d))
-    rr = sampler(np.asarray(q["launch"] + d))
-    coeff = np.zeros((n + 2, len(R)), complex)
-    # Resolvent of the within-island lifetime clock, with the exact unmonitored exit source.
-    interpolation = np.maximum(
-        0.0, 1.0 - np.abs(phi[:, None] - grid[1:-1]) * ((n + 1) / np.pi)
+def flux(d, h, duration):
+    a = d[:, None]
+    t = duration[None, :]
+    if h is None:
+        return np.exp(-a * a / (4 * t)) / (4 * np.pi * t * t)
+    if h == 0:
+        return np.zeros((len(d), len(duration)))
+    short = duration < 0.22 * h * h
+    f = np.empty(len(duration))
+    u = duration[short]
+    k = np.arange(1, 8)[:, None]
+    f[short] = (
+        1 + 2 * np.sum((1 - 2 * k * k * h * h / u) * np.exp(-k * k * h * h / u), axis=0)
+    ) / (np.sqrt(4 * np.pi * u) * u)
+    u = duration[~short]
+    r = (np.pi / h) * np.arange(1, 13)[:, None]
+    f[~short] = (2 / h) * np.sum(r * r * np.exp(-r * r * u), axis=0)
+    return np.exp(-a * a / (4 * t)) / np.sqrt(4 * np.pi * t) * f
+
+
+def reading(q, D, n=90):
+    x = q["launch"]
+    y = q["landing"]
+    p = q["prior"]
+    a, b = q["heights"]
+    t0, t1 = np.array(q["window"]) * D
+    # Quadratic maps on either side of the launch and both interval tips integrate the logarithmic Green peak.
+    th = np.arccos(x)
+    s, w = quadrature(0, 1, n)
+    sin = np.sin(np.pi * s)
+    cos = (1.0 - np.cos(np.pi * s)) / 2
+    angles = np.r_[th * cos, th + (np.pi - th) * cos]
+    ww = np.r_[th * w * sin * np.pi / 2, (np.pi - th) * w * sin * np.pi / 2] * np.sin(
+        angles
     )
-    square = np.eye(n) + rate * G @ interpolation
-    H = linear_solve(square, terminal)
-    B = linear_solve(square, rate * G)
-    for _ in range(140):
-        L = left(coeff)
-        rhs = right(coeff)
-        new = H + B @ (L + rhs - L * rhs)
-        err = np.max(np.abs(new - coeff[1:-1]))
-        coeff[1:-1] = new
-        if err < 2e-12:
-            break
-    else:
-        raise RuntimeError("generating function did not converge")
-    if q["source"] == "single":
-        u = one(coeff)
-    else:
-        L = l(coeff)
-        right = rr(coeff)
-        u = L + right - L * right
-    both = np.real(u[0] + u[1] - u[2])
-    # Coefficient z^1 w^1 of E[z^red w^blue], with alias error <= 2*(.12)^order.
-    exact = np.mean((1 - u[3:].reshape(order, order)) / (r * s)).real
+    z = np.cos(angles)
+    d = abs(y - z)
+    gu = green(x, z, None) * ww
+    gp = green(x, z, p) * ww
+
+    def evaluate(ta, tb):
+        # A log-time map keeps small-time concentrations and an exponentially decaying strip tail resolved.
+        t, w = quadrature(np.log(ta), np.log(tb), n)
+        t = np.exp(t)
+        return (flux(d, b, t) - flux(d, a, t)) @ (w * t)
+
+    half = evaluate(0.00005, 64.0)
+    timed = evaluate(t0, t1)
+    density = np.sqrt(1 - x * x) / (np.pi * np.sqrt(y * y - 1) * abs(y - x))
     return np.array(
-        [u[0].real, both / u[0].real, exact / both if both > 1e-11 else np.nan]
+        [gu @ half / density, gp @ half / (gu @ half), gp @ timed / (gp @ half)]
     )

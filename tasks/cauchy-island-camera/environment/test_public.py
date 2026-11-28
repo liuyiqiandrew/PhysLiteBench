@@ -20,25 +20,15 @@ def test_fit():
 
 
 def examples():
-    pair = dict(
-        source="pair",
-        launch=0.0,
-        recoil=0.30,
-        rate=0.0,
-        thresholds=[0.25, 0.25],
-        efficiencies=[1.0, 1.0],
+    first = dict(
+        launch=0.0, landing=1.5, heights=[0.0, 1.0], prior=1.0, window=[0.1, 0.65]
     )
-    single = dict(
-        source="single",
-        launch=0.23,
-        recoil=0.31,
-        rate=0.32,
-        thresholds=[0.18, 0.42],
-        efficiencies=[0.8, 0.9],
+    second = dict(
+        launch=0.32, landing=1.4, heights=[0.35, 1.1], prior=0.76, window=[0.07, 0.85]
     )
     return [
-        (pair, [0.49435347, 0.34109898, 1.0]),
-        (single, [0.29043, 0.15084, 0.66374]),
+        (first, [0.37593348, 0.65709984, 0.79144132]),
+        (second, [0.50750033, 0.67360928, 0.91330529]),
     ]
 
 
@@ -48,6 +38,6 @@ def test_worked_readings():
     )
     for q, expected in examples():
         values = model.predict(
-            [dict(q, observable=k) for k in ("red", "coincidence", "clean")]
+            [dict(q, observable=k) for k in ("final", "history", "duration")]
         )
         assert np.max(np.abs(values - expected)) < 0.004

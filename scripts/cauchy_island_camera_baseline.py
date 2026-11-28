@@ -1,10 +1,10 @@
-"""Both daughters recoil to the same randomly chosen side of the parent, with correct one-daughter marginals."""
+"""The actual takeoff coordinate and both height gates are retained, but time is sampled from its unselected arch marginal."""
 from apparatus import Calibrated
-from tree import solve
+from arch import reading
 
 
 class Model(Calibrated):
     def read(self, q):
-        return solve(q, self.diffusivity, 88, shortcut="equal recoil")[
-            ("red", "coincidence", "clean").index(q["observable"])
+        return reading(q, self.diffusivity, uncoupled=True)[
+            ("final", "history", "duration").index(q["observable"])
         ]

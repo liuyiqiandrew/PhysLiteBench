@@ -1,24 +1,11 @@
-"""Free calibration and terminal probabilities for a carrier without fission."""
+"""Calibrated bulk diffusion and the marginals of one prescribed boundary-to-boundary arch."""
 import numpy as np
-
-
-def exit_cdf(a, b, x, y):
-    c = (a + b) / 2.0
-    h = (b - a) / 2.0
-    s = (x - c) / h
-    z = (y - c) / h
-    theta = np.arccos(np.clip(s, -1, 1))
-    right = z > 1
-    u = abs(z)
-    alpha = theta if right else np.pi - theta
-    inner = 2 * np.arctan(np.sqrt((u - 1) / (u + 1)) / np.tan(alpha / 2)) / np.pi
-    return theta / np.pi + inner if right else (np.pi - alpha) / np.pi - inner
 
 
 class Calibrated:
     def fit(self, rows):
         exposures = np.array(
-            [abs(r["input"]["wave_number"]) * r["input"]["lag"] for r in rows]
+            [(r["input"]["wave_number"] ** 2) * r["input"]["lag"] for r in rows]
         )
         self.diffusivity = float(
             -exposures @ np.log([r["value"] for r in rows]) / (exposures @ exposures)
@@ -28,7 +15,7 @@ class Calibrated:
     def predict(self, inputs):
         return np.array(
             [
-                np.exp(-self.diffusivity * abs(q["wave_number"]) * q["lag"])
+                np.exp(-self.diffusivity * (q["wave_number"] ** 2) * q["lag"])
                 if q.get("mode") == "free"
                 else self.read(q)
                 for q in inputs
@@ -37,11 +24,12 @@ class Calibrated:
         )
 
 
-def terminal(q, x):
-    left, right = q["thresholds"]
-    red, blue = q["efficiencies"]
-    if abs(x) >= 1:
-        return red * (x <= -1 - left), blue * (x >= 1 + right)
-    return red * exit_cdf(-1.0, 1.0, x, -1 - left), blue * (
-        1 - exit_cdf(-1.0, 1.0, x, 1 + right)
-    )
+def arch_below(displacement, height):
+    if height == 0.0:
+        return 0.0
+    u = np.pi * abs(displacement) / (2 * height)
+    return (u / np.sinh(u)) ** 2
+
+
+def arch_time_cdf(displacement, time, diffusivity):
+    return np.exp(-(displacement**2) / (4 * diffusivity * time))
