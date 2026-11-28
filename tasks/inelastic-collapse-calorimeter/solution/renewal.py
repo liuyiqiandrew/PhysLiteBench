@@ -30,11 +30,60 @@ def slow(q, diffusivity):
     return trapezoid(density(z) * slow_probability(cut, k), z)
 
 
+def precise_drift(fast, soft, threshold, diffusivity):
+    """Resolve signs near criticality using the compact return-speed integral."""
+    from decimal import Decimal, localcontext
+
+    with localcontext() as context:
+        context.prec = 55
+        pi = Decimal("3.141592653589793238462643383279502884197169399375105821")
+        f, s, h, d = [
+            Decimal.from_float(float(x)) for x in (fast, soft, threshold, diffusivity)
+        ]
+        base = pi / Decimal(3).sqrt() + f.ln()
+        if f == s:
+            return float(base)
+
+        def erf_ratio(x):
+            # Integral from zero to one of exp(-x*t²) dt.
+            term = total = Decimal(1)
+            n = 0
+            while abs(term) > Decimal("1e-52"):
+                n += 1
+                term *= -x / n
+                total += term / (2 * n + 1)
+            return total
+
+        def integrand(v):
+            # Pair R and 1/R, and set v=exp(-|log R|/2).
+            p = v * v / (1 + v**4)
+            a = (1 + 2 * p) / (d * h)
+            b = 3 * p / (d * h)
+            gate = 2 * (a / pi).sqrt() * (erf_ratio(a) - (b - a).exp() * erf_ratio(b))
+            return 3 / pi * (1 + v**4) / (1 + v**6) * gate
+
+        previous = [(integrand(Decimal(0)) + integrand(Decimal(1))) / 2]
+        for level in range(1, 12):
+            n = 2**level
+            step = Decimal(1) / n
+            odd = sum(integrand(j * step) for j in range(1, n, 2))
+            row = [previous[0] / 2 + step * odd]
+            for k in range(1, level + 1):
+                row.append(row[-1] + (row[-1] - previous[k - 1]) / (4**k - 1))
+            if abs(row[-1] - previous[-1]) < Decimal("1e-33"):
+                break
+            previous = row
+        return float(base + row[-1] * (s / f).ln())
+
+
 def log_drift(q, diffusivity):
     p = slow(q, diffusivity)
     fast, soft = q["restitution"]
     critical = np.exp(-np.pi / np.sqrt(3))
-    return np.log(fast / critical) + p * np.log(soft / fast)
+    estimate = np.log(fast / critical) + p * np.log(soft / fast)
+    if abs(estimate) < 1e-10:
+        return precise_drift(fast, soft, q["threshold"], diffusivity)
+    return estimate
 
 
 def signal(q, diffusivity, step=0.14, lower=-56, order=24):
