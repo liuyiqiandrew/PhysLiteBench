@@ -115,6 +115,11 @@ def reference(q):
     for j,m in enumerate(marks):
         indicator=bits[:,j]
         metadata*=np.array([[1.,m],[m.conjugate(),1.]])[indicator[:,None],indicator]
+    if 'lead' in q:
+        from lead_reference import lead_trace
+        unique,index=np.unique(bits,axis=0,return_inverse=True)
+        detector=lead_trace(q['lead'],[tuple(row) for row in unique])
+        metadata*=detector[index[:,None],index]
     def vector(op):
         v=np.zeros(N,complex)
         for k,a in op.items():v[k]=a

@@ -1,1 +1,1 @@
-At a given incoming counter label, resolve the dot amplitude into the tag projector and its complement before projecting onto the eraser state. Two distinct tag histories may retain coherence after selecting the same final counter outcome.
+Two tag histories can have different lead propagators. The two-time charge meter resolves a regional total before the first quench and after the last. Its initial measurement can alter the state of a lead with hopping.

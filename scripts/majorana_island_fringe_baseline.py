@@ -1,9 +1,9 @@
 from apparatus import Readout
-from counter import measurement
+from histories import measurement
+from lead import lead_gram
 
 
 class Model(Readout):
-    """The counter has an additional perfect, unobserved record of every tag."""
-
+    """Before a regional charge measurement, also resolve every site occupation."""
     def fringe(self,q):
-        return measurement(q,record_tags=True)[1]
+        return measurement(q,lambda lead,paths: lead_gram(lead,paths,record_sites=True))[1]

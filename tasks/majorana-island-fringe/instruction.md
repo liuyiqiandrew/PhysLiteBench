@@ -1,1 +1,1 @@
-Calibrate and predict the Ramsey fringe of the island subjected to coherent dot counting, using the instrument in /app/README.md. Implement Model in /app/model.py.
+Calibrate and predict the island Ramsey fringe after a shared Fermi lead records its dot encounters. Implement Model in /app/model.py according to the apparatus and examples in /app/README.md.

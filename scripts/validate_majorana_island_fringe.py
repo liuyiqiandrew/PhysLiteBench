@@ -11,7 +11,9 @@ import numpy as np
 ROOT=Path(__file__).resolve().parents[1]
 TASK=ROOT/'tasks/majorana-island-fringe'
 sys.path[:0]=[str(TASK/name) for name in ('environment','solution','tests')]
-from counter import measurement
+from histories import measurement
+from lead import lead_gram
+from lead_reference import lead_trace
 from reference import reference
 
 parameter=.8364
@@ -71,16 +73,27 @@ def inputs():
         q['phase']=val(-2.5,2.5)
         calibration.append(dict(input=q,value=round(parameter*np.cos(q['phase']),8)))
     groups={}; rates=[]
-    for name in ('resolved_counts','coherent_tally','clock_feedback'):
+    for name in ('closed_ring','unchanged_charge','transferred_charge'):
         rows=[]
         for i in range(8):
             for _ in range(100):
-                q=example(name,i)
+                q=example('coherent_tally' if i%3==0 else 'clock_feedback',i)
+                for enc in q['encounters']:
+                    phase=val(-1.5,1.5)
+                    enc['marker']=[round(.97*np.cos(phase),5),round(.97*np.sin(phase),5)]
+                m=4+i%4; particles=1+i%(m-1)
+                region=sorted(map(int,rng.choice(m,2+(i%2),replace=False)))
+                sites=sorted(map(int,rng.choice(m,min(3,m),replace=False)))
+                delta=0 if name=='unchanged_charge' else (-1)**i
+                q['lead']=dict(onsite=[val(-1.2,1.2) for _ in range(m)],hop=val(.55,1.3),
+                    flux=val(-np.pi,np.pi),beta=val(1.1,3.1),particles=particles,
+                    quenches=[[int(rng.choice(sites)),val(-4.8,4.8),val(.45,1.65)] for _ in q['encounters']],
+                    readout=None if name=='closed_ring' else dict(sites=region,delta=delta))
                 rate,fringe=reference(q)
                 if rate>.001:break
             assert rate>.001 and abs(fringe)<1+1e-12
             rates.append(rate)
-            np.testing.assert_allclose(measurement(q),[rate,fringe],atol=1e-11,rtol=0)
+            np.testing.assert_allclose(measurement(q,lead_gram),[rate,fringe],atol=3e-11,rtol=0)
             rows.append(dict(input=q,value=round(parameter*fringe,9)))
         groups[name]=rows
     print('retained rates',min(rates),max(rates))
@@ -102,14 +115,32 @@ def main(write):
         if name=='oracle':assert max(errors.values())<2e-8
         if name=='starter':assert min(errors.values())>.003
         if name=='control':
-            assert errors['resolved_counts']<2e-8
-            assert min(errors[n] for n in ('coherent_tally','clock_feedback'))>.003
+            assert errors['closed_ring']<2e-8
+            assert min(errors[n] for n in ('unchanged_charge','transferred_charge'))>.003
     q=public_example()
+    q['lead']=dict(onsite=[0.,0.,0.,0.],hop=0.,flux=0.,beta=1.,particles=2,
+                   quenches=[[0,np.pi,1.],[1,np.pi,1.]],readout=None)
     t=np.tanh(.75)
-    p0=(1+(t+t*t)/(1+t**3))/2
-    for fn in (measurement,reference):
-        np.testing.assert_allclose(fn(q),[p0/4,1],atol=1e-12)
-    np.testing.assert_allclose(measurement(q,record_tags=True),[1/8,2*p0-1],atol=1e-12)
+    contrast=(t+t*t)/(1+t**3)
+    C=-1/3
+    expected=((1+contrast*C)/8,(contrast+C)/(1+contrast*C))
+    print('two-site witness',expected)
+    np.testing.assert_allclose(measurement(q,lead_gram),expected,atol=1e-12)
+    np.testing.assert_allclose(reference(q),expected,atol=1e-12)
+    paths=[(0,1),(1,0)]
+    np.testing.assert_allclose(lead_gram(q['lead'],paths),[[1,C],[C,1]],atol=1e-12)
+    # The probabilities of all possible transfer outcomes sum to one on every history.
+    q['lead'].update(hop=.87,flux=.53,onsite=[.2,-.8,.4,.1],beta=1.7)
+    closed=lead_gram(q['lead'],paths)
+    total=np.zeros_like(closed)
+    for delta in range(-2,3):
+        q['lead']['readout']=dict(sites=[0,1],delta=delta)
+        exact=lead_gram(q['lead'],paths)
+        np.testing.assert_allclose(exact,lead_trace(q['lead'],paths),atol=1e-12)
+        assert np.linalg.eigvalsh(exact).min()>-1e-12
+        total+=exact
+    np.testing.assert_allclose(np.diag(total),1.,atol=1e-12)
+    assert abs(total[0,1]-closed[0,1])>.01
 
 
 if __name__=='__main__':

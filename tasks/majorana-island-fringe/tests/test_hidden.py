@@ -32,6 +32,6 @@ def test_fit(metrics):
     assert metrics["max_absolute_error"]["calibration"] < 2e-6
 
 
-@pytest.mark.parametrize("group",["resolved_counts","coherent_tally","clock_feedback"])
+@pytest.mark.parametrize("group",["closed_ring","unchanged_charge","transferred_charge"])
 def test_fringe(metrics,group):
     assert metrics["max_absolute_error"][group] < .003
