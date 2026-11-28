@@ -1,6 +1,6 @@
 # Spectral-hole echo from dilute defects
 
-A pair of solid-state emitters samples three small pockets of bistable defects. Two narrow spectroscopy slits select emitters by their initial resonance shifts. A subsequent Ramsey measurement measures the same defects. Predict the conditional mean fringe.
+A pair of solid-state emitters samples three small pockets of bistable defects. Two narrow spectroscopy slits select emitters by their initial resonance shifts. An acoustic sensor also records transitions of those same defects. Predict the Ramsey fringe conditioned on both records.
 
 ## Disorder and pulse sequence
 
@@ -21,12 +21,20 @@ The gate center is `[g1, g2]`. Accept a realization when both reported coordinat
 
 Records contain one or two domains with positive weights summing to one. Pulse records have one or two kicks with times in [0, 1.8]. Counts have means in [0.3, 1.2], sigma is in [0.6, 1.1], gamma is in [0.2, 1.3], and 0.4 < |r| < 1.5. The meters have |u|, |v| < 0.3. A `blank: true` record uses an empty mount, just the stated phase and V.
 
+## Acoustic monitoring
+
+The two defect polarities are taken to be energetically degenerate and are driven by the environment. Either direction of a structural flip excites a local strain transient. Its mechanical frequency lies in one of two readout bands, red (R) or blue (B), fixed for each microscopic defect. The sensor counts both signs of the transient. Pocket j has `microphones[j] = [eta, red_probability]`. On drawing the sample, assign each defect its color independently with the given red probability. Each polarity flip of that defect produces an acoustic pulse of its fixed color, which is registered with probability eta independently of everything else. Registered and missed pulses both reverse that defect’s polarity. During [0, listen_until] the monitor returns the complete list `clicks` of registered emissions, each specified as [time, color]. It gives no further information about their source. Outside that interval it is off. The Ramsey kicks can occur during or after the listening interval. The meter and monitor are passive.
+
+Condition on exactly the listed ordered clicks, with no additional registered emission during the listening interval. For each listed time use the density obtained as a small common time tolerance tends to zero; there are no ties between clicks, pulse times or listening endpoints. An empty list means observed acoustic silence. Then apply the two shrinking optical slits to this ensemble. All times, colors, records and the readout refer to the same sample. There are zero, one or two reported acoustic clicks. The monitor efficiencies and red probabilities are in [0,1] and listen_until lies in (1,1.5).
+
 ## Example
 
-Take one domain of unit weight, r = −1, and pockets [[0.6, 0.8, 0.3], [0.9, 1, 0.4], [0.75, 0.9, 0.7]]. Use uncoupled meters (u = v = 0), a signed gate at [0.85, −0.85], one kick [0.8, 1.2, −0.3] and phase 0.27. The signal divided by V is 0.1768705628. The line can arise from an occupied overlap and empty private pockets. Its accepted fraction scales with one slit width, whereas the background from two independently varying shifts scales with the product of the widths. The overlap's initial sum is 0.85. Subsequent flipping makes its phase fluctuate even within this selected ensemble.
+Use one domain with r = 1 and pockets [[0.7, 0.9, 0.5], [0.8, 0.8, 0.4], [0.5, 1, 0.9]]. Take `mix = [0,0]`, the signed gate [0.9,0.9], one kick [1.1,1.2,0.8], phase 0.1, `microphones = [[0,0.4],[0,0.8],[1,0.6]]`, and listen_until = 1.2. With clicks [[0.25,"R"],[0.85,"R"]] the readout divided by V is −0.3060183015. Change just the second color to "B" and the result becomes −0.1105081591. On the shared optical line only the overlap pocket is occupied to leading order in slit width. One defect emitting twice has its initial polarity restored at the kick. Differently colored pulses must come from distinct defects.
 
-## Interface and checks
+## Numerical helpers and checks
 
-Implement `Model().fit(records)`, returning self, and `model.predict(inputs)`, returning a finite one-dimensional NumPy array with one real voltage per input, including an empty array for an empty list. Store the fitted visibility as `model.visibility`. The public `data/calibration.json` contains blank-phase records of the form `{"input": {...}, "value": ...}`. The starter fits the visibility and replaces the discrete defects by jointly Gaussian fields with the same exact two-time covariances. This supplies an approximation on all the inputs.
+The public `spectrometer.py` implements the optical slit integration for any independent-pocket measure or mixture of such measures. Its `single_defect` returns the ordinary and Ramsey-weighted Fourier transforms for one defect given the integrated intensity of its free polarity flips and optional imposed flips. `spectrum` separates the origin atom and inverts the smooth Fourier part on a supplied grid. `collect` evaluates the optical response to a mixture from its raw source weights and three pocket spectra. Functions are documented in the file. You may use them or compute the result by another method. The starter is calibrated and predicts the exact two-slit optical echo when the acoustics are ignored.
 
-Calibration requires maximum absolute error below 0.000002. The sparse resonances, continuously distributed overlap shifts and unresolved polarity records each require maximum absolute error below 0.003 in the reported voltage. Run `python -m pytest -q test_public.py` from /app to check calibration.
+Implement `Model().fit(records)`, returning self, and `model.predict(inputs)`, returning a finite one-dimensional NumPy array with one real voltage per input, including an empty array for an empty list. Store the fitted visibility as `model.visibility`. The public `data/calibration.json` contains blank-phase records of the form `{"input": {...}, "value": ...}`.
+
+Calibration requires maximum absolute error below 0.000002. Quiet monitoring windows, tagged flips (one click or two different colors), and repeated emission (two clicks of the same color) each require maximum absolute error below 0.003 in the reported voltage. Run `python -m pytest -q test_public.py` from /app to check calibration.

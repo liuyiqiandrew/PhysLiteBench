@@ -1,8 +1,8 @@
-"""Independent cooldown at readout, with exact discrete-defect spectra at preparation."""
+"""Resolve the acoustic records but attribute every detected flip to a distinct defect."""
 from apparatus import Readout
 from echo import reading
 
 
 class Model(Readout):
     def fringe(self, q):
-        return reading(q,reset=True)
+        return reading(q, independent_emitters=True)

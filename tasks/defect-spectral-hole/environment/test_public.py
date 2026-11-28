@@ -9,7 +9,7 @@ from model import Model
 def test_calibration():
     rows = json.loads((Path(__file__).parent / "data/calibration.json").read_text())
     model = Model()
-    assert model.fit(rows) is model and .65 <= model.visibility <= .95
+    assert model.fit(rows) is model and 0.65 <= model.visibility <= 0.95
     for inputs in ([], [r["input"] for r in rows]):
         predictions = model.predict(inputs)
         assert isinstance(predictions, np.ndarray) and predictions.shape == (len(inputs),)

@@ -28,10 +28,10 @@ def metrics():
 
 
 def test_fit(metrics):
-    assert .65 <= metrics["visibility"] <= .95
+    assert 0.65 <= metrics["visibility"] <= 0.95
     assert metrics["max_absolute_error"]["calibration"] < 2e-6
 
 
-@pytest.mark.parametrize("group",["sparse_resonances","overlap_shifts","unresolved_polarity"])
-def test_fringe(metrics,group):
-    assert metrics["max_absolute_error"][group] < .003
+@pytest.mark.parametrize("group", ["quiet_window", "tagged_flips", "repeated_emission"])
+def test_fringe(metrics, group):
+    assert metrics["max_absolute_error"][group] < 0.003

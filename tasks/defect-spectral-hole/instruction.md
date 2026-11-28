@@ -1,1 +1,1 @@
-Use two Stark shifts measured at preparation to predict the subsequent Ramsey echo of a dilute defect ensemble. Implement Model in /app/model.py using /app/README.md.
+Predict the Ramsey echo of an optically selected defect ensemble conditioned on its observed acoustic emissions. Implement Model in /app/model.py using /app/README.md.
