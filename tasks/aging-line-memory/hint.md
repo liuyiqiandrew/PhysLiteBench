@@ -1,1 +1,1 @@
-The deep basins form a common marked point process. Normalize the two equilibrium populations within each specimen before averaging probabilities over specimens.
+A trip through ordinary basins can end at either reporter or at the shutter. All excursions in one launch share the same ordinary basins. Distinguish the atom at zero residence from its positive-time density.

@@ -18,29 +18,3 @@ class Readout:
             ],
             dtype=float,
         )
-
-
-def one_temperature(q, tg):
-    # Poisson-Dirichlet probabilities assign new or existing lines when the
-    # temperature is common and the frozen landscape has no applied field.
-    draws = q["preparations"]
-    x = np.mean([q["settings"][i][0] for i in draws]) / tg
-    paths = [([0], [1], 1.0)]
-    for n in range(1, len(draws)):
-        next_paths = []
-        for seq, count, weight in paths:
-            for j, m in enumerate(count):
-                sizes = count.copy()
-                sizes[j] += 1
-                next_paths.append((seq + [j], sizes, weight * (m - x) / n))
-            next_paths.append(
-                (seq + [len(count)], count + [1], weight * x * len(count) / n)
-            )
-        paths = next_paths
-    den = num = 0.0
-    for seq, _, w in paths:
-        if all((seq[a] == seq[b]) == same for a, b, same in q["gate"]):
-            den += w
-            if seq[-1] == seq[q["mark"]]:
-                num += w
-    return num / den

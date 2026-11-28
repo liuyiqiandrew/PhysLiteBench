@@ -1,7 +1,7 @@
 from glass import Readout
-from landscape import marked
+from clocks import readings
 
 
 class Model(Readout):
     def memory(self, q):
-        return marked(q, self.depth_scale)[0]
+        return readings(q, self.depth_scale)[0]

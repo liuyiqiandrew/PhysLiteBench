@@ -1,8 +1,8 @@
 from glass import Readout
-from landscape import marked
+from clocks import readings
 
 
 class Model(Readout):
     def memory(self, q):
-        # Exact common-sample equilibrium, with the final exposure treated as independent thinning.
-        return marked(dict(q, exposure=0.0), self.depth_scale)[0]
+        # Use the exact single-excursion outcome law but renew the ordinary landscape after each departure.
+        return readings(q, self.depth_scale, reset=True)[0]

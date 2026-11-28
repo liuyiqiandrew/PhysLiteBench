@@ -1,63 +1,83 @@
-"""Regenerate the disordered-glass measurements from the joint sample transform."""
+"""Check the two residence recorders against the distribution of a frozen ordinary glass."""
 import argparse
 import json
 from pathlib import Path
-import runpy
-import sys
+import runpy, sys
 import numpy as np
+from scipy.special import roots_laguerre, i0, i1
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/aging-line-memory"
 sys.path[:0] = [str(TASK / p) for p in ("environment", "solution", "tests")]
-from landscape import marked
-from reference import exact
+from clocks import readings
+from reference import truth
 
 
 def preparations():
-    rng = np.random.default_rng(95882394)
+    rng = np.random.default_rng(562974)
 
-    def draw(lo, hi):
-        return round(float(rng.uniform(lo, hi)), 4)
+    def draw(a, b):
+        return round(float(rng.uniform(a, b)), 4)
 
     out = {}
-    for fam in ("thermal_tags", "line_selection", "quenched_memory"):
+    for g in ("unvisited", "two_recorders", "host_spectrum"):
         rows = []
         for i in range(8):
             while True:
-                if fam == "thermal_tags":
-                    prep = [0, 1, i % 2]
-                    gate = [[0, 1, i % 2 == 0]]
-                    tag = 0
-                    mark = i % 2
-                elif fam == "line_selection":
-                    prep = [0, 1, 0, i % 2]
-                    gate = [[0, 1, i % 2 == 0]]
-                    tag = 1 if i % 3 else -1
-                    mark = (i + 1) % 3
-                else:
-                    prep = [i % 2, 1 - i % 2, 1, 0]
-                    gate = [[0, 1, i % 3 == 0], [1, 2, i % 4 == 1]]
-                    tag = 0 if i % 3 else 1
-                    mark = i % 3
-                ts = [draw(0.48, 0.58), draw(0.63, 0.73)]
-                if i % 2:
-                    ts.reverse()
-                h = [draw(-0.44, -0.13), draw(0.13, 0.44)]
-                if i % 3:
-                    h.reverse()
                 q = dict(
-                    settings=[[ts[0], h[0]], [ts[1], h[1]]],
-                    preparations=prep,
-                    gate=gate,
-                    tag=tag,
-                    mark=mark,
-                    exposure=draw(0.25, 2.5),
+                    temperature=draw(0.535, 0.705),
+                    clock=draw(0.6, 1.4),
+                    offsets=[draw(-0.69, 0.28), draw(-0.65, 0.31)],
+                    levels=[
+                        draw(0.43, 1.63),
+                        0.0
+                        if g == "unvisited" or (g == "host_spectrum" and i % 4 == 0)
+                        else draw(0.25, 1.07),
+                    ],
                 )
-                if exact(q, 0.9863)[1] > 0.015:
+                if g == "host_spectrum":
+                    q["read"] = "host"
+                    lo = draw(0.12, 0.78)
+                    q["band"] = [lo, round(lo + draw(0.55, 2.12), 4)]
+                elif g == "unvisited":
+                    q["read"] = "host" if i % 3 == 0 else "A"
+                else:
+                    q["read"] = ("A", "B", "host")[i % 3]
+                if truth(q, 0.9863)[1] > 0.008:
                     break
             rows.append(q)
-        out[fam] = rows
+        out[g] = rows
     return out
+
+
+def finite_chain_check():
+    # Keep every ordinary site and both reporters as explicit Markov states.
+    rates = np.array([1.6, 0.57, 0.2, 0.9, 2.2, 0.46, 3.8, 9.0])
+    s = 0.83
+    na = len(rates)
+    H = np.sum(s / (s + rates[2:]))
+    exits = np.array(
+        [[s, 0.0, rates[0] * H / (2 + H)], [0.0, s, rates[1] * H / (2 + H)]]
+    )
+    pA, pB = 0.68, 1.27
+    dep = rates[:2] * (1 - 1 / (2 + H)) + s
+    aa, bb = rates[:2] / (2 + H)
+    z, w = roots_laguerre(42)
+    x = z[:, None] / (pA + dep[0])
+    y = z[None, :] / (pB + dep[1])
+    bxy = np.sqrt(aa * bb * x * y)
+    # Integrate the B=0 mass and the positive two-clock density with two penalties.
+    base = np.array([1 / (pA + dep[0]), 0.0])
+    A = aa * bb * x * i1(2 * bxy) / bxy
+    B = aa * i0(2 * bxy)
+    base += np.array([w @ A @ w, w @ B @ w]) / np.prod([pA + dep[0], pB + dep[1]])
+    M = (
+        np.diag(s + rates + np.r_[pA, pB, np.zeros(na - 2)])
+        - rates[:, None] * np.ones((na, na)) / na
+    )
+    mask = np.column_stack((np.arange(na) == 0, np.arange(na) == 1, np.arange(na) >= 2))
+    direct = s * np.linalg.solve(M, mask)[0]
+    np.testing.assert_allclose(base @ exits, direct, rtol=0, atol=2e-13)
 
 
 def main(generate):
@@ -67,19 +87,19 @@ def main(generate):
         for x in (0.22, 0.35, 0.52, 0.66, 0.80, 1.05, 1.24, 1.46, 1.68, 1.92)
     ]
     data = {}
-    rates = []
+    masses = []
     worst = 0.0
-    for group, qs in preparations().items():
+    for g, qs in preparations().items():
         rows = []
         for q in qs:
-            y, p = exact(q, tg)
-            subject = marked(q, tg)
-            worst = max(worst, max(abs(np.array(subject) - [y, p])))
-            np.testing.assert_allclose(subject, (y, p), atol=5e-7, rtol=0)
-            assert p > 0.01 and 0 < y < 1
-            rates.append(p)
+            y, p = truth(q, tg)
+            v = readings(q, tg)
+            worst = max(worst, float(max(abs(np.array(v) - [y, p]))))
+            np.testing.assert_allclose(v, [y, p], atol=3e-7, rtol=0)
+            assert p > 0.008 and 0 < y < 1
+            masses.append(p)
             rows.append(dict(input=q, value=round(y, 9)))
-        data[group] = rows
+        data[g] = rows
     for name, obj in [
         ("tests/data/calibration.json", cal),
         ("environment/data/calibration.json", cal),
@@ -101,17 +121,23 @@ def main(generate):
                     atol=1.1e-9,
                     rtol=0,
                 )
-    print("min joint acceptance", min(rates), "max independent discrepancy", worst)
+    print(
+        "Range of pooled mass/density",
+        min(masses),
+        max(masses),
+        "independent discrepancy",
+        worst,
+    )
     for role, path in [
         ("oracle", TASK / "solution/model.py"),
         ("starter", TASK / "environment/model.py"),
         ("shortcut", ROOT / "scripts/aging_line_memory_baseline.py"),
     ]:
-        m = runpy.run_path(str(path))["Model"]().fit(cal)
-        assert abs(m.depth_scale - tg) < 1e-8
+        model = runpy.run_path(str(path))["Model"]().fit(cal)
+        assert abs(model.depth_scale - tg) < 1e-8
         errors = {}
         for k, rs in data.items():
-            y = m.predict([r["input"] for r in rs])
+            y = model.predict([r["input"] for r in rs])
             assert np.isfinite(y).all()
             errors[k] = float(max(abs(y - [r["value"] for r in rs])))
         print(role, errors)
@@ -120,22 +146,21 @@ def main(generate):
             if role == "oracle"
             else min(errors.values()) > 0.004
         )
+    finite_chain_check()
     q = dict(
-        settings=[[0.5, 0.0], [0.5, 0.0]],
-        preparations=[0, 1, 1],
-        exposure=0.0,
-        mark=0,
-        tag=0,
+        temperature=0.6, clock=1.0, offsets=[0.0, 0.0], levels=[0.8, 0.0], read="A"
     )
-    for same in (False, True):
-        q["gate"] = [[0, 1, same]]
-        for method in (marked, exact):
-            np.testing.assert_allclose(
-                method(q, 1.0), (0.75 if same else 0.25, 0.5), atol=2e-8, rtol=0
-            )
-    q = preparations()["quenched_memory"][0]
-    flipped = dict(q, settings=[[t, -h] for t, h in q["settings"]], tag=-q["tag"])
-    np.testing.assert_allclose(marked(q, tg), marked(flipped, tg), atol=2e-12, rtol=0)
+    for method in (truth, readings):
+        assert abs(method(q, 1.0)[0] - 0.68095082) < 1e-7
+        assert method(dict(q, read="B"), 1.0)[0] == 0.0
+        for k, v in [("A", 0.12559963), ("B", 0.57100954), ("host", 0.10029672)]:
+            a = dict(q, levels=[0.8, 0.55], read=k)
+            if k == "host":
+                a["band"] = [0.25, 1.65]
+            assert abs(method(a, 1.0)[0] - v) < 1e-7
+    q = data["two_recorders"][0]["input"]
+    a, b, c = (readings(dict(q, read=i), tg)[0] for i in ("A", "B", "host"))
+    assert abs(a + b + c - 1) < 1e-13
 
 
 if __name__ == "__main__":
