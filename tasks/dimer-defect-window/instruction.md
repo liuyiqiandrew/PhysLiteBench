@@ -1,1 +1,1 @@
-Implement Model in /app/model.py to infer the diagonal binding activity and predict the odd-parity readings of the adsorbed dimer sheets described in /app/README.md.
+Implement Model in /app/model.py for the paired adsorption sheets and contour microscope described in /app/README.md. Infer the binding activity from calibration and predict the probabilities for fresh sheet pairs.
