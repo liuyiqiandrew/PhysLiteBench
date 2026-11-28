@@ -3,5 +3,5 @@ COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /usr/local/bin/uv
 RUN uv pip install --system --no-cache numpy==2.3.3 scipy==1.16.3 pytest==8.4.2
 ENV OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
 WORKDIR /app
-COPY README.md model.py apparatus.py passive.py polarimeter.py test_public.py ./
+COPY README.md model.py apparatus.py passive.py test_public.py ./
 COPY data/ ./data/

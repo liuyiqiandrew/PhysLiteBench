@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the gated scattering microscope and the body-mounted spin monitor described in /app/README.md. Fit the solvent mobility and predict the measured fringes, count weights and count-selected readings.
+Implement Model in /app/model.py for the scattering microscope described in /app/README.md. Infer the solvent mobility and predict gated particle fringes, including measurements sorted by a planar gyroscope record and its signed area.

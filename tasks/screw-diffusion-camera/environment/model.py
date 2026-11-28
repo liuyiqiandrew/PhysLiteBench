@@ -1,32 +1,16 @@
-"""Solvent scattering with a depolarized two-state counter approximation."""
-from math import factorial
 import numpy as np
-from apparatus import Camera, ROT
+from apparatus import Camera
 from passive import fringe
-
-from polarimeter import bands, spin_axes
 
 
 class Model(Camera):
     def fringe(self, q):
-        optical = fringe(q, self.mobility)
-        if "monitor" not in q:
-            return optical
-        # Replace the conditional electronic state by the maximally mixed
-        # state in each doublet. Count transitions with the resulting rates.
-        s = q["monitor"]
-        filters = [bands(f) for f in s["filters"]]
-        mean = 0.0
-        for (a, b), t in zip(filters, q["times"]):
-            mean += (
-                t
-                * self.mobility
-                * sum(r * np.linalg.norm(b.conj().T @ J @ a) ** 2 for r, J in zip(ROT, spin_axes))
-            )
-        jump = np.linalg.norm(filters[1][1].conj().T @ filters[0][0]) ** 2 / 2
-        n = s["changes"]
-        keep = np.exp(-mean) * mean**n / factorial(n) * (1 - jump)
-        if n:
-            keep += np.exp(-mean) * mean ** (n - 1) / factorial(n - 1) * jump
-        spin_weight = 1.0 if s["analyzer"] is None else 0.5
-        return optical * spin_weight * (keep if s["read"] == "weight" else 1.0)
+        if "area" not in q:
+            return fringe(q, self.mobility)
+        # Approximate the rotation record by straight segments joining its
+        # measured positions. Keep the scattering calculation for the solvent.
+        s = q["area"]
+        p = s["middle"]
+        end = s["end"]
+        polygon = 0.0 if p is None else (p[0] * end[1] - p[1] * end[0]) / 2
+        return fringe(dict(q, phase=q["phase"] - s["field"] * polygon), self.mobility)
