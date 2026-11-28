@@ -19,7 +19,9 @@ def layer(c, d):
     j = np.linalg.inv((i[0] + i[1]) / 2)
     connect = np.column_stack((j, j @ (i[0] @ c[:2, 2:] + i[1] @ d[:2, 2:]) / 2))
     maps = [
-        np.vstack((m @ (connect - np.column_stack((O, z[:2, 2:]))), np.column_stack((O, I))))
+        np.vstack(
+            (m @ (connect - np.column_stack((O, z[:2, 2:]))), np.column_stack((O, I)))
+        )
         for z, m in zip(parts, i)
     ]
     return (c @ maps[0] + d @ maps[1]) / 2, maps
@@ -38,14 +40,19 @@ def probe(q, gain, steps=9):
         mix = np.outer(u, v)
         phi = q["angle"]
         effect = np.block(
-            [[np.cos(phi) * mix, np.sin(phi) * mix], [-np.sin(phi) * mix, np.cos(phi) * mix]]
+            [
+                [np.cos(phi) * mix, np.sin(phi) * mix],
+                [-np.sin(phi) * mix, np.cos(phi) * mix],
+            ]
         )
         p = q["phase"]
         effect = t1[p].T @ effect @ t2[p] / 2
     for k in range(steps):
         z1, t1 = layer(z1, TURN @ z1 @ TURN.T)
         z2, t2 = layer(z2, TURN @ z2 @ TURN.T)
-        effect = (t1[0].T @ effect @ t2[0] + t1[1].T @ (TURN @ effect @ TURN.T) @ t2[1]) / 2
+        effect = (
+            t1[0].T @ effect @ t2[0] + t1[1].T @ (TURN @ effect @ TURN.T) @ t2[1]
+        ) / 2
     if bulk:
         u = np.array(q["contact"])
         a = q["angle"]
@@ -67,7 +74,7 @@ def noisy_layer(c1, c2, n1, n2):
     return layer(c1, c2)[0], result
 
 
-def noise_probe(q, gain, steps=10):
+def noisy_state(q, gain, steps=10):
     from scipy.linalg import expm
 
     load = np.asarray(q["load"])
@@ -81,7 +88,9 @@ def noise_probe(q, gain, steps=10):
             N.append(2 * np.kron(I, (U * (a * temp)) @ U.T))
         film, source = noisy_layer(*C, *N)
         for _ in range(steps):
-            film, source = noisy_layer(film, TURN @ film @ TURN.T, source, TURN @ source @ TURN.T)
+            film, source = noisy_layer(
+                film, TURN @ film @ TURN.T, source, TURN @ source @ TURN.T
+            )
         drifts.append(np.linalg.solve(cap, film + load))
         noise = np.linalg.solve(cap, source + 2 * bath["load"] * load)
         diffusion.append(np.linalg.solve(cap, noise.T).T)
@@ -93,6 +102,15 @@ def noise_probe(q, gain, steps=10):
     system = np.zeros((17, 17))
     system[:16, :16] = -K
     system[:16, 16] = D.ravel()
-    evolved = (expm(q["wait"] * system) @ np.r_[stationary.ravel(), 1])[:16].reshape(4, 4)
+    evolved = (expm(q["wait"] * system) @ np.r_[stationary.ravel(), 1])[:16].reshape(
+        4, 4
+    )
+    return film, source, A, evolved
+
+
+def noise_probe(q, gain, steps=10):
+    from scipy.linalg import expm
+
+    film, source, A, evolved = noisy_state(q, gain, steps)
     u, v = q["contacts"]
     return float(np.asarray(v) @ expm(-q["lag"] * A) @ evolved @ u)

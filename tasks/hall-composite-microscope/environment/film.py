@@ -56,7 +56,9 @@ def signal(q, scale):
         current = experiments(q, scale, q["bias"], q["drive"])[0]
         measured = np.dot(q["contact"], current)
     else:
-        first, second = [experiments(q, scale, b, e) for b, e in zip(q["bias"], q["drives"])]
+        first, second = [
+            experiments(q, scale, b, e) for b, e in zip(q["bias"], q["drives"])
+        ]
         u, v = np.asarray(q["contacts"])
         measured = u @ phase_product(first, second, q["phase"]) @ v
     return float((np.exp(-1j * q["angle"]) * measured).real)

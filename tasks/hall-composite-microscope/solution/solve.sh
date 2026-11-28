@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eu
-cp /solution/model.py /solution/noise.py /app/
+cp /solution/model.py /solution/calorimeter.py /app/

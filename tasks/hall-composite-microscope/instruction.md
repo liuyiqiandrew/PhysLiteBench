@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the Hall microscope in /app/README.md. Fit its gain, preserve the bulk and local film readings, and predict the ordered two-time capacitor voltage correlation after a change in magnetic bias and local bath temperatures.
+Implement Model in /app/model.py for the checkerboard Hall microscope and load calorimeter described in /app/README.md. Fit the uniform coupons, preserve the supplied film and capacitor-voltage readings and predict the characteristic function of the load heat.

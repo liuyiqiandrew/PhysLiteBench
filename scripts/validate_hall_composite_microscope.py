@@ -9,7 +9,10 @@ sys.path[:0] = [str(TASK / "solution"), str(TASK / "environment"), str(TASK / "t
 from meter import homogeneous
 from laminate import probe
 from film import signal
-from noise import voltage
+from thermal import voltage
+from calorimeter import heat
+from heat_ref import heat_probe
+import hall_calorimeter_checks as calorimeter
 from hall_composite_noise_checks import shots as noise_shots, checks as noise_checks
 from laminate import noise_probe
 
@@ -121,6 +124,7 @@ def shots():
             )
         groups[family] = group
     groups.update(noise_shots([d["materials"] for qs in groups.values() for d in qs]))
+    groups.update(calorimeter.shots(groups))
     return training, groups
 
 
@@ -193,10 +197,24 @@ def checks():
 def main(generate):
     checks()
     noise_checks(sample()["materials"])
+    calorimeter.checks(sample()["materials"])
     training, groups = shots()
     cal = [dict(input=q, value=round(homogeneous(q, GAIN), 8)) for q in training]
     truth = {
-        g: [dict(input=q, value=round(noise_probe(q, GAIN) if q["mode"] == "noise" else probe(q, GAIN), 8)) for q in qs]
+        g: [
+            dict(
+                input=q,
+                value=round(
+                    heat_probe(q, GAIN)
+                    if q["mode"] == "heat"
+                    else noise_probe(q, GAIN)
+                    if q["mode"] == "noise"
+                    else probe(q, GAIN),
+                    8,
+                ),
+            )
+            for q in qs
+        ]
         for g, qs in groups.items()
     }
     for path, rows in [
@@ -223,10 +241,27 @@ def main(generate):
             assert max(errors.values()) < 2e-7
         else:
             assert (
-                min(errors[g] for g in ("split_baths", "bias_quench"))
+                min(
+                    errors[g]
+                    for g in ("heat_equilibrium", "heat_fluctuations", "heat_quench")
+                )
                 > 0.002
             )
-        assert max(errors[g] for g in ("bulk", "field_power", "cross_bias", "circulation", "thermal_equilibrium")) < 2e-7
+        assert (
+            max(
+                errors[g]
+                for g in (
+                    "bulk",
+                    "field_power",
+                    "cross_bias",
+                    "circulation",
+                    "thermal_equilibrium",
+                    "split_baths",
+                    "bias_quench",
+                )
+            )
+            < 2e-7
+        )
     q = sample()
     for angle in (0.0, np.pi / 2):
         for p in (0, 1):
@@ -236,7 +271,9 @@ def main(generate):
             assert abs(value - probe(shot, 0.94, steps=14)) < 1e-11
     for family, qs in groups.items():
         for q in qs:
-            if q["mode"] == "noise":
+            if q["mode"] == "heat":
+                assert abs(heat_probe(q, GAIN, steps=64) - heat(q, GAIN)) < 2e-6
+            elif q["mode"] == "noise":
                 assert abs(noise_probe(q, GAIN, steps=12) - voltage(q, GAIN)) < 1e-10
             else:
                 assert abs(probe(q, GAIN, steps=12) - signal(q, GAIN)) < 1e-10

@@ -1,9 +1,11 @@
-"""Use the applied-field illumination of each port to collect its local noise."""
 from meter import Meter
 from film import signal
-from noise import voltage
+from thermal import voltage
+from calorimeter import heat
 
 
 class Model(Meter):
     def read(self, q):
-        return voltage(q, self.gain, adjoint=False) if q["mode"] == "noise" else signal(q, self.gain)
+        if q["mode"] == "heat":
+            return heat(q, self.gain, common=False)
+        return voltage(q, self.gain) if q["mode"] == "noise" else signal(q, self.gain)

@@ -44,4 +44,20 @@ As a check, use identical phases A=diag(1,1.9) and H=diag(0.7,−0.45), g=0.94, 
 
 For a split-temperature check, use the two materials from the coupled worked reading at g=0.94. Set C=[[1.2,0.12,−0.13,0],[0.12,0.84,0.08,0.05],[−0.13,0.08,0.96,0.11],[0,0.05,0.11,1.1]] and L=[[0.4,0.1,0,0],[0.1,0.5,0,0.08],[0,0,0.3,−0.02],[0,0.08,−0.02,0.45]]. Initially phase_modes=[[1.8,0.3],[1.1,0.15]] with load temperature 0.7 and b=1.1. The final phase_modes are [[0.2,1.6],[1.85,0.3]] with load temperature 0.6. At wait=0.18 and lag=0.23, measure u=[0.7,0.3,−0.5,0.2] then v=[−0.3,0.6,0.4,0.45]. Final bias −1.2 gives 0.05473119. Changing only that final bias to +1.2 gives −0.00021862.
 
-The public film.py implements all ordinary checkerboard bulk and phase-probe readings. Its signal(query,gain) function accepts the bulk and local query formats above. For the capacitor experiment the supplied model uses the spatial mean of the final bath temperatures and assumes the capacitors have fully equilibrated at that temperature.
+The public film.py implements all ordinary checkerboard bulk and phase-probe readings. Its signal(query,gain) function accepts the bulk and local query formats above. The supplied model also computes the terminal voltage correlations for both settings.
+
+## Load calorimeter
+
+In mode heat the external load measures the signed heat Q delivered to its resistor bath over the interval from wait to wait+duration. The two film settings, capacitors and pre-switch equilibrium follow the noise protocol above. Replace the voltage contacts and lag by duration, tilt and angle. The detector returns
+
+    Re[exp(−i angle) ⟨exp(i tilt Q)⟩].
+
+Positive heat enters the external load. A unitless thermal source increment in that load has the form ΔJ_load=(2T_load L)^{1/2} ΔW_load, where ΔW_load is a vector of four independent centered normals of variance Δt. This is exactly the increment that appears inside the current balance of the capacitor equation. It can return energy to the capacitors. Attach the calorimeter without changing the circuit. For successive voltages V and V′, its finite-time reading increments by
+
+    V_midᵀ [L V_mid Δt + ΔJ_load],         V_mid=(V+V′)/2.
+
+Sum these increments over the acquisition interval and take Δt→0 (the Stratonovich integral). Counting starts from zero at wait. The heat meter includes all four load modes. The input duration lies in [0.10,0.8], |tilt|≤1.2 and |angle|≤π. The maximum absolute error must remain below 0.002 for equilibrium heat, split-temperature heat and the switched-bias heat shots.
+
+For an equilibrium check use identical materials A=diag(1,1.9), H=0 and all baths at 1.3. Take C=diag(1,0.86,1,0.86), L=diag(0.4,0.35,0.4,0.35), duration=0.4 and tilt=0.75. At angle zero the result is 0.60218312. At π/2 it vanishes. For a signed check use the split-temperature worked voltage shot above with final bias −1.2, gain 0.94 and wait=0.18. With duration=0.43 and tilt=0.87 the heat readouts at zero and π/2 are 0.75830920 and 0.12080294.
+
+The supplied thermal.py calculates the entire linear voltage process. terminal(query,gain) returns its post-switch decay matrix A, covariance D of the white voltage drive, voltage covariance at wait, and post-switch stationary voltage covariance, all in the four-port order above. Thus dV has mean −A V dt and covariance D dt. The supplied model computes the mean heat exactly and replaces the random accumulated heat by that mean for the phase readout.
