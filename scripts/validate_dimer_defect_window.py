@@ -152,6 +152,18 @@ def validate(generate):
         assert abs(fun(corner, z) - hand) < 1e-12
         # Independently enumerating all four tilings gives 2809 / 8211.
         assert abs(fun(example, 1.0) - 2809 / 8211) < 1e-12
+    clustered = dict(
+        w=22,
+        h=12,
+        ports=[(i, 0) for i in range(5)] + [(21, i) for i in range(5)],
+        gate=[0, 0],
+        read=[2, 5],
+        plates=[
+            dict(ratio=1.7, layer=[0, 1, 0, 0, 0, 0, 1, 0, 1, 1]),
+            dict(ratio=1.7, layer=[1] * 10),
+        ],
+    )
+    assert abs(folded(clustered, 1.4) - ports_ref["folded"](clustered, 1.4)) < 1e-8
     for label, module in [("oracle", oracle), ("shortcut", shortcut)]:
         model = module["Model"]().fit(cal)
 

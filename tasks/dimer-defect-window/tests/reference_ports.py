@@ -32,13 +32,13 @@ def measurement_matrix(n):
         matrix.append(
             [all(tag[i] != tag[j] for i, j in enumerate(p)) for p in diagrams(n)]
         )
-    return np.array(colorings), np.linalg.pinv(np.array(matrix, dtype=float))
+    return np.array(colorings), np.array(matrix, dtype=bool)
 
 
 def boundary_law(q, z, p):
     ports = list(map(tuple, q["ports"]))
     k = len(ports)
-    colorings, dual = measurement_matrix(k)
+    colorings, incidence = measurement_matrix(k)
     vertices = [(x, y) for y in range(q["h"]) for x in range(q["w"])]
     b, w = [[v for v in vertices if sum(v) % 2 == color] for color in (0, 1)]
     ix = {v: i for i, v in enumerate(w)}
@@ -66,7 +66,24 @@ def boundary_law(q, z, p):
     for state in colorings:
         removed = state == black
         logs.append(logz(removed) + logz(~removed))
-    masses = np.maximum(dual @ np.exp(logs - np.max(logs)), 0)
+    # A rare boundary assignment can be over 30 orders of magnitude lighter
+    # than an ordinary one. Each compatible assignment bounds the mass of a
+    # diagram. Use its smallest such bound to keep the least-squares equations
+    # accurate relative to the preparation that will actually be observed.
+    logs = np.asarray(logs)
+    bounds = np.min(np.where(incidence, logs[:, None], np.inf), axis=0)
+    viable = np.isfinite(bounds)
+    supported = np.isfinite(logs)
+    # Exponentiate only entries that appear in the equation. Their exponent
+    # is nonpositive by construction.
+    active = incidence[np.ix_(supported, viable)]
+    ratios = bounds[viable] - logs[supported, None]
+    matrix = np.exp(np.where(active, ratios, -np.inf))
+    relative = np.linalg.lstsq(matrix, np.ones(sum(supported)), rcond=None)[0]
+    masses = np.zeros(len(bounds))
+    masses[viable] = np.maximum(relative, 0) * np.exp(
+        bounds[viable] - max(bounds[viable])
+    )
     charges = black ^ np.array(p["layer"], dtype=bool)
     for i, d in enumerate(diagrams(k)):
         if any(charges[a] == charges[b] for a, b in enumerate(d)):
