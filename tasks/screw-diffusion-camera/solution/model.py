@@ -1,8 +1,8 @@
 from apparatus import Camera
 from passive import fringe
-from area import rotate_area
+from gradient import pickup
 
 
 class Model(Camera):
     def fringe(self, q):
-        return rotate_area(q, self.mobility) if "area" in q else fringe(q, self.mobility)
+        return pickup(q, self.mobility) if "pickup" in q else fringe(q, self.mobility)

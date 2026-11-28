@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the scattering microscope described in /app/README.md. Infer the solvent mobility and predict gated particle fringes, including measurements sorted by a planar gyroscope record and its signed area.
+Implement Model in /app/model.py for the scattering microscope and balanced actuator described in /app/README.md. Fit the solvent mobility, predict the ordinary gated fringes, and evaluate the slope and curvature of the driven gyroscope gradient pickup.

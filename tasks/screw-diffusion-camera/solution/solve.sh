@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eu
-cp /solution/model.py /solution/area.py /app/
+cp /solution/model.py /solution/gradient.py /app/
