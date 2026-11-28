@@ -58,9 +58,9 @@ The [three-trial results](results/five-luna-high-20261127/README.md) cover these
 | Apparatus | Measured quantity |
 | --- | --- |
 | [Dimer defect window](tasks/dimer-defect-window/AUTHOR.md) | Probability that two boundary contacts share a cycle across four dimer coverings, conditional on a second pair of contacts sharing a cycle in the same image. |
-| [Majorana island fringe](tasks/majorana-island-fringe/AUTHOR.md) | Arm interference after an island interacts with a meter and a lossy resonator fed by overlapping photon packets. |
-| [Photon transfer fringe](tasks/photon-transfer-fringe/AUTHOR.md) | A number-transfer fringe after two photon operations draw energy from the same finite quantum pump, with optional postselection on the outgoing pump state. |
-| [Screw diffusion camera](tasks/screw-diffusion-camera/AUTHOR.md) | Gated scattering by a rotating rigid particle, resolved by the sign a transported spinor acquires when the material frame returns. |
+| [Majorana island fringe](tasks/majorana-island-fringe/AUTHOR.md) | Arm interference after local island parity shifts the phase of a thermal or photon-fed resonator, conditioned on its measured output voltage. |
+| [Photon transfer fringe](tasks/photon-transfer-fringe/AUTHOR.md) | Number-transfer fringe of the surviving photon when two of three frequency-entangled photons upconvert and trigger a detector. |
+| [Screw diffusion camera](tasks/screw-diffusion-camera/AUTHOR.md) | Scattering after two returns of an unmarked biaxial frame, conditioned on the rotation order and a spin measurement. |
 | [Terrace winding camera](tasks/terrace-winding-camera/AUTHOR.md) | A tagged step's position and the local times spent by a reflected pair at the two contact boundaries on a cylinder. |
 
 [Qualification and revision history](results/five-luna-high-20261128/README.md)
