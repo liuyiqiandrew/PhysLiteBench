@@ -1,1 +1,1 @@
-Calibrate the optical readout and implement Model in /app/model.py to predict photon transfer through the instrument described in /app/README.md.
+Calibrate the number-transfer readout and predict the conditional signal for the three-photon upconversion experiment described in /app/README.md. Implement Model in /app/model.py.

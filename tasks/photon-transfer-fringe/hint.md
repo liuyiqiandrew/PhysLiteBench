@@ -1,1 +1,1 @@
-With correlated photon labels, exchanged assignments sample the whole joint amplitude at different permutations of the same detected frequencies. A plate inside an interferometer acts only on histories that traverse its rail. A retained parity is a projection on the full many-photon state.
+At fixed converted frequency z and survivor frequency v, apply both annihilation operators to the three-photon state. The unobserved partition u,z−u is summed as an amplitude. Different trigger measurements then act on the remaining z coordinate.

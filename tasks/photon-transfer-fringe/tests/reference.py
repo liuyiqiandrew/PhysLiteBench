@@ -1,148 +1,82 @@
-"""Normally ordered Gaussian contractions in real quadratures."""
+"""Resolve the input frequencies and explicitly annihilate a pair in the three-photon state."""
+from itertools import permutations
 import numpy as np
-
-TRUE_PARAMETER = .8436
-
-
-def interferometer(n, rows):
-    out = np.eye(n, dtype=complex)
-    for i,j,t,p in rows:
-        unit = np.eye(n, dtype=complex)
-        unit[i,i] = unit[j,j] = np.cos(t)
-        unit[j,i] = np.exp(1j*p)*np.sin(t)
-        unit[i,j] = -unit[j,i].conjugate()
-        out = unit @ out
-    return out
+from scipy.special import roots_legendre, roots_hermitenorm
+from frequency_reference import channels, interferometer
 
 
-def reference(q, points=112):
-    if 'pulse' in q:
-        from pulse_reference import finite_reference
-        return finite_reference(q, points)
-    n = len(q['source'])
-    identity = np.eye(n)
-    to_alpha = np.hstack((identity,1j*identity))/np.sqrt(2)
-    v = np.zeros((2*n,2*n))
-    for j,(mean,r,phase) in enumerate(q['source']):
-        c,s = np.cos(phase/2),np.sin(phase/2)
-        rotation = np.array([[c,-s],[s,c]])
-        v[np.ix_([j,n+j],[j,n+j])] = (mean+.5) * (
-            rotation @ np.diag(np.exp([-2*r,2*r])) @ rotation.T)
-    prep,before,after = [interferometer(n,q[k]) for k in ('prep','before','after')]
-    rotation = np.block([[prep.real,-prep.imag],[prep.imag,prep.real]])
-    normal = rotation @ v @ rotation.T - .5*np.eye(2*n)
-    bank = np.zeros(n)
-    bank[q['bank']] = 1
-    angles = (np.arange(points)+.5)*2*np.pi/points
-    twirl = np.exp(1j*angles[:,None]*bank)
-    if 'switch' in q:
-        return switched(q, normal, before, after, bank, angles, to_alpha)
-
-    def expect(matrix):
-        rotated = twirl.conj()[:,:,None] * matrix * twirl[:,None,:]
-        h = to_alpha.conj().T @ (rotated-identity) @ to_alpha
-        eigen = np.linalg.eigvals(normal @ (h+h.transpose(0,2,1)))
-        return np.mean(np.exp(-.5*np.log1p(-eigen).sum(axis=-1)))
-
-    gate = q['gate']
-    branches = [after @ before]
-    weights = [1.]
-    if gate:
-        signs = np.ones(n)
-        signs[gate['rails']] = -1
-        branches.append(after @ np.diag(signs) @ before)
-        weights = [.5, .5*gate['parity']]
-
-    def characteristic(angle):
-        d = np.diag(np.exp(1j*angle*bank))
-        return sum(lw*rw*expect(l.conj().T @ d @ r @ d.conj())
-                   for lw,l in zip(weights,branches) for rw,r in zip(weights,branches))
-
-    probability = characteristic(0.).real if gate else 1.
-    value = (np.exp(-1j*q['phase'])*characteristic(q['lambda'])).real / probability
-    return float(value), float(probability)
+def gaussian_nodes(N, scale):
+    z, w = roots_hermitenorm(N)
+    return z * scale, w * scale * np.exp(z**2 / 2)
 
 
-def switched(q, covariance, before, after, bank, angles, to_alpha):
-    n = len(bank)
-    eye = np.eye(n)
-    c = np.cos(angles[:,None] * bank)[:,None,:]*eye
-    s = np.sin(angles[:,None] * bank)[:,None,:]*eye
-    rot = np.concatenate((np.concatenate((c,-s),2),np.concatenate((s,c),2)),1)
-    cov = rot @ covariance @ rot.transpose(0,2,1)
-    data = q['switch']
-    middle = interferometer(n,data['middle'])
-    ops = []
-    for i,j,t,p,b,f in data['clicks']:
-        vector = np.cos(t)*eye[i] + np.exp(1j*p)*np.sin(t)*eye[j]
-        ops.append((np.cos(b)*vector,np.sin(b)*np.exp(1j*f)*vector.conj()))
-    incoming = [1.,np.exp(1j*data['angle'])]
-
-    def trace(angle):
-        d = np.diag(np.exp(1j*angle*bank))
-        pulled = after.conj().T @ d @ after
-        k = before.conj().T @ middle.conj().T @ pulled @ middle @ before @ d.conj()
-        h = to_alpha.conj().T @ (k-eye) @ to_alpha
-        product = cov @ (h+h.T)
-        normalizer = np.exp(-.5*np.log1p(-np.linalg.eigvals(product)).sum(axis=1))
-        tilted = np.linalg.solve(np.eye(2*n)-product,cov)
-        answer = 0j
-        branches = []
-        if 'pump' not in q:
-            for arm in (0,1):
-                branches.append(([ops[arm],ops[1-arm]],{0:incoming[arm]}))
-        else:
-            charge = q['pump']
-            def amplitude(rows):
-                data={n:complex(r,i) for n,r,i in rows}
-                norm = np.sqrt(sum(abs(v)**2 for v in data.values()))
-                return {n:v/norm for n,v in data.items()}
-            initial=amplitude(charge['state'])
-            analyzer=None if charge['detect'] is None else amplitude(charge['detect'])
-            for arm in (0,1):
-                for first in (0,1):
-                    for last in (0,1):
-                        matrix={}
-                        for occupation,psi in initial.items():
-                            m=occupation-first
-                            endpoint=m-last
-                            if endpoint<0:
-                                continue
-                            term=psi*np.exp(-.5j*charge['kerr']*m*(m-1))
-                            if first:term*=np.sqrt(occupation)
-                            if last:term*=np.sqrt(m)
-                            term*=incoming[arm]
-                            if analyzer is not None:
-                                term*=analyzer.get(endpoint,0).conjugate()
-                                endpoint=0
-                            matrix[endpoint]=matrix.get(endpoint,0)+term
-                        l=[]
-                        for (a,b),r in zip((ops[arm],ops[1-arm]),(first,last)):
-                            l.append(((1-r)*a,r*b))
-                        branches.append((l,matrix))
-        for left_ops,l in branches:
-            for right_ops,r in branches:
-                weight=sum(w.conjugate()*r.get(i,0) for i,w in l.items())
-                if not weight:continue
-                def adj(op):
-                    return op[1].conj(),op[0].conj()
-                factors = [before.conj().T,adj(left_ops[0]),middle.conj().T,adj(left_ops[1]),
-                           pulled,right_ops[1],middle,right_ops[0]]
-                walk = eye
-                creators,annihilators = [],[]
-                for elem in factors:
-                    if isinstance(elem,tuple):
-                        annihilators.append(elem[0] @ walk.conj().T)
-                        creators.append(elem[1] @ walk.T)
-                    else:
-                        walk = walk @ elem
-                u,v = np.array(annihilators),np.array(creators)
-                # Normal ordering on a coherent ket K|alpha> leaves vacuum contractions
-                # u_i . v_j for i preceding j. The other terms come from the P average.
-                source = u @ k @ to_alpha + v @ to_alpha.conj()
-                pair = source @ tilted @ source.T + u @ v.T
-                fourth = sum(pair[:,0,j]*pair[:,l,m] for j,l,m in ((1,2,3),(2,1,3),(3,1,2)))
-                answer += weight*np.mean(normalizer*fourth)
-        return answer/4
-    retention = trace(0.).real
-    return float((np.exp(-1j*q['phase'])*trace(q['lambda'])).real/retention),float(retention)
+def reading(q, order=33):
+    _, channels_at = channels(q)
+    conv = q["conversion"]
+    spec = q["spectral"]
+    d, wd = gaussian_nodes(order, 0.62)
+    v, wv = gaussian_nodes(order, 0.91)
+    det = conv["detector"]
+    mode = det and "mode" in det
+    if det and "band" in det:
+        lo, hi = det["band"]
+        z, wz = roots_legendre(order)
+        z = (lo + hi) / 2 + z * (hi - lo) / 2
+        wz *= (hi - lo) / 2
+    else:
+        z, wz = gaussian_nodes(order, 1.07)
+    x, y, zz = np.broadcast_arrays(
+        d[None, None, :] + z[None, :, None] / 2,
+        z[None, :, None] / 2 - d[None, None, :],
+        v[:, None, None],
+    )
+    freq = np.stack([x, y, zz], axis=-1)
+    p = list(permutations(range(3)))
+    fs = [channels_at(freq[..., np.argsort(perm)]) for perm in p]
+    before = interferometer(3, q["before"])
+    after = interferometer(3, q["after"])
+    plate, D, B = spec["plate"]
+    phase = np.exp(1j * (-D * freq + B * freq**2 / 2))
+    amps = np.zeros((len(fs[0]), 3, len(v), len(z)), complex)
+    gate = q["gate"]
+    for r, s, ca, cb, ctr, bw, walk, pathdelay in conv["paths"]:
+        h = complex(ca, cb) * np.exp(
+            -(((x - y) - ctr) ** 2) / (4 * bw**2)
+            - 1j * (walk * (x - y) + pathdelay * (x + y))
+        )
+        for surviving in range(3):
+            rs = np.array([r, s, surviving])
+            if gate and (-1) ** sum(np.isin(rs, gate["rails"])) != gate["parity"]:
+                continue
+            multipliers = [np.prod(before[rs, np.array(ordering)]) for ordering in p]
+            factor = h * np.prod(phase[..., rs == plate], axis=-1) * wd
+            for a in range(len(fs[0])):
+                at = sum(c * state[a] for c, state in zip(multipliers, fs))
+                amps[a, surviving] += (at * factor).sum(axis=2)
+    out = np.einsum("oi,aivz->aovz", after, amps)
+    if mode:
+        c, s, delay, chirp = det["mode"]
+        analyzer = (
+            np.exp(-0.25 * ((z - c) / s) ** 2 + 1j * (chirp * z * z / 2 - delay * z))
+            / (2 * np.pi * s * s) ** 0.25
+        )
+        prob = np.sum(abs(out @ (wz * analyzer.conj())) ** 2, axis=0) @ wv
+    elif det and "time" in det:
+        lo, hi = det["time"]
+        t, wt = roots_legendre(order)
+        t = (lo + hi) / 2 + t * (hi - lo) / 2
+        wt *= (hi - lo) / 2
+        after_clock = (
+            out @ (np.exp(-1j * z[:, None] * t) * wz[:, None]) / np.sqrt(2 * np.pi)
+        )
+        prob = np.sum(abs(after_clock) ** 2, axis=0) @ wt @ wv
+    else:
+        prob = np.sum(abs(out) ** 2, axis=0) @ wz @ wv
+    # Input-normalization integral, independently of the receiver projection.
+    z, w = gaussian_nodes(order, 0.91)
+    xyz = np.stack(np.meshgrid(z, z, z, indexing="ij"), axis=-1)
+    weights = np.einsum("i,j,k->ijk", w, w, w)
+    norm = sum(np.sum(weights * abs(a) ** 2) for a in channels_at(xyz))
+    bank = np.isin(np.arange(3), q["bank"])
+    obs = np.cos(q["lambda"] * (bank.astype(int) - sum(bank)) - q["phase"])
+    return float(prob @ obs / sum(prob)), float(sum(prob) / norm)

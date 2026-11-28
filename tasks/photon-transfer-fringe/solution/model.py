@@ -1,7 +1,12 @@
-from pump import PumpSurvey
+from optics import Calibrated, calibration_signal
 from spectral import spectral_signal
+from herald import conversion_signal
 
 
-class Model(PumpSurvey):
+class Model(Calibrated):
     def reading(self, q):
-        return spectral_signal(q)[0] if "spectral" in q else super().reading(q)
+        if "conversion" in q:
+            return conversion_signal(q)[0]
+        if "spectral" in q:
+            return spectral_signal(q)[0]
+        return calibration_signal(q)

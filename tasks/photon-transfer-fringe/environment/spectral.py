@@ -1,7 +1,7 @@
 """Frequency-resolved exchange paths in an achromatic optical network."""
 from itertools import permutations, product
 import numpy as np
-from gaussian import mesh
+from optics import mesh
 
 
 def forms(spec):

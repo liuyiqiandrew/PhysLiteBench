@@ -1,57 +1,63 @@
-"""Treat photon labels as distinguishable and use the intensity marginals of each emission."""
+"""Carrier-frequency, distinguishable-path approximation to the conversion herald."""
+from itertools import permutations
 import numpy as np
-from scipy.special import roots_hermitenorm
-from gaussian import mesh
-from pump import PumpSurvey
+from scipy.special import ndtr
+from optics import Calibrated, calibration_signal, mesh
+from spectral import spectral_signal
 
 
-def spectral_reading(q):
-    spec = q["spectral"]
-    states = spec["preparations"]
-    n = len(states[0]["mean"])
-    which, delay, chirp = spec["plate"]
-    bank = np.isin(np.arange(n), q["bank"])
-    B = mesh(n, q["before"])
-    A = mesh(n, q["after"])
+def carrier(q):
+    before = abs(mesh(3, q["before"])) ** 2
+    after = abs(mesh(3, q["after"])) ** 2
+    spec = q["conversion"]
     gate = q["gate"]
-    branches = [(1.0, np.ones(n))]
-    z, w = roots_hermitenorm(36)
-    w = w / np.sqrt(2 * np.pi)
-    if gate:
-        sign = np.ones(n)
-        sign[gate["rails"]] = -1
-        branches = [(0.5, np.ones(n)), (0.5 * gate["parity"], sign)]
-
-    def chi(angle):
-        total = 0j
-        count = np.exp(1j * angle * bank)
-        for j, st in enumerate(states):
-            intensity = 1.0 if j == 0 else abs(complex(*spec["weight"])) ** 2
-            contributions = (
-                np.zeros((len(branches), len(branches)), complex) + intensity
-            )
-            for i in range(n):
-                x = st["mean"][i] + np.sqrt(st["cov"][i][i]) * z
-                plate = np.ones((len(x), n), complex)
-                plate[:, which] = np.exp(1j * (-delay * x + chirp * x**2 / 2))
-                amps = [(A @ ((plate * sign * B[:, i]).T)).T for _, sign in branches]
-                for l, left in enumerate(amps):
-                    for k, right in enumerate(amps):
-                        contributions[l, k] *= w @ np.sum(
-                            left.conj() * count * right, axis=1
+    mass = np.zeros(3)
+    det = spec["detector"]
+    source = q["spectral"]
+    for i, p in enumerate(source["preparations"]):
+        mu = np.array(p["mean"])
+        cov = np.array(p["cov"])
+        weight = 1.0 if i == 0 else abs(complex(*source["weight"])) ** 2
+        for r, s, a, b, center, width, walk, delay in spec["paths"]:
+            for survivor in range(3):
+                rails = [r, s, survivor]
+                if (
+                    gate
+                    and (-1) ** sum(np.isin(rails, gate["rails"])) != gate["parity"]
+                ):
+                    continue
+                for m, n, j in permutations(range(3)):
+                    d = mu[m] - mu[n]
+                    z = mu[m] + mu[n]
+                    sigma = np.sqrt(cov[m, m] + cov[n, n] + 2 * cov[m, n])
+                    accept = 1.0
+                    if det and "band" in det:
+                        lo, hi = det["band"]
+                        accept = ndtr((hi - z) / sigma) - ndtr((lo - z) / sigma)
+                    if det and "mode" in det:
+                        c, sw, dt, beta = det["mode"]
+                        accept = np.exp(
+                            -((z - c) ** 2) / (2 * (sigma * sigma + sw * sw))
                         )
-            for l, (a, _) in enumerate(branches):
-                for k, (b, _) in enumerate(branches):
-                    total += a * b * contributions[l, k]
-        return total
+                    mass[survivor] += (
+                        weight
+                        * (a * a + b * b)
+                        * np.exp(-((d - center) ** 2) / (2 * width * width))
+                        * accept
+                        * before[r, m]
+                        * before[s, n]
+                        * before[survivor, j]
+                    )
+    out = after @ mass
+    bank = np.isin(np.arange(3), q["bank"])
+    count = np.cos(q["lambda"] * (bank.astype(int) - sum(bank)) - q["phase"])
+    return float(out @ count / sum(out))
 
-    theta = q["lambda"]
-    return float(
-        (chi(theta) * np.exp(-1j * (q["phase"] + theta * sum(bank)))).real
-        / chi(0.0).real
-    )
 
-
-class Model(PumpSurvey):
+class Model(Calibrated):
     def reading(self, q):
-        return spectral_reading(q) if "spectral" in q else super().reading(q)
+        if "conversion" in q:
+            return carrier(q)
+        if "spectral" in q:
+            return spectral_signal(q)[0]
+        return calibration_signal(q)
