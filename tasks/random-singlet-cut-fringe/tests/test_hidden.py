@@ -32,6 +32,6 @@ def test_fit(metrics):
     assert metrics["max_absolute_error"]["calibration"] < 2e-6
 
 
-@pytest.mark.parametrize("group",["cut_origin","quiet_spectrum","heralded_spectrum"])
+@pytest.mark.parametrize("group",["one_center","two_centers","paired_herald"])
 def test_fringe(metrics,group):
     assert metrics["max_absolute_error"][group] < .003

@@ -1,1 +1,1 @@
-The bond formed after a crossing is weaker on average than a generic cut bond. You can keep its unnormalized density in x as the cutoff advances. Across the same cut, two consecutive crossing bonds enclose an even number of other spins paired entirely on each side.
+The effective bond when the last central spin is removed depends on which links survived the earlier decimations. You can condition on the starting strength of the interior bond. Before they interact with it, the two exterior boundaries have identical statistics.

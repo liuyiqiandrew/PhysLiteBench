@@ -3,6 +3,6 @@ from renewal import response
 
 
 class Model(Readout):
-    """Give the herald copy its own independently drawn chain."""
+    """Start a regenerated common bond immediately after both outer removals."""
     def fringe(self,q):
-        return response(q,independent_herald=True)[1]
+        return response(q,instant=True)[1]

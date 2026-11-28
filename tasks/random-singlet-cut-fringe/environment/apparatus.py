@@ -1,6 +1,5 @@
 """Uniform rotations, staggered rotations, and a singlet analyzer on an individual pair."""
 import numpy as np
-from scipy.linalg import expm
 
 pauli={
     'x':np.array([[0.,1.],[1.,0.]],complex),
@@ -39,23 +38,19 @@ class Readout:
 
 
 def poisson(q):
-    """Constant-rate independent crossings, with the same disorder shared by the two copies."""
+    """Three independent stationary streams, each with rate 1/6 per log-scale unit."""
     count=q['count']
-    levels=1 if count is None else count+1
-    first=q['last']
-    initial=np.array([.5,.5] if first is None else [first==1,first==-1],float)
-    def run(signal):
-        mass=np.zeros(2*levels,complex); mass[:2]=initial
+    def average(signal):
+        offset=0j; tagged=0j
         for band in q['bands']:
-            generator=-np.eye(len(mass),dtype=complex)/3
-            for k in range(levels):
-                for s,sign in enumerate((-1,1)):
-                    gain,p=pair_response(band,sign)
+            for spot in ('left','right','both'):
+                for sign in (-1,1):
+                    gain,click=pair_response(band[spot],sign)
                     if not signal:gain=1.
-                    if count is None:p=0.
-                    col=2*k+s
-                    generator[2*k+1-s,col]+=gain*(1-p)/3
-                    if k+1<levels:generator[2*(k+1)+1-s,col]+=gain*p/3
-            mass=expm(band['width']*generator)@mass
-        return mass[-2:].sum()
-    return float((np.exp(-1j*q['phase'])*run(True)).real/run(False).real)
+                    if count is None:click=0.
+                    lam=band['width']/12
+                    offset+=lam*(gain*(1-click)-1)
+                    tagged+=lam*gain*click
+        return np.exp(offset)*(1 if count is None else tagged**count)
+    rate=average(False).real
+    return 0. if rate==0 else float((np.exp(-1j*q['phase'])*average(True)).real/rate)
