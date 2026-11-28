@@ -32,6 +32,6 @@ def test_fit(metrics):
     assert metrics["max_absolute_error"]["calibration"] < 2e-6
 
 
-@pytest.mark.parametrize("family",["origin","tagged","quadrature","reversal","stored_record","reversed_sense","analyzed_echo"])
+@pytest.mark.parametrize("family",["origin","tagged","quadrature","reversal","count_weight","one_change","two_changes"])
 def test_fringe(metrics, family):
     assert metrics["max_absolute_error"][family] < .003

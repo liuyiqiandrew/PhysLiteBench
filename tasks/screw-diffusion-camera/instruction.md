@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the gated scattering microscope and its gyroscope-driven spin interferometer described in /app/README.md. Fit solvent mobility from rotational calibration and predict each joint optical and spin signal.
+Implement Model in /app/model.py for the gated scattering microscope and the body-mounted spin monitor described in /app/README.md. Fit the solvent mobility and predict the measured fringes, count weights and count-selected readings.
