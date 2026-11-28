@@ -1,0 +1,1 @@
+First-return flux for integrated Brownian motion differs from free crossing flux. Express one flight using incoming-to-launch speed ratio R and inverse scaled duration u²/(Dτ). The rebound rule is then independent of absolute launch speed. Consider the log drift of the resulting launch speeds for the sticking transition and a positive renewal equation for the two monitors.
