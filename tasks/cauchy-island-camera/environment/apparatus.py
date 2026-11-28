@@ -1,11 +1,5 @@
-"""Free transport calibration and the exact exit law of a single interval."""
+"""Free calibration and terminal probabilities for a carrier without fission."""
 import numpy as np
-
-
-def poisson(a, b, x, y):
-    return np.sqrt((x - a) * (b - x)) / (
-        np.pi * np.sqrt(abs((y - a) * (y - b))) * abs(y - x)
-    )
 
 
 def exit_cdf(a, b, x, y):
@@ -41,3 +35,13 @@ class Calibrated:
             ],
             dtype=float,
         )
+
+
+def terminal(q, x):
+    left, right = q["thresholds"]
+    red, blue = q["efficiencies"]
+    if abs(x) >= 1:
+        return red * (x <= -1 - left), blue * (x >= 1 + right)
+    return red * exit_cdf(-1.0, 1.0, x, -1 - left), blue * (
+        1 - exit_cdf(-1.0, 1.0, x, 1 + right)
+    )

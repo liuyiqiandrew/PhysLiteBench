@@ -1,4 +1,4 @@
-"""Regenerate detector labels and compare an independent first-exit law with the spectral generator."""
+"""Regenerate family count readings with an independent complex generating-function solver."""
 import argparse
 import json
 import runpy
@@ -9,8 +9,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/cauchy-island-camera"
 sys.path[:0] = [str(TASK / "environment"), str(TASK / "solution"), str(TASK / "tests")]
-from spectral import reading
-from reference import reading as renewal
+from tree import solve
+from reference import solve as renewal
 from test_public import examples
 
 
@@ -37,71 +37,42 @@ def calibration():
 
 
 def science():
-    rng = np.random.default_rng(401873)
+    rng = np.random.default_rng(274282)
+
+    def draw(low, high):
+        return round(float(rng.uniform(low, high)), 6)
+
     groups = {}
-
-    def d(a, b):
-        return round(float(rng.uniform(a, b)), 6)
-
-    for k in ("landing", "donor", "clock"):
-        rows = []
-        for i in range(9):
-            h = d(0.52, 1.22)
-            g = d(0.36, 0.88)
-            a = 1 + g
-            bars = [[-1.0, 1.0], [a, a + 2 * h]]
-            start = i % 2
-            c0 = (bars[start][0] + bars[start][1]) / 2
-            hw = (bars[start][1] - bars[start][0]) / 2
-            x = c0 + hw * d(-0.64, 0.64)
-            if i % 3 == 0:
-                y = 1 + g * d(0.26, 0.74)
-            elif i % 3 == 1:
-                y = -1 - d(0.26, 1.0)
-            else:
-                y = bars[1][1] + d(0.26, 1.0)
-            mark = dict(
-                island=(i % 2 if i % 3 == 1 else 1 - i % 2),
-                profile=[d(0.11, 0.38), d(0.25, 0.75), d(0.78, 0.99)],
-            )
-            if i % 2:
-                mark["profile"].reverse()
-            q = dict(
-                islands=[[round(v, 6) for v in side] for side in bars],
-                launch=round(x, 6),
-                landing=round(y, 6),
-                donor=None if k == "landing" else mark,
-                rates=[d(0.2, 1.2), d(0.1, 1.1)],
-                relay=d(0.31, 0.88),
-                observable=k,
-            )
-            if i % 3 == 1:
-                q["relay"] = 1.0
-            if i % 3 == 2:
-                q["rates"][i % 2] = 0.0
-            rows.append(q)
-        groups[k] = rows
+    for i in range(27):
+        q = dict(
+            rate=draw(0.15, 0.35),
+            recoil=draw(0.2, 0.44),
+            thresholds=[draw(0.13, 0.7), draw(0.13, 0.7)],
+            efficiencies=[draw(0.39, 0.95), draw(0.39, 0.95)],
+            source=["single", "pair"][i % 2],
+            launch=draw(-0.44, 0.44),
+        )
+        label = ["red", "coincidence", "clean"][i // 9]
+        groups.setdefault(label, []).append(dict(q, observable=label))
     return groups
 
 
 def validate(generate):
     cal = calibration()
     data = {}
-    for k, qs in science().items():
+    for i, (k, shots) in enumerate(science().items()):
+        diff = np.zeros(3)
         rows = []
-        error = 0.0
-        for q in qs:
-            val = renewal(q, 0.89, 165)
-            error = max(error, abs(val - reading(q, 0.89)))
-            rows.append(dict(input=q, value=round(float(val), 8)))
-        assert error < 0.00015
-        print(k, "independent weak discrepancy", error)
+        for q in shots:
+            v = renewal(q, 0.89, 138, 6)
+            diff = np.maximum(diff, abs(v - solve(q, 0.89, 88)))
+            rows.append(dict(input=q, value=round(float(v[i]), 8)))
+        assert np.max(diff) < 0.00018
         data[k] = rows
+        print(k, "independent weak errors", diff)
     for q, expected in examples():
-        for k, val in zip(("landing", "donor", "clock"), expected):
-            shot = dict(q, observable=k)
-            assert abs(renewal(shot, 0.91, 116) - val) < 0.00015
-            assert abs(reading(shot, 0.91) - val) < 0.000001
+        np.testing.assert_allclose(solve(q, 0.89, 96), expected, atol=0.00006)
+        np.testing.assert_allclose(renewal(q, 0.89, 120, 6), expected, atol=0.00012)
     for path, value in [
         (TASK / "environment/data/calibration.json", cal),
         (TASK / "tests/data/calibration.json", cal),
@@ -112,37 +83,31 @@ def validate(generate):
         frozen = json.loads(path.read_text())
         if isinstance(value, dict):
             assert frozen.keys() == value.keys()
-            for group, rows in value.items():
-                assert len(frozen[group]) == len(rows)
-                for record, actual in zip(frozen[group], rows):
+            for k, rows in value.items():
+                assert len(frozen[k]) == len(rows)
+                for a, b in zip(frozen[k], rows):
                     assert (
-                        record["input"] == actual["input"]
-                        and abs(record["value"] - actual["value"]) < 1e-7
+                        a["input"] == b["input"] and abs(a["value"] - b["value"]) < 1e-7
                     )
         else:
             assert frozen == value
     for path, control in [
         (TASK / "solution/model.py", "oracle"),
-        (TASK / "environment/model.py", "midpoint"),
-        (ROOT / "scripts/cauchy_island_camera_baseline.py", "independent gate"),
+        (TASK / "environment/model.py", "one fission"),
+        (ROOT / "scripts/cauchy_island_camera_baseline.py", "same recoil"),
     ]:
         model = runpy.run_path(str(path))["Model"]().fit(cal)
-        assert abs(model.diffusivity - 0.89) < 2e-7
         errors = {}
         for k, rows in data.items():
-            values = model.predict([r["input"] for r in rows])
-            assert np.isfinite(values).all()
-            errors[k] = float(max(abs(values - [r["value"] for r in rows])))
-        if control == "oracle":
-            assert max(errors.values()) < 0.00015
-        elif control == "midpoint":
-            assert min(errors.values()) > 0.02
-        else:
-            assert (
-                max(errors["donor"], errors["landing"]) < 0.00015
-                and errors["clock"] > 0.6
-            )
+            vals = model.predict([r["input"] for r in rows])
+            assert np.isfinite(vals).all()
+            errors[k] = float(max(abs(vals - [r["value"] for r in rows])))
         print(control, errors)
+        assert abs(model.diffusivity - 0.89) < 2.0e-7
+        if control == "oracle":
+            assert max(errors.values()) < 0.00018
+        else:
+            assert errors["clean"] > 0.013
 
 
 if __name__ == "__main__":

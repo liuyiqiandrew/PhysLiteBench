@@ -1,97 +1,94 @@
-"""Exact one-interval Green and exit kernels coupled at the first landing on another island."""
-from functools import lru_cache
+"""Independent first-exit Green equation for the terminal two-color probability generating function."""
 import numpy as np
-from scipy.linalg import solve
+from scipy.linalg import solve as linear_solve
 
 
-@lru_cache(None)
-def mesh(n):
-    th = np.linspace(0, np.pi, n + 2)
-    g, w = np.polynomial.legendre.leggauss(18)
-    t = (g + 1) / 2
+def solve(q, D, n=110, order=6):
+    grid = np.linspace(0, np.pi, n + 2)
+    x = np.cos(grid)
+    rate = q["rate"]
+    d = q["recoil"]
+    a, b = q["thresholds"]
+    wl, wr = q["efficiencies"]
+    split = [
+        np.arccos(z)
+        for p in (-1.0, 1.0, -1.0 - a, 1.0 + b)
+        for shift in (-d, d)
+        if -1.0 < (z := p - shift) < 1.0
+    ]
+    intervals = np.unique(np.r_[grid, split])
+    v, w = np.polynomial.legendre.leggauss(14)
+    t = (v + 1) / 2
     w = w / 2
-    # Split every angular panel in half; quadratic endpoint maps resolve the Green logarithm at either end.
-    v = np.r_[0.5 * t * t, 1 - 0.5 * t * t]
-    dw = np.r_[w * t, w * t] * np.pi / (n + 1)
-    phi = (th[:-1, None] + (np.pi / (n + 1)) * v).ravel()
-    W = np.tile(dw, n + 1)
-    local = np.tile(v, n + 1)
-    return th, phi, W, local
+    v = np.r_[0.5 * t * t, 1.0 - 0.5 * t * t]
+    w = np.r_[w * t, w * t]
+    rad = np.diff(intervals)
+    phi = (intervals[:-1, None] + rad[:, None] * v).ravel()
+    W = (rad[:, None] * w).ravel() * np.sin(phi)
+    z = np.cos(phi)
+    h = grid[1:-1, None]
+    G = np.log(np.abs(np.sin((h + phi) / 2) / np.sin((h - phi) / 2))) / (np.pi * D) * W
+    zb = np.exp(2j * np.pi * np.arange(order) / order) * 0.12
+    r, s = np.meshgrid(zb, zb, indexing="ij")
+    R = np.r_[0.0, 1.0, 0.0, r.ravel()]
+    S = np.r_[1.0, 0.0, 0.0, s.ravel()]
 
+    def tail(theta, offset):
+        return np.maximum(
+            0.0,
+            (np.pi - theta) / np.pi
+            - 2 / np.pi * np.arctan2(np.sqrt(offset / (2 + offset)), np.tan(theta / 2)),
+        )
 
-def calculate(q, D, n, tagged, clocked):
-    bars = np.asarray(q["islands"])
-    C = bars.mean(axis=1)
-    H = (bars[:, 1] - bars[:, 0]) / 2
-    th, phi, W, u = mesh(n)
-    N = n * len(C)
-    M = np.eye(N)
-    rhs = np.zeros(N)
+    terminal = wl * tail(np.pi - grid[1:-1], a)[:, None] * (1 - R) + wr * tail(
+        grid[1:-1], b
+    )[:, None] * (1 - S)
 
-    def row(i, theta):
-        width = H[i]
-        x = C[i] + width * np.cos(theta)
-        xz = C[i] + width * np.cos(phi)
-        size = len(x)
-        green = np.log(
-            np.abs(
-                np.sin((theta[:, None] + phi) / 2) / np.sin((theta[:, None] - phi) / 2)
-            )
-        ) / (np.pi * D)
-        wg = green * (W * np.sin(phi) * width)
-        selection = 1.0
-        if tagged and q.get("donor"):
-            mk = q["donor"]
-            a, b, c = mk["profile"]
-            s = (1 + np.cos(phi)) / 2
-            selection = (
-                (a * (1 - s) ** 2 + 2 * b * s * (1 - s) + c * s**2)
-                if mk["island"] == i
-                else 0.0
-            )
-        source = wg @ (D * selection / (np.pi * (q["landing"] - xz) ** 2))
-        trans = np.zeros((size, N))
-        for j in range(len(C)):
-            if i == j:
-                weights = -(q["rates"][i] if clocked else 0.0) * wg
-            else:
-                y = C[j] + H[j] * np.cos(phi)
-                p = (
-                    width
-                    * np.sin(theta[:, None])
-                    / (
-                        np.pi
-                        * np.sqrt(abs((y - bars[i, 0]) * (y - bars[i, 1])))
-                        * abs(y - x[:, None])
-                    )
-                )
-                weights = (
-                    p * (W * np.sin(phi) * H[j]) * (q["relay"] if clocked else 1.0)
-                )
-            a = weights.reshape(size, n + 1, -1)
-            interp = (a * u.reshape(n + 1, -1)[None, :, :]).sum(axis=2)[:, :-1] + (
-                a * (1 - u.reshape(n + 1, -1))[None, :, :]
-            ).sum(axis=2)[:, 1:]
-            trans[:, j * n : (j + 1) * n] = interp
-        return source, trans
+    def sampler(z):
+        angle = np.arccos(np.clip(z, -1.0, 1.0))
+        j = np.minimum(n, np.floor(angle * (n + 1) / np.pi).astype(int))
+        v = (angle - grid[j]) / (grid[j + 1] - grid[j])
+        ext = wl * (z <= -1.0 - a)[..., None] * (1 - R) + wr * (z >= 1.0 + b)[
+            ..., None
+        ] * (1 - S)
 
-    for i in range(len(C)):
-        source, trans = row(i, th[1:-1])
-        seg = slice(i * n, (i + 1) * n)
-        rhs[seg] = source
-        M[seg] -= trans
-    f = solve(M, rhs, check_finite=False)
-    x = q["launch"]
-    j = next(i for i, (l, r) in enumerate(bars) if l < x < r)
-    # Interpolation at the launch gives a second-order weak approximation independent of the generator basis.
-    return np.interp(
-        np.arccos((x - C[j]) / H[j]), th, np.r_[0.0, f[j * n : (j + 1) * n], 0.0]
+        def sample(values):
+            return (1 - v)[..., None] * values[j] + v[..., None] * values[j + 1] + ext
+
+        return sample
+
+    left = sampler(z - d)
+    right = sampler(z + d)
+    one = sampler(np.asarray(q["launch"]))
+    l = sampler(np.asarray(q["launch"] - d))
+    rr = sampler(np.asarray(q["launch"] + d))
+    coeff = np.zeros((n + 2, len(R)), complex)
+    # Resolvent of the within-island lifetime clock, with the exact unmonitored exit source.
+    interpolation = np.maximum(
+        0.0, 1.0 - np.abs(phi[:, None] - grid[1:-1]) * ((n + 1) / np.pi)
     )
-
-
-def reading(q, D, n=110):
-    if q["observable"] == "landing":
-        return calculate(q, D, n, False, False)
-    if q["observable"] == "donor":
-        return calculate(q, D, n, True, False) / calculate(q, D, n, False, False)
-    return calculate(q, D, n, True, True) / calculate(q, D, n, True, False)
+    square = np.eye(n) + rate * G @ interpolation
+    H = linear_solve(square, terminal)
+    B = linear_solve(square, rate * G)
+    for _ in range(140):
+        L = left(coeff)
+        rhs = right(coeff)
+        new = H + B @ (L + rhs - L * rhs)
+        err = np.max(np.abs(new - coeff[1:-1]))
+        coeff[1:-1] = new
+        if err < 2e-12:
+            break
+    else:
+        raise RuntimeError("generating function did not converge")
+    if q["source"] == "single":
+        u = one(coeff)
+    else:
+        L = l(coeff)
+        right = rr(coeff)
+        u = L + right - L * right
+    both = np.real(u[0] + u[1] - u[2])
+    # Coefficient z^1 w^1 of E[z^red w^blue], with alias error <= 2*(.12)^order.
+    exact = np.mean((1 - u[3:].reshape(order, order)) / (r * s)).real
+    return np.array(
+        [u[0].real, both / u[0].real, exact / both if both > 1e-11 else np.nan]
+    )

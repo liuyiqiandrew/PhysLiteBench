@@ -1,1 +1,1 @@
-At the final jump a donor at z supplies intensity D/[π(y−z)²] per unit landing coordinate and physical time. Follow the residence and gate on the same path as the two cameras. A first exit from one island can inject the particle inside the other island.
+A family terminates at its first absorption or splits at a random occupied point. For a specified birth coordinate, its two descendants start at opposite displacements and evolve independently after placement. A joint count generating function can retain the multiplicities of both colors.

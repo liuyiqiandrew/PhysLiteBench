@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eu
-cp /solution/model.py /solution/spectral.py /app/
+cp /solution/model.py /solution/tree.py /app/

@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from model import Model
 
-TOL = np.array([0.006, 0.004, 0.004])
+TOL = 0.004
 
 
 def test_fit():
@@ -20,33 +20,34 @@ def test_fit():
 
 
 def examples():
-    q = dict(
-        islands=[[-1.0, 1.0]],
+    pair = dict(
+        source="pair",
         launch=0.0,
-        landing=2.0,
-        donor=dict(island=0, profile=[1.0, 1 / 3, 1 / 9]),
-        rates=[0.83],
-        relay=0.7,
+        recoil=0.30,
+        rate=0.0,
+        thresholds=[0.25, 0.25],
+        efficiencies=[1.0, 1.0],
     )
-    paired = dict(
-        q,
-        islands=[[-1.0, 1.0], [1.4, 2.8]],
-        landing=1.16,
-        donor=dict(island=1, profile=[0.9, 0.3, 0.1]),
-        rates=[0.8, 0.33],
+    single = dict(
+        source="single",
+        launch=0.23,
+        recoil=0.31,
+        rate=0.32,
+        thresholds=[0.18, 0.42],
+        efficiencies=[0.8, 0.9],
     )
     return [
-        (q, [1 / (2 * np.pi * np.sqrt(3)), 2 * np.sqrt(3) / 9, 0.54381329]),
-        (paired, [0.53586148, 0.07038923, 0.31554063]),
+        (pair, [0.49435347, 0.34109898, 1.0]),
+        (single, [0.29043, 0.15084, 0.66374]),
     ]
 
 
 def test_worked_readings():
     model = Model().fit(
-        [dict(input=dict(mode="free", wave_number=1.0, lag=1.0), value=np.exp(-0.91))]
+        [dict(input=dict(mode="free", wave_number=1.0, lag=1.0), value=np.exp(-0.89))]
     )
-    for q, want in examples():
-        pred = model.predict(
-            [dict(q, observable=k) for k in ("landing", "donor", "clock")]
+    for q, expected in examples():
+        values = model.predict(
+            [dict(q, observable=k) for k in ("red", "coincidence", "clean")]
         )
-        assert np.all(np.abs(pred - want) < TOL)
+        assert np.max(np.abs(values - expected)) < 0.004

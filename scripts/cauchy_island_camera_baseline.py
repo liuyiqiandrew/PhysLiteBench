@@ -1,8 +1,10 @@
-"""A second independent trajectory supplies the clock at the same launch and geometry."""
+"""Both daughters recoil to the same randomly chosen side of the parent, with correct one-daughter marginals."""
 from apparatus import Calibrated
-from spectral import reading
+from tree import solve
 
 
 class Model(Calibrated):
     def read(self, q):
-        return reading(q, self.diffusivity, detached=True)
+        return solve(q, self.diffusivity, 88, shortcut="equal recoil")[
+            ("red", "coincidence", "clean").index(q["observable"])
+        ]

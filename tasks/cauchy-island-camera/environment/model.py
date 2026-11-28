@@ -1,51 +1,40 @@
-"""Center reinjection and mean single-island residence approximation."""
+"""At most one fission per initially live carrier, located at its initial position."""
 import numpy as np
-from apparatus import Calibrated, poisson, exit_cdf
+from scipy.signal import convolve2d
+from apparatus import Calibrated, terminal
 
 
-def approx(q, D, tagged, clock):
-    bars = q["islands"]
-    centers = np.mean(bars, axis=1)
-    N = len(bars)
-
-    def row(j, x):
-        a, b = bars[j]
-        decay = (
-            np.exp(-q["rates"][j] * np.sqrt((x - a) * (b - x)) / D) if clock else 1.0
-        )
-        leaf = poisson(a, b, x, q["landing"])
-        mark = q.get("donor")
-        if tagged and mark:
-            leaf *= (
-                np.dot([0.25, 0.5, 0.25], mark["profile"])
-                if mark["island"] == j
-                else 0.0
-            )
-        weights = np.zeros(N)
-        for k, (s, t) in enumerate(bars):
-            if j != k:
-                weights[k] = (exit_cdf(a, b, x, t) - exit_cdf(a, b, x, s)) * (
-                    q["relay"] if clock else 1.0
-                )
-        return decay * leaf, decay * weights
-
-    b, p = zip(*(row(i, c) for i, c in enumerate(centers)))
-    v = np.linalg.solve(np.eye(N) - p, b)
-    x = q["launch"]
-    i = next(i for i, (l, r) in enumerate(bars) if l < x < r)
-    local, weights = row(i, x)
-    return local + weights @ v
-
-
-def reading(q, D):
-    if q["observable"] == "landing":
-        return approx(q, D, False, False)
-    tag = approx(q, D, True, False)
-    if q["observable"] == "donor":
-        return tag / approx(q, D, False, False)
-    return approx(q, D, True, True) / tag
+def stops(q, x):
+    red, blue = terminal(q, x)
+    return np.array([[1 - red - blue, blue], [red, 0.0]])
 
 
 class Model(Calibrated):
     def read(self, q):
-        return reading(q, self.diffusivity)
+        d = q["recoil"]
+
+        def family(x):
+            single = stops(q, x)
+            if abs(x) >= 1.0 or q["rate"] == 0.0:
+                return single
+            probability = 1.0 - np.exp(
+                -q["rate"] * np.sqrt(1.0 - x * x) / self.diffusivity
+            )
+            pair = convolve2d(stops(q, x - d), stops(q, x + d))
+            return (1.0 - probability) * np.pad(
+                single, ((0, 1), (0, 1))
+            ) + probability * pair
+
+        x = q["launch"]
+        counts = (
+            family(x)
+            if q["source"] == "single"
+            else convolve2d(family(x - d), family(x + d))
+        )
+        red = counts[1:, :].sum()
+        both = counts[1:, 1:].sum()
+        if q["observable"] == "red":
+            return red
+        if q["observable"] == "coincidence":
+            return both / red
+        return counts[1, 1] / both
