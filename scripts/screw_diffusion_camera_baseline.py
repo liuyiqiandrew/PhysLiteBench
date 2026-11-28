@@ -1,12 +1,13 @@
 from apparatus import Camera
 from angular import fringe
 from rotor import loop
+from director import director
 
 
 class Model(Camera):
     def fringe(self, q):
-        # Retain the full frame-return kernel, with the correct gate-weighted
-        # spin-sign frequency, but treat that sign as independent of the tag.
-        if 'loop' in q:
-            return loop(q,self.mobility,sort=False)
-        return fringe(q,self.mobility)
+        if 'director' in q:
+            # Independently draw the lab orientation for each orbit segment,
+            # preserving each conditional marginal and its quaternion label.
+            return director(q,self.mobility,independent=True)
+        return loop(q,self.mobility) if 'loop' in q else fringe(q,self.mobility)

@@ -10,7 +10,7 @@ import numpy as np
 
 ROOT=Path(__file__).resolve().parents[1]
 TASK=ROOT/"tasks/screw-diffusion-camera"
-sys.path[:0] = [str(TASK/"solution"),str(TASK/"environment")]
+sys.path[:0] = [str(TASK/"solution"),str(TASK/"environment"),str(TASK/"tests")]
 
 
 def load(name,path):
@@ -26,6 +26,8 @@ starter=load("starter",TASK/"environment/model.py")
 baseline=load("baseline",ROOT/"scripts/screw_diffusion_camera_baseline.py")
 from angular import fringe
 from rotor import loop
+from director import director
+from director_reference import measurement as director_reference
 loops=load("loops",TASK/"tests/loop_reference.py")
 
 
@@ -76,6 +78,29 @@ def experiments():
                            phase=float([0.,.88,-.4,.35,1.52,-.68][i])))
     for sign in ("plus","minus","contrast"):
         groups["return_"+sign]=[dict(q,loop=sign) for q in frames]
+    rng=np.random.default_rng(419041)
+    directors=[]
+    for i in range(12):
+        axes=rng.choice(3,2,replace=False).tolist()
+        q=dict(mode="fringe", hand=(-1)**i, times=np.round(rng.uniform(1,1.4,2),5).tolist(),
+               wave=np.round(rng.uniform(.7,1.85,2)*rng.choice([-1,1],2),5).tolist(),
+               tag=axis(rng.uniform(.5,1.12)), gates=[axis(.92),axis(.93)],
+               phase=[0.,1.55,-.55,.7][i%4])
+        directors.append((q,axes))
+    for family,read in [("commuting","commute"),("crossed","crossed"),
+                        ("exchange","exchange"),("lab_echo","exchange")]:
+        qs=[]
+        for i in (0,3,5,6,7,8):
+            q,axes=directors[i]
+            setting={"read":read}
+            if read=="exchange":
+                setting["axes"]=axes
+                if family=="lab_echo" or i not in (0,8):
+                    setting["first_sign"]=(-1)**i
+            if family=="lab_echo":
+                setting["pulse"]=[.30+.08*(i%3),2.45+.14*(i%4)]
+            qs.append(dict(q,director=setting))
+        groups[family]=qs
     return groups
 
 
@@ -93,7 +118,8 @@ def validate(generate):
     groups=experiments()
     truth={}
     for family, qs in groups.items():
-        truth[family]=[dict(input=q,value=round(loops.loop_reference(q,rho) if "loop" in q else ref.measurement(q),8)) for q in qs]
+        truth[family]=[dict(input=q,value=round(director_reference(q,rho) if "director" in q else
+                                                 loops.loop_reference(q,rho) if "loop" in q else ref.measurement(q),8)) for q in qs]
     path=TASK/"tests/data/hidden.json"
     if generate:
         path.write_text(json.dumps(truth,separators=(",",":"))+"\n")
@@ -110,14 +136,16 @@ def validate(generate):
         print(module.__name__,model.mobility,errors)
         if module is oracle:
             assert max(errors.values()) < .00005
-        elif module is baseline:
-            assert max(errors[k] for k in groups if not k.startswith("return_")) < .00005
-            assert min(errors[k] for k in groups if k.startswith("return_")) > .003
         else:
-            assert max(errors[k] for k in ("origin","tagged","quadrature","reversal")) < .00005
-            assert min(errors[k] for k in ("current","phase_lock","return_plus","return_minus","return_contrast")) > .003
+            added=("commuting","crossed","exchange","lab_echo")
+            assert max(errors[k] for k in groups if k not in added) < .00005
+            assert min(errors[k] for k in added) > .003
     for qs in groups.values():
         q=qs[0]
+        if "director" in q:
+            fine=director_reference(q,rho,order=8,step=.001)
+            assert abs(fine-director(q,rho))<.0003
+            continue
         if "loop" in q:
             fine=loops.loop_reference(q,rho,order=9,step=.001)
             assert abs(fine-loop(q,rho)) < .00005
@@ -168,6 +196,23 @@ def validate(generate):
               phase=-2.094)
     exact=loops.loop_reference(dict(edge,tag=[0.,0.,0.]),.7)
     assert abs(loop(edge,.7)-exact)<.0002
+
+    biax=dict(mode="fringe",hand=1,times=[1.12,1.25],wave=[1.45,-1.33],tag=[.72,.30,-.53],
+              gates=[[.71,-.54,.30],[.15,.77,.53]],phase=.54)
+    settings=[({"read":"commute"},.10651),({"read":"crossed"},-.01527),
+              ({"read":"exchange","axes":[0,2],"first_sign":-1},.00765),
+              ({"read":"exchange","axes":[0,2],"first_sign":-1,"pulse":[.4,2.7]},-.00335)]
+    for setting,target in settings:
+        q=dict(biax,director=setting)
+        assert abs(director(q,rho)-target)<5e-6 and abs(director_reference(q,rho)-target)<5e-6
+        blank=dict(q,wave=[0.,0.])
+        wanted=0. if setting["read"]=="exchange" else np.cos(q["phase"])
+        assert abs(director(blank,rho)-wanted)<2e-8
+    flipped=dict(q,director=dict(q["director"],axes=[2,0]))
+    assert abs(director(flipped,rho)+director(q,rho))<1e-10
+    pos=dict(q,director=dict(q["director"],first_sign=1))
+    raw={k:v for k,v in q["director"].items() if k!="first_sign"}
+    assert abs((director(q,rho)+director(pos,rho))/2-director(dict(q,director=raw),rho))<1e-10
 
 
 if __name__=="__main__":

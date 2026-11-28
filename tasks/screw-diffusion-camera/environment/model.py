@@ -1,10 +1,13 @@
 from apparatus import Camera
-from passive import fringe
+from angular import fringe
+from rotor import loop
 
 
 class Model(Camera):
     def fringe(self, q):
-        # Passive approximation to the long-time motion of the rapidly cycling motor.
-        if "pair" in q:
-            return 0.
-        return fringe(q,self.mobility)
+        if 'director' in q:
+            # Open-path approximation: the two closed director records are ignored.
+            if q['director']['read'] == 'exchange':
+                return 0.
+            return fringe(q,self.mobility)
+        return loop(q,self.mobility) if 'loop' in q else fringe(q,self.mobility)
