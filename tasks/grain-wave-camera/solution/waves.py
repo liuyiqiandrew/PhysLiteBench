@@ -95,17 +95,22 @@ def masses(q,domain,rate):
     return ans
 
 
-def signal(q,rate,reprepare=False):
-    bins=np.zeros((q["deficit"]+1,2))
-    averages=norm=0.
-    for d in q["domains"]:
-        vals=masses(q,d,rate)
-        bins+=d["weight"]*vals
-        if reprepare:
-            live=np.flatnonzero(vals[:,0])
-            if len(live):
-                a,b=vals[live[0]]
-                averages+=d["weight"]*b/a;norm+=d["weight"]
-    if reprepare:return averages/norm
-    den,num=bins[np.flatnonzero(bins[:,0])[0]]
-    return num/den
+def signal(q, rate, reprepare=False):
+    accepted = []
+    for domain in q["domains"]:
+        bins = masses(q, domain, rate)
+        nonzero = np.flatnonzero(bins[:, 0])
+        if len(nonzero):
+            order = nonzero[0]
+            den, num = bins[order]
+            accepted.append((order, domain["weight"], den, num))
+    if reprepare:
+        scale = max(weight for _, weight, _, _ in accepted)
+        return (sum((weight / scale) * (num / den) for _, weight, den, num in accepted)
+                / sum(weight / scale for _, weight, _, _ in accepted))
+    order = min(row[0] for row in accepted)
+    leading = [row for row in accepted if row[0] == order]
+    scale = max(weight for _, weight, _, _ in leading)
+    denominator = sum((weight / scale) * den for _, weight, den, _ in leading)
+    numerator = sum((weight / scale) * num for _, weight, _, num in leading)
+    return numerator / denominator

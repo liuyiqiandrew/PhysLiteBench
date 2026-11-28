@@ -48,6 +48,8 @@ q=dict(sites=4,drive=0,domains=[dict(weight=.4,tracks=A),dict(weight=.6,tracks=B
        pickup=[[2,.5],[4,.75]],rounds=[0,3],delay=[-1,1])
 assert abs(signal(q,.15)-.625*np.exp(-.15/4))<1e-12
 assert signal(dict(q,domains=[q["domains"][0]]),.15)==0
+tiny = dict(q, domains=[dict(weight=1., tracks=A),dict(weight=1e-322, tracks=B)])
+assert abs(signal(tiny,.15)-.625*np.exp(-.15/4))<1e-12
 # Literal microscopic stationary heights/parallel grain transfer with nonuniform bond multiplicities.
 for N in [2,4]:
     tr=[[0,1,1,1,2],[1,2,1,1,1],[2,0,1,2,1],[1,-1,1,1,1]]
