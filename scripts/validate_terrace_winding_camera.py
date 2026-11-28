@@ -150,6 +150,13 @@ def main(generate):
     q=example()
     assert abs(oracle.image(q,ref.TRUE_PARAMETER)-.26814)<5e-6
     assert abs(oracle.image(dict(q,open_pair=0),ref.TRUE_PARAMETER)+.83267)<5e-6
+    # Opposite sides of the cut can give a tiny unweighted winding coefficient.
+    extreme = dict(example(),circumference=9.,bottom=[.25,.25],top=[8.75,8.75],
+                   height=3.2,count_window=[0.,9.],window=[0.,6.],levels=[.2,.6])
+    for module in [ref,oracle]:
+        np.testing.assert_allclose(module.image(extreme,.75),tagged(extreme,.75),atol=1e-9,rtol=0)
+    q5 = dict(extreme,bottom=[.25]*5,top=[8.75]*5,count_window=[1.,7.],count=4)
+    assert abs(ref.image(q5,.75)-oracle.image(q5,.75)) < 1e-8
     # Summing over every possible count removes the second camera.
     q=dict(groups['slit'][2])
     total=sum(oracle.image(dict(q,count=j),ref.TRUE_PARAMETER) for j in range(len(q['top'])+1))

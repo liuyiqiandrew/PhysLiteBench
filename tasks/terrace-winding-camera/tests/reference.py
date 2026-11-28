@@ -21,6 +21,9 @@ def probability(ex, diffusion, modes=19, sectors=22):
     s,t=np.array(ex['levels'])*total
     top=np.array(ex['top']);bottom=np.array(ex['bottom']);n=len(top)
     db=np.array(derivative_orders(bottom));dt=np.array(derivative_orders(top))
+    drift=(sum(top)-sum(bottom)+L*ex['winding'])/(n*total)
+    def evolve(k,height):
+        return np.exp(-height*(diffusion*k*k+1j*drift*k))
     theta=np.arange(sectors)*2*np.pi/sectors
     eta=np.arange(n)*2*np.pi/n
     z=np.exp(2j*np.pi*np.arange(n+1)/(n+1))
@@ -35,14 +38,15 @@ def probability(ex, diffusion, modes=19, sectors=22):
             lastpin=np.exp(1j*last[:,None]*top)*(1j*last[:,None])**dt/L
             bpin=np.exp(-1j*bottom[:,None]*last)*(-1j*last)**db[:,None]
             if not h or ex['window'][0]==0:
-                normalization.append(np.linalg.det((bpin*np.exp(-diffusion*total*last**2))@lastpin))
-            end=np.exp(-diffusion*(total-t)*last[:,None]**2)*lastpin
+                with np.errstate(divide="ignore",invalid="ignore"):
+                    normalization.append(np.linalg.det((bpin*evolve(last,total))@lastpin))
+            end=evolve(last[:,None],total-t)*lastpin
             late=window_overlap(last,last,*ex['count_window'],L)
             late_gate=end[None,:,:]+(z[:,None,None]-1)*(late@end)
-            middle_phase=np.exp(-diffusion*(t-s)*last[:,None]**2)
+            middle_phase=evolve(last[:,None],t-s)
             for j,stage in enumerate(eta):
                 first=wave_grid(L,np.angle(np.exp(1j*(angle+signphase+stage))),modes)
-                initial=np.exp(-1j*bottom[:,None]*first)*(-1j*first)**db[:,None]*np.exp(-diffusion*s*first**2)
+                initial=np.exp(-1j*bottom[:,None]*first)*(-1j*first)**db[:,None]*evolve(first,s)
                 all_sites=window_overlap(first,last,0.,L,L)
                 below=window_overlap(first,last,0.,cut,L)
                 before=initial@all_sites+(z[:,None,None]-1)*(initial@below)

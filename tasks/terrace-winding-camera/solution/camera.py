@@ -10,9 +10,9 @@ def orders(pins):
     return out
 
 
-def heat(x,y,dx,dy,time,rate,length,lifts):
+def heat(x,y,dx,dy,time,rate,length,lifts,drift):
     scale = np.sqrt(2*rate*time)
-    distance = (y[None,None,:]-x[None,:,None]+length*lifts[:,None,None])/scale
+    distance = (y[None,None,:]-x[None,:,None]+length*lifts[:,None,None]-drift*time)/scale
     degree = dx[:,None]+dy
     return (np.exp(-.5*distance**2) * eval_hermitenorm(degree,distance) * (-1.)**dy
             / (np.sqrt(2*np.pi) * scale**(degree+1)))
@@ -34,6 +34,9 @@ def camera_mesh(length, cuts):
 def masses(q,rate,db):
     bot,top=np.array(q['bottom']),np.array(q['top'])
     n=len(bot);length=q['circumference'];s,t=np.array(q['levels'])*q['height']
+    # A fixed winding and fixed pins fix total displacement, so a common drift
+    # cancels from the conditional law. Center it on the selected sector.
+    drift=(sum(top)-sum(bot)+length*q['winding'])/(n*q['height'])
     ranks=np.arange(n);sec=19
     roots=np.exp(2j*np.pi*np.arange(n+1)/(n+1))
     phases=np.exp(2j*np.pi*np.arange(sec)/sec)*(-1)**(n-1)
@@ -41,10 +44,10 @@ def masses(q,rate,db):
     lifts=np.arange(-7,8)
     left_nodes,w1=camera_mesh(length,q['window']);right_nodes,w2=camera_mesh(length,q['count_window'])
     z1=np.zeros(len(w1),dtype=int);z2=np.zeros(len(w2),dtype=int)
-    l=heat(bot,left_nodes,db,z1,s,rate,length,lifts)*w1
-    m=heat(left_nodes,right_nodes,z1,z2,t-s,rate,length,lifts)*w2
-    r=heat(right_nodes,top,z2,orders(top),q['height']-t,rate,length,lifts)
-    f=heat(bot,top,db,orders(top),q['height'],rate,length,lifts)
+    l=heat(bot,left_nodes,db,z1,s,rate,length,lifts,drift)*w1
+    m=heat(left_nodes,right_nodes,z1,z2,t-s,rate,length,lifts,drift)*w2
+    r=heat(right_nodes,top,z2,orders(top),q['height']-t,rate,length,lifts,drift)
+    f=heat(bot,top,db,orders(top),q['height'],rate,length,lifts,drift)
     left=np.einsum('aji,ixy->ajxy',(phases[:,None,None]*early[None,:,None])**lifts,l)
     middle=np.einsum('ai,ixy->axy',phases[:,None]**lifts,m)
     right=np.einsum('ai,ixy->axy',phases[:,None]**lifts,r)
@@ -53,7 +56,8 @@ def masses(q,rate,db):
     d0=middle[:,:,~detected]@right[:,~detected,:]
     d1=middle[:,:,detected]@right[:,detected,:]
     winding=q['winding']%sec
-    norm=np.fft.fft(np.linalg.det(full))[winding].real/sec
+    with np.errstate(divide="ignore", invalid="ignore"):
+        norm=np.fft.fft(np.linalg.det(full))[winding].real/sec
     def cumulative(x):
         if x==0:return 0.
         flag=left_nodes<x
