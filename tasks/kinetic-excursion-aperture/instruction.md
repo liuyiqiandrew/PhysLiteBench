@@ -1,0 +1,1 @@
+Implement Model in /app/model.py for the kinetic excursion aperture described in /app/README.md. Fit the diffusivity. Calculate the probability of a positive interior path, the direction probability among selected first arrivals, and the posterior probability of a positive velocity pulse.

@@ -1,0 +1,1 @@
+The first return can occur on either side of the observation time. Given the full state at the aperture, the two arms are independent Gaussian bridges before any survival selection. Reversing an arm reverses the sign of its velocity. Sum over the same pre-kick velocity on both arms when the camera measures only its sign or threshold.
