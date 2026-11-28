@@ -1,0 +1,1 @@
+Expand a retained meter outcome in its two Z paths and the initial charge projection in the two total-parity insertions. Products of quadratic pulses can be contracted with a fermionic Wick expansion that keeps the sign of the ordered history.
