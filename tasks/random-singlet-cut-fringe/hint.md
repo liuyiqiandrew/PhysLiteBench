@@ -1,0 +1,1 @@
+The bond formed after a crossing is weaker on average than a generic cut bond. You can keep its unnormalized density in x as the cutoff advances. Across the same cut, two consecutive crossing bonds enclose an even number of other spins paired entirely on each side.

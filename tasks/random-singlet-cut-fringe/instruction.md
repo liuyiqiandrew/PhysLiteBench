@@ -1,0 +1,1 @@
+Calibrate a Ramsey spectrometer and predict its fringe from energy-resolved singlets crossing a cut in a strongly disordered spin chain. Implement Model in /app/model.py using the experiment in /app/README.md.
