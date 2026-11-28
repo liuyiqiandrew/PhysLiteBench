@@ -142,6 +142,23 @@ def injected():
     return groups
 
 
+def dispersive_experiments():
+    rng=np.random.default_rng(38617432)
+    result={}
+    for tag,rows in [('thermal_echo',cavity_experiments()['conditioned']),
+                     ('incident_echo',injected()['pair_exchange'])]:
+        for i,q in enumerate(rows):
+            c=q['cavity'];bins=len(c['transmission'])
+            shifts=rng.uniform(-np.pi,np.pi,(2,bins)).round(4)
+            if i%2==0:shifts[1]=-shifts[0]
+            c['dispersive']=shifts.tolist()
+            c['thermal']=round(float(rng.uniform(.32,.64)),3)
+            for arm in c['segments']:
+                for segment in arm:segment[-2:]=[0.,0.]
+        result[tag]=rows
+    return result
+
+
 def validate(generate):
     calibration, groups = runs()
     cavity_ref = load("cavity_ref", TASK/"tests/cavity_reference.py")
@@ -156,6 +173,13 @@ def validate(generate):
         groups[family]=[]
         for q in inputs:
             accept, signal = pair_ref.reference(q)
+            assert accept>.025 and abs(signal)<1+1e-10
+            groups[family].append(dict(input=q,value=round(ref.TRUE_PARAMETER*signal,9)))
+    dsp_ref=load('dsp_ref',TASK/'tests/dispersive_reference.py')
+    for family,inputs in dispersive_experiments().items():
+        groups[family]=[]
+        for q in inputs:
+            accept,signal=dsp_ref.direct(q,19,26)
             assert accept>.025 and abs(signal)<1+1e-10
             groups[family].append(dict(input=q,value=round(ref.TRUE_PARAMETER*signal,9)))
     for path, data in [(TASK/"environment/data/calibration.json",calibration),
@@ -184,8 +208,8 @@ def validate(generate):
         assert (max(errors.values())<1e-7) == (model is oracle)
         print(model.__name__,fitted.visibility,errors)
         if model is not oracle:
-            assert max(errors[k] for k in ("winding","meter","charge","extended","wavepacket","conditioned")) < 2e-8
-            assert min(errors[k] for k in ("pair_exchange","source_marker")) > .003
+            assert max(errors[k] for k in ("winding","meter","charge","extended","wavepacket","conditioned","pair_exchange","source_marker")) < 2e-8
+            assert min(errors[k] for k in ("thermal_echo","incident_echo")) > .003
     example = dict(n=3,beta=1.5,ripple=0.,parity=1,frame="site",meter_phase=0.,outcome=1,
                    phase=np.pi/2,arms=[[],[]],
                    cavity=dict(thermal=0.,angle=0.,mode=[[1.,0.]],transmission=[.5],
@@ -207,6 +231,20 @@ def validate(generate):
     src['preparations']=[[h,diagonal],[h,h]]
     src['marker']=[0.,0.]
     np.testing.assert_allclose(oracle.Model().fringe(example),baseline.Model().fringe(example),atol=1e-12)
+    from scipy.special import ndtr
+    del example['cavity']['pair_source']
+    example['phase']=0.
+    c=example['cavity']
+    c.update(thermal=.5,dispersive=[[0.],[np.pi]])
+    c['segments'][1][0][-1]=0.
+    def interval(v):
+        lo,hi=c['window']
+        return ndtr(hi/np.sqrt(v))-ndtr(lo/np.sqrt(v))
+    expected=.5*interval(.375)/interval(.75)
+    np.testing.assert_allclose(oracle.Model().fringe(example),expected,atol=1e-11)
+    print('zero mean, one parity rotation',expected)
+    c['thermal']=0
+    np.testing.assert_allclose(oracle.Model().fringe(example),1.,atol=1e-12)
     q = dict(calibration[0]["input"],phase=0.,arms=[[],[[0,1,2*np.pi,0.]]])
     np.testing.assert_allclose(oracle.Model().fit(calibration).fringe(q),-1.,atol=1e-12)
 
