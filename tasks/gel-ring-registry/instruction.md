@@ -1,1 +1,1 @@
-Calibrate the filament activity and predict the registered ring measurements described in /app/README.md. Implement Model in /app/model.py.
+Calibrate the filament activity and replace the starter's taut-only growth approximation. Predict the registered ring measurements in /app/README.md, including the effects of erased excursions and stems. Implement Model in /app/model.py.

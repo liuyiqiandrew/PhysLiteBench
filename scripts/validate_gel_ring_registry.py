@@ -89,6 +89,27 @@ def main(generate):
         limits[1] - exact
     ) < abs(limits[0] - exact)
     print("Explicit finite tree", limits, "infinite tree", exact)
+    asymmetric = {
+        "length": 3,
+        "rings": [
+            {
+                "feed": [3, 9],
+                "blue": 0.4,
+                "routes": [[6, 1, 1, 2], [1, 2, 7, 1]],
+                "switch": [[0.7, 0.2], [0.15, 0.65], [0.1, 0.8], [0.8, 0.1]],
+            },
+            {
+                "feed": [7, 3],
+                "blue": 0.7,
+                "routes": [[1, 6, 2, 1], [4, 1, 1, 5]],
+                "switch": [[0.8, 0.1], [0.2, 0.5], [0.65, 0.3], [0.3, 0.65]],
+            },
+        ],
+        "gate": [3],
+        "probe": [1],
+    }
+    assert abs(reference(asymmetric, 1.0) - 0.32046907) < 1e-8
+    assert abs(shot(asymmetric, 1.0, Printer.dynamics)[0] - 0.36186172) < 1e-8
     assert worst < 1e-11
     print(
         "Independent methods",

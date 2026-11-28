@@ -15,4 +15,10 @@ The two preparations may use different feed, route, switching and initial condit
 
 For a check, take identical preparations with feed [4,6], all eight route weights equal, switch [0.2,0.3] on every circuit, and blue=0.45. At length 2, gate [0] and probe [0], the result is 3/5 at every activity. The first ring can have sequence 00, 02 or 03. There are five equally weighted ordered pairs after free registration. Three have second-ring last circuit 0. With flux [π/2,0] and phase zero in place of probe, the mean is 2/5.
 
+An asymmetric example tests the effect of erased slack. At z=1 the input below gives 0.32046907. Treating each raw filament as just the visible three circuits gives 0.36186172.
+
+```json
+{"length":3,"rings":[{"feed":[3,9],"blue":0.4,"routes":[[6,1,1,2],[1,2,7,1]],"switch":[[0.7,0.2],[0.15,0.65],[0.1,0.8],[0.8,0.1]]},{"feed":[7,3],"blue":0.7,"routes":[[1,6,2,1],[4,1,1,5]],"switch":[[0.8,0.1],[0.2,0.5],[0.65,0.3],[0.3,0.65]]}],"gate":[3],"probe":[1]}
+```
+
 Implement Model in /app/model.py. Its `fit(records)` sets `activity` to the fitted z and returns self. Its `predict(inputs)` returns a flat finite real NumPy array in input order, also for an empty list. Calibration errors must be below 0.00002 and each other absolute error below 0.004. The public starter implements length sorting, image registration and both readouts. It assumes that the raw filament has exactly the observed circuit sequence and no erased slack.
