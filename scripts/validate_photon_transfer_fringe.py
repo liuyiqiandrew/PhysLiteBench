@@ -11,12 +11,12 @@ from scipy.linalg import expm
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT/'tasks/photon-transfer-fringe'
-sys.path.insert(0,str(TASK/'environment'))
+sys.path[:0] = [str(TASK/'solution'),str(TASK/'environment')]
 from optics import calibration_signal
 
 ref = runpy.run_path(str(TASK/'tests/reference.py'))
 oracle = runpy.run_path(str(TASK/'solution/model.py'))['Model']
-rays = runpy.run_path(str(ROOT/'scripts/photon_transfer_fringe_baseline.py'))['Model']
+shortcut = runpy.run_path(str(ROOT/'scripts/photon_transfer_fringe_baseline.py'))['Model']
 starter = runpy.run_path(str(TASK/'environment/model.py'))['Model']
 VIS = ref['TRUE_PARAMETER']
 
@@ -56,6 +56,23 @@ def preparations():
             q['lambda'] = draw(.72,3.12) * (-1 if i%3==0 else 1)
             qs.append(q)
         groups[group] = qs
+    for j,family in enumerate(('ordered_clicks','erased_order','subtraction_port')):
+        qs = []
+        for i,n in enumerate((2,3,4,5,6,3)):
+            source = [[draw(.12,.78),draw(.12,.82),draw(-3.1,3.1)] for _ in range(n)]
+            bank = rng.choice(n,1+i%(n-1),replace=False).tolist()
+            a,b = rng.choice(n,2,replace=False).tolist()
+            # Overlapping optical modes resolve the commutator in the subtraction port.
+            c = b if j==2 else int(rng.choice([k for k in range(n) if k!=a]))
+            op_a = [a,b,draw(.15,.9),draw(-2.8,2.8),draw(.15,1.48),draw(-3,3)]
+            op_b = [a,c,draw(.15,.9),draw(-2.8,2.8),draw(.15,1.48),draw(-3,3)]
+            angle = [draw(-.4,.4),draw(.8,2.3),draw(2.42,3.14)][j]
+            switch = dict(clicks=[op_a,op_b],middle=[] if j==2 else mesh(n,.02),angle=angle)
+            q = dict(source=source, prep=mesh(n,0), before=mesh(n,.01), after=mesh(n,-.01),
+                     bank=bank,gate=None,switch=switch,phase=draw(-2.5,2.5))
+            q['lambda'] = draw(.75,3.13)*(-1 if i%2 else 1)
+            qs.append(q)
+        groups[family] = qs
     return calibration,groups
 
 
@@ -109,6 +126,59 @@ def fock_reference(q, limit):
     return (np.exp(-1j*q['phase'])*numerator).real/denominator, denominator, mass
 
 
+def switch_fock(q, limit):
+    # Full density matrix across different total photon numbers. The weak
+    # herald can connect them by adding or subtracting a photon.
+    dims = len(q['source'])
+    states = [v for v in product(range(limit+1),repeat=dims) if sum(v)<=limit]
+    index = {v:i for i,v in enumerate(states)}
+    occupations = np.array(states)
+    rho = np.ones((len(states),len(states)),complex)
+    lower = []
+    for mode,(mean,r,phase) in enumerate(q['source']):
+        a = np.diag(np.sqrt(np.arange(1,2*limit+4)),1)
+        g = .5*r*np.exp(-1j*phase)*(a@a)
+        squeeze = expm(g-g.conj().T)
+        pop = (mean/(1+mean))**np.arange(len(a))/(1+mean)
+        density = (squeeze*pop) @ squeeze.conj().T
+        occ = occupations[:,mode]
+        rho *= density[np.ix_(occ,occ)]
+        a = np.zeros_like(rho)
+        for i,v in enumerate(states):
+            if not v[mode]:continue
+            new = list(v)
+            new[mode] -= 1
+            a[index[tuple(new)],i] = np.sqrt(v[mode])
+        lower.append(a)
+    def passive(elements):
+        out = np.eye(len(states),dtype=complex)
+        for i,j,t,p in elements:
+            forward = np.exp(1j*p)*lower[j].conj().T @ lower[i]
+            out = expm(t*(forward-forward.conj().T)) @ out
+        return out
+    prep,before,after = [passive(q[k]) for k in ('prep','before','after')]
+    rho = prep @ rho @ prep.conj().T
+    count = occupations[:,q['bank']].sum(axis=1)
+    ctrl = q['switch']
+    ops = []
+    for i,j,t,p,b,f in ctrl['clicks']:
+        op = np.cos(t)*lower[i] + np.exp(1j*p)*np.sin(t)*lower[j]
+        ops.append(np.cos(b)*op + np.exp(1j*f)*np.sin(b)*op.conj().T)
+    middle = passive(ctrl['middle'])
+    first = ops[1] @ middle @ ops[0]
+    second = ops[0] @ middle @ ops[1]
+    transfer = after @ ((first+np.exp(1j*ctrl['angle'])*second)/2) @ before
+    value = 0.
+    survival = 0.
+    for initial in np.unique(count):
+        keep = count==initial
+        arm = transfer[:,keep]
+        weight = np.diag(arm @ rho[np.ix_(keep,keep)] @ arm.conj().T).real
+        value += weight @ np.cos(q['lambda']*(count-initial)-q['phase'])
+        survival += weight.sum()
+    return value/survival,survival
+
+
 def write_or_check(path, obj, generate):
     if generate:
         path.write_text(json.dumps(obj,indent=1,allow_nan=False)+'\n')
@@ -120,7 +190,7 @@ def main(generate):
     cal = [dict(input=q,value=round(VIS*calibration_signal(q),8)) for q in calibration]
     for side in ('environment','tests'):
         write_or_check(TASK/side/'data/calibration.json',cal,generate)
-    models = {name:typ().fit(cal) for name,typ in [('oracle',oracle),('rays',rays),('starter',starter)]}
+    models = {name:typ().fit(cal) for name,typ in [('oracle',oracle),('shortcut',shortcut),('starter',starter)]}
     assert all(abs(m.visibility-VIS)<2e-8 for m in models.values())
     results = {}
     errors = {name:{} for name in models}
@@ -143,8 +213,10 @@ def main(generate):
     write_or_check(stored,results,generate)
     print('max errors',errors,'minimum retention',retention,'quadrature difference',convergence)
     assert max(errors['oracle'].values()) < 1e-6
-    assert all(min(errors[k].values())>.001 for k in ('rays','starter'))
-    assert retention >= .05 and convergence < 1e-7
+    assert min(errors['starter'].values())>.001
+    assert max(errors['shortcut'][k] for k in ('mixing','squeezed','even_gate','odd_gate'))<1e-6
+    assert min(errors['shortcut'][k] for k in ('ordered_clicks','erased_order','subtraction_port'))>.001
+    assert retention >= .02 and convergence < 1e-7
     # A swap moves all photons from the pumped rail. Its vacuum input emits pairs.
     sample = dict(source=[[0,.7,0],[0,0,0]],prep=[],before=[[0,1,np.pi/2,0]],after=[],
                   bank=[0],gate=None,phase=0)
@@ -163,6 +235,22 @@ def main(generate):
         print('number-state check',gate,'missing mass',1-mass,'error',abs(exact-number))
         assert 1-mass < 1.5e-6
         assert abs(exact-number) < 2e-5 and abs(p-prob)<1.5e-6
+
+    switched = groups['erased_order'][0].copy()
+    switched['source'] = [[.08,.18,.7],[.1,.22,-.6]]
+    target, rate = ref['reference'](switched)
+    for cut in (12,18):
+        count, probability = switch_fock(switched,cut)
+        print('switched number-state check',cut,abs(count-target),abs(probability-rate))
+        assert abs(count-target)<(2e-6 if cut==12 else 1e-7)
+        assert abs(probability-rate)<(2e-5 if cut==12 else 1e-7)
+    commutator = dict(source=[[.5,0,0],[0,0,0]],prep=[],before=[],
+                      after=[[0,1,np.pi/2,0]],bank=[0],gate=None,phase=0,
+                      switch=dict(clicks=[[0,1,0,0,np.pi/2,0],[0,1,0,0,0,0]],
+                                  middle=[],angle=np.pi))
+    commutator['lambda'] = np.pi
+    assert abs(ref['reference'](commutator)[0]-.5)<1e-12
+    assert abs(models['oracle'].reading(commutator)-.5)<1e-12
 
 
 if __name__=='__main__':

@@ -39,6 +39,8 @@ class IndependentRays(Calibrated):
         source = np.array(q['source'])
         size = len(source)
         prep, before, after = [abs(mesh(size, q[k]))**2 for k in ('prep', 'before', 'after')]
+        if 'switch' in q:
+            before = abs(mesh(size, q['switch']['middle']))**2 @ before
         bank = np.zeros(size)
         bank[q['bank']] = 1
         gate = q['gate']

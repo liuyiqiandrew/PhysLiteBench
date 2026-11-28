@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eu
-cp /solution/model.py /app/model.py
+cp /solution/model.py /solution/gaussian.py /app/
