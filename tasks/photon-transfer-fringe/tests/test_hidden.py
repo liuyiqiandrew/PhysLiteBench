@@ -34,7 +34,7 @@ def test_fit(metrics):
 
 
 @pytest.mark.parametrize(
-    "family", ["raman_memory", "overlapping_pairs", "atomic_eraser"]
+    "family", ["spin_storage", "return_interference", "retrieval_eraser"]
 )
 def test_transfer(metrics, family):
     assert metrics["max_absolute_error"][family] < 0.001

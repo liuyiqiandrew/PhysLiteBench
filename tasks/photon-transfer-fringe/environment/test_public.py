@@ -21,22 +21,49 @@ def test_calibration():
     assert max(abs(values - [row["value"] for row in rows])) < 0.00002
 
 
-def test_separated_raman_pair():
-    rows = json.loads((Path(__file__).parent / "data/calibration.json").read_text())
-    model = Model().fit(rows)
-    modes = [[[1, 0], [0, 0]], [[0, 0], [1, 0]]]
-    q = dict(
-        rates=[1, 1],
-        durations=[1, 1],
-        detuning=[0, 0],
+def square():
+    # Both polarizations occupy the whole square pulse. Polarization 1 is a spectator.
+    flat = [[1, 0]]
+    return dict(
+        rates=[1.0, 0.0],
         atom=[0, 0],
         analyzer=None,
-        control=[1, 0, 0, 0],
-        input_modes=modes,
-        output_modes=modes,
-        input_rotation=[0, 0],
-        output_rotations=[[0, 0], [0, 0]],
-        phase=0,
-        **{"lambda": np.pi}
+        control=[0, 0, 0],
+        gap=[0, 0],
+        first=dict(
+            durations=[1.0],
+            detuning=[0.0],
+            input_modes=[flat, flat],
+            input_rotation=[0, 0],
+            write_mode=flat,
+        ),
+        second=dict(
+            durations=[1.0],
+            detuning=[0.0],
+            read_mode=flat,
+            output_mode=flat,
+            output_rotation=[0, 0],
+        ),
+        store=dict(
+            cells=2,
+            write_k=[0.0, 0.0],
+            read_k=[0.0, 0.0],
+            write=[np.pi / (2 * np.sqrt(2))] * 2,
+            read=[np.pi / (2 * np.sqrt(2))] * 2,
+            rotation=[0, 0],
+            phase=0.0,
+        ),
+        handoff="unmeasured",
+        conditional=False,
+        phase=0.0,
+        **{"lambda": 0.0}
     )
-    assert abs(model.predict([q])[0] - 0.7708459436069642 * model.visibility) < 0.001
+
+
+def test_square_echo():
+    rows = json.loads((Path(__file__).parent / "data/calibration.json").read_text())
+    model = Model().fit(rows)
+    q = square()
+    for phi, value in [(0.0, 0.7868098728458969), (np.pi, 0.1235676703171777)]:
+        q["store"]["phase"] = phi
+        assert abs(model.predict([q])[0] - value * model.visibility) < 0.001

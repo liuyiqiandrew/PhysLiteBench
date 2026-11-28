@@ -1,1 +1,1 @@
-Calibrate the number-transfer counter and predict the conditional two-photon fringe for the quantum waveguide in `/app/README.md`. Implement `Model` in `/app/model.py`.
+Calibrate the number-transfer counter and predict the two-photon echo from the finite spin memory in `/app/README.md`. Implement `Model` in `/app/model.py`.

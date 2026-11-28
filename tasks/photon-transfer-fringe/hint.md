@@ -1,1 +1,1 @@
-A photon emitted after an absorption can change the ground state. Resolve all time-ordered atomic histories and direct transmissions into each selected pair of output modes before applying the final ground-state projection.
+Two final photons require an empty environment and empty memory. At handoff the conserved excitations can be shared between the memory and waveguide atom. Apply each optical projection and memory gate to that joint state.

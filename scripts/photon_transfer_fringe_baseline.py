@@ -1,8 +1,8 @@
-"""Add an unobserved measurement of the atom at the RF boundary."""
+"""Measure the spin storage number before reading the occupied cells."""
 from optics import Calibrated, calibration_signal
-from waveguide import waveguide
+from returning import echo
 
 
 class Model(Calibrated):
     def reading(self, q):
-        return waveguide(q, dephase=True)[0] if "rates" in q else calibration_signal(q)
+        return echo(q, measured=True)[0] if "store" in q else calibration_signal(q)

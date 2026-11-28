@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eu
-cp /solution/model.py /solution/waveguide.py /app/
+cp /solution/model.py /solution/returning.py /app/

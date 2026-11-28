@@ -1,7 +1,7 @@
 from optics import Calibrated, calibration_signal
-from waveguide import waveguide
+from returning import echo
 
 
 class Model(Calibrated):
     def reading(self, q):
-        return waveguide(q)[0] if "rates" in q else calibration_signal(q)
+        return echo(q)[0] if "store" in q else calibration_signal(q)
