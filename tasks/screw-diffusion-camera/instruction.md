@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the two-exposure scattering camera described in /app/README.md. Fit the solvent mobility from the rotational calibration and predict the tagged fringe, including the two consecutive director returns and their spin-interferometer readout.
+Implement Model in /app/model.py for the gated scattering microscope and its gyroscope-driven spin interferometer described in /app/README.md. Fit solvent mobility from rotational calibration and predict each joint optical and spin signal.

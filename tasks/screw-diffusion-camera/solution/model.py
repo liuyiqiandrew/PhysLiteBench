@@ -1,11 +1,10 @@
 from apparatus import Camera
-from angular import fringe
-from rotor import loop
-from director import director
+from passive import fringe
+from replay import replay
 
 
 class Model(Camera):
     def fringe(self, q):
-        if 'director' in q:
-            return director(q,self.mobility)
-        return loop(q,self.mobility) if 'loop' in q else fringe(q,self.mobility)
+        if "replay" in q:
+            return replay(q, self.mobility)
+        return fringe(q, self.mobility)

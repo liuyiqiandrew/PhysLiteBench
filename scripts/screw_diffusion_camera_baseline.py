@@ -1,13 +1,14 @@
 from apparatus import Camera
-from angular import fringe
-from rotor import loop
-from director import director
+from passive import fringe
+from replay import replay
 
 
 class Model(Camera):
     def fringe(self, q):
-        if 'director' in q:
-            # Independently draw the lab orientation for each orbit segment,
-            # preserving each conditional marginal and its quaternion label.
-            return director(q,self.mobility,independent=True)
-        return loop(q,self.mobility) if 'loop' in q else fringe(q,self.mobility)
+        optical = fringe(q, self.mobility)
+        if "replay" not in q:
+            return optical
+        # Preserve the true gate-conditioned spin brightness and optical
+        # fringe, but obtain them from independent retained trajectories.
+        bright = replay(dict(q, wave=[0.0, 0.0], phase=0.0), self.mobility)
+        return optical * bright
