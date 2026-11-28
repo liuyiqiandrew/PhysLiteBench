@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the paired adsorption sheets and contour microscope described in /app/README.md. Infer the binding activity from calibration and predict the probabilities for fresh sheet pairs.
+Implement Model in /app/model.py for the paired adsorption sheets and optical microscope described in /app/README.md. Infer the binding activity from calibration and predict the readings on fresh preparations.

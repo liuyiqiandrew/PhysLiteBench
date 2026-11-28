@@ -30,6 +30,6 @@ def test_fit(errors):
     assert errors['calibration'] < 2e-5
 
 
-@pytest.mark.parametrize('group',['clear','shared','veto','nesting'])
+@pytest.mark.parametrize('group',['clear','shared','veto','nesting','boundary','registered','fold_gate'])
 def test_contours(errors,group):
     assert errors[group] < .004
