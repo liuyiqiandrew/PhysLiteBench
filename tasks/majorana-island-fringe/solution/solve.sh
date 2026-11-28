@@ -1,3 +1,3 @@
 #!/bin/bash
 set -eu
-cp /solution/model.py /solution/dots.py /app/
+cp /solution/model.py /solution/counter.py /app/

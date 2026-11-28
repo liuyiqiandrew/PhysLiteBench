@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the superconducting-island interferometer in /app/README.md. Fit the readout visibility and predict the signed fringe among retained shots.
+Calibrate and predict the Ramsey fringe of the island subjected to coherent dot counting, using the instrument in /app/README.md. Implement Model in /app/model.py.

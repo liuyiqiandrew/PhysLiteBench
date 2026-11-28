@@ -1,116 +1,132 @@
-"""Multiply the spin operators in a sparse Clifford basis, then take their thermal trace."""
-from functools import lru_cache
-
+"""Exact polynomial evolution in the Clifford algebra and initial-state moments."""
 import numpy as np
 from scipy.fft import dct
 
 
-TRUE_PARAMETER = .8364
+def sign(a,b):
+    inversions=0
+    while a:
+        bit=a&-a
+        inversions+=(b&(bit-1)).bit_count()
+        a^=bit
+    return (-1)**inversions
 
 
-def measurement(q):
-    n = q["n"]
-    active = sorted({j for arm in q["arms"] for a,b,_,_ in arm for j in (a,b)})
-    basis = np.eye(2*n) if q["frame"] == "site" else dct(np.eye(2*n), axis=0, norm="ortho")
-    basis = basis[active]
-    temp = np.array([np.tanh(q["beta"]*(1+q["ripple"]*np.cos((2*j+1)*np.pi/n))/2)
-                     for j in range(n)])
-    parity_weight = q["parity"]*np.prod(temp)
-
-    def moments(t):
-        half = (basis[:, ::2] * t) @ basis[:, 1::2].T
-        two = 1j*(half-half.T)
-
-        @lru_cache(None)
-        def wick(mask):
-            if mask == 0:
-                return 1.
-            first = mask & -mask
-            rest = mask ^ first
-            options = rest
-            sign = 1
-            total = 0j
-            while options:
-                bit = options & -options
-                total += sign * two[first.bit_length()-1,bit.bit_length()-1] * wick(rest ^ bit)
-                options ^= bit
-                sign = -sign
-            return total
-        return wick
-
-    thermal, twisted = moments(temp), moments(1/temp)
-
-    @lru_cache(None)
-    def charge_average(mask):
-        return (thermal(mask) + parity_weight*twisted(mask)) / (1+parity_weight)
-
-    @lru_cache(None)
-    def left_pair(mask, a, b):
-        swaps = (mask & ((1 << b)-1)).bit_count()
-        reduced = mask ^ (1 << b)
-        swaps += (reduced & ((1 << a)-1)).bit_count()
-        return reduced ^ (1 << a), -1 if swaps % 2 else 1
-
-    def trace_product(pulses):
-        state = {0: 1.}
-        for a,b,theta in pulses:
-            c, s = np.cos(.5*theta), -np.sin(.5*theta)
-            new = {m: c*v for m,v in state.items()}
-            for m,v in state.items():
-                out, sign = left_pair(m, a, b)
-                new[out] = new.get(out,0) + sign*s*v
-            state = new
-        return sum(value*charge_average(mask) for mask,value in state.items())
-
-    arms = [[[(active.index(a), active.index(b), th+z*k) for a,b,th,k in arm]
-             for z in (1,-1)] for arm in q["arms"]]
-    weight = [1/2, q["outcome"]*np.exp(-1j*q["meter_phase"])/2]
-
-    def overlap(first, second):
-        total = 0j
-        for i, path in enumerate(first):
-            backward = [(a,b,-th) for a,b,th in reversed(path)]
-            for j, forward in enumerate(second):
-                total += weight[i].conjugate()*weight[j]*trace_product(forward+backward)
-        return total
-
-    pa, pb = (overlap(arm, arm).real for arm in arms)
-    acceptance = (pa+pb)/2
-    cross = overlap(*arms)
-    signal = (np.exp(-1j*q["phase"])*cross).real/acceptance
-    return acceptance, signal
+def scaled(A,s):
+    return {i:s*v for i,v in A.items() if s*v!=0}
 
 
-def dense(q):
-    """Evolve explicit occupation states of both qubits and the island."""
-    n = q["n"]
-    I = np.eye(2)
-    X = np.array([[0.,1.],[1.,0.]])
-    Y = np.array([[0.,-1j],[1j,0.]])
-    Z = np.diag([1.,-1.])
-    g = []
-    for j in range(n):
-        for middle in (X,Y):
-            op = np.ones((1,1))
-            for f in [Z]*j+[middle]+[I]*(n-j-1):
-                op = np.kron(op, f)
-            g.append(op)
-    g = np.array(g)
-    diagonal = np.array([np.diag(-1j*g[2*j]@g[2*j+1]).real for j in range(n)])
-    energies = 1 + q["ripple"]*np.cos(np.pi*(2*np.arange(n)+1)/n)
-    w = np.exp(q["beta"]*(energies @ diagonal)/2)
-    w[np.prod(diagonal,axis=0) != q["parity"]] = 0.
-    w /= sum(w)
-    if q["frame"] == "wave":
-        g = dct(g,axis=0,norm="ortho")
-    states = []
-    for arm in q["arms"]:
-        psi = np.stack([np.diag(np.sqrt(w/2)).astype(complex) for _ in range(2)])
-        for a,b,th,coupling in arm:
-            pair = -1j*g[a]@g[b]
-            for meter in (0,1):
-                angle=(th+(-1)**meter*coupling)/2
-                psi[meter]=np.cos(angle)*psi[meter] - 1j*np.sin(angle)*pair@psi[meter]
-        states.append((psi[0]+q["outcome"]*np.exp(-1j*q["meter_phase"])*psi[1])/np.sqrt(2))
-    prob = sum(np.vdot(x,x).real for x in states)/2
-    return prob, (np.exp(-1j*q["phase"])*np.vdot(*states)).real/prob
+def add(*terms):
+    result={}
+    for A in terms:
+        for k,v in A.items():result[k]=result.get(k,0)+v
+    return {k:v for k,v in result.items() if v!=0}
+
+
+def mul(A,B):
+    result={}
+    for a,u in A.items():
+        for b,v in B.items():
+            k=a^b;result[k]=result.get(k,0)+u*v*sign(a,b)
+    return {k:v for k,v in result.items() if abs(v)>1e-15}
+
+
+def dag(A):
+    return {k:v.conjugate()*sign(k,k) for k,v in A.items()}
+
+
+def moments(cov):
+    n=len(cov);out=np.zeros(1<<n,complex);out[0]=1
+    for mask in range(1,1<<n):
+        if mask.bit_count()%2:continue
+        a=mask&-mask; rest=mask^a;k=1; others=rest
+        while others:
+            b=others&-others
+            out[mask]+=k*cov[a.bit_length()-1,b.bit_length()-1]*out[rest^b]
+            k=-k;others^=b
+    return out
+
+
+def reference(q):
+    used={j for arm in q['probe'] for a,b,_ in arm for j in (a,b)}
+    used.update(j for encounter in q['encounters'] for _,a,b,_,_,_ in encounter['pulses'] for j in (a,b))
+    if not used:used.update((0,1))
+    ids=dict(zip(sorted(used),range(len(used)))); n=len(ids); N=1<<n
+    size=2*q['n']
+    frame=(np.eye(size) if q['frame']=='site' else dct(np.eye(size),axis=0,norm='ortho'))[sorted(used)]
+    t=np.tanh(q['beta']*(1+q['ripple']*np.cos((2*np.arange(q['n'])+1)*np.pi/q['n']))/2)
+    weight=q['parity']*np.prod(t)
+    def island_mom(p):
+        a=(frame[:,::2]*p)@frame[:,1::2].T
+        return moments(1j*(a-a.T))
+    omega=(island_mom(t)+weight*island_mom(1/t))/(1+weight)
+    inner=np.array([[sign(i,i)*sign(i,j)*omega[i^j] for j in range(N)] for i in range(N)])
+    def norm(raw):
+        v=np.array([complex(*r) for r in raw]);return v/np.linalg.norm(v)
+    def dotket(raw):
+        a,b=norm(raw);return np.array([0.,a,b,0.],complex)
+    low0=np.zeros((4,4));low0[0,1]=1;low0[2,3]=1
+    low1=np.zeros((4,4));low1[0,2]=1;low1[1,3]=-1
+    gammas=[f for a in (low0,low1) for f in (a+a.T,-1j*(a-a.T))]
+    dops=[np.eye(4)]
+    for gamma in gammas:dops.extend([a@gamma for a in dops])
+    def dirac(i,j):return {1<<i:.5,1<<j:.5j}
+    d=[dirac(n+2*j,n+2*j+1) for j in range(2)]
+    double=mul(mul(dag(d[0]),d[0]),mul(dag(d[1]),d[1]))
+    identity={0:1.}
+    initial=norm(q['counter']['prepare']);analyzer=norm(q['counter']['analyze'])
+    D=len(initial)
+    branches=[(k,amp,identity,()) for k,amp in enumerate(initial) if abs(amp)>1e-15]
+    marks=[]
+    for encounter in q['encounters']:
+        image=[]
+        state=dotket(encounter['prepare']); erase=dotket(encounter['erase']);tag=dotket(encounter['tag'])
+        yes=(np.vdot(erase,tag)*tag.conj())
+        probe=np.array([[bra@(op@state) for op in dops] for bra in (erase.conj()-yes,yes)])
+        gates={}
+        for k in set(entry[0] for entry in branches):
+            evolution=identity
+            for j,a,b,turn,phase,dwell in encounter['pulses']:
+                t=mul(dag(d[j]),dirac(ids[a],ids[b]))
+                link=scaled(t,np.exp(1j*(phase+j*k*encounter['feedback'])))
+                H=add(link,dag(link))
+                tun=add(identity,scaled(H,-1j*np.sin(turn)),scaled(mul(H,H),np.cos(turn)-1))
+                charge=add(identity,scaled(double,np.exp(-1j*dwell)-1))
+                evolution=mul(charge,mul(tun,evolution))
+            forms=[{},{}]
+            for mask,val in evolution.items():
+                dot,isl=divmod(mask,N)
+                if dot.bit_count()%2:continue
+                for b,form in enumerate(forms):
+                    form[isl]=form.get(isl,0)+val*probe[b,dot]
+            gates[k]=forms
+        for k,amp,op,history in branches:
+            for b in (0,1):
+                r=(k+b)%D
+                phase=np.exp(-.5j*encounter['dwell']*r*(r-1))
+                image.append((r,amp*phase,mul(gates[k][b],op),history+(b,)))
+        branches=image
+        marks.append(complex(*encounter['marker']))
+
+    branches=[entry for entry in branches if abs(analyzer[entry[0]])>1e-15]
+    amp=np.array([a*analyzer[k].conjugate() for k,a,_,_ in branches])
+    metadata=np.outer(amp.conj(),amp)
+    bits=np.array([history for _,_,_,history in branches])
+    for j,m in enumerate(marks):
+        indicator=bits[:,j]
+        metadata*=np.array([[1.,m],[m.conjugate(),1.]])[indicator[:,None],indicator]
+    def vector(op):
+        v=np.zeros(N,complex)
+        for k,a in op.items():v[k]=a
+        return v
+    base=np.array([vector(op) for _,_,op,_ in branches])
+    def output(arm):
+        action=identity
+        for i,j,theta in arm:
+            g=mul({1<<ids[i]:1},{1<<ids[j]:1})
+            action=mul(add(scaled(identity,np.cos(theta/2)),scaled(g,-np.sin(theta/2))),action)
+        return np.array([vector(mul(action,op)) for _,_,op,_ in branches])
+    def average(a,b):return np.sum(metadata*(a.conj()@inner@b.T))
+    prob=average(base,base).real
+    fringe=(np.exp(-1j*q['phase'])*average(output(q['probe'][0]),output(q['probe'][1]))).real
+    return prob,fringe/prob
