@@ -1,1 +1,1 @@
-At an electron impact the new electron shares the parent electron trajectory, while the hole starts a new packet. A hole impact reverses these roles. Resolve both clocks and the two packet heights on each common history.
+Use the same carrier history for both gates. Within each region set by births and collections, the first gate charge is affine in free impact times. A flat region contributes probability mass, while a regular level selects a lower-dimensional set.

@@ -43,18 +43,28 @@ def coefficients(q, parents, pins):
             constraints.extend(
                 [T[c] - e for e, r in zip(end[c::2], packets[c]) if r != pin + 1]
             )
-    marks = q["read"] + (q["tag"][:2] if q["tag"] else [])
+    marks = (
+        q["read"]
+        + (q["tag"][:2] if q["tag"] else [])
+        + (q["spectrum"]["window"] if "spectrum" in q else [])
+    )
     cuts = [t - v for t in start + end for v in marks]
 
     def transform(rows):
         z = np.array(rows)
         return np.c_[z[:, 0], z[:, 1:] - z[:, :1]]
 
-    return dim, min(T), transform(constraints), transform(cuts)
+    return (
+        dim,
+        min(T),
+        transform(constraints),
+        transform(cuts),
+        transform(start),
+        transform(end),
+    )
 
 
-def integration_nodes(q, parents, pins, n):
-    dim, T, ineq, cuts = coefficients(q, parents, pins)
+def strip_nodes(dim, T, ineq, cuts, n):
     u, w = leggauss(n)
     u = (u + 1) / 2
     w = w / 2
@@ -130,6 +140,29 @@ def integration_nodes(q, parents, pins, n):
     xs = np.broadcast_to(x[ix, None], ys.shape)
     weights = wx[ix, None] * dy[ix, j, None] * w
     return np.c_[xs.ravel(), ys.ravel()], weights.ravel()
+
+
+def integration_nodes(q, parents, pins, n):
+    dim, T, ineq, cuts, births, ends = coefficients(q, parents, pins)
+    if "charge_bin" not in q or dim == 0:
+        return strip_nodes(dim, T, ineq, cuts, n)
+    sample, _ = strip_nodes(dim, T, ineq, cuts, 1)
+    if sample is None:
+        return None, None
+    values = np.c_[np.ones(len(sample)), sample]
+    plane = np.zeros_like(values)
+    one = np.eye(dim + 1)[0]
+    for gate, sign in zip(q["spectrum"]["window"], (-1.0, 1.0)):
+        for b, birth in enumerate(births):
+            active = (values @ birth < gate)[:, None]
+            for c, v in enumerate(q["velocities"]):
+                end = ends[2 * b + c]
+                done = (values @ end < gate)[:, None]
+                plane += sign * v * active * (np.where(done, end, gate * one) - birth)
+    forms = np.unique(np.round(plane, 11), axis=0)
+    for level in q["charge_bin"]:
+        cuts = np.vstack([cuts, forms - level * one])
+    return strip_nodes(dim, T, ineq, cuts, n)
 
 
 from itertools import product
@@ -234,6 +267,11 @@ def integrate_history(q, scale, parents, pins, u, weights, terminal=False):
             return sum((z <= t).astype(float) for z in finish[::2])
         return charge(one * t)
 
+    if "charge_bin" in q:
+        start, end = q["spectrum"]["window"]
+        y = signal(end) - signal(start)
+        lo, hi = q["charge_bin"]
+        density *= (y >= lo) & (y <= hi)
     if q["tag"] is not None:
         lo, hi, z, w = q["tag"]
         y = signal(hi) - signal(lo)
@@ -261,3 +299,25 @@ def packet_law(q, scale=1.0, order=36):
             total[idx] += a
             moment[idx] += b
     return total, moment
+
+
+def finite(q, a=0.92, n=9, width=0.001):
+    base = dict(q)
+    spec = base.pop("spectrum")
+    M, _ = packet_law(base, a, n)
+    table = tuple(slice(None) if c is None else c for c in q["multiplicities"])
+    z = spec["charge"]
+    vals = []
+    for w in (width, width / 2, width / 4):
+        m, y = packet_law(dict(q, charge_bin=[z - w / 2, z + w / 2]), a, n)
+        vals.append(np.array([m[table].sum(), y[table].sum()]))
+    a, b, c = vals
+    density = (
+        (a - 6 * b + 8 * c) / 3
+        if spec["part"] == "line"
+        else (10 * b - 8 * c - 2 * a) / width
+    )
+    return (
+        density[0] / M[table].sum(),
+        density[1] / density[0] if density[0] > 1e-14 else None,
+    )

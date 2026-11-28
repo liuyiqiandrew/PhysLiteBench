@@ -32,19 +32,24 @@ def worked():
         feedback=0.0,
         gain=3,
         tag=None,
-        read=[0.25, 0.7],
-        last_delays=[0.3, 0.4],
-        multiplicities=[2, 1],
-        observable="waveform",
+        read=[0.0, 0.25],
+        last_delays=[0.0, 0.6],
+        multiplicities=[None, None],
+        spectrum=dict(window=[0.0, 0.15], charge=0.3, part="line"),
     )
 
 
-def test_paired_arrivals():
+def test_charge_spectrum():
     model, _ = fitted()
     q = worked()
-    for pair, val in [([2, 1], 0.6), ([1, 2], 2 / 3), ([1, 1], 19 / 30)]:
-        q["multiplicities"] = pair
+    for part, z, intensity, current in [
+        ("line", 0.3, 0.5, 17 / 90),
+        ("density", 0.45, 5 / 3, 17 / 60),
+    ]:
+        q["spectrum"].update(part=part, charge=z)
+        q["observable"] = "spectrum"
+        assert abs(model.predict([q])[0] - intensity) < (
+            0.01 if part == "density" else 0.004
+        )
         q["observable"] = "waveform"
-        assert abs(model.predict([q])[0] - val) < 0.004
-        q["observable"] = "fraction"
-        assert abs(model.predict([q])[0] - 1 / 3) < 0.004
+        assert abs(model.predict([q])[0] - current) < 0.004

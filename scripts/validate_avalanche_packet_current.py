@@ -9,8 +9,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/avalanche-packet-current"
 sys.path[:0] = [str(TASK / "environment"), str(TASK / "solution"), str(TASK / "tests")]
-from geometry import packet_law as physical, observable
-from reference import packet_law as alternate
+from geometry import reading
+from reference import finite
 
 
 def calibration():
@@ -20,79 +20,72 @@ def calibration():
     ]
 
 
-def queries():
-    rng = np.random.default_rng(521478)
+def science():
+    rng = np.random.default_rng(784213)
 
     def draw(a, b, size=None):
         return np.round(rng.uniform(a, b, size), 6).tolist()
 
     groups = {}
-    for k in ("one_delayed_contact", "joint_waveform", "packet_fractions"):
+    for group in ("charge_lines", "charge_density", "gated_current"):
         rows = []
         for i in range(8):
-            x = draw(0.33, 0.64)
-            v = [draw(0.88, 1.28), draw(0.73, 1.08)]
-            te, th = (1 - x) / v[0], x / v[1]
-            tmax = 1 / v[0] + 1 / v[1]
-            de = x * tmax * draw(0.37, 0.77)
-            dh = (1 - x) * tmax * draw(0.36, 0.82)
-            if k == "one_delayed_contact":
-                # An impact by the species opposite the prompt contact would have delayed that contact.
-                g = 3 if i % 3 else 4
-                delays = [0.0, dh] if i % 2 else [de, 0.0]
-                m = [g, 1] if i % 2 else [1, g]
-            else:
-                g = 5 if i in (1, 5) else (3 if i % 3 == 0 else 4)
-                delays = [de, dh]
-                m = (
-                    [1, 1],
-                    [1, 2],
-                    [2, 1],
-                    [1, None],
-                    [None, 2],
-                    [2, 2],
-                    [2, 1],
-                    [None, None],
-                )[i]
-                if k == "packet_fractions":
-                    m = (
-                        [1, 1],
-                        [2, 2],
-                        [2, 1],
-                        [1, 2],
-                        [1, 1],
-                        [1, 2],
-                        [2, 1],
-                        [1, 1],
-                    )[i]
-            LO = draw(0.15, 0.74) * min(te, th)
-            HI = draw(0.77, 1.21) * max(te + delays[0], th + delays[1])
-            tag = (
-                [
-                    round(0.05 * te, 6),
-                    round(0.85 * te, 6),
-                    draw(0.7, 1.35),
-                    draw(0.18, 0.34),
-                ]
-                if i % 2
-                else None
+            joint = i % 3 != 0
+            g = (5 if i in (2, 5) else 4) if joint else (3 if i % 2 == 0 else 4)
+            x = draw(0.37, 0.56)
+            ve = draw(0.86, 1.18)
+            vh = draw(0.78, 1.08)
+            te = (1 - x) / ve
+            th = x / vh
+            em = te * draw(0.48, 0.71)
+            hm = th * draw(0.47, 0.72)
+            e = round(hm * (1 + vh / ve), 6)
+            h = round(em * (1 + ve / vh), 6)
+            if not joint:
+                if i % 2:
+                    e = 0.0
+                else:
+                    h = 0.0
+            tmark = min(em, hm) if joint else (em if e == 0 else hm)
+            lo = round(tmark * draw(0.39, 0.53), 6)
+            hi = round(tmark * draw(0.77, 0.92), 6)
+            step = (ve + vh) * (hi - lo)
+            line = group == "charge_lines" or group == "gated_current" and i % 2 == 0
+            charge = (
+                (1 + (i % 2 if group == "charge_lines" else int(i in (2, 6)))) * step
+                if line
+                else (1.0 + draw(0.24, 0.75)) * step
             )
+            if line and i == 0:
+                charge = 2 * step
+            read = [
+                round(max(0, lo - tmark * draw(0.08, 0.18)), 6),
+                round(hi + tmark * draw(0.09, 0.33), 6),
+            ]
+            mult = [None, None]
+            if joint and i in (1, 5):
+                mult = [1, None] if i == 1 else [None, 2]
             rows.append(
                 dict(
                     depth=x,
-                    velocities=v,
-                    dead_space=[draw(0.046, 0.095), draw(0.041, 0.092)],
-                    ionization=draw(1.72, 2.85, 2),
-                    feedback=draw(0.46, 1.05),
+                    velocities=[ve, vh],
+                    ionization=draw(1.65, 2.75, 2),
+                    dead_space=draw(0.035, 0.057, 2),
+                    feedback=draw(0.42, 1.05),
                     gain=g,
-                    last_delays=np.round(delays, 6).tolist(),
-                    multiplicities=m,
-                    tag=tag,
-                    read=np.round([LO, HI], 6).tolist(),
-                    observable="fraction" if k == "packet_fractions" else "waveform",
+                    tag=None,
+                    last_delays=[e, h],
+                    multiplicities=mult,
+                    read=read,
+                    spectrum=dict(
+                        window=[lo, hi],
+                        charge=round(charge, 14),
+                        part="line" if line else "density",
+                    ),
+                    observable="waveform" if group == "gated_current" else "spectrum",
                 )
             )
-        groups[k] = rows
+        groups[group] = rows
     return groups
 
 
@@ -105,103 +98,83 @@ def worked():
         feedback=0.0,
         gain=3,
         tag=None,
-        read=[0.25, 0.7],
-        last_delays=[0.3, 0.4],
-        multiplicities=[2, 1],
-        observable="waveform",
+        read=[0.0, 0.25],
+        last_delays=[0.0, 0.6],
+        multiplicities=[None, None],
+        spectrum=dict(window=[0.0, 0.15], charge=0.3, part="line"),
     )
 
 
-def validate(generate=False):
-    a = 0.92
+def validate(generate):
+    import time
+
+    start = time.monotonic()
     cal = calibration()
-    expect = {}
-    agree = {}
-    repeat = {}
-    for key, qs in queries().items():
+    nominal = 0.92
+    expected = {}
+    for family, qs in science().items():
         rows = []
-        external = []
-        refine = []
+        differences = []
         for q in qs:
-            truth = physical(q, a, 18)
-            test = alternate(q, a, 10)
-            lo = physical(q, a, 12)
-            y = observable(q, truth)
-            assert np.isfinite(y) and 0 <= y <= 1 and truth[0].sum() > 0
-            external.append(abs(y - observable(q, test)))
-            refine.append(abs(y - observable(q, lo)))
-            rows.append(dict(input=q, value=round(float(y), 8)))
-            assert np.allclose(truth[0].sum(), test[0].sum(), rtol=0.001, atol=0.000025)
-        expect[key] = rows
-        agree[key] = max(external)
-        repeat[key] = max(refine)
-    assert max(agree.values()) < 0.0003 and max(repeat.values()) < 0.00015
-    print("independent waveform and probability differences", agree)
-    print("quadrature refinement", repeat)
-    for p, data in [
+            v = reading(q, nominal, 12)
+            intensity, current = finite(q, nominal, 9, 0.001)
+            assert intensity > 0.04 and current is not None and 0 <= current <= 1
+            alternate = intensity if q["observable"] == "spectrum" else current
+            differences.append(abs(v - alternate))
+            rows.append(dict(input=q, value=round(float(v), 8)))
+        assert max(differences) < 0.00055
+        print(family, "independent maximum difference", max(differences), flush=True)
+        expected[family] = rows
+    for path, values in [
         (TASK / "environment/data/calibration.json", cal),
         (TASK / "tests/data/calibration.json", cal),
-        (TASK / "tests/data/predictions.json", expect),
+        (TASK / "tests/data/predictions.json", expected),
     ]:
         if generate:
-            p.write_text(json.dumps(data, indent=1) + "\n")
-        frozen = json.loads(p.read_text())
-        assert frozen == cal if isinstance(data, list) else frozen.keys() == data.keys()
-        if isinstance(data, dict):
-            for k, rows in data.items():
-                for x, y in zip(rows, frozen[k], strict=True):
-                    assert (
-                        x["input"] == y["input"] and abs(x["value"] - y["value"]) < 1e-7
-                    )
-    for name, p in [
-        ("oracle", TASK / "solution/model.py"),
-        ("starter", TASK / "environment/model.py"),
-        ("independent heights", ROOT / "scripts/avalanche_packet_current_baseline.py"),
+            path.write_text(json.dumps(values, indent=1) + "\n")
+        assert json.loads(path.read_text()) == values
+    for location, name in [
+        (TASK / "solution/model.py", "oracle"),
+        (TASK / "environment/model.py", "finite resolution"),
+        (
+            ROOT / "scripts/avalanche_packet_current_baseline.py",
+            "independent avalanche",
+        ),
     ]:
-        m = runpy.run_path(str(p))["Model"]().fit(cal)
-        assert abs(m.activity - a) < 1e-7
-        err = {}
-        for k, rows in expect.items():
-            vals = m.predict([r["input"] for r in rows])
-            assert np.isfinite(vals).all()
-            err[k] = float(np.max(abs(vals - [r["value"] for r in rows])))
+        model = runpy.run_path(str(location))["Model"]().fit(cal)
+        errors = {}
+        assert abs(model.activity - nominal) < 1.0e-7
+        for family, rows in expected.items():
+            prediction = model.predict([r["input"] for r in rows])
+            assert np.isfinite(prediction).all()
+            errors[family] = float(max(abs(prediction - [r["value"] for r in rows])))
         if name == "oracle":
-            assert max(err.values()) < 0.00015
-        if name == "starter":
-            assert min(err.values()) > 0.004
-        if name == "independent heights":
+            assert max(errors.values()) < 0.00002
+        if name == "finite resolution":
+            assert min(errors.values()) > 0.004 and errors["charge_density"] > 0.01
+        if name == "independent avalanche":
             assert (
-                err["packet_fractions"] > 0.04
-                and max(err["joint_waveform"], err["one_delayed_contact"]) < 0.00015
+                errors["gated_current"] > 0.02
+                and max(errors["charge_density"], errors["charge_lines"]) < 0.00002
             )
-        print(name, err)
+        print(name, errors, flush=True)
     q = worked()
-    for method in (physical, alternate):
-        law = method(q, a, 9)
-        assert np.count_nonzero(law[0] > 1e-12) == 3
-        for pair, val in [([2, 1], 0.6), ([1, 2], 2 / 3), ([1, 1], 19 / 30)]:
-            obs = dict(q, multiplicities=pair)
-            assert abs(observable(obs, law) - val) < 1e-12
-            assert (
-                abs(observable(dict(obs, observable="fraction"), law) - 1 / 3) < 1e-12
-            )
-        wildcard = dict(q, multiplicities=[None, None])
-        assert abs(observable(dict(wildcard, observable="fraction"), law) - 1) < 1e-12
+    for part, z, intensity, current in [
+        ("line", 0.3, 0.5, 17 / 90),
+        ("density", 0.45, 5 / 3, 17 / 60),
+    ]:
+        q["spectrum"].update(part=part, charge=z)
         np.testing.assert_allclose(
-            observable(wildcard, law), np.mean([0.6, 2 / 3, 19 / 30]), atol=1e-12
+            finite(q, nominal, 8), [intensity, current], atol=1.0e-8
         )
-    for k, rows in expect.items():
-        err = max(
-            abs(
-                observable(r["input"], physical(dict(r["input"], feedback=0.0), a, 9))
-                - r["value"]
+        for field, value in [("spectrum", intensity), ("waveform", current)]:
+            np.testing.assert_allclose(
+                reading(dict(q, observable=field), nominal), value, atol=1.0e-10
             )
-            for r in rows
-        )
-        print("clamped bias", k, err)
+    print("Elapsed seconds", round(time.monotonic() - start, 1))
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--generate", action="store_true")
-    validate(p.parse_args().generate)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--generate", action="store_true")
+    validate(parser.parse_args().generate)

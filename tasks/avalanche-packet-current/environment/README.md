@@ -1,6 +1,6 @@
-# Last-packet timing in an avalanche photodiode
+# Induced-charge spectroscopy of an avalanche photodiode
 
-A short optical pulse creates one electron–hole pair at a known depth in a planar multiplication layer. The two contacts resolve groups of electrons and holes collected simultaneously. A second amplifier measures the charge induced while carriers are moving. Predict the mean gated amplifier reading and the coincidence fraction of specified terminal packet heights at fixed gain and recorded contact times.
+A short optical pulse creates one electron–hole pair at a known depth in a planar multiplication layer. The two contacts resolve groups of electrons and holes collected simultaneously. A second amplifier measures the charge induced while carriers are moving. Determine the spectrum of the induced charge in one time gate and the mean charge in a second gate on the same selected shots.
 
 ## Carrier dynamics
 
@@ -22,16 +22,31 @@ The calibration isolates a single fully energized electron in a voltage-clamped 
 
 `last_delays=[dₑ,dₕ]` selects the observed terminal times. A zero component selects the probability atom at the corresponding prompt time. For each positive component c, select T_c in [T_c⁰+d_c,T_c⁰+d_c+ε), then take the limit as ε decreases to zero. For two positive components this selects joint density per unit electron and hole time. For exactly one positive component it selects an atom on one electrode and a density on the other. Always impose the stated gain and both clock selections.
 
-`tag=[u,v,z,s]` accepts a given history with probability exp[−(Q(v)−Q(u)−z)²/(2s²)]. A null tag accepts all histories meeting the clock and gain selections. The trigger leaves the avalanche and its bias undisturbed. `multiplicities=[mₑ,mₕ]` then describes a packet-height match. An integer component requires the stated number of carriers in that final packet. A null component accepts every height at that contact.
+The two entries of `multiplicities` select the exact electron and hole packet heights; JSON null in either position accepts any height on that contact. In all shots here `tag` is null. The base ensemble consists of the specified gain, both terminal clock readings and both height selections.
 
-For `observable="waveform"`, apply the height match as well and report the mean of [Q(v)−Q(u)]/G for `read=[u,v]`. For `observable="fraction"`, report the fraction matching the two requested heights among the shots already selected by gain, both clock readings and the tag. The read interval has no effect on this fraction. All times are on the laboratory clock from optical injection. The full-time induced charge is G.
+## Charge spectrum
 
-Graded shots have depth in [0.25,0.65], vₑ in [0.8,1.35], vₕ in [0.65,1.2], dead spaces in [0.035,0.12], nominal ionization coefficients in [1.5,3], and feedback in [0.35,1.2]. The worked limit allows zero dead space and a clamped bias. With one delayed clock G is 2, 3 or 4; with two delayed clocks it is 3, 4 or 5. Positive delays are at most 1.3. Gate endpoints are in [0,2.5] and tag widths in [0.15,0.4]. Conditioning denominators are positive. Delayed settings avoid discontinuities of the appropriate time density.
+An ideal gated integrator measures F=Q(v)−Q(u) at `spectrum.window=[u,v]` on the laboratory clock. A group of histories can give exactly the same charge when the same carriers cross the entire gate. Other histories give a continuous set of charges. A line and a continuous density therefore use different units.
 
-For a check, use depth 0.4, both speeds 1, both dead spaces zero, ionization [2,2], feedback zero, gain three, `last_delays=[0.3,0.4]`, `tag=null` and `read=[0.25,0.7]`. The last electron arrives at 0.9 and the last hole at 0.8. For height pairs (2,1), (1,2) and (1,1) the respective normalized charge readings are 0.6, 2/3 and 19/30. The matched fraction is 1/3 for each height pair. For (2,1), a primary hole impact occurs at time 0.15 and position 0.25, followed by an impact of its new electron at time 0.35 and position 0.45. For (1,2), the first impact is a primary-electron impact at time 0.2 and position 0.6. The independent primary impacts give (1,1). These histories have equal joint time density under the stated conditions.
+With `observable="spectrum"` return the following intensity **within the base ensemble**. The target z is `spectrum.charge`.
+
+- For `spectrum.part="line"`, return the probability that F=z exactly. The supplied target identifies a discrete spectral line. Values rounded to 12 or more decimal places identify the same line.
+- For `spectrum.part="density"`, return the probability per unit induced charge at z. This is the limit of Pr(z−h/2<F<z+h/2)/h as h decreases to zero. Density targets are regular interior points away from spectral lines, jumps and support edges. A density can exceed one.
+
+With `observable="waveform"`, use the chosen spectral component to select shots, then return the mean of [Q(B)−Q(A)]/G in those shots, with `read=[A,B]`. For a line, use only its probability mass. For a density, take the conditional mean in the shrinking interval about z. Both integrators measure the same avalanche, including when the two time gates overlap. Apply the terminal clock selection before taking the spectral limit. All conditioning denominators are positive. The base ensemble, line probabilities and densities are independent of the choice of read gate.
+
+For graded shots depth is in [0.25,0.65], electron speed in [0.8,1.35] and hole speed in [0.65,1.2]. Ionization coefficients are in [1.5,3], dead distances in [0.035,0.12] and feedback in [0.35,1.2]. For one delayed contact the gain is 3 or 4. For two it is 4 or 5. Times are in [0,2.5] and positive delays avoid discontinuities of the contact time density. The worked example also allows zero dead space and clamped bias.
+
+## Worked shot
+
+Use depth 0.4, both speeds 1, ionization [2,2], dead spaces [0,0], feedback zero, G=3, delays [0,0.6], any heights and `tag=null`. Put the spectral gate at [0,0.15] and the read gate at [0,0.25]. The electron clock is prompt, so both impacts were caused by electrons. The hole clock fixes the second impact at time 0.3. The first impact time t is uniform on (0,0.3): both eligible electron parents for the second impact have the same constant rate, and the total integrated hazard is 2aG for each atom-selected history at this gain. The early charge is F=0.30+2 max(0,0.15−t).
+
+There is a line at 0.30 with probability 1/2. Its conditioned read is 17/90. At charge 0.45 the continuous density is 5/3 per unit charge and the conditioned read is 17/60. These are four distinct outputs of this shot.
 
 ## Interface and scoring
 
-Implement `Model` in `/app/model.py`. `fit(records)` takes calibration dictionaries with `input` and `value`, sets `activity` to a and returns self. `predict(inputs)` returns a finite one-dimensional real NumPy array in order, including an empty array for an empty list. The supplied starter samples five positions for each unconstrained impact, weights selected parent hazards, and omits the probability of surviving without other impacts. `current.py` supplies the calibration and the displacement charge of given pairs.
+Implement `Model` in `/app/model.py`. `fit(records)` receives dictionaries with `input` and `value`, sets `activity` and returns self. `predict(inputs)` returns a finite one-dimensional real NumPy array in order, including an empty array for an empty list.
 
-The ten calibration records require maximum absolute error below 0.00002. The worked checks and each of three held-out groups require maximum absolute error below 0.004. Each group contains eight readings. They cover waveforms with one delayed electrode, waveforms with both electrodes delayed, and coincidence fractions of the two terminal packet heights.
+The starter uses an amplifier with Gaussian noise of fixed width 0.04. It approximates a line by the acceptance of that filter, a density by the normalized filter response and the gated read by the mean among accepted shots. The public `transport.packet_law` integrates the gain and both clock selections and returns two arrays indexed by (electron height, hole height): unnormalized mass and its read-charge moment. It accepts an optional Gaussian `tag=[u,v,z,s]` with acceptance exp(−((Q(v)−Q(u)−z)/s)²/2). The base transport includes the shared feedback and dead flights.
+
+Ten calibration readings require maximum absolute error below 0.00002. The public example and three hidden groups use absolute error below 0.004 for line probabilities and conditioned read charges, and below 0.01 for charge densities. Each group has eight readings at geometries separate from the worked example.
