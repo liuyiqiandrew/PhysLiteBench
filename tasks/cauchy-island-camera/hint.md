@@ -1,0 +1,1 @@
+At the final jump a donor at z supplies intensity D/[π(y−z)²] per unit landing coordinate and physical time. Follow the residence and gate on the same path as the two cameras. A first exit from one island can inject the particle inside the other island.

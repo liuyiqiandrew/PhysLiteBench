@@ -1,0 +1,1 @@
+Fit the free-transport diffusivity and predict the landing density, donor-camera acceptance and gated fraction of the Cauchy transport experiment in `/app/README.md`. Implement `Model` in `/app/model.py`.
