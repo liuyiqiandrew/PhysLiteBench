@@ -8,10 +8,12 @@ import sys
 
 import numpy as np
 from scipy.linalg import expm
+from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import expm_multiply
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT/'tasks/photon-transfer-fringe'
-sys.path[:0] = [str(TASK/'solution'),str(TASK/'environment')]
+sys.path[:0] = [str(TASK/'solution'),str(TASK/'environment'),str(TASK/'tests')]
 from optics import calibration_signal
 
 ref = runpy.run_path(str(TASK/'tests/reference.py'))
@@ -73,6 +75,13 @@ def preparations():
             q['lambda'] = draw(.75,3.13)*(-1 if i%2 else 1)
             qs.append(q)
         groups[family] = qs
+    for name,seed in [('finite_pulses','ordered_clicks'),('finite_eraser','subtraction_port')]:
+        rows = []
+        for i,original in enumerate(groups[seed]):
+            q = dict(original)
+            q['pulse'] = [draw(.57,1.07),draw(.65,1.17)]
+            rows.append(q)
+        groups[name] = rows
     return calibration,groups
 
 
@@ -126,6 +135,35 @@ def fock_reference(q, limit):
     return (np.exp(-1j*q['phase'])*numerator).real/denominator, denominator, mass
 
 
+def trigger_fock(occupations, setting, duration, limit):
+    """Project the original system plus trigger unitary between |0> and |1>."""
+    n = len(occupations[0])
+    basis = [tuple(row)+(trigger,) for row in occupations for trigger in range(limit+1-sum(row))]
+    index = {occ:i for i,occ in enumerate(basis)}
+    def annihilator(mode):
+        rows,cols,values = [],[],[]
+        for j,occ in enumerate(basis):
+            if occ[mode]:
+                lowered=list(occ)
+                lowered[mode]-=1
+                rows.append(index[tuple(lowered)])
+                cols.append(j)
+                values.append(np.sqrt(occ[mode]))
+        return csr_matrix((values,(rows,cols)),shape=(len(basis),len(basis)))
+    i,j,t,p,b,f=setting
+    mode=np.cos(t)*annihilator(i)+np.exp(1j*p)*np.sin(t)*annihilator(j)
+    L=np.cos(b)*mode+np.exp(1j*f)*np.sin(b)*mode.conj().T
+    half=annihilator(n).conj().T@L
+    initial=np.zeros((len(basis),len(occupations)))
+    initial[[index[tuple(row)+(0,)] for row in occupations],np.arange(len(occupations))]=1
+    output=expm_multiply(-1j*duration*(half+half.conj().T),initial,traceA=0)
+    projected=np.zeros((len(occupations),len(occupations)),complex)
+    for i,occ in enumerate(occupations):
+        if sum(occ)<limit:
+            projected[i]=output[index[tuple(occ)+(1,)]]
+    return projected
+
+
 def switch_fock(q, limit):
     # Full density matrix across different total photon numbers. The weak
     # herald can connect them by adding or subtracting a photon.
@@ -160,10 +198,14 @@ def switch_fock(q, limit):
     rho = prep @ rho @ prep.conj().T
     count = occupations[:,q['bank']].sum(axis=1)
     ctrl = q['switch']
-    ops = []
-    for i,j,t,p,b,f in ctrl['clicks']:
-        op = np.cos(t)*lower[i] + np.exp(1j*p)*np.sin(t)*lower[j]
-        ops.append(np.cos(b)*op + np.exp(1j*f)*np.sin(b)*op.conj().T)
+    if 'pulse' in q:
+        ops = [trigger_fock(occupations,settings,eps,limit)
+               for settings,eps in zip(ctrl['clicks'],q['pulse'])]
+    else:
+        ops = []
+        for i,j,t,p,b,f in ctrl['clicks']:
+            op = np.cos(t)*lower[i] + np.exp(1j*p)*np.sin(t)*lower[j]
+            ops.append(np.cos(b)*op + np.exp(1j*f)*np.sin(b)*op.conj().T)
     middle = passive(ctrl['middle'])
     first = ops[1] @ middle @ ops[0]
     second = ops[0] @ middle @ ops[1]
@@ -200,7 +242,7 @@ def main(generate):
         rows = []
         for i,q in enumerate(qs):
             y, success = ref['reference'](q)
-            if i in (3,4):
+            if i in (3,4) and 'pulse' not in q:
                 finer,_ = ref['reference'](q,points=192)
                 convergence=max(convergence,abs(finer-y))
             retention = min(retention,success)
@@ -213,10 +255,12 @@ def main(generate):
     write_or_check(stored,results,generate)
     print('max errors',errors,'minimum retention',retention,'quadrature difference',convergence)
     assert max(errors['oracle'].values()) < 1e-6
-    assert min(errors['starter'].values())>.001
-    assert max(errors['shortcut'][k] for k in ('mixing','squeezed','even_gate','odd_gate'))<1e-6
-    assert min(errors['shortcut'][k] for k in ('ordered_clicks','erased_order','subtraction_port'))>.001
-    assert retention >= .02 and convergence < 1e-7
+    new = ('finite_pulses','finite_eraser')
+    assert max(v for k,v in errors['starter'].items() if k not in new)<1e-6
+    assert min(errors['starter'][g] for g in new)>.001
+    assert max(v for k,v in errors['shortcut'].items() if k not in new)<1e-6
+    assert min(errors['shortcut'][k] for k in new)>.001
+    assert retention >= .0005 and convergence < 1e-7
     # A swap moves all photons from the pumped rail. Its vacuum input emits pairs.
     sample = dict(source=[[0,.7,0],[0,0,0]],prep=[],before=[[0,1,np.pi/2,0]],after=[],
                   bank=[0],gate=None,phase=0)
@@ -251,6 +295,18 @@ def main(generate):
     commutator['lambda'] = np.pi
     assert abs(ref['reference'](commutator)[0]-.5)<1e-12
     assert abs(models['oracle'].reading(commutator)-.5)<1e-12
+
+    commutator['pulse']=[.5,.65]
+    finite,p=ref['reference'](commutator)
+    assert abs(finite-.8922324303158284)<2e-7 and abs(p-.010848247529066407)<2e-9
+    assert abs(models['oracle'].reading(commutator)-.8922324303158284)<1e-12
+    for name in ('finite_pulses','finite_eraser'):
+        probe = dict(groups[name][0],source=[[.08,.18,.7],[.1,.22,-.6]],pulse=[.57,.69])
+        target,rate=ref['reference'](probe)
+        for cut in (14,18):
+            number,p=switch_fock(probe,cut)
+            print('finite number-state check',name,cut,abs(number-target),abs(p-rate))
+            assert abs(number-target)<(1e-4 if cut==14 else 6e-6) and abs(p-rate)<1e-6
 
 
 if __name__=='__main__':

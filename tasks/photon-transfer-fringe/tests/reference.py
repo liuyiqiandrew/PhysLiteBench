@@ -16,6 +16,9 @@ def interferometer(n, rows):
 
 
 def reference(q, points=112):
+    if 'pulse' in q:
+        from pulse_reference import finite_reference
+        return finite_reference(q, points)
     n = len(q['source'])
     identity = np.eye(n)
     to_alpha = np.hstack((identity,1j*identity))/np.sqrt(2)

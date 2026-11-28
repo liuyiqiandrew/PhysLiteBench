@@ -1,6 +1,6 @@
-"""An uncontrolled record distinguishes the two orders of the heralded operations."""
-from gaussian import Survey
+"""Finite trigger dynamics with an unobserved record of the two orders."""
+from pulse import PulseSurvey
 
 
-class Model(Survey):
-    coherent = False
+class Model(PulseSurvey):
+    pulse_coherence = False

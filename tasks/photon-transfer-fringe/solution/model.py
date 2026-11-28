@@ -1,5 +1,5 @@
-from gaussian import Survey
+from pulse import PulseSurvey
 
 
-class Model(Survey):
+class Model(PulseSurvey):
     pass

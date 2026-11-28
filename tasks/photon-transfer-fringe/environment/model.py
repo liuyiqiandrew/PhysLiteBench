@@ -1,5 +1,5 @@
-from optics import IndependentRays
+from gaussian import Survey
 
 
-class Model(IndependentRays):
-    """Approximate thermal rays. Replace reading() to model the measured transfer."""
+class Model(Survey):
+    """Coherent optical model in the weak-trigger limit for both switches."""
