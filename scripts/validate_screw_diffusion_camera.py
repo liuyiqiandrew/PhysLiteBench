@@ -25,6 +25,8 @@ ref=load("ref",TASK/"tests/reference.py")
 starter=load("starter",TASK/"environment/model.py")
 baseline=load("baseline",ROOT/"scripts/screw_diffusion_camera_baseline.py")
 from angular import fringe
+from rotor import loop
+loops=load("loops",TASK/"tests/loop_reference.py")
 
 
 def experiments():
@@ -64,6 +66,16 @@ def experiments():
                 q["pair"] = [i%3,(i+1+(i%2))%3]
             qs.append(q)
         groups[family]=qs
+    frames = []
+    for i in range(6):
+        k=np.round(rng.uniform(.65,1.85,2),4)
+        k[1]*=(-1)**i
+        frames.append(dict(mode="fringe",times=np.round(rng.uniform(1.04,1.38,2),4).tolist(),
+                           wave=k.tolist(),tag=axis(rng.uniform(.55,1.15)),
+                           gates=[axis(.91),axis(.96)],hand=(-1)**(i//2),
+                           phase=float([0.,.88,-.4,.35,1.52,-.68][i])))
+    for sign in ("plus","minus","contrast"):
+        groups["return_"+sign]=[dict(q,loop=sign) for q in frames]
     return groups
 
 
@@ -81,7 +93,7 @@ def validate(generate):
     groups=experiments()
     truth={}
     for family, qs in groups.items():
-        truth[family]=[dict(input=q,value=round(ref.measurement(q),8)) for q in qs]
+        truth[family]=[dict(input=q,value=round(loops.loop_reference(q,rho) if "loop" in q else ref.measurement(q),8)) for q in qs]
     path=TASK/"tests/data/hidden.json"
     if generate:
         path.write_text(json.dumps(truth,separators=(",",":"))+"\n")
@@ -98,11 +110,18 @@ def validate(generate):
         print(module.__name__,model.mobility,errors)
         if module is oracle:
             assert max(errors.values()) < .00005
+        elif module is baseline:
+            assert max(errors[k] for k in groups if not k.startswith("return_")) < .00005
+            assert min(errors[k] for k in groups if k.startswith("return_")) > .003
         else:
             assert max(errors[k] for k in ("origin","tagged","quadrature","reversal")) < .00005
-            assert min(errors[k] for k in ("current","phase_lock")) > .003
+            assert min(errors[k] for k in ("current","phase_lock","return_plus","return_minus","return_contrast")) > .003
     for qs in groups.values():
         q=qs[0]
+        if "loop" in q:
+            fine=loops.loop_reference(q,rho,order=9,step=.001)
+            assert abs(fine-loop(q,rho)) < .00005
+            continue
         fine=ref.measurement(q,order=11,step=.0015)
         assert abs(ref.measurement(q)-fine)<5e-5
         assert abs(fringe(q,rho)-fringe(q,rho,order=9))<5e-5
@@ -120,6 +139,35 @@ def validate(generate):
     for q in (lock,groups["phase_lock"][0]):
         coarse,fine=[ref.finite_motor(q,eps,rho) for eps in (.025,.0125)]
         assert abs(2*fine-coarse-fringe(q,rho))<.0002
+
+    blank=dict(mode="fringe",hand=1,times=[1.1,1.2],wave=[0.,0.],gates=[[0.,0.,0.]]*2,
+               tag=[0.,0.,0.],phase=0.,loop="contrast")
+    def heat_sum(half):
+        result=0.
+        for j in np.arange(0,10)+half:
+            m=np.arange(-j,j+1.)
+            raise_m=np.diag(np.sqrt((j-m[:-1])*(j+m[:-1]+1.)),-1)
+            # Asymmetric top in its principal axes.
+            jx=(raise_m+raise_m.T)/2
+            jy=-.5j*(raise_m-raise_m.T)
+            levels=np.linalg.eigvalsh(.55*(jx@jx)+.82*(jy@jy)+1.12*np.diag(m*m))
+            result+=(2*j+1)*np.exp(-rho*sum(blank["times"])*levels).sum()
+        return result
+    control=heat_sum(.5)/heat_sum(0.)
+    assert abs(loop(blank,rho)-control)<1e-10 and abs(control-.85249)<5e-6
+    check=dict(mode="fringe",hand=-1,times=[1.07,1.18],wave=[1.24,-1.35],tag=[.61,.44,-.52],
+               gates=[[.68,.27,-.39],[.53,-.64,.33]],phase=.41)
+    for label,target in [("plus",.09298),("minus",.01280)]:
+        q=dict(check,loop=label)
+        assert abs(loop(q,rho)-target)<5e-6 and abs(loops.loop_reference(q,rho)-target)<5e-6
+    closure=dict(check,loop="minus",wave=[1.24,1.24])
+    assert abs(loop(closure,rho)-loop(dict(closure,tag=[0.,0.,0.]),rho))<2e-6
+
+    edge=dict(mode="fringe",loop="minus",hand=1,times=[1.4,1.4],wave=[2.4,2.4],
+              tag=[-.2693,1.16962,-.49944],gates=[[.6063,-.78738,.11144],[-.20612,-.90504,-.37202]],
+              phase=-2.094)
+    exact=loops.loop_reference(dict(edge,tag=[0.,0.,0.]),.7)
+    assert abs(loop(edge,.7)-exact)<.0002
 
 
 if __name__=="__main__":
