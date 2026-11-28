@@ -17,4 +17,18 @@ On particles accepted by both gates, return the mean of cos[k₁(z₁−z₀)+k�
 
 With the calibrated solvent, hand=+1, times=[0.45,0.65], wave=[1.5,−1.6], tag=[0.65,−0.4,0.5], gates=[[0.93,0,0],[0,0.88,0]] and phase=π/2, the measured fringe is approximately −0.05087.
 
-Implement `Model.fit(records)` returning self and storing the fitted ν in `self.mobility`; every calibration record contains an `input` and `value`. `Model.predict(inputs)` returns a finite real NumPy vector of shape (len(inputs),) in input order, including empty input. The maximum absolute error must be below 0.000002 on calibration readings and below 0.003 on each fresh reading. The starter uses an isotropic short-time translational diffusivity for the tag; it provides a working rotational fit.
+Implement `Model.fit(records)` returning self and storing the fitted ν in `self.mobility`; every calibration record contains an `input` and `value`. `Model.predict(inputs)` returns a finite real NumPy vector of shape (len(inputs),) in input order, including empty input. The maximum absolute error must be below 0.000002 on calibration readings and below 0.003 on each fresh reading. The starter fits rotational calibration and propagates the solvent motion.
+
+## Rapidly cycling body motor
+
+Some fringe preparations also apply a three-state motor. All six solvent motions still act. Let ε>0 be the motor's dimensionless microscopic time-scale parameter. In motor state j=0,1,2, put c=cos(2πj/3), s=sin(2πj/3). In addition to the solvent motion the motor imposes the following body-fixed velocities:
+
+    ω = (1.5√2 ν/ε) [c (1,0,0) + s (0,1,0)]
+    v = (1.5√2 ν/ε) hand [c (0.3,1.1,−0.6) + s (−0.8,0.2,1.2)].
+
+These contribute dR/dt=R[ω]× and dx/dt=R v at the material origin. Independently of the solvent, the motor jumps from j to j+1 mod 3 at rate ν(1+B)/ε², and from j to j−1 mod 3 at rate ν(1−B)/ε². The real setting B=`motor.bias` is in [−0.8,0.8]. A jump changes the velocities instantaneously and leaves the pose continuous. Each shot starts with the same uniform orientation distribution as before.
+
+* A motor with `flux=[f₁,f₂]` starts in a uniformly random state. In each time interval i, a counter adds one on every forward motor jump and subtracts one on every backward motor jump. Both f values lie in [−3,3]. At fixed ε keep shots only if the signed count in each interval equals the nearest integer to ν tᵢ fᵢ/ε² (round ties upwards). The two optical gates still select shots. Report the limit as ε→0 of the conditional fringe.
+* In the synchronized protocol `pair=[p,r]` is a top-level field giving two distinct state indices. The motor object supplies only its bias. Start one ensemble in state p and another in state r. Count every motor jump history in each ensemble. Write Fⱼ(ε) for the usual fringe on shots passing both optical gates when the motor starts in j. Report the limit of [Fₚ(ε)−Fᵣ(ε)]/ε as ε→0. The two conditional averages are formed separately before taking their difference.
+
+For a synchronized example use times=[0.27,0.56], wave=[0.9,1.4], tag=[0.7,−0.4,0.5], gates=[[0.34,−0.81,0.3],[0.38,−0.7,0.53]], hand=1, phase=π/2, motor.bias=0.75, and pair=[0,1]. At the calibrated mobility the reading is approximately −0.10982. The same 0.003 absolute error limit applies to both motor protocols. The provided passive solver covers the solvent-only experiments.

@@ -3,6 +3,6 @@ from angular import fringe
 
 
 class Model(Camera):
-    """Keep both diffusion marginals but give rotation its own independent noise."""
-    def fringe(self,q):
-        return fringe(q,self.mobility,independent=True)
+    def fringe(self, q):
+        # Approximate the centered motor by noise matched to its symmetric diffusion.
+        return fringe(q,self.mobility,diffusion_only=True)

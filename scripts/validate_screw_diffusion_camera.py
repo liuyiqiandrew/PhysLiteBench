@@ -49,6 +49,21 @@ def experiments():
                 q["phase"]=1.57079633
             qs.append(q)
         groups[family]=qs
+    for family in ("current","phase_lock"):
+        qs = []
+        for i in range(8):
+            q = dict(mode="fringe", times=np.round(rng.uniform(.18,1.,2),4).tolist(),
+                     wave=np.round(rng.uniform(-2.,2.,2),4).tolist(), hand=(-1)**(i//2),
+                     tag=axis(rng.uniform(.35,1.2)), gates=[axis(.93),axis(.88)],
+                     phase=float([0.,np.pi/2,-.4,np.pi/2][i%4]))
+            q["motor"] = {"bias":round(float(rng.uniform(-.78,.78)),3)}
+            if family=="current":
+                q["motor"]["flux"] = [round(float(rng.uniform(1.5,2.95))*(-1)**i,3),
+                                      round(float(rng.uniform(1.1,2.9))*(-1)**(i//2),3)]
+            else:
+                q["pair"] = [i%3,(i+1+(i%2))%3]
+            qs.append(q)
+        groups[family]=qs
     return groups
 
 
@@ -81,7 +96,11 @@ def validate(generate):
         errors={name:float(max(abs(model.predict(qs)-[r["value"] for r in truth[name]])))
                 for name,qs in groups.items()}
         print(module.__name__,model.mobility,errors)
-        assert min(errors.values())>0.003 if module is not oracle else max(errors.values())<.00005
+        if module is oracle:
+            assert max(errors.values()) < .00005
+        else:
+            assert max(errors[k] for k in ("origin","tagged","quadrature","reversal")) < .00005
+            assert min(errors[k] for k in ("current","phase_lock")) > .003
     for qs in groups.values():
         q=qs[0]
         fine=ref.measurement(q,order=11,step=.0015)
@@ -89,10 +108,18 @@ def validate(generate):
         assert abs(fringe(q,rho)-fringe(q,rho,order=9))<5e-5
         mirror=dict(q,tag=(-np.asarray(q["tag"])).tolist(),hand=-q["hand"],phase=-q["phase"])
         assert abs(fringe(q,rho)-fringe(mirror,rho))<1e-10
-        assert abs(fringe(dict(q,wave=[0.,0.]),rho)-np.cos(q["phase"]))<1e-11
+        zero = 0. if "pair" in q else np.cos(q["phase"])
+        assert abs(fringe(dict(q,wave=[0.,0.]),rho)-zero)<1e-11
     example=dict(mode="fringe",hand=1,times=[.45,.65],wave=[1.5,-1.6],
                  tag=[.65,-.4,.5],gates=[[.93,0,0],[0,.88,0]],phase=np.pi/2)
     assert round(ref.measurement(example),5)==round(fringe(example,rho),5)==-.05087
+    lock = dict(mode="fringe", times=[.27,.56], wave=[.9,1.4], hand=1,
+                tag=[.7,-.4,.5], gates=[[.34,-.81,.3],[.38,-.7,.53]],
+                phase=np.pi/2, motor={"bias":.75}, pair=[0,1])
+    assert abs(fringe(lock,rho)+.10982)<4e-6
+    for q in (lock,groups["phase_lock"][0]):
+        coarse,fine=[ref.finite_motor(q,eps,rho) for eps in (.025,.0125)]
+        assert abs(2*fine-coarse-fringe(q,rho))<.0002
 
 
 if __name__=="__main__":
