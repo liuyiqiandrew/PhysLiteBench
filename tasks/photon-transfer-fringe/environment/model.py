@@ -1,82 +1,76 @@
-"""Linear spin-wave storage, with the waveguide atom projected onto its ground doublet at handoff."""
-from itertools import combinations_with_replacement, permutations
+"""Delay storing one rectangular pulse mode per drive subinterval and polarization."""
+from itertools import combinations_with_replacement
 import numpy as np
-from apparatus import mixer, pairs, spin
-from optics import Calibrated, calibration_signal
+from apparatus import pairs, mixer, spin
 from single_pass import transfer
+from optics import Calibrated, calibration_signal
 
 
-def linear_return(q):
-    first, second, store = q["first"], q["second"], q["store"]
-    dt, dt2 = np.sqrt(first["durations"]), np.sqrt(second["durations"])
-    incoming = [
-        f[:, None] * p
-        for f, p in zip(
-            pairs(first["input_modes"]) / dt, mixer(first["input_rotation"]).T
-        )
+def projected(q):
+    length = len(q["detuning"][0])
+    bins = 2 * length
+    dt = q["duration"] / length
+    durations = [dt] * bins
+    d1 = np.ravel(q["detuning"])
+    d2 = np.ravel(q["return_detuning"])
+    root = np.sqrt(dt)
+    src = [
+        f.reshape(bins, 1) * r / root
+        for f, r in zip(pairs(q["input_modes"]), mixer(q["input_rotation"]).T)
     ]
-    write = (pairs(first["write_mode"]).conj() / dt)[:, None] * np.eye(2)[:, None, :]
-    read = (pairs(second["read_mode"]) / dt2)[:, None] * np.eye(2)[:, None, :]
-    out = (pairs(second["output_mode"]).conj() / dt2)[:, None] * mixer(
-        second["output_rotation"]
-    )[:, None, :]
-    m = store["cells"]
-    pos = np.arange(m) - (m - 1) / 2
-    k = mixer(store["rotation"])
+    det = (
+        pairs(q["output_mode"]).conj().reshape(bins, 1)
+        / root
+        * mixer(q["output_rotation"])[:, None, :]
+    )
+    T = pairs(q["temporal"])
+    write = []
+    read = []
     for b in range(2):
-        for a in range(2):
-            form = np.mean(
-                np.exp(1j * pos * (store["write_k"][a] - store["read_k"][b]))
-            )
-            k[b, a] *= (
-                -np.sin(np.sqrt(m) * store["write"][a])
-                * np.sin(np.sqrt(m) * store["read"][b])
-                * np.exp(1j * store["phase"])
-                * form
-            )
-    initial = np.r_[spin(q["atom"]), 0j]
-    rot = mixer(q["control"][:2])
-    basis = list(combinations_with_replacement(range(2), 2))
-    replay = []
-
-    def norm(i):
-        return np.sqrt(2.0) if i[0] == i[1] else 1.0
-
-    for a in basis:
-        first_op = transfer(
-            q["rates"],
-            first["durations"],
-            first["detuning"],
-            incoming,
-            [write[i] for i in a],
-        )
-        replay.append(rot @ (first_op @ initial)[:2] / norm(a))
-    result = np.zeros((3, 2), complex)
-    for b in basis:
-        joint = np.zeros(2, complex)
-        for a, vec in zip(basis, replay):
-            permanent = sum(k[b[0], c] * k[b[1], d] for c, d in permutations(a))
-            joint += vec * permanent / (norm(b) * norm(a))
-        for j, end in enumerate(basis):
-            op = transfer(
-                q["rates"],
-                second["durations"],
-                second["detuning"],
-                [read[i] for i in b],
-                [out[i] for i in end],
-            )
-            result[j] += (op[:2, :2] @ joint) / (norm(end) * norm(b))
+        theta, alpha, phi = q["arms"][b]
+        W = np.exp(1j * phi) * mixer((theta, alpha))
+        for clock in range(length):
+            pos = length - 1 - clock if q["input_reverse"][b] else clock
+            for color in range(2):
+                old = np.zeros((bins, 2), complex)
+                new = np.zeros_like(old)
+                old[b * length + clock, color] = 1 / root
+                for k in range(2):
+                    j = length - 1 - pos if q["output_reverse"][k] else pos
+                    new[k * length + j] = T[k, b] * W[:, color] / root
+                write.append(old)
+                read.append(new)
+    init = np.r_[spin(q["atom"]), 0j]
+    kick = np.zeros((3, 3), complex)
+    kick[:2, :2] = mixer(q["control"][:2])
+    gap, d = q["gap"]
+    kick[2, 2] = np.exp(1j * q["control"][2] - (sum(q["rates"]) / 2 + 1j * d) * gap)
+    dest = list(combinations_with_replacement(range(2), 2))
+    final = np.zeros((3, 3), complex)
+    for count in (1, 2):
+        for labels in combinations_with_replacement(range(len(write)), count):
+            mat = transfer(q["rates"], durations, d1, src, [write[i] for i in labels])
+            factorial = 2 if len(labels) == 2 and labels[0] == labels[1] else 1
+            v = (kick @ mat @ init) / factorial
+            for j, end in enumerate(dest):
+                op = transfer(
+                    q["rates"],
+                    durations,
+                    d2,
+                    [read[i] for i in labels],
+                    [det[i] for i in end],
+                )
+                final[j] += (op @ v) / (np.sqrt(2) if end[0] == end[1] else 1)
+    v = final[:, :2]
     prob = (
-        (abs(result) ** 2).sum(axis=1)
+        (abs(v) ** 2).sum(axis=1)
         if q["analyzer"] is None
-        else abs(result @ spin(q["analyzer"]).conj()) ** 2
+        else abs(v @ spin(q["analyzer"]).conj()) ** 2
     )
     fringe = prob @ np.cos(q["lambda"] * np.array([1, 0, -1]) - q["phase"])
-    if q["conditional"] and prob.sum() > 0:
-        fringe /= prob.sum()
-    return float(fringe)
+    return float(fringe / prob.sum() if q["conditional"] and prob.sum() else fringe)
 
 
 class Model(Calibrated):
     def reading(self, q):
-        return linear_return(q) if "store" in q else calibration_signal(q)
+        return projected(q) if "temporal" in q else calibration_signal(q)

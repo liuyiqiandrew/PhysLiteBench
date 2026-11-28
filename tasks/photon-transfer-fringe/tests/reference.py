@@ -1,184 +1,145 @@
-"""Direct time-ordered scattering histories and individually labelled storage cells."""
-from collections import Counter
-from itertools import product, permutations, combinations, combinations_with_replacement
-from math import factorial
+"""Direct few-photon wavefunction on fresh, short oscillator packets; the same packets return."""
+from itertools import combinations_with_replacement
 import numpy as np
 from scipy.linalg import expm
 
 
-def R(pair):
-    t, p = pair
+def rotation(p):
+    t, a = p
     return np.array(
         [
-            [np.cos(t), -np.exp(-1j * p) * np.sin(t)],
-            [np.exp(1j * p) * np.sin(t), np.cos(t)],
+            [np.cos(t), -np.sin(t) * np.exp(-1j * a)],
+            [np.sin(t) * np.exp(1j * a), np.cos(t)],
         ]
     )
 
 
-def wave(row, dt):
-    return np.array([complex(*z) for z in row]) / np.sqrt(dt)
+def z(vals):
+    return np.array([complex(*x) for x in vals])
 
 
-def scatter(rates, dt, delta, fin, hout):
-    na, ne = len(fin), len(hout)
-    event = {}
-    for i, f in enumerate(fin):
-        op = np.zeros((len(dt), 3, 3), complex)
-        op[:, 2, :2] = -np.sqrt(rates) * f
-        event[i] = op
-    for j, h in enumerate(hout):
-        op = np.zeros((len(dt), 3, 3), complex)
-        op[:, :2, 2] = np.sqrt(rates) * h
-        event[na + j] = op
-
-    def ordered(ids):
-        blocks = len(ids) + 1
-        v = np.zeros((blocks, 3, 3), complex)
-        v[0] = np.eye(3)
-        for j, width in enumerate(dt):
-            D = np.diag([0, 0, -sum(rates) / 2 - 1j * delta[j]])
-            op = np.kron(np.eye(blocks), D)
-            for k, key in enumerate(ids):
-                op[3 * k + 3 : 3 * k + 6, 3 * k : 3 * k + 3] = event[key][j]
-            v = (expm(width * op) @ v.reshape(blocks * 3, 3)).reshape(blocks, 3, 3)
-        return v[-1]
-
-    matrix = np.zeros((3, 3), complex)
-    for direct in range(min(na, ne) + 1):
-        for src in combinations(range(na), direct):
-            for dest in permutations(range(ne), direct):
-                bypass = 1
-                for i, j in zip(src, dest):
-                    bypass *= np.einsum("ij,ij,i->", fin[i], hout[j], dt)
-                remain = [i for i in range(na) if i not in src] + [
-                    na + j for j in range(ne) if j not in dest
-                ]
-                for word in permutations(remain):
-                    if any((i < na) == (j < na) for i, j in zip(word, word[1:])):
-                        continue
-                    matrix += bypass * ordered(word)
-    return matrix
+def collision(dt, rate, det, number):
+    basis = []
+    for atom in range(3):
+        field = number - (atom == 2)
+        basis.extend((atom, k, field - k) for k in range(field + 1))
+    gen = np.zeros((len(basis), len(basis)), complex)
+    for i, (atom, n0, n1) in enumerate(basis):
+        if atom != 2:
+            continue
+        gen[i, i] = -1j * det * dt
+        for c, k in enumerate((n0, n1)):
+            j = basis.index((c, n0 + (c == 0), n1 + (c == 1)))
+            amp = np.sqrt(dt * rate[c] * (k + 1))
+            gen[j, i] = amp
+            gen[i, j] = -amp
+    return expm(gen), basis
 
 
-def stored_patterns(cells, colors, angles, momenta):
-    # Entries 0,1,2 denote an empty cell, a 0 spin excitation or a 1 spin excitation.
-    n0, n1 = colors.count(0), colors.count(1)
-    states = [
-        u
-        for u in product(range(3), repeat=cells)
-        if u.count(1) <= n0 and u.count(2) <= n1
-    ]
-    H = np.zeros((len(states), len(states)), complex)
-    for i, u in enumerate(states):
-        for cell, level in enumerate(u):
-            if level:
-                continue
-            for c, n in enumerate((n0, n1)):
-                photons = n - u.count(c + 1)
-                if photons:
-                    v = list(u)
-                    v[cell] = c + 1
-                    j = states.index(tuple(v))
-                    H[j, i] = (
-                        angles[c]
-                        * np.sqrt(photons)
-                        * np.exp(1j * momenta[c] * (cell - (cells - 1) / 2))
-                    )
-                    H[i, j] = H[j, i].conjugate()
-    v = expm(-1j * H)[:, states.index((0,) * cells)]
-    return {u: z for u, z in zip(states, v) if cells - u.count(0) == len(colors)}
+def reading(q, m=16):
+    n = len(q["detuning"][0])
+    t = 2 * m * n
+    channels = 2 * t
+    widths = [q["duration"] / n] * (2 * n)
+    root2 = np.sqrt(2)
+    inc = []
+    for i, p in enumerate(q["input_modes"]):
+        swing = np.repeat(np.concatenate([z(row) for row in p]), m) / np.sqrt(m)
+        inc.append((swing[:, None] * rotation(q["input_rotation"])[:, i]).ravel())
+    pair = (np.outer(inc[0], inc[1]) + np.outer(inc[1], inc[0])) / root2
+    G = rotation(q["atom"])[:, 0, None, None] * pair[None]
+    E = np.zeros(channels, complex)
 
+    def pass_atom(detun, dt):
+        nonlocal G, E
+        for b, (det, width) in enumerate(zip(detun, dt)):
+            U1, one = collision(width / m, q["rates"], det, 1)
+            U2, two = collision(width / m, q["rates"], det, 2)
+            for step in range(b * m, (b + 1) * m):
+                i, j = 2 * step, 2 * step + 1
+                outside = np.r_[0:i, j + 1 : channels]
+                v1 = np.array(
+                    [
+                        E[outside] if a == 2 else root2 * G[a, i if k else j, outside]
+                        for a, k, l in one
+                    ]
+                )
+                v2 = np.array(
+                    [
+                        E[i if k else j]
+                        if a == 2
+                        else (
+                            G[a, i, i]
+                            if k == 2
+                            else G[a, j, j]
+                            if l == 2
+                            else root2 * G[a, i, j]
+                        )
+                        for a, k, l in two
+                    ]
+                )
+                v1 = U1 @ v1
+                v2 = U2 @ v2
+                for value, (a, k, l) in zip(v1, one):
+                    if a == 2:
+                        E[outside] = value
+                    else:
+                        c = i if k else j
+                        G[a, c, outside] = G[a, outside, c] = value / root2
+                for value, (a, k, l) in zip(v2, two):
+                    if a == 2:
+                        E[i if k else j] = value
+                    elif k == 2:
+                        G[a, i, i] = value
+                    elif l == 2:
+                        G[a, j, j] = value
+                    else:
+                        G[a, i, j] = G[a, j, i] = value / root2
 
-def memory(n, settings):
-    occupations = list(combinations_with_replacement(range(2), n))
-    rot = R(settings["rotation"])
-    mat = np.zeros((len(occupations), len(occupations)), complex)
-    for i, src in enumerate(occupations):
-        first = stored_patterns(
-            settings["cells"], src, settings["write"], settings["write_k"]
-        )
-        for j, out in enumerate(occupations):
-            second = stored_patterns(
-                settings["cells"],
-                out,
-                settings["read"],
-                [-k for k in settings["read_k"]],
+    pass_atom(np.ravel(q["detuning"]), widths)
+    # Act directly on the outgoing travelling field, keeping its atomic correlations.
+    span = n * m
+
+    def orientation(flags):
+        a = np.arange(t).reshape(2, span).copy()
+        for b, r in enumerate(flags):
+            if r:
+                a[b] = a[b, ::-1]
+        return a.T.ravel()
+
+    pos = orientation(q["input_reverse"])
+    dest = np.argsort(orientation(q["output_reverse"]))
+    S = np.zeros((4, 4), complex)
+    temp = np.array([[complex(*z) for z in row] for row in q["temporal"]])
+    for b, (alpha, p, phase) in enumerate(q["arms"]):
+        for k in range(2):
+            S[k * 2 : k * 2 + 2, b * 2 : b * 2 + 2] = (
+                temp[k, b] * np.exp(1j * phase) * rotation((alpha, p))
             )
-            for u, amp in first.items():
-                for v, bra in second.items():
-                    if any((a == 0) != (b == 0) for a, b in zip(u, v)):
-                        continue
-                    factor = np.prod([rot[b - 1, a - 1] for a, b in zip(u, v) if a])
-                    mat[j, i] += bra * factor * amp
-    return mat * np.exp(1j * n * settings["phase"])
-
-
-def normalization(modes):
-    return np.sqrt(np.prod([factorial(i) for i in Counter(modes).values()]))
-
-
-def echo_ref(q):
-    first, second = q["first"], q["second"]
-    lengths = first["durations"]
-    lengths2 = second["durations"]
-    src = [
-        wave(z, lengths)[:, None] * R(first["input_rotation"])[:, i]
-        for i, z in enumerate(first["input_modes"])
-    ]
-    write = wave(first["write_mode"], lengths).conj()[:, None] * np.eye(2)[:, None, :]
-    read = wave(second["read_mode"], lengths2)[:, None] * np.eye(2)[:, None, :]
-    detect = (
-        wave(second["output_mode"], lengths2).conj()[:, None]
-        * R(second["output_rotation"])[:, None, :]
+    E = (E.reshape(t, 2)[pos].reshape(span, 4) @ S.T).reshape(t, 2)[dest].ravel()
+    G = G.reshape(2, t, 2, t, 2)[:, pos, :][:, :, :, pos, :].reshape(
+        2, span, 4, span, 4
     )
-    atom = np.r_[R(q["atom"])[:, 0], 0j]
-    unit = np.zeros((3, 3), complex)
-    unit[:2, :2] = R(q["control"][:2])
+    G = np.einsum("vb,kd,gtbsd->gtvsk", S, S, G, optimize=True).reshape(2, t, 2, t, 2)
+    G = G[:, dest, :][:, :, :, dest, :]
+    G = G.reshape(2, channels, channels)
+    G = (rotation(q["control"][:2]) @ G.reshape(2, -1)).reshape(2, channels, channels)
     gap, delta = q["gap"]
-    unit[2, 2] = np.exp(
-        1j * q["control"][2] - (0.5 * sum(q["rates"]) + 1j * delta) * gap
+    E *= np.exp(1j * q["control"][2] - (0.5 * sum(q["rates"]) + 1j * delta) * gap)
+    pass_atom(np.ravel(q["return_detuning"]), widths)
+    h = np.repeat(
+        np.concatenate([z(row) for row in q["output_mode"]]).conj(), m
+    ) / np.sqrt(m)
+    H = (h[None, :, None] * rotation(q["output_rotation"])[:, None, :]).reshape(
+        2, channels
     )
-    dest = list(combinations_with_replacement(range(2), 2))
-    vout = np.zeros((3, 3), complex)
-    for n in (2,) if q["handoff"] == "ground" else (1, 2):
-        occ = list(combinations_with_replacement(range(2), n))
-        mm = memory(n, q["store"])
-        vwrite = np.array(
-            [
-                unit
-                @ scatter(
-                    q["rates"],
-                    lengths,
-                    first["detuning"],
-                    src,
-                    [write[c] for c in cols],
-                )
-                @ atom
-                / normalization(cols)
-                for cols in occ
-            ]
-        )
-        for j, cols in enumerate(occ):
-            for m, end in enumerate(dest):
-                mat = scatter(
-                    q["rates"],
-                    lengths2,
-                    second["detuning"],
-                    [read[c] for c in cols],
-                    [detect[c] for c in end],
-                )
-                vout[m] += (
-                    mat @ (mm[j] @ vwrite) / (normalization(end) * normalization(cols))
-                )
-    vals = (
-        np.abs(vout[:, :2] @ R(q["analyzer"])[:, 0].conj()) ** 2
-        if q["analyzer"] is not None
-        else (np.abs(vout[:, :2]) ** 2).sum(axis=1)
-    )
-    W = vals.sum()
-    y = sum(
-        p * np.cos(q["lambda"] * (end.count(0) - 1) - q["phase"])
-        for p, end in zip(vals, dest)
-    )
-    return float(y / W if q["conditional"] else y), float(W)
+    result = H @ G @ H.T
+    probs = []
+    for a, b in combinations_with_replacement(range(2), 2):
+        v = result[:, a, b] * (1 if a == b else root2)
+        if q["analyzer"] is not None:
+            v = np.vdot(rotation(q["analyzer"])[:, 0], v)
+        probs.append((np.abs(v) ** 2).sum())
+    p = sum(probs)
+    y = np.dot(probs, np.cos(q["lambda"] * np.array([1, 0, -1]) - q["phase"]))
+    return float(y / p if q["conditional"] else y), float(p)

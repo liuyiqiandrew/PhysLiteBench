@@ -1,4 +1,4 @@
-"""Validate waveguide echoes using microscopic spin-cell and ordered scattering calculations."""
+"""Validate continuum feedback against independently propagated two-photon wavefunctions."""
 import argparse
 import json
 import runpy
@@ -9,123 +9,94 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/photon-transfer-fringe"
 sys.path[:0] = [str(TASK / "environment"), str(TASK / "solution"), str(TASK / "tests")]
-from returning import echo, spatial_rotation
-from reference import echo_ref, memory
+from reference import reading
+from interferometer import delay_signal
 
 
-def as_pairs(z):
+def packed(z):
     return np.stack((z.real, z.imag), axis=-1).tolist()
 
 
 def square():
-    # Both polarizations occupy the whole square pulse. Polarization 1 is a spectator.
-    flat = [[1, 0]]
+    shape = np.ones((2, 1), complex) / np.sqrt(2)
     return dict(
         rates=[1.0, 0.0],
-        atom=[0, 0],
+        duration=0.5,
+        atom=[0.0, 0.0],
         analyzer=None,
-        control=[0, 0, 0],
-        gap=[0, 0],
-        first=dict(
-            durations=[1.0],
-            detuning=[0.0],
-            input_modes=[flat, flat],
-            input_rotation=[0, 0],
-            write_mode=flat,
-        ),
-        second=dict(
-            durations=[1.0],
-            detuning=[0.0],
-            read_mode=flat,
-            output_mode=flat,
-            output_rotation=[0, 0],
-        ),
-        store=dict(
-            cells=2,
-            write_k=[0.0, 0.0],
-            read_k=[0.0, 0.0],
-            write=[np.pi / (2 * np.sqrt(2))] * 2,
-            read=[np.pi / (2 * np.sqrt(2))] * 2,
-            rotation=[0, 0],
-            phase=0.0,
-        ),
-        handoff="unmeasured",
-        conditional=False,
+        control=[0.0, 0.0, 0.0],
+        gap=[0.0, 0.0],
+        input_modes=packed(np.stack((shape, shape))),
+        input_rotation=[0.0, 0.0],
+        output_mode=packed(shape),
+        output_rotation=[0.0, 0.0],
+        detuning=[[0.0], [0.0]],
+        return_detuning=[[0.0], [0.0]],
+        arms=[[0.0, 0.0, np.pi], [0.0, 0.0, np.pi]],
+        input_reverse=[False, False],
+        output_reverse=[True, True],
+        temporal=packed(np.eye(2, dtype=complex)[::-1]),
         phase=0.0,
+        conditional=False,
         **{"lambda": 0.0}
     )
 
 
-def families():
-    rng = np.random.default_rng(853324)
+def shots():
+    rng = np.random.default_rng(3855391)
 
-    def uni(a, b, size=None):
-        return np.round(rng.uniform(a, b, size), 5).tolist()
+    def draw(lo, hi, n=None):
+        return np.round(rng.uniform(lo, hi, n), 6).tolist()
 
-    def spin():
-        return [uni(0.2, 1.35), uni(-2.5, 2.5)]
+    def rotation():
+        return [draw(0.25, 1.32), draw(-2.65, 2.65)]
 
-    def make(d):
-        f = rng.uniform(0.65, 1.25, d) * np.exp(1j * rng.uniform(-0.55, 0.55, d))
-        return f / np.linalg.norm(f)
+    def mode(n):
+        v = rng.uniform(0.62, 1.3, (2, n)) * np.exp(
+            1j * rng.uniform(-1.65, 1.65, (2, n))
+        )
+        return v / np.linalg.norm(v)
 
-    groups = {}
-    for family in ("spin_storage", "return_interference", "retrieval_eraser"):
-        items = []
-        for i in range(9):
-            n = 2 + i % 2
-            k = 2 + (i // 2) % 2
-            dt1 = uni(0.4, 1.3, n)
-            dt2 = uni(0.4, 1.3, k)
-            phases = [make(n), make(n), make(n), make(k), make(k)]
-            one = dict(
-                durations=dt1,
-                detuning=uni(-0.95, 0.95, n),
-                input_modes=[as_pairs(x) for x in phases[:2]],
-                input_rotation=spin(),
-                write_mode=as_pairs(phases[2]),
+    sets = {}
+    for group in ("routed_return", "temporal_interference", "atomic_echo"):
+        rows = []
+        for i in range(8):
+            n = 1 if i % 4 == 0 else 2
+            h = [mode(n) for _ in range(3)]
+            t, p = rotation()
+            u = np.array(
+                [
+                    [np.cos(t), -np.exp(-1j * p) * np.sin(t)],
+                    [np.exp(1j * p) * np.sin(t), np.cos(t)],
+                ]
             )
-            two = dict(
-                durations=dt2,
-                detuning=uni(-0.95, 0.95, k),
-                read_mode=as_pairs(phases[3]),
-                output_mode=as_pairs(phases[4]),
-                output_rotation=spin(),
-            )
-            cells = 2 + i % 2
-            store = dict(
-                cells=cells,
-                write=uni(0.48, 1.58, 2),
-                read=uni(0.49, 1.62, 2),
-                rotation=spin(),
-                phase=uni(-2.95, 2.95),
-            )
-            store["write_k"] = (
-                [0.0, 0.0] if family == "return_interference" else uni(-1.45, 1.45, 2)
-            )
-            store["read_k"] = (
-                [0.0, 0.0] if family == "return_interference" else uni(-1.07, 1.07, 2)
-            )
+            if group == "routed_return":
+                u = np.eye(2, dtype=complex)[:: (1 if i % 2 else -1)]
+            flags = lambda: [bool(x) for x in rng.integers(0, 2, size=2)]
             q = dict(
-                handoff="ground" if family == "spin_storage" else "unmeasured",
-                rates=uni(0.42, 1.65, 2),
-                atom=spin(),
-                analyzer=None
-                if family == "spin_storage"
-                or (family == "return_interference" and i % 3 == 0)
-                else spin(),
-                control=[*spin(), uni(-2.6, 2.6)],
-                gap=[uni(0.05, 0.6), uni(-1.0, 1.0)],
-                first=one,
-                second=two,
-                store=store,
-                conditional=(i % 4 != 0),
-                phase=uni(-1, 1),
-                **{"lambda": uni(1.55, 3.0)}
+                rates=draw(0.52, 1.62, 2),
+                duration=draw(0.77, 1.65),
+                atom=rotation(),
+                analyzer=rotation() if group == "atomic_echo" or i % 4 == 1 else None,
+                control=[*rotation(), draw(-2.5, 2.5)],
+                gap=[draw(0.04, 0.48), draw(-0.88, 0.88)],
+                input_modes=packed(np.stack(h[:2])),
+                input_rotation=rotation(),
+                output_mode=packed(h[2]),
+                output_rotation=rotation(),
+                detuning=draw(-1, 1, (2, n)),
+                return_detuning=draw(-1, 1, (2, n)),
+                arms=[[*rotation(), draw(-2.85, 2.85)] for _ in range(2)],
+                input_reverse=flags(),
+                output_reverse=flags(),
+                temporal=packed(u),
+                phase=draw(-1.0, 1.0),
+                conditional=i % 3 != 0,
+                **{"lambda": draw(1.6, 3.1)}
             )
-            items.append(q)
-        groups[family] = items
-    return groups
+            rows.append(q)
+        sets[group] = rows
+    return sets
 
 
 def validate(generate=False):
@@ -135,18 +106,25 @@ def validate(generate=False):
         (TASK / "tests/data/calibration.json").read_text()
     )
     groups = {}
-    for family, qs in families().items():
+    max_disagreement = 0.0
+    for family, qs in shots().items():
         rows = []
         for q in qs:
-            result = echo_ref(q)
-            np.testing.assert_allclose(echo(q), result, atol=2e-12, rtol=0)
-            assert 0.01 < result[1] <= 1.0
-            rows.append(dict(input=q, value=round(vis * result[0], 8)))
+            exact = delay_signal(q)
+            assert 0.005 < exact[1] <= 1
+            a, b, c = [np.array(reading(q, m)) for m in (16, 32, 64)]
+            extrapolated = (8 * c - 6 * b + a) / 3
+            max_disagreement = max(
+                max_disagreement, float(np.max(abs(extrapolated - exact)))
+            )
+            np.testing.assert_allclose(extrapolated, exact, atol=3e-6, rtol=0)
+            rows.append(dict(input=q, value=round(vis * exact[0], 8)))
         groups[family] = rows
-    path = TASK / "tests/data/predictions.json"
+    print("maximum independent wavefunction disagreement", max_disagreement)
+    p = TASK / "tests/data/predictions.json"
     if generate:
-        path.write_text(json.dumps(groups, indent=1) + "\n")
-    frozen = json.loads(path.read_text())
+        p.write_text(json.dumps(groups, indent=1) + "\n")
+    frozen = json.loads(p.read_text())
     assert frozen.keys() == groups.keys()
     for family, rows in groups.items():
         for x, y in zip(rows, frozen[family], strict=True):
@@ -154,7 +132,7 @@ def validate(generate=False):
     for name, file in [
         ("oracle", TASK / "solution/model.py"),
         ("starter", TASK / "environment/model.py"),
-        ("which-number", ROOT / "scripts/photon_transfer_fringe_baseline.py"),
+        ("which-level", ROOT / "scripts/photon_transfer_fringe_baseline.py"),
     ]:
         model = runpy.run_path(str(file))["Model"]().fit(calibration)
         assert abs(model.visibility - vis) < 1e-8
@@ -163,45 +141,26 @@ def validate(generate=False):
             value = model.predict([r["input"] for r in rows])
             assert np.isfinite(value).all()
             errors[family] = float(np.max(np.abs(value - [r["value"] for r in rows])))
-        if name == "oracle":
-            assert max(errors.values()) < 1e-7
-        if name == "starter":
-            assert min(errors.values()) > 0.1
-        if name == "which-number":
-            assert (
-                errors["spin_storage"] < 1e-7
-                and min(errors["retrieval_eraser"], errors["return_interference"]) > 0.1
-            )
+        assert (
+            max(errors.values()) < 1e-7
+            if name == "oracle"
+            else min(errors.values()) > 0.01
+        )
         print(name, errors)
     q = square()
     B = 2 * (1 - np.exp(-0.5))
-    S = 1 - 2 * (1 - B)
-    w2 = np.sqrt(2) * (np.cos(np.pi * np.sqrt(3) / 2) - 1) / 3
-    for phase in (0.0, np.pi):
-        q["store"]["phase"] = phase
-        exact = (
-            abs(S * S * w2 * w2 * np.exp(2j * phase) + B * B * np.exp(1j * phase)) ** 2
-        )
-        for method in (echo, echo_ref):
-            np.testing.assert_allclose(method(q), (exact, exact), atol=2e-13)
-    # A singly occupied two-cell spin wave is dark at π mismatch; the doubly occupied spin wave is bright.
-    s = square()["store"]
-    s["write_k"] = [np.pi, 0.0]
-    np.testing.assert_allclose(memory(1, s)[0, 0], 0.0, atol=1e-13)
-    np.testing.assert_allclose(memory(2, s)[0, 0], w2**2, atol=1e-13)
-    for n, form in [(1, 0.0), (2, 1.0)]:
+    forward = (B * B + 12 * np.exp(-0.5) - 7) ** 2
+    for reverse, truth in [(True, 1.0), (False, forward)]:
+        q["output_reverse"] = [reverse] * 2
+        q["temporal"] = packed(np.eye(2, dtype=complex)[:: (-1 if reverse else 1)])
+        np.testing.assert_allclose(delay_signal(q), (truth, truth), atol=2e-12)
+        a, b, c = [np.array(reading(q, m)) for m in (16, 32, 64)]
         np.testing.assert_allclose(
-            spatial_rotation((0,) * n, (0,) * n, np.eye(2), s), form, atol=1e-13
+            (8 * c - 6 * b + a) / 3, (truth, truth), rtol=0, atol=2e-7
         )
-    for family, rows in groups.items():
-        err = max(
-            abs(echo(q["input"], dilute=True)[0] * vis - q["value"]) for q in rows
-        )
-        assert err > 0.02
-        print("dilute Rabi pulses", family, err)
 
 
 if __name__ == "__main__":
-    a = argparse.ArgumentParser(description=__doc__)
-    a.add_argument("--generate", action="store_true")
-    validate(a.parse_args().generate)
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--generate", action="store_true")
+    validate(p.parse_args().generate)

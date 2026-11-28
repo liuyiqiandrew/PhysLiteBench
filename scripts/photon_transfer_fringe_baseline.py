@@ -1,8 +1,12 @@
-"""Measure the spin storage number before reading the occupied cells."""
+"""Measure the intermediate atomic excitation and discard the measurement record."""
 from optics import Calibrated, calibration_signal
-from returning import echo
+from interferometer import delay_signal
 
 
 class Model(Calibrated):
     def reading(self, q):
-        return echo(q, measured=True)[0] if "store" in q else calibration_signal(q)
+        return (
+            delay_signal(q, measure=True)[0]
+            if "temporal" in q
+            else calibration_signal(q)
+        )

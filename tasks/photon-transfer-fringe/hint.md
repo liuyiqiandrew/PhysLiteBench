@@ -1,1 +1,1 @@
-Two final photons require an empty environment and empty memory. At handoff the conserved excitations can be shared between the memory and waveguide atom. Apply each optical projection and memory gate to that joint state.
+Retain the entire field emerging from the first encounter, including its entanglement with the atom. The delay reorders and mixes temporal amplitudes before they drive the same atom again.
