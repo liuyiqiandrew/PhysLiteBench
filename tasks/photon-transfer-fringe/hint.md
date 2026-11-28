@@ -1,0 +1,1 @@
+A total-number measurement preserves coherence within each sector of the measured bank. Phase averaging can implement its unobserved backaction. A retained parity is a projector on both sides of the propagated density operator. Each term in the resulting sum involves a passive optical network acting on a squeezed thermal state.
