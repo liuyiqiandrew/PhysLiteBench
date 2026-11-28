@@ -1,0 +1,1 @@
+Implement Model in /app/model.py for the two-current Hall microscope described in /app/README.md. Fit the gain using the uniform calibration coupons. Predict the mean checkerboard current and the local correlation of the two fields recorded by its phase-sensitive probe.
