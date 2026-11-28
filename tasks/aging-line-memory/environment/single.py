@@ -54,41 +54,41 @@ def background(alpha, rate, order=20):
     return x, v[0] ** 2
 
 
-def readings(q, tg, reset=False):
-    a = q["temperature"] / tg
-    s = q["clock"]
-    r = np.exp(-np.array(q["offsets"]) / q["temperature"])
-    x, y = q["levels"]
-    hs, wt = background(a, s)
-    band = q.get("band")
-    if band:
-        z, weights = roots_legendre(32)
-        lo, hi = band
-        h = s / (s + (0.5 * (hi + lo + (hi - lo) * z)) ** (1 / a))
-        measure = 0.5 * (hi - lo) * weights * h
-
-    def op(m):
-        m = np.asarray(m)
-        u, v = r[0] * m, r[1] * m
-        base = np.exp(-(s + r[0] - u) * x - (s + r[1] - v) * y)
-        if y == 0:
-            return base, 0 * base
-        z = np.sqrt(u * v * x * y)
-        return base * u * v * x * i1(2 * z) / z, base * u * i0(2 * z)
-
-    m = 1 / (2 + hs)
-    mean = wt @ m
-    wA, wB = op(mean if reset else m)
-    weights = np.ones(1) if reset else wt
-    m0 = mean if reset else m
-    den = np.sum(weights * (s * (wA + wB) + (1 - 2 * m0) * (r[0] * wA + r[1] * wB)))
-    if q["read"] in ("A", "B"):
-        num = s * np.sum(weights * (wA if q["read"] == "A" else wB))
-    elif not band:
-        num = den - s * np.sum(weights * (wA + wB))
+def terminal(p, H):
+    s = p["clock"]
+    rA, rB = np.exp(-np.array(p["offsets"]) / p["temperature"])
+    x, y = p["levels"]
+    m = 1 / (2 + H)
+    u = rA * m
+    v = rB * m
+    pref = np.exp(-(s + rA - u) * x - (s + rB - v) * y)
+    if y == 0:
+        A = pref
+        B = 0.0 * A
     else:
-        shifted = 1 / (2 + hs[:, None] + h)
-        if not reset:
-            wA, wB = op(shifted)
-        num = wt @ (shifted * (r[0] * wA + r[1] * wB)) @ measure
-    return float(num / den), float(den)
+        z = np.sqrt(u * v * x * y)
+        A = pref * u * v * x * i1(2 * z) / z
+        B = pref * u * i0(2 * z)
+    rate = m * (rA * A + rB * B)
+    return dict(
+        A=s * A, B=s * B, host=H * rate, total=s * (A + B) + H * rate, tagged=rate
+    )
+
+
+def independent(q, tg):
+    p1, p2 = q["exposures"]
+    H, w = background(p1["temperature"] / tg, p1["clock"])
+    K, z = background(p2["temperature"] / tg, p2["clock"])
+    u, weights = roots_legendre(32)
+    lo, hi = q["pump_band"]
+    v = (hi + lo + (hi - lo) * u) / 2
+    h = p1["clock"] / (p1["clock"] + v ** (tg / p1["temperature"]))
+    hp = p2["clock"] / (
+        p2["clock"]
+        + np.exp(-q["shift"] / p2["temperature"]) * v ** (tg / p2["temperature"])
+    )
+    pumped = w @ terminal(p1, H[:, None] + h)["tagged"]
+    after = terminal(p2, K[:, None] + hp)
+    gates = weights * h * pumped
+    score = (z @ after[q["read"]]) * (hp if q["read"] == "tagged" else 1.0)
+    return float((gates @ score) / (gates @ (z @ after["total"])))

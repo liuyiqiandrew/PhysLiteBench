@@ -1,8 +1,8 @@
 from glass import Readout
-from clocks import readings
+from pump import pump
 
 
 class Model(Readout):
     def memory(self, q):
-        # Use the exact single-excursion outcome law but renew the ordinary landscape after each departure.
-        return readings(q, self.depth_scale, reset=True)[0]
+        # Retain the shared specimen and selected line, but leave its lifetime unchanged after illumination.
+        return pump(q, self.depth_scale, control="passive")[0]

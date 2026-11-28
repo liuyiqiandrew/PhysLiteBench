@@ -1,1 +1,1 @@
-A trip through ordinary basins can end at either reporter or at the shutter. All excursions in one launch share the same ordinary basins. Distinguish the atom at zero residence from its positive-time density.
+The two shots select the same ordinary line. Modifying that basin also changes the probabilities of all subsequent excursions through the specimen.

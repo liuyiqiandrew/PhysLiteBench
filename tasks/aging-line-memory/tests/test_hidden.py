@@ -30,6 +30,8 @@ def test_fit(errors):
     assert errors["calibration"] < 1e-5
 
 
-@pytest.mark.parametrize("group", ["unvisited", "two_recorders", "host_spectrum"])
+@pytest.mark.parametrize(
+    "group", ["burned_line", "reporter_transfer", "host_background"]
+)
 def test_memory(errors, group):
     assert errors[group] < 0.004

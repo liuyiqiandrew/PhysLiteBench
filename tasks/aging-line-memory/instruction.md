@@ -1,1 +1,1 @@
-Calibrate the glass depth scale and predict the line seen when two residence recorders show their specified readings in /app/README.md. Implement Model in /app/model.py.
+Calibrate the glass depth scale and predict the pump–probe line probabilities of the two-exposure experiment specified in /app/README.md. Implement Model in /app/model.py.
