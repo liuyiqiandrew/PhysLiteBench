@@ -1,0 +1,11 @@
+# Author analysis
+
+This original partially shared thermal system is inspired by canonical normalization and population counts in the [Princeton physics preliminary exams](https://phy.princeton.edu/academics/graduate-program/degree-requirements/preliminary-exams).
+
+Let d_j be the private shifts and f,l the two shared shifts. In setting j rescale the partition by the subextensive factor exp(d_j√N) after the usual extensive centering. The private Gaussian tilt concentrates on x≥−d_j/c and x+y≥−d_j/c. The unconditional shared contribution tends to zero in mean after this rescaling since f+l<d_j. Lower-tail bounds for the private masses follow by subdividing a compact interior rectangle into cells of width order N^(−1/2) with exponentially many roots and leaves. The cell counts have binomial lower-tail bounds faster than exp(−C√N) for any fixed C.
+
+At the common site's line set b=−min(d_j)/c and write t for the finite displacement. Its labeled count has density proportional to exp[(f+l−min(d_j))√N+ct] phi_F(x)phi_L(b−x)/√N. At a forced common root the other leaves produce mass proportional to exp[(l−cx−d_j)√N]. Its positive prefactor is a shifted critical half-Gaussian integral. The stricter setting therefore suppresses the scaled signal unless x>(l−min(d_j))/c. This physical bound concerns the common root's descendant cloud rather than a typical root of either catalog.
+
+The forced site weight in setting j is exp[(min(d_j)−d_j)√N] times w_j=exp(−ct+a_j0*x+a_j1*(b−x)), where a_ji=c*field_ji−window_j. The lower-entropy catalog retains finite w_j in its denominator. In the larger catalog only the rescaled numerator retains that weight. With equal private shifts both denominators retain the forced site. The additional outside draw uses the ordinary private mass. Compact windows, the private lower-tail bounds and the negligible strips at the threshold justify the conditional average after scaling.
+
+The oracle conditions the private Gaussian law on the total and uses Gibbs-weight coordinates for the marked site. The reference uses the first coordinate and direct displacement quadrature. The completed shortcut uses the private root threshold for the forced common site, dropping the shared leaf entropy shift.

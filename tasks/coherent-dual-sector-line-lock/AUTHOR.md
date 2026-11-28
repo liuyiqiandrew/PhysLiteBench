@@ -1,0 +1,11 @@
+# Author analysis
+
+This original coherent spectrum problem is inspired by coupled levels and canonical thermodynamics in the [Princeton physics preliminary exams](https://phy.princeton.edu/academics/graduate-program/degree-requirements/preliminary-exams).
+
+At fixed root displacement z and bare lines t_0,t_1, the exact Gaussian count tilts give the requested scaled density (G_F(0)G_L(0)^2e^{c(t_0+t_1-z)}dz\,dt_0\,dt_1). One actual site supplies both independent rare increments, so the single site count powers the rate. After conditioning on that label, all other increments retain their original laws.
+
+For each sector, under its critical Gibbs weight its own Y is near −Na v_L while its partner is near zero. The expectation of the tilted weight on configurations with pair gap less than a fixed fraction of Na v_L is exponentially small. On the remaining pairs the order-one off-diagonal term produces an O(N^−1) eigenvalue shift and O(N^−1) mixing amplitudes. Trace weight on the exceptional gap set is bounded by its bare trace times a fixed constant using the eigenvalue bound of the off-diagonal perturbation. Therefore the ordinary Gibbs mass in each setting is the sum over sectors of their tilted Gaussian cone weights (x\geq0,x+y\geq0), with offset factors. The selected family's diffuse mass is (e^{-cz} L_j), where (L_j) sums the two positive y half-line weights. The same exponential gap bound holds for its untagged siblings. Sector-resolved ordinary numerators retain only their own aperture and offset.
+
+At the conditioned site both sectors instead lie at finite energy. Its unnormalized two-by-two matrix (M_j) is the Gibbs exponential of the block with diagonal (t_b+\mathrm{offsets}[b]) and off-diagonal coupling. The complete denominator is (B_j+e^{-cz} L_j+\mathrm{tr} M_j). The numerator is the probe expectation of (M_j). The outside draw uses the corresponding ordinary sector band and that same full denominator. All conditional probabilities are bounded, permitting compact-window convergence of the rare intensity.
+
+The oracle uses the Pauli form for the probe and changes variables to (q=e^{-cz}) in the root integral. The reference diagonalizes the block independently and integrates directly in z. The completed shortcut keeps the tagged and diffuse normalizations but suppresses coherent mixing in the tagged block.

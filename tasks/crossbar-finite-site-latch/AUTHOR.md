@@ -1,0 +1,11 @@
+# Author analysis
+
+This original geometry and thermal sampling task is inspired by canonical ensembles in the [Princeton physics preliminary exams](https://phy.princeton.edu/academics/graduate-program/degree-requirements/preliminary-exams).
+
+For the three finite bare addresses r=√N x, s=√N y, t=√N z, the scaled count density is (G_R(0)G_C(0)G_I(0)e^{c(r+s+t)}dr\,ds\,dt). Each count condition has one rare label of order N^−1/2 and extra counts have lower order. Condition on the three labels and omit these distinguished labels when deriving each ordinary population.
+
+In each setting, weight the limiting Gaussian coordinates by \(e^{h_R x+h_C y+h_I z}\), with (h_i=c\,\mathrm{fields}[i]-\mathrm{window}\). The ordinary population using other rows and columns has support (x\geq0,y\geq0,x+y+z\geq0\). For shared rows, columns, row-column addresses and full labels, the count exponents on strict interiors have positive corresponding margins (x,y,x+y,x+y+z). This gives concentration after removing boundary strips. The selected row with other columns has support (y\geq0,y+z\geq0\) and prefactor (e^{-cr}\). The selected column analog has prefactor (e^{-cs}\) and support (x\geq0,x+z\geq0\). The selected address's other internal sites contribute the positive half-line z≥0 with prefactor (e^{-c(r+s)}\). The selected site itself weighs (e^{-c(r+s+t)}\). The same marginal concentration applies to each conditioned population.
+
+Use the sum of all five populations in every Gibbs denominator. The selected draw uses the last mass. Subsequent draws use their own designated populations, clipped by the named band on its coordinate. The intersection diffuse mass cannot provide negative internal z, while ordinary row and column strips can use negative z if the appropriate remaining coordinate compensates. Independent draws on the frozen sample multiply their conditional fractions before integrating over the three addresses.
+
+The oracle conditions the ordinary integrals on x+y using the normal conditional law. The reference conditions directly on x and uses an independent quadrature in exponentiated addresses. The completed shortcut omits both strip masses from the Gibbs normalizers while retaining all readout numerators.

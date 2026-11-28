@@ -1,0 +1,11 @@
+# Author analysis
+
+This original problem combines canonical ensembles and spin projection in the style of the [Princeton physics preliminary exams](https://phy.princeton.edu/academics/graduate-program/degree-requirements/preliminary-exams).
+
+Write (h_{ji}=c\,\mathrm{field}_{ji}-\mathrm{window}_j), and let (G_F,G_L) be Gaussians with variances gain² times the two variances. The ordinary scalar mass integrates (G_F(x)G_L(y)\exp(h_{j0}x+h_{j1}y)) on (x\geq0,x+y\geq0). This is the quenched feasible cone obtained from the shared-root and total energy counts. Each setting multiplies its ordinary mass by the mean local unnormalized Gibbs spin trace over the quenched sign. The outside mass clips the same cone by its y band.
+
+At a tagged site of finite unmodified line energy (t\), the scaled count is (G_F(x)G_L(-x)e^{ct} dx\,dt\) times the sign frequency. Positive x suppresses the other sites in the tagged family. Negative x gives many other sites in this family with Gibbs mass diverging relative to the tagged site. Only positive x contributes. For setting j the tagged scalar weight is (e^{-ct+(h_{j0}-h_{j1})x}), and the full tagged spin trace multiplies it in the conditional partition function.
+
+Set (M_j=\exp[-c(\mathrm{internal}_j+m\mathrm{disorder}_j)\cdot\sigma]\) and conjugate (M_1\) by the pulse. The joint Bell probability uses the unnormalized expectation of (M_0\otimes M_1'\) in the supplied Bell vector. The same quenched sign acts in both copies, and the phase uses the tagged site's x before integration. Writing each matrix as (A I+\mathbf b\cdot\sigma) gives (A_0A_1-b_{0z}b_{1z}-\Re[e^{i\phi}(b_{0x}-ib_{0y})(b_{1x}+ib_{1y})]\). The pulse is an ordinary rotation of the second Bloch vector through angle (2\,\mathrm{gain}\,|\mathrm{pulse}|\). The probability of the outside draw is the restricted ordinary trace mass divided by the full corresponding partition function.
+
+The oracle uses Bloch vectors and conditional Gaussian leaf integration. The reference constructs the two-copy matrices and phase projector and uses independent root-conditioned ordinary integrals. The completed shortcut dephases the Bell projector in the z product basis, dropping its interference term with all Gibbs weights retained.

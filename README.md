@@ -1,17 +1,17 @@
 # PhysLiteBench
 
-This release contains **30 physics benchmark tasks**, with the original 13 snapshots and 17 November additions. Each addition scored zero in three completed fresh unhinted GPT-5.6 Luna High runs and passed independent physics review. [Task roster](results/task-roster.json) · [November qualification evidence](results/expansion-20261127/README.md) · [Physics and interfaces](TASKS.md)
+This release contains **50 physics benchmark tasks**, with the original 13 snapshots and 37 reviewed additions. Each addition scored zero in three completed fresh unhinted GPT-5.6 Luna High runs and passed independent physics review. [Task roster](results/task-roster.json) · [50-task release evidence](results/expansion-20261128/README.md) · [Physics and interfaces](TASKS.md)
 
 ## Run the November tasks
 
 Start Docker and install uv. Use the same runner as the existing tasks.
 
 ```bash
-python3 scripts/run_science.py tasks/aperture-selected-critical-roots --agent oracle --trials 1
-python3 scripts/run_candidate_matrix.py aperture-selected-critical-roots --conditions oracle shortcut plain --workers 1 --label release-check
+python3 scripts/run_science.py tasks/crossbar-finite-site-latch --agent oracle --trials 1
+python3 scripts/run_candidate_matrix.py crossbar-finite-site-latch --conditions oracle shortcut plain --workers 1 --label release-check
 ```
 
-The published [qualification evidence](results/expansion-20261127/README.md) records the pinned model, effort, controls and task hashes. The October studies below retain the task sets stated in their reports.
+The published [qualification evidence](results/expansion-20261128/README.md) records the pinned model, effort, controls and task hashes. The October studies below retain the task sets stated in their reports.
 
 ## Current presentation and reproducible analysis
 
@@ -82,6 +82,6 @@ python3 scripts/run_science.py tasks/hierarchical-glass-overlaps   --model gpt-5
 
 Qualification of the original ten used Harbor 0.21.0, Codex CLI 0.154.0, 600 seconds for solving and 60 seconds for verification. `--restricted-network` reproduces the runtime allowlist used in qualification: only OpenAI authentication/API hosts are reachable, and agent web search is disabled. It changes only the temporary runtime configuration and preserves source task bytes. Keep authentication outside the repository.
 
-Task sources in the thirty-task manifest match their evaluated snapshots. The October ten-task and thirteen-task manifests preserve their respective evaluation records. Prior canonical tasks and documentation are preserved in [the October 11 archive](archives/pre-qualification-20261011). Earlier post-qualification maintenance is historical evidence. Raw native jobs remain local; selected submissions, metrics, diffs and reviews are in [the evidence folder](results/qualification-20261011).
+Task sources in the fifty-task manifest match their evaluated snapshots. The October ten-task and thirteen-task manifests preserve their respective evaluation records. Prior canonical tasks and documentation are preserved in [the October 11 archive](archives/pre-qualification-20261011). Earlier post-qualification maintenance is historical evidence. Raw native jobs remain local; selected submissions, metrics, diffs and reviews are in [the evidence folder](results/qualification-20261011).
 
 The two inherited candidate folders are archived under `archives/excluded-inherited-20261127/`. See [benchmark protocol](docs/BENCHMARK.md) and [contribution guidance](docs/ADDING_TASKS.md).

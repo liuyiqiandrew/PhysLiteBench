@@ -1,6 +1,6 @@
 # Task physics
 
-The [active roster](results/task-roster.json) contains 30 evaluated snapshots. Each public README defines its apparatus and API, and AUTHOR.md gives the derivation. October outcomes below refer to their original batches.
+The [active roster](results/task-roster.json) contains 50 evaluated snapshots. Each public README defines its apparatus and API, and AUTHOR.md gives the derivation. October outcomes below refer to their original batches.
 
 The hierarchical-glass task compares a quenched two-level Gaussian tree with an independent-coordinate approximation that has the same warm caloric law. It measures common-parent, common-state and exact labelled leaf partitions for two through six replicas. Selection of a parent reweights its descendants by a fractional power of the subtree partition sum; ignoring this correlation caused all three reviewed failures.
 
@@ -22,7 +22,7 @@ The original ten task instructions permit replacing all implementation code; nin
 | hard-rod-current | Rare currents select an atypically short block of crossed rods; using only global mean composition loses the annealed mixture fluctuation. | [README](tasks/hard-rod-current/environment/README.md) | [AUTHOR](tasks/hard-rod-current/AUTHOR.md) |
 | finite-ion-cloud | Three pair angles share three particle positions; independently averaging equilibrium pair angles misses angular frustration and finite-cell pressure. | [README](tasks/finite-ion-cloud/environment/README.md) | [AUTHOR](tasks/finite-ion-cloud/AUTHOR.md) |
 
-## November additions
+## November 27 additions
 
 | Task | Physical issue | Derivation |
 |---|---|---|
@@ -44,7 +44,32 @@ The original ten task instructions permit replacing all implementation code; nin
 | [Microcanonical sibling spectroscopy](tasks/microcanonical-sibling-spectroscopy/environment/README.md) | The count-normalized spectrum includes only ordinary extreme sites on the feasible bridge half-line. | [Author notes](tasks/microcanonical-sibling-spectroscopy/AUTHOR.md) |
 | [Aperture-selected critical roots](tasks/aperture-selected-critical-roots/environment/README.md) | Separate aperture-restricted Gibbs laws share a rare root and allow negative increments within feasible paths. | [Author notes](tasks/aperture-selected-critical-roots/AUTHOR.md) |
 
-The rows describe the installed revisions; the dashboard distinguishes original qualification from fresh confirmation. The three additions originally scored 0/3 each, while their fresh confirmation scored 1/3 for swirling heat tails and 0/3 for the other two. One finite-ion-cloud failure combines physical and mathematical errors. Earlier one-line descriptions of entropy anomaly, rotating reservoir and superconducting heat are preserved in the [pre-single-file documentation archive](archives/pre-singlefile-promotion/TASKS.md).
+## November 28 additions
+
+| Task | Physical issue | Derivation |
+|---|---|---|
+| [Entropy-shifted branch echo](tasks/entropy-shifted-branch-echo/environment/README.md) | A rare two-edge prefix contributes a conditioned mass within the cumulative Gaussian cone. | [Author notes](tasks/entropy-shifted-branch-echo/AUTHOR.md) |
+| [Critical gamma cavity recurrence](tasks/critical-gamma-cavity-recurrence/environment/README.md) | A non-Gaussian cavity line contributes finite Gibbs mass to its own denominator. | [Author notes](tasks/critical-gamma-cavity-recurrence/AUTHOR.md) |
+| [Twin resonant family calorimeter](tasks/twin-resonant-family-calorimeter/environment/README.md) | A single tagged site changes both preparations while the opposite tag population keeps its original law. | [Author notes](tasks/twin-resonant-family-calorimeter/AUTHOR.md) |
+| [Conjugate child resonance](tasks/conjugate-child-resonance/environment/README.md) | Opposite child energies share a root whose conditioned descendants enter both thermal weights. | [Author notes](tasks/conjugate-child-resonance/AUTHOR.md) |
+| [Two-root heralded returns](tasks/two-root-heralded-returns/environment/README.md) | Two independent root-count records condition the diffuse clouds and the addressed site. | [Author notes](tasks/two-root-heralded-returns/AUTHOR.md) |
+| [Antipodal color echo](tasks/antipodal-color-echo/environment/README.md) | Opposing energy windows couple the allowed root range to both color normalizers. | [Author notes](tasks/antipodal-color-echo/AUTHOR.md) |
+| [Dual shell count herald](tasks/dual-shell-count-herald/environment/README.md) | Overlapping shells share one count class in the marked Poisson process. | [Author notes](tasks/dual-shell-count-herald/AUTHOR.md) |
+| [Middle inversion site lock](tasks/middle-inversion-site-lock/environment/README.md) | Inverting the shared middle increment couples the ordinary and conditioned feasibility cones. | [Author notes](tasks/middle-inversion-site-lock/AUTHOR.md) |
+| [Diluted common catalog return](tasks/diluted-common-catalog-return/environment/README.md) | Shared label entropy and unequal cutoffs set the selected mass in partially shared catalogs. | [Author notes](tasks/diluted-common-catalog-return/AUTHOR.md) |
+| [Row-column bond echo](tasks/row-column-bond-echo/environment/README.md) | An entropy surplus in one coordinate permits a pooled saddle and distinct row and bond corrections. | [Author notes](tasks/row-column-bond-echo/AUTHOR.md) |
+| [Feedback-selected family aperture](tasks/feedback-selected-family-aperture/environment/README.md) | The first recorded draw determines a later aperture and the weight of its retained family. | [Author notes](tasks/feedback-selected-family-aperture/AUTHOR.md) |
+| [Quantized root liquid line](tasks/quantized-root-liquid-line/environment/README.md) | A lattice root intensity couples to a continuous Gamma leaf intensity. | [Author notes](tasks/quantized-root-liquid-line/AUTHOR.md) |
+| [Tangent aperture recurrence](tasks/tangent-aperture-recurrence/environment/README.md) | Two tangent apertures constrain the same microscopic line and retain its finite mass. | [Author notes](tasks/tangent-aperture-recurrence/AUTHOR.md) |
+| [Thin oblique critical aperture](tasks/thin-oblique-critical-aperture/environment/README.md) | The limiting ordinary gate changes from a shrinking wedge to an oblique segment as its center moves off zero. | [Author notes](tasks/thin-oblique-critical-aperture/AUTHOR.md) |
+| [Phase-tagged Bell return](tasks/phase-tagged-bell-return/environment/README.md) | A phase-sensitive Bell projection acts on spins whose full thermal traces determine the site probabilities. | [Author notes](tasks/phase-tagged-bell-return/AUTHOR.md) |
+| [Deep root photon herald](tasks/deep-root-photon-herald/environment/README.md) | The thinned deep family has a conditional compound Poisson population in the second gate. | [Author notes](tasks/deep-root-photon-herald/AUTHOR.md) |
+| [Current coexistence dwell](tasks/current-coexistence-dwell/environment/README.md) | Exact counter conditioning gives half weight to a first-switch record at its limiting window edge. | [Author notes](tasks/current-coexistence-dwell/AUTHOR.md) |
+| [Frozen root critical leaf echo](tasks/frozen-root-critical-leaf-echo/environment/README.md) | A stable cold root partition shares a selected leaf with a critical thermal replica. | [Author notes](tasks/frozen-root-critical-leaf-echo/AUTHOR.md) |
+| [Coherent dual-sector line lock](tasks/coherent-dual-sector-line-lock/environment/README.md) | Finite coherent mixing survives in the rare dual-sector block and vanishes in the ordinary Gibbs mass. | [Author notes](tasks/coherent-dual-sector-line-lock/AUTHOR.md) |
+| [Crossbar finite-site latch](tasks/crossbar-finite-site-latch/environment/README.md) | Two strips, a diffuse intersection and the finite tagged site share the ordinary Gibbs denominator. | [Author notes](tasks/crossbar-finite-site-latch/AUTHOR.md) |
+
+The original roster's October outcomes below distinguish the initial qualification from fresh confirmation. The three additions originally scored 0/3 each, while their fresh confirmation scored 1/3 for swirling heat tails and 0/3 for the other two. One finite-ion-cloud failure combines physical and mathematical errors. Earlier one-line descriptions of entropy anomaly, rotating reservoir and superconducting heat are preserved in the [pre-single-file documentation archive](archives/pre-singlefile-promotion/TASKS.md).
 
 The following inherited candidate folders are retained in the archive.
 

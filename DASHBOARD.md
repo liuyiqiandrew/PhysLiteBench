@@ -1,8 +1,12 @@
 # PhysLiteBench evaluation dashboard
 
-## Thirty-task release
+## Fifty-task release
 
-The 17 November additions each recorded three clean unhinted Luna High zero scores. [Qualification table](results/expansion-20261127/README.md) · [Active roster](results/task-roster.json)
+The roster contains the thirty previously published tasks and twenty further additions with three clean unhinted Luna High zero scores each. [New qualification evidence](results/expansion-20261128/README.md) · [Active roster](results/task-roster.json)
+
+## Thirty-task checkpoint
+
+The 17 November additions each recorded three clean unhinted Luna High zero scores. [Qualification table](results/expansion-20261127/README.md) · [Thirty-task manifest](results/expansion-20261127/frozen-task-roster.json)
 
 ## October study artifacts
 

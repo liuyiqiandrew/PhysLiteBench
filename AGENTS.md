@@ -2,7 +2,7 @@
 
 ## Structure
 
-The 30 roster tasks are under `tasks/`. `README.md` and `results/task-roster.json` record their evaluation status. `results/original-task-roster.json` records the October thirteen and `results/qualified-tasks.json` preserves the ten local October qualification snapshots. Earlier and inherited candidate folders are under `archives/`. Each task keeps public files under `environment/`, grading under `tests/`, and its oracle under `solution/`. Keep private answers, tests, hints and author documentation outside ordinary agent images. The runner adds `hint.md` to the instruction only when `--hint` is requested.
+The 50 roster tasks are under `tasks/`. `README.md` and `results/task-roster.json` record their evaluation status. `results/original-task-roster.json` records the October thirteen and `results/qualified-tasks.json` preserves the ten local October qualification snapshots. Earlier and inherited candidate folders are under `archives/`. Each task keeps public files under `environment/`, grading under `tests/`, and its oracle under `solution/`. Keep private answers, tests, hints and author documentation outside ordinary agent images. The runner adds `hint.md` to the instruction only when `--hint` is requested.
 
 Read `TASKS.md` for physics, `docs/BENCHMARK.md` for grading and validation, and `DASHBOARD.md` for the latest results. `scripts/` contains the runner, validators, and completed shortcut controls. `results/` holds shareable summaries; new run artifacts go in ignored `jobs/`.
 

@@ -1,6 +1,6 @@
 # November 27 thirty-task release
 
-The [active roster](../task-roster.json) contains the original thirteen evaluated snapshots and seventeen new tasks. The [frozen checkpoint manifest](frozen-task-roster.json) records the exact task source hashes.
+The [frozen checkpoint manifest](frozen-task-roster.json) records the original thirteen evaluated snapshots, seventeen additions and their exact source hashes. [Latest roster](../task-roster.json)
 
 Each new task has three completed fresh unhinted GPT-5.6 Luna High zero scores. Its Docker oracle passed, its completed shortcut passed calibration and failed hidden physics, and independent review confirmed at least two predominantly physical failures.
 

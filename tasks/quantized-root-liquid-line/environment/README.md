@@ -1,0 +1,11 @@
+# Quantized root liquid line
+
+At size N a solid root population supports independent liquid configurations. A family has a count K drawn from Binomial(N,1/2). Its shared energy is gain*K. A site in the family draws Y from a Gamma law of shape N*shape and scale gain*scale. Both `shape` and `scale` are supplied. All counts and increments are independent across actual labels. Set lambda=log(2), D=(1/3)*log(2/3)+(2/3)*log(4/3), and I=log(1+lambda*scale)−lambda*scale/(1+lambda*scale). There are floor(exp(N D)) families and floor(exp(N shape I)) sites per family.
+
+Put c=lambda/gain, mu=shape*gain*scale/(1+lambda*scale), x=gain*(K−N/3)/sqrt(N), and y=(Y−N*mu)/sqrt(N). Setting j uses energy gain*K+Y−settings[j].fields[0]*x−settings[j].fields[1]*y and inverse temperature c+settings[j].window/sqrt(N). Both normalizations cover the whole frozen sample. The apparatus uses the actual gain. Take N to infinity through the supplied `residue` modulo 3.
+
+For `line_return`, make one independent Gibbs draw per setting and require the same actual site. Its K−floor(N/3) must be in the supplied list `levels`, and its Y−N*mu in `line_window`. If `additional` is an object make a third independent Gibbs draw in its `setting` (0 or 1). For `region` "outside" require a different actual family; for "sibling" require a different site in the same actual family. Its y must be in that object's `band`. For additional null omit the third draw. Return the limit of N times the joint probability averaged over equally weighted original samples. Define all draws and marks at finite N.
+
+Use exactly the named fields and `observable`. Shape is in [.51,1.32], scale in [.48,1.47] and windows and field entries in [−1.09,1.09]. Levels has one to four distinct integers from −3 through 3. Residue is 0, 1 or 2. Every interval has increasing finite endpoints in [−1.67,1.67].
+
+For `warm_energy` use just observable, shape, scale and inverse_temperature in [.08,.34]. Use the unperturbed sample and return the limiting Gibbs mean of gain*K+Y per N. Fit gain in [.69,1.31]. Calibration records contain input, value and positive Gaussian standard deviation sigma. Implement `Model.fit(records)` to store `self.gain` and return self. Implement `Model.predict(experiments)` to return one-dimensional NumPy predictions in input order including the empty array for empty input.
