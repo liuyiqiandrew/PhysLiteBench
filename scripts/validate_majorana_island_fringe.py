@@ -10,7 +10,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/majorana-island-fringe"
-sys.path[:0] = [str(TASK/"solution"), str(TASK/"environment")]
+sys.path[:0] = [str(TASK/"solution"), str(TASK/"environment"), str(TASK/"tests")]
 
 
 def load(name, path):
@@ -114,6 +114,34 @@ def cavity_experiments():
     return groups
 
 
+def injected():
+    rng=np.random.default_rng(4163957)
+    groups={}
+    for label,rows in cavity_experiments().items():
+        for q in rows:
+            c=q['cavity']
+            bins=len(c['transmission'])
+            def packet():
+                a=rng.normal(size=(2*bins,2))
+                a[bins:]*=.5
+                return a.round(3).tolist()
+            first=[packet(),packet()]
+            if label=='wavepacket':
+                first[1]=(.65*np.array(first[0])+.55*np.array(first[1])).round(3).tolist()
+                second=(.45*np.array([packet(),packet()])+.7*np.array(first)).round(3).tolist()
+                marker=np.exp(1j*rng.uniform(-2,2))*rng.uniform(.5,.95)
+                pump=np.exp(1j*rng.uniform(np.pi*.62,np.pi*1.38))*rng.uniform(.5,1.15)
+            else:
+                second=(.55*np.array([packet(),packet()])+.7*np.array(first)).round(3).tolist()
+                phi=rng.uniform(-2,2)
+                marker=np.exp(1j*phi)*rng.uniform(.86,.98)
+                pump=-np.exp(1j*(rng.uniform(-.35,.35)-phi))*rng.uniform(.82,1.16)
+            def parts(x):return [round(x.real,3),round(x.imag,3)]
+            c['pair_source']=dict(preparations=[first,second],pump=parts(pump),marker=parts(marker))
+        groups['pair_exchange' if label=='wavepacket' else 'source_marker']=rows
+    return groups
+
+
 def validate(generate):
     calibration, groups = runs()
     cavity_ref = load("cavity_ref", TASK/"tests/cavity_reference.py")
@@ -123,6 +151,13 @@ def validate(generate):
             accept, value = cavity_ref.reference(q)
             assert accept > .025 and abs(value) < 1+1e-12
             groups[family].append(dict(input=q, value=round(ref.TRUE_PARAMETER*value,9)))
+    pair_ref=load("pair_ref",TASK/"tests/pair_reference.py")
+    for family,inputs in injected().items():
+        groups[family]=[]
+        for q in inputs:
+            accept, signal = pair_ref.reference(q)
+            assert accept>.025 and abs(signal)<1+1e-10
+            groups[family].append(dict(input=q,value=round(ref.TRUE_PARAMETER*signal,9)))
     for path, data in [(TASK/"environment/data/calibration.json",calibration),
                        (TASK/"tests/data/calibration.json",calibration),
                        (TASK/"tests/data/hidden.json",groups)]:
@@ -146,17 +181,32 @@ def validate(generate):
         assert abs(fitted.visibility-ref.TRUE_PARAMETER)<1e-8
         errors = {name:float(max(abs(fitted.predict([r["input"] for r in rows])
                                     - [r["value"] for r in rows]))) for name,rows in groups.items()}
-        assert (max(errors.values())<.003) == (model is oracle)
+        assert (max(errors.values())<1e-7) == (model is oracle)
         print(model.__name__,fitted.visibility,errors)
         if model is not oracle:
-            assert max(errors[k] for k in ("winding","meter","charge","extended")) < 2e-8
-            assert min(errors[k] for k in ("wavepacket","conditioned")) > .003
+            assert max(errors[k] for k in ("winding","meter","charge","extended","wavepacket","conditioned")) < 2e-8
+            assert min(errors[k] for k in ("pair_exchange","source_marker")) > .003
     example = dict(n=3,beta=1.5,ripple=0.,parity=1,frame="site",meter_phase=0.,outcome=1,
                    phase=np.pi/2,arms=[[],[]],
                    cavity=dict(thermal=0.,angle=0.,mode=[[1.,0.]],transmission=[.5],
                                window=[.3,1.2],segments=[[[0,0,1,0.,0.]],[[0,0,1,0.,.6]]]))
     for compare in (cavity_ref.reference(example)[1],oracle.Model().fringe(example)):
         assert abs(compare + .286820) < 5e-7
+    h=[[1.,0.],[0.,0.]]
+    v=[[0.,0.],[1.,0.]]
+    diagonal=[[1.,0.],[1.,0.]]
+    src=dict(preparations=[[h,h],[h,diagonal]],pump=[.7,.2],marker=[.5,.2])
+    example['cavity']['pair_source']=src
+    a=pair_ref.reference(example)
+    b=oracle.Model().fringe(example)
+    np.testing.assert_allclose(a[1],b,atol=1e-12)
+    np.testing.assert_allclose(a,[.23777452477913,.06046239672673],atol=2e-12)
+    print('two-photon voltage example',a)
+    src['preparations']=[[v,v],[v,v]]
+    np.testing.assert_allclose(oracle.Model().fringe(example),cavity_ref.reference(example)[1],atol=1e-12)
+    src['preparations']=[[h,diagonal],[h,h]]
+    src['marker']=[0.,0.]
+    np.testing.assert_allclose(oracle.Model().fringe(example),baseline.Model().fringe(example),atol=1e-12)
     q = dict(calibration[0]["input"],phase=0.,arms=[[],[[0,1,2*np.pi,0.]]])
     np.testing.assert_allclose(oracle.Model().fit(calibration).fringe(q),-1.,atol=1e-12)
 
