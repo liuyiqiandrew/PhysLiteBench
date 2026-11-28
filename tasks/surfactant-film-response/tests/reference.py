@@ -1,5 +1,4 @@
-"""Contract the stationary three-class matrices on polynomials in q**occupancy."""
-from decimal import Decimal, localcontext
+"""Contract the stationary queue matrices in a q-falling-factorial basis."""
 import numpy as np
 
 
@@ -7,34 +6,25 @@ TRUE_PARAMETER = 1.061
 
 
 def probability(word, low, high, q, ratio):
-    # Polynomial action computes the conditional probability given occupancy n.
-    # The last physical label is the first queue slot, hence apply adjoints
-    # in increasing physical label order to the terminal constant.
-    with localcontext() as ctx:
-        ctx.prec = 190
-        D = lambda x: Decimal(str(x))
-        a, s = D(low), D(high)
-        r = D(q) if q else D('1e-12')
-        t = D(ratio)
-        c = [D(1)]
-        for letter in word:
-            d = [D(0)] * (len(c)+1)
-            for j, v in enumerate(c):
-                if letter in 'L*':
-                    down = (1-a)*s / r**j
-                    d[j] += v*(a*s + down)
-                    d[j+1] -= v*down
-                if letter in 'M*':
-                    d[j+1] += v*(1-a)*s
-                if letter in 'H*':
-                    d[j] += v*(1-s)*(1-a + a*r**j)
-            c = d
-        moment = D(1)
-        value = D(0)
-        for j, v in enumerate(c):
-            value += v*moment
-            moment *= 1-t*r**j
-        return float(value)
+    # B_j(n) = product(1-q**(n-i) for i=0,...,j-1), zero for n < j.
+    # Apply the adjoints in label order, starting with B_0 = 1.
+    coeff = np.array([1.0])
+    for letter in word:
+        out = np.zeros(len(coeff) + 1)
+        power = q ** np.arange(len(coeff))
+        if letter in 'L*':
+            out[:-1] += low * high * coeff
+            out[1:] += (1 - low) * high * coeff
+        if letter in 'M*':
+            unused = (1 - low) * high * power * coeff
+            out[:-1] += unused
+            out[1:] -= unused
+        if letter in 'H*':
+            out[:-1] += (1 - high) * (1 - low + low * power) * coeff
+            out[:-2] += (1 - high) * low * (1 - power[1:]) * coeff[1:]
+        coeff = out
+    # The stationary queue has E[B_j] = ratio**j, including at q = 0.
+    return float(np.polynomial.polynomial.polyval(ratio, coeff))
 
 
 def response(e, rate=TRUE_PARAMETER):
@@ -46,6 +36,5 @@ def response(e, rate=TRUE_PARAMETER):
     from scipy.integrate import newton_cotes
     order = 14
     weights = newton_cotes(order)[0]/order
-    qs = q if q else 1.e-12
-    return sum(w*probability(e['word'][:-1],x,x,q,qs)
+    return sum(w*probability(e['word'][:-1],x,x,q,q)
                for x,w in zip(np.linspace(a,b,order+1),weights))

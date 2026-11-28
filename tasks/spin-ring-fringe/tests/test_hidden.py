@@ -36,6 +36,6 @@ def test_visibility(metrics):
     assert abs(metrics["visibility"] - .817) < .005
 
 
-@pytest.mark.parametrize("family", ["anisotropic", "frustrated", "commuting"])
+@pytest.mark.parametrize("family", ["anisotropic", "frustrated", "commuting", "large_xy"])
 def test_signal(metrics, family):
     assert metrics[family] < .008

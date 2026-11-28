@@ -33,7 +33,8 @@ experiment and a `value` rounded to eight decimal places. Implement
 
 All readouts are dimensionless in the stated units. Predictions are assessed to
 absolute error 0.003 for mean induction and 0.008 for cycle impulse. Calibration
-predictions should reproduce the rounded readings to within 0.00001.
+predictions must have absolute error below 0.00001, and the fitted pinning
+scale must have absolute error below 0.0001.
 
 ## Rotating-field measurements
 
@@ -59,10 +60,11 @@ the electric field divided by |ω|. Specify the quantity in `readout`.
 
 ## Rotating a pre-threaded laminate
 
-A second batch has a uniform normal induction `normal` along +x, applied
-before the rotating drive. Its magnitude is in [0.18,0.32]. The core keeps
-this normal induction and zero tangential induction. At each outer face the
-tangential induction rotates as above with H in [0.17,0.22]. No current flows
+A second batch has a uniform induction normal to the slab, applied before
+the rotating drive. The input `normal` is its signed x component, with
+magnitude in [0.18,0.32]. The core keeps this normal induction and zero
+tangential induction. At each outer face the tangential induction rotates
+as above with H in [0.17,0.22]. No current flows
 in x. In the bulk the critical surface is an ellipsoid of revolution about
 the **total local induction**. Its two perpendicular semiaxes equal
 j/(1+|B|), and its parallel semiaxis equals that value times `cutting`.

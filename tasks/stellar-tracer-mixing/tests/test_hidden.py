@@ -18,7 +18,8 @@ def metrics():
     for group, measurements in [("calibration",rows),*truth.items()]:
         y = model.predict([r["input"] for r in measurements])
         target = np.array([r["value"] for r in measurements])
-        assert isinstance(y,np.ndarray) and y.shape == target.shape and np.all(np.isfinite(y))
+        assert isinstance(y,np.ndarray) and y.shape == target.shape
+        assert y.dtype.kind in "iuf" and np.all(np.isfinite(y))
         errors[group] = float(np.max(abs(y-target)))
     result = {"dispersion":float(model.dispersion),"max_absolute_error":errors}
     path=Path("/logs/verifier/metrics.json")

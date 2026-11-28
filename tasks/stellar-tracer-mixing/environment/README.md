@@ -16,7 +16,7 @@ Each input has `k` = [k₁,k₂], integers with 1 ≤ k₁ < k₂ ≤ 5; `first`
 
 Implement Model.fit(records) returning self and setting self.dispersion, and Model.predict(inputs) returning a finite real one-dimensional NumPy array in input order. Each calibration row has an input and its measured value.
 
-The numerical accuracy requested for a mixed echo is 0.00045 in the normalized signal units above. For calibration the absolute tolerance is 0.00002.
+The fitted dispersion must have absolute error below 0.001. Each predicted mixed echo must have absolute error below 0.00045 in the normalized signal units above. Each calibration reading must have absolute error below 0.00002.
 
 The optional `channel` selects two additional readings of the same apparatus. The previously defined signal is "primary" and applies when the key is omitted.
 
@@ -24,3 +24,9 @@ The optional `channel` selects two additional readings of the same apparatus. Th
 * For "relay", the spectrometer selects harmonic h=k₂−2k₁, with k₂>2k₁. At time t=(k₂/h)T+delay take the derivative twice with respect to ε₁ and once with respect to ε₂, evaluated at zero. Divide this derivative by T² and take T→∞. The receiver uses exp(−ihx) and the same band, population and phase angle as before. Only the original two velocity preparations are applied. A derivative of order two here is the ordinary second derivative, including its factorial relative to a power-series coefficient.
 
 The mixed-signal error tolerance is the same for all three channels.
+
+For example, apply the first kick only to A and the second only to B. With the fitted dispersion, the following primary reading for B is approximately −0.00553.
+
+```json
+{"k":[1,2],"first":[1,0],"second":[0,1],"drift":[0,0],"strength":0.4,"delay":0.75,"angle":0,"population":"B","band":null}
+```

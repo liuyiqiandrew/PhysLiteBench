@@ -30,3 +30,8 @@ rounded to eight decimal places. Implement Model.fit(records) returning
 self with the fitted float intensity c stored in self.intensity. Implement
 Model.predict(inputs) returning a finite NumPy array of shape (len(inputs),)
 in input order, including an empty array for an empty input.
+
+The fit must give an intensity in [0.4, 1.3] and maximum absolute
+calibration error below 0.0001. Each new coincidence probability must have
+absolute error below 0.003. For example, the calibrated capillary gives
+0.091793 for u=1, a=1, y=0.5, f=0 and window=[0.1, 0.45].

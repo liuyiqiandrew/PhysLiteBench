@@ -62,6 +62,11 @@ def main():
             error=max(abs(model.predict([r['input'] for r in rows])-[r['value'] for r in rows]))
             print(name,g,'max_abs',error)
             assert (error<.001) == (name=='oracle' or not g.startswith('reversible'))
+    # A single threshold gives independent Bernoulli labels for any q.
+    for q in (0., 1e-100, .5):
+        experiment = dict(mode='bands', lo=-.2, hi=.2, q=q, word='LLLLLLL')
+        low = (1 + experiment['lo']/ref.TRUE_PARAMETER)/2
+        assert abs(ref.response(experiment) - low**7) < 1e-13
     # A full partition, scatter order, and the point mass of adjacent equal speeds.
     for q in (0.,.18,.5):
         a,b=.3,.67

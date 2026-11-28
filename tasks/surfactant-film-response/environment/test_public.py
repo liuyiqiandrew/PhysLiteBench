@@ -13,5 +13,6 @@ def test_camera():
     assert .85 <= model.rate <= 1.15
     assert model.predict([]).shape == (0,)
     y=model.predict([r['input'] for r in rows])
-    assert isinstance(y,np.ndarray) and y.shape==(len(rows),) and np.isfinite(y).all()
+    assert isinstance(y,np.ndarray) and y.shape==(len(rows),)
+    assert y.dtype.kind in 'iuf' and np.isfinite(y).all()
     assert max(abs(y-[r['value'] for r in rows])) < 2e-5

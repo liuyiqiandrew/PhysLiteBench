@@ -1,4 +1,4 @@
-"""Spin Hilbert space for generic small rings and Ising transfer matrices for large rings."""
+"""Spin traces, Ising transfer matrices and the finite XY partition function."""
 from functools import lru_cache
 from itertools import product
 import numpy as np
@@ -43,11 +43,39 @@ def ising_marginal(n, setting, sites):
     return axis, np.array(p)/sum(p)
 
 
+def site_magnetization(n, setting):
+    # Compute (2 / n beta) times the field derivative of log Z. The spin
+    # trace projects the two allowed momentum grids onto their own parity.
+    beta, h, jx, jy = setting
+    partition = magnetization = 0.
+    for parity in (1, -1):
+        modes = 2 * np.arange(n) + (parity == 1)
+        k = np.pi * modes / n
+        field = h / 2 - (jx + jy) * np.cos(k)
+        energy = np.hypot(field, (jx - jy) * np.sin(k))
+        slope = np.divide(field, energy, out=np.zeros(n), where=energy != 0)
+        # Paired modes have positive energies. The unpaired 0 and pi modes
+        # carry the sign of the parity trace through level crossings.
+        unpaired = modes % n == 0
+        energy[unpaired] = field[unpaired]
+        slope[unpaired] = 1
+        c = 2 * np.cosh(beta * energy)
+        s = 2 * np.sinh(beta * energy)
+        weight = np.prod(c)
+        partition += weight + parity * np.prod(s)
+        magnetization += weight * np.dot(slope, s / c)
+        magnetization += parity * sum(slope[j] * c[j] * np.prod(np.delete(s, j)) for j in range(n))
+    return magnetization / (n * partition)
+
+
 def fringe(q):
     n, sites = q["n"], sorted(q["sites"])
-    if n <= 9:
+    if n <= 11:
         a,b = [reduce_state(n,q[key],sites) for key in ["first","second"]]
         return np.sum(a*b.T)
+    if len(sites) == 1:
+        a, b = [site_magnetization(n, q[key]) for key in ["first", "second"]]
+        return (1 + a*b) / 2
     x,p = ising_marginal(n,q["first"],sites)
     y,s = ising_marginal(n,q["second"],sites)
     return p@s if x == y else 2.**(-len(sites))

@@ -4,7 +4,15 @@
 
 **The clearest evidence of difficulty comes from the slab and one stellar submission.** All three slab submissions changed the film predictions. One stellar submission implemented self-gravity, passed four groups and missed the later echo. For the other eleven submissions, the predictions at their fitted parameter matched the public starter byte-for-byte on every hidden input. Those are genuine failures to predict the requested physics. They establish less about how often a solver that attempts a new physical derivation will succeed.
 
-## Where the tests and descriptions disagree
+## Corrections and replay
+
+The pore grader now uses the public calibration residual and intensity range. The model at intensity 0.87312 passes all five tests. Both spin calibration checks now use the same reduced chi-squared. They both reject the audit example at visibility 0.8131. Four additional noncommuting spin preparations cover 10, 11, 19 and 32 sites. The physical solution's RMSE on these cases is 0.0000234 against the 0.008 limit.
+
+The surfactant reference now evaluates the zero-rate-ratio case directly. Its seven-L example gives 0.001810524488, and all 80 original labels reproduce at their published precision. The slab description defines the signed normal field. The stellar diagnostic handles a primary or intercept measurement with `k=[1,2]` under strict floating-point checks. The stellar and surfactant graders also enforce their real-array contracts. Pore, spin, stellar and surfactant now each include a public worked example that distinguishes the starter approximation from the requested physics.
+
+The revised graders passed all five reference solutions. All five completed approximations and all 15 archived Luna submissions passed calibration and failed physical predictions. All five standalone validators passed. These results come from replaying the saved code in the original runtimes with the revised public files and private tests. The fresh Luna batches used the earlier descriptions. The evaluation worktree stores the replay logs and metrics under `jobs/audit-fix-replay-erw3sell/`.
+
+## Findings on the frozen revisions at `743f2d9b`
 
 | Task | Finding | Change for the next revision |
 |---|---|---|

@@ -29,7 +29,8 @@ def metrics():
 
 
 def test_fit(metrics):
-    assert metrics["calibration_max_error"] < 1e-4 and abs(metrics["intensity"] - .873) < 1e-4
+    assert .4 <= metrics["intensity"] <= 1.3
+    assert metrics["calibration_max_error"] < 1e-4
 
 
 @pytest.mark.parametrize("group", ["separated", "pickup", "directed"])

@@ -6,9 +6,10 @@ produced finite predictions. Each failed at least one private physics check.
 There were **zero solve timeouts, verifier timeouts or ungraded attempts** in
 the five selected batches. The reference solution passed for each task.
 
-The [grading and physics audit](AUDIT.md) reproduces all 25 submission and
-control grades, identifies two public/private fit discrepancies, and checks
-how many submissions retained the starter's physical predictions.
+The [grading and physics audit](AUDIT.md) reproduced all 25 original grades
+and identified two public/private fit discrepancies. The current tasks include
+the audit fixes. Replaying the archived submissions on the revised graders
+gave 0/3 for each task. The fresh Luna runs below used the original revisions.
 
 | Delivered task | Solve time across its three trials | Physics error observed |
 |---|---:|---|

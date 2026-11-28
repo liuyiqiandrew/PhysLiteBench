@@ -102,7 +102,11 @@ def signal(q, sigma=TRUE_PARAMETER, spacing=.035, extent=32.):
 def finite_delay(q,sigma,T,dt=.05,n=1024):
     """Split streaming and self-consistent kicks through mixed cubic order."""
     a,b=q['k'];k=b-a;h=b-2*a
-    modes=np.array([-a,b,-2*a,k,h])[:,None,None]
+    relay = q.get('channel') == 'relay'
+    harmonics = [-a,b,-2*a,k]
+    if relay:
+        harmonics.append(h)
+    modes=np.array(harmonics)[:,None,None]
     dv=20/n;v=np.arange(n)*dv-10
     xi=2j*np.pi*np.fft.fftfreq(n,dv)
     d=np.array(q['drift'])[:,None];sig=np.array([sigma,1.25*sigma])[:,None]
@@ -110,7 +114,7 @@ def finite_delay(q,sigma,T,dt=.05,n=1024):
     f=np.array([.62,.38])[:,None]*np.exp(-.5*(yo/sig)**2)/(np.sqrt(2*np.pi)*sig)
     f1=-yo/sig**2*f;f2=(yo**2/sig**4-1/sig**2)*f;f3=(3*yo/sig**4-yo**3/sig**6)*f
     def deriv(x,order=1):return np.fft.ifft(xi**order*np.fft.fft(x,axis=-1),axis=-1)
-    u=np.zeros((5,2,n),complex)
+    u=np.zeros((len(modes),2,n),complex)
     d1=.5*np.array(q['first'])[:,None]
     u[0]=-d1*f1;u[2]=d1**2*f2
     def segment(elapsed,full):
@@ -119,11 +123,13 @@ def finite_delay(q,sigma,T,dt=.05,n=1024):
         for _ in range(steps):
             u[:]*=phase
             z=1j*q['strength']*dv*u.sum(axis=(1,2))[:,None,None]/modes*ds
-            zz,ww,zz2,zw,zzw=z
+            zz,ww,zz2,zw=z[:4]
             if full:
-                du=deriv(u[:4]);ddu=deriv(u[:2],2)
-                u[4]-=zzw*f1 + 2*zz*du[3] + ww*du[2]+zz2*du[1]+2*zw*du[0]
-                u[4]+=(2*zz*zw+ww*zz2)*f2+zz**2*ddu[1]+2*zz*ww*ddu[0]-zz**2*ww*f3
+                du=deriv(u[:4] if relay else u[:2])
+                if relay:
+                    ddu=deriv(u[:2],2)
+                    u[4]-=z[4]*f1 + 2*zz*du[3] + ww*du[2]+zz2*du[1]+2*zw*du[0]
+                    u[4]+=(2*zz*zw+ww*zz2)*f2+zz**2*ddu[1]+2*zz*ww*ddu[0]-zz**2*ww*f3
                 u[3]-=zw*f1+ww*du[0]+zz*du[1]-zz*ww*f2
                 u[1]-=ww*f1
             else:du=deriv(u[:1])
@@ -132,8 +138,9 @@ def finite_delay(q,sigma,T,dt=.05,n=1024):
             u[:]*=phase
     segment(T,False)
     d2=.5*np.array(q['second'])[:,None]
-    u[1]=-d2*f1;u[3]=-d2*deriv(u[0]);u[4]=-d2*deriv(u[2])
-    relay = q.get('channel') == 'relay'
+    u[1]=-d2*f1;u[3]=-d2*deriv(u[0])
+    if relay:
+        u[4]=-d2*deriv(u[2])
     segment((2*a/h if relay else a/k)*T+q['delay'],True)
     s='AB'.index(q['population']);g=q['band'];W=1 if g is None else np.exp(-.5*((v-g[0])/g[1])**2)
     return float(np.real(np.exp(-1j*q['angle'])*dv*sum(W*u[4 if relay else 3,s]))/(T**2 if relay else 1))

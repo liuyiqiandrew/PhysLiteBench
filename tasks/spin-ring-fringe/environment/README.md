@@ -30,3 +30,11 @@ independent Gaussian errors of standard deviation sigma. Fit the common
 visibility with Model.fit(records), store it in self.visibility, and return
 self. Model.predict(inputs) returns the raw dimensionless fringe signals
 as a finite NumPy array of shape (len(inputs),), including empty inputs.
+
+For calibration, the sum of squared residuals in units of sigma, divided
+by the number of records minus one, must be below 2.5. The fitted
+visibility must be within 0.005 of the instrument visibility. The
+root-mean-square signal error must be below 0.008 in each test family.
+
+For example, take n=12, sites=[0,3], and first=second=[2,0,1,0].
+The predicted signal divided by the fitted visibility is 0.49118946.

@@ -19,7 +19,8 @@ def errors():
     result={'rate': float(model.rate), 'max_probability_error': {}}
     for name,records in [('calibration',rows),*groups.items()]:
         y=model.predict([r['input'] for r in records])
-        assert isinstance(y,np.ndarray) and y.shape==(len(records),) and np.isfinite(y).all()
+        assert isinstance(y,np.ndarray) and y.shape==(len(records),)
+        assert y.dtype.kind in 'iuf' and np.isfinite(y).all()
         result['max_probability_error'][name]=float(max(abs(y-[r['value'] for r in records])))
     log=Path('/logs/verifier/metrics.json')
     if log.parent.exists():

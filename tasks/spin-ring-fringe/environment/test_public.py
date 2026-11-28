@@ -15,4 +15,4 @@ def test_calibration():
     y = model.predict([r["input"] for r in records])
     assert isinstance(y, np.ndarray) and y.shape == (len(records),)
     residual = (y - [r["value"] for r in records]) / [r["sigma"] for r in records]
-    assert np.mean(residual**2) < 2.5
+    assert residual @ residual / (len(records) - 1) < 2.5

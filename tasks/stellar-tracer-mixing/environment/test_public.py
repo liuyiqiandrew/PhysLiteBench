@@ -12,12 +12,16 @@ def test_calibration():
     assert .8 <= model.dispersion <= 1.2
     values = model.predict([r["input"] for r in rows])
     assert isinstance(values,np.ndarray) and values.shape == (len(rows),)
-    np.testing.assert_allclose(values,[r["value"] for r in rows],atol=2e-5,rtol=0)
-    assert model.predict([]).shape == (0,)
+    assert values.dtype.kind in "iuf"
+    assert np.max(abs(values - [r["value"] for r in rows])) < 2e-5
+    empty = model.predict([])
+    assert isinstance(empty,np.ndarray) and empty.shape == (0,) and empty.dtype.kind in "iuf"
 
 
 def test_unforced_relay():
     rows = json.loads((Path(__file__).parent/"data/calibration.json").read_text())
     model = Model().fit(rows)
     q = dict(rows[0]["input"], k=[1,3], channel="relay")
-    np.testing.assert_allclose(model.predict([q]),[0.],atol=.00045)
+    value = model.predict([q])
+    assert isinstance(value,np.ndarray) and value.shape == (1,) and value.dtype.kind in "iuf"
+    assert abs(value[0]) < .00045

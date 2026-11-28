@@ -47,6 +47,8 @@ def records():
 
 def validate(regenerate):
     calibration, groups = records()
+    example = dict(u=1., a=1., y=.5, f=0., window=[.1, .45])
+    assert round(oracle.response(example, ref.TRUE_PARAMETER), 6) == .091793
     for path in [TASK/"environment/data/calibration.json", TASK/"tests/data/calibration.json"]:
         if regenerate:
             path.write_text(json.dumps(calibration,indent=2)+"\n")

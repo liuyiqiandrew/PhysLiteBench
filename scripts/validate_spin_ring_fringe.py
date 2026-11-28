@@ -54,6 +54,13 @@ def families():
             q = dict(n=n,first=a,second=b,sites=sites)
             rows.append(dict(input=q,value=ref.TRUE_PARAMETER*ref.fringe(q)))
         groups[name] = rows
+    large = [
+        dict(n=10, first=[2.8,.41,1.21,.16], second=[2.45,-.23,1.17,.31], sites=[8,1,4]),
+        dict(n=11, first=[2.3,-.38,-1.12,.22], second=[3.,.17,-1.2,-.15], sites=[9,0,6,2]),
+        dict(n=19, first=[2.,1.45,.34,.22], second=[3.1,1.18,.38,.26], sites=[14]),
+        dict(n=32, first=[2.4,1.23,.4,-.13], second=[2.8,-1.37,.31,.16], sites=[31]),
+    ]
+    groups["large_xy"] = [dict(input=q, value=ref.TRUE_PARAMETER*ref.fringe(q)) for q in large]
     return groups
 
 
@@ -78,6 +85,17 @@ def validate(regenerate):
     # At high temperature both reductions are identity divided by 2^m.
     inf_temp = dict(n=31,first=[0.,1.,-.3,.98],second=[2.1,-.45,-.6,1.02],sites=[20,6,7,1])
     np.testing.assert_allclose(oracle.fringe(inf_temp),1/16,atol=2e-14)
+    public_example = dict(n=12, sites=[0,3], first=[2.,0.,1.,0.], second=[2.,0.,1.,0.])
+    for model in (ref, oracle):
+        np.testing.assert_allclose(model.fringe(public_example), .49118946, atol=5e-9, rtol=0)
+    # Compare the partition-function derivative to a one-spin Gibbs trace
+    # on even and odd rings before using it to label larger rings.
+    for n in (8, 9):
+        for row in groups["large_xy"]:
+            setting = row["input"]["first"]
+            one_site = ref.reduce_state(n, setting, [0])
+            np.testing.assert_allclose(ref.site_magnetization(n, setting),
+                                       one_site[0,0] - one_site[1,1], atol=1e-12, rtol=0)
     # Check the transfer expression against the spin matrix in both Ising bases.
     for f,s in [([2.,0,.7,0],[1.1,0,-.5,0]),([2.,0,0,.7],[1.1,0,0,-.5])]:
         sites = [0,2,3,6]

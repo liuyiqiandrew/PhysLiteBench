@@ -75,6 +75,18 @@ def check_finite_delays():
         low,high=[ref.finite_delay(offset,ref.TRUE_PARAMETER,t) for t in (16.,32.)]
         assert abs(2*low-high-oracle.response(offset,ref.TRUE_PARAMETER)) < 2e-5
 
+    # The public example has a zero relay harmonic but valid primary and intercept signals.
+    example = dict(k=[1,2],first=[1,0],second=[0,1],drift=[0,0],strength=.4,
+                   delay=.75,angle=0.,population="B",band=None)
+    assert abs(oracle.response(example,ref.TRUE_PARAMETER) + .00553) < 1e-5
+    with np.errstate(divide="raise",invalid="raise"):
+        low = ref.finite_delay(example,ref.TRUE_PARAMETER,16.)
+        offset = dict(example,channel="intercept")
+        high = ref.finite_delay(offset,ref.TRUE_PARAMETER,32.)
+    # At both delays the diagnostic returns the unscaled quadratic reading.
+    assert abs((high-low)/16. + .00553) < 1e-5
+    assert abs(2*low-high-oracle.response(offset,ref.TRUE_PARAMETER)) < 2e-5
+
 
 def verify(generate):
     groups=preparations()

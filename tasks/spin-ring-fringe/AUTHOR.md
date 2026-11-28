@@ -1,4 +1,4 @@
-# Spin ring fringe, revision 3
+# Spin ring fringe, revision 4
 
 Independent preparations on two XY rings are compared by a product of
 physical site swaps. For the selected spins S, the spin trace of that gate
@@ -41,24 +41,30 @@ discussed in [Fagotti and Calabrese (2010)](https://arxiv.org/abs/1003.1110).
 ## Validation
 
 The reference diagonalizes the original spin matrix and traces out unused
-sites on generic rings through nine spins. On larger hidden rings the
-Hamiltonians are commuting X–X or Y–Y Ising bonds; transfer between the
-selected spin values uses a classical 2 by 2 matrix raised to each gap
-length. This retains correlations between distant selected spins in a
-nearly ordered ring. Direct and transfer traces also agree on small rings.
+sites on generic rings through eleven spins. For larger commuting X–X or
+Y–Y Ising rings, a classical 2 by 2 transfer matrix gives the joint
+distribution at the selected sites. Direct and transfer traces agree on
+small rings.
 Five independent spot checks including an odd 29-site ring and a selection
 crossing the closing bond agree within 7e−16. The high-temperature overlap
 is exactly 2^(−|S|) when either copy is maximally mixed.
 
+The larger noncommuting family includes disjoint selections on 10 and 11
+sites and one-spin selections on 19 and 32 sites. Parity makes the one-spin
+state diagonal in Z, and translation invariance gives its magnetization
+as 2 ∂log Z/∂h divided by nβ. The reference differentiates the finite XY
+partition function on the two momentum grids and compares the result to
+direct spin traces on both odd and even small rings.
+
 Seed 92711 generates the noisy calibration. At the fitted visibility
 0.8170504 the reduced chi-square is 1.090. Both controls pass this test.
-The largest oracle family RMS error is 0.000026; the mode restriction
-gives 0.260, 0.042 and 0.274 on anisotropic, frustrated and commuting rings.
+The largest oracle family RMS error is below 0.000026. The mode restriction
+gives 0.260, 0.042, 0.274 and 0.147 for the anisotropic, frustrated,
+commuting and larger noncommuting families.
 The per-family limit is 0.008 dimensionless fringe units, over five
 calibration standard errors. The validator checks 256 further noise
 realizations with seed 92712.
 
 Run `OPENBLAS_NUM_THREADS=1 python scripts/validate_spin_ring_fringe.py`.
-Pass `--generate` to rebuild the checked-in data intentionally. R3 permits
-1,800 seconds of solving and 180 seconds of verification. R1 and R2 and their
-original run evidence are preserved in git and the evaluation ledger.
+Pass `--generate` to rebuild the checked-in data intentionally. The solve
+limit is 1,800 seconds and the verifier limit is 180 seconds.
