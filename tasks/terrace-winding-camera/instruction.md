@@ -1,1 +1,1 @@
-Implement Model in /app/model.py for the two-height terrace-step camera described in /app/README.md. Fit the common step rate and predict the probabilities for the pinned surfaces.
+Implement Model in /app/model.py for the cylindrical terrace camera in /app/README.md. Fit the common diffusivity and predict the joint readings and slit responses of the pinned surfaces.

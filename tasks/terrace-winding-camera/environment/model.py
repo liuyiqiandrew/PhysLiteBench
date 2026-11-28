@@ -1,36 +1,44 @@
-"""Starter approximation: match the lifted pins with independent random-walk bridges."""
+"""Independent Gaussian bridges with a point-nucleation approximation."""
 import numpy as np
-from scipy.special import ive
+from scipy.special import ndtr, roots_legendre
 
 
-def image(q, rate):
-    lower, upper = q["bottom"], q["top"]
-    n, length, winding = len(lower), q["circumference"], q["winding"]
-    first, second = np.array(q["levels"]) * q["height"]
-    position = np.arange(-40, length + 41)
-    site = position % length
-    in_first = (q["window"][0] <= site) & (site < q["window"][1])
-    in_second = (q["count_window"][0] <= site) & (site < q["count_window"][1])
-    middle = ive(abs(position[:, None] - position), 2 * rate * (second - first))
-    counts = np.array([1.])
-    for label, start in enumerate(lower):
-        lift, index = divmod(label + winding, n)
-        end = upper[index] + length * lift
-        left = ive(abs(position - start), 2 * rate * first)
-        if label == q["tag"]:
-            left *= in_first
-        right = ive(abs(position - end), 2 * rate * (q["height"] - second))
-        mass = (left @ middle) * right / ive(abs(end - start), 2 * rate * q["height"])
-        counts = np.convolve(counts, [mass[~in_second].sum(), mass[in_second].sum()])
-    return float(counts[q["count"]])
+def image(q,rate):
+    if q.get('open_pair') is not None:
+        # This approximation treats a slit as a point at every small opening.
+        return 0.
+    bottom,top=q['bottom'],q['top']
+    n=len(bottom);L=q['circumference'];a,b=q['levels']
+    variation=2*rate*q['height'];sigma=np.sqrt(variation*a*(1-a))
+    lo,hi=q['window'];cl,ch=q['count_window']
+    nodes,weights=roots_legendre(24)
+    shifts=L*np.arange(-5,6)
+    def band(mu,sd,low,high):
+        x=mu[...,None] if np.ndim(mu) else mu
+        return np.sum(ndtr((high+shifts-x)/sd)-ndtr((low+shifts-x)/sd),axis=-1)
+    poly=np.ones(1)
+    for i,x0 in enumerate(bottom):
+        winding,j=divmod(i+q['winding'],n)
+        end=top[j]+winding*L
+        mean1=x0+a*(end-x0);mean2=x0+b*(end-x0)
+        later=band(mean2,np.sqrt(variation*b*(1-b)),cl,ch)
+        early=1.
+        if i==q['tag']:
+            early=band(mean1,sigma,lo,hi)
+            position=(lo+hi+(hi-lo)*nodes[:,None])/2+shifts
+            density=np.exp(-.5*((position-mean1)/sigma)**2)/(np.sqrt(2*np.pi)*sigma)
+            conditional=mean2+(1-b)/(1-a)*(position-mean1)
+            inside=band(conditional,np.sqrt(variation*(b-a)*(1-b)/(1-a)),cl,ch)
+            later=(hi-lo)/2*np.sum(weights[:,None]*density*inside)
+        poly=np.convolve(poly,[early-later,later])
+    return float(poly[q['count']])
 
 
 class Model:
     def fit(self, records):
-        self.rate = float(np.mean([row["value"] / (2 * row["input"]["height"])
-                                   for row in records]))
+        self.rate = float(np.mean([row["value"]/(2*row["input"]["height"]) for row in records]))
         return self
 
     def predict(self, inputs):
-        return np.array([2 * self.rate * q["height"] if q["mode"] == "wandering"
-                         else image(q, self.rate) for q in inputs], dtype=float)
+        return np.array([2*self.rate*q["height"] if q["mode"]=="wandering" else image(q,self.rate)
+                         for q in inputs],dtype=float)

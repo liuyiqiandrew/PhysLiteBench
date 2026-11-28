@@ -1,1 +1,1 @@
-A multistep surface is a killed Markov process before conditioning. Net seam crossings identify which step occupies each rank in a sorted set at the first camera. Both observations refer to one retained surface.
+At positive pin separation, absorbing collisions can be imposed by antisymmetrizing a winding-weighted propagator. Conditioning first and merging pins second requires retaining the leading antisymmetric term. The finite-slit response also probes the next term in the accepted pin ensemble.

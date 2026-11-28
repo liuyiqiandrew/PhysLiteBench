@@ -1,24 +1,23 @@
-# Two-height imaging of crystal steps on a cylinder
+# Two-height imaging of terrace bunches on a cylinder
 
-A cylindrical crystal surface has L azimuthal lattice sites, numbered 0 through L−1 clockwise. Each directed terrace step traces a path of sites as the longitudinal coordinate h increases. An isolated step jumps one site clockwise and one site counterclockwise at independent Poisson rates γ per unit height. The lateral lattice spacing is one. The same γ in [0.75, 1.15] applies to every preparation.
+A rough crystal surface carries N directed steps. At longitudinal height h each step has a continuous azimuthal coordinate modulo the circumference L, increasing clockwise. Before conditioning, their continuous lifts are independent Brownian motions with displacement variance 2γh. The lateral and longitudinal length units are fixed. The same diffusivity γ in [0.75,1.15] applies to every preparation.
 
-An open calibration surface carries one step. The microscope records the mean squared unwrapped displacement after a height H, measured in lattice spacings squared. Each calibration input has `mode="wandering"` and `height` in [0.3, 6.5]. Its `value` is rounded to eight decimal places.
+An open calibration surface has one step with a free upper end. For `mode="wandering"`, `height` is H in [0.3,6.5]. The measured `value` is the mean squared unwrapped displacement, rounded to eight decimal places.
 
-A pinned surface has N distinct steps beginning at the ordered sites in `bottom` at h=0. Generate independent paths by the same jump rule. A trial is discarded at the first contact of any two steps, including contact across the join between L−1 and 0. At h=H the set of occupied sites must equal `top`; these pins accept any step. From 0 to H record the net number of seam crossings summed over all paths. A hop from L−1 to 0 contributes +1 and the reverse hop contributes −1. Retain the surface only if this net count equals `winding`. All pinned readings are probabilities conditional on these three acceptance conditions.
+A pinned surface starts at the lower coordinates in `bottom`, marked in ascending order. At H its upper coordinates modulo L must be the unordered set of pins in `top`; a pin accepts any label. Condition on these end positions in the Brownian bridge sense. Retain only paths with no contact at any height, including contact around the back of the cylinder. Start each lift at its listed bottom coordinate in [0,L). If its lift ends at an upper pin y plus kL, assign it winding k. The sum of these integers over all lines must equal `winding`.
 
-A harmless isotope marks the step starting at `bottom[tag]` (zero-based index). Two cameras examine the same retained surface. At the first height its marked step must lie inside `window`. At the second height exactly `count` steps, including the marked step if present, must lie inside `count_window`. Report the probability that both cameras accept.
+Some steps nucleate together or meet at an upper pin. A run of m equal coordinates c in either pin list denotes an ordered set of m pins at c+(j−(m−1)/2)ε for j=0,…,m−1. Perform the endpoint, survival and winding conditioning for positive ε, then take ε→0. Step labels retain their order in the lower pin list. This defines a limiting ensemble even when distinct steps have the same nominal pin.
 
-Each pinned input supplies the following settings.
+Two cameras examine the same retained surface. At height aH the step with lower index `tag` (zero based) must lie inside `window`. At bH exactly `count` of all the steps must lie inside `count_window`. Let P be the probability that both requirements are met. Both windows use coordinates modulo L in [0,L) and include their lower edge.
 
-* `mode="pinned"`; integer N in [2,5] is the length of both pin lists. The integer `circumference` L lies in [3N,4N]. Each pin list is strictly increasing with N entries and every cyclic spacing lies in [2,5] sites, including the last-to-first spacing.
-* `height` H in [2.5,6.5]. `levels=[a,b]` locates the exposures at aH and bH with a in [0.18,0.42] and b in [0.58,0.82].
-* `winding` in {−1,0,1} and `tag` in {0,…,N−1}.
-* Both windows are integer pairs [lo,hi] with 0 ≤ lo < hi ≤ L; a site belongs to the window when lo ≤ site < hi. The integer `count` lies in [0,N].
+* Pinned inputs have `mode="pinned"`, N in {2,3,4,5}, `circumference` L in [7,9], and `height` H in [3.2,4.5]. Each nondecreasing pin list contains N entries in [0.25,L−0.25]. Distinct pin centers on a list have circular distance at least 0.7. A list may consist of a single bunch. The integer `winding` is −1, 0 or 1.
+* `levels=[a,b]` has a in [0.2,0.4] and b in [0.6,0.8]. Each window is a pair [lo,hi] with 0 ≤ lo < hi ≤ L. The integer `count` lies in [0,N].
+* If `open_pair` is null, report P. Otherwise it is the lower index of a bunch containing exactly two steps in `bottom`. Open just these two pins from their shared center c to c−sL/2 and c+sL/2. Call the resulting joint camera probability P(s), taking the ε→0 limit for every other bunch at fixed s. Report the dimensionless slit response lim(s→0⁺) [P(2s)−P(s)]/(3s²). Each slit opening uses its own retained ensemble.
 
-Implement `Model.fit(records)` returning self with the inferred rate stored in `self.rate`, and `Model.predict(inputs)` returning a flat finite real NumPy array in input order, including an empty array for empty input. Reproduce every calibration reading to absolute error below 0.00002, and each new pinned probability to absolute error below 0.003. The starter implements independent pinned bridges, which allow contacts.
-
-For example, at the calibrated rate the following pinned camera reads approximately 0.53848.
+For the following example the calibrated camera probability is 0.26814. Changing only `open_pair` to 0 gives a slit response of −0.83267.
 
 ```json
-{"mode":"pinned","circumference":9,"bottom":[0,3,6],"top":[1,4,7],"height":4,"winding":1,"levels":[0.3,0.7],"tag":2,"window":[6,9],"count_window":[2,6],"count":1}
+{"mode":"pinned","circumference":8,"bottom":[2,2],"top":[3,3],"height":3.8,"winding":1,"levels":[0.3,0.69],"tag":1,"window":[0.4,4.4],"count_window":[0,8],"count":2,"open_pair":null}
 ```
+
+Implement `Model.fit(records)` returning self with the inferred diffusivity in `self.rate`, and `Model.predict(inputs)` returning a flat finite real NumPy array in input order, including empty inputs. Absolute errors must be below 0.00002 for each calibration reading, 0.003 for each probability, and 0.015 for each slit response. The starter uses independent Gaussian bridges and treats a narrow slit as a point at every opening.
