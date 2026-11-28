@@ -1,6 +1,6 @@
-# Two receivers on a parity-heralded quantum repeater
+# Photon-counted phase references in a quantum repeater
 
-A mesh of elementary optical links loads Bell pairs into memories at its stations. After loading, each station reports the parity of its number of stored qubits. Two receivers request distinct remote Bell pairs from the same loading. Predict the probability of serving both receivers, their resource contention and a correlation of their output fringes.
+A mesh of elementary optical links loads Bell pairs into memories at its stations. After loading, each station reports the parity of its number of stored qubits. Two receivers request distinct remote Bell pairs from the same loading. An auxiliary pilot counter records the number of selected π-phase heralds. Predict the probability of serving both receivers, their resource contention and a correlation of their output fringes.
 
 ## Preparation and station readout
 
@@ -23,20 +23,24 @@ Each link e has a binary optical phase sign σₑ with E[σₑ]=`visibility`. Th
 
 For `observable="fringe"`, retain the jointly successful, parity-selected loadings. On each retained shot the controller draws one feasible ordered pair of station paths uniformly. Each ordered pair of paths has one entry in this draw, however many distinct local memory slots could implement it. The controller does not see the phase signs. Return the expectation of the **product of the two remote XX observables**. Each retained shot contributes one joint measurement.
 
+## Phase-reference pilot counter
+
+Every elementary herald also sends one classical pilot pulse through a balanced optical phase analyzer locked to the link's phase. The pilot occupies a separate optical mode and leaves the stored Bell pair intact. When the link's sign is +1 the pulse goes to a dump. When it is −1 the pulse goes to the counting port. The analyzer sorts the common physical link phase shared by **both colors** in that shot.
+
+`pilot={"links":[...],"count":k}` connects the listed elementary links to one ideal photon counter. Link numbers are zero-based indices into `links`. Each detected pilot counts once. The instrument reports exactly k detected pilots from those links in total and discards their link identities. For example, three heralds on one monitored negative-phase link add three counts. An empty link contributes zero for either phase. Unlisted links do not contribute. Counts refer to every elementary herald in the loading, including pairs that the router ultimately does not use.
+
+Condition every reading on this pilot count and on the reported station parities. For contention additionally condition on both requests being individually possible. For the fringe additionally condition on successful joint routing. The pilot counter, the routing controller and the two XX analyzers observe the same loading and the same phase signs. The path controller continues to draw its feasible ordered path pair uniformly without favoring an inferred phase.
+
 ## Worked checks
 
-For these checks use a=1 and write t=ln 2. A single link `[0,1,t,t,-0.35]` connects two stations with parity image [1,1]; both receivers request 0→1. The recorded total is odd. Individually both can be served whenever at least one narrowband-compatible pair is present. In this ensemble a single narrowband pair cannot serve both. The three readings are
+Use a=1 and t=ln 2. A single link `[0,1,t,t,-0.35]` connects stations with parity image [1,1]. Both receivers request 0→1 and the pilot counter records three on link 0. This identifies a negative link with exactly three stored pairs. Each is narrowband-compatible with probability 1/2 independently, so delivery has probability 7/8. Among individually possible loads there is no contention. Two distinct pairs from this same negative-phase link have joint fringe 1.
 
-| Delivery | Contention | Joint fringe |
-| --- | --- | --- |
-| 3/5−8t/15 ≈ 0.230321504 | 8t/9 ≈ 0.616130827 | 1 |
-
-For a looped example use links `[[0,2,t,0,0.5],[0,1,t,0,0.6],[1,2,t,0,-0.8]]`, no station reports, and both requests 0→2. A receiver can use the direct link or the two-hop bypass. If the two receivers use different routes the averaged joint fringe is −0.24. When both take the same route it is 1. The delivery, contention and fringe readings are 0.251839639, 0.597056578 and 0.463835506. The direct path supports N₀ copies and the bypass supports min(N₁,N₂), where the three independent counts each have mean t.
+A second mesh has links `[[0,2,t,0,0.5],[0,1,t,0,0.6],[1,2,t,0,-0.8]]`, no station reports, and both receivers requesting 0→2. Monitor only link 0 and retain pilot count 1. The direct path now has exactly one stored narrowband-compatible pair of negative phase. Both receivers are individually possible. Joint delivery requires at least one pair on each bypass link and occurs with probability 1/4, giving contention 3/4. When the two routes differ, the mean phase product is 0.48. If each bypass link has at least two pairs, the pair of bypass routes is also feasible, with phase product 1. The resulting mean fringe is 0.48+(1−0.48)(1−t)²/3 ≈ 0.496320833.
 
 ## Interface and accuracy
 
-Implement `Model` in `/app/model.py`. `fit(records)` receives calibration dictionaries containing `input` and `value`, stores `activity` and returns self. `predict(inputs)` returns a finite one-dimensional real NumPy array in order, including an empty array for an empty input. Graded meshes are connected simple graphs with 2–8 stations and at most 10 links. The two flux exposures on a link are in [0,1.3], and visibilities in [−1,1]. Every conditioning event in the readings has positive probability.
+Implement `Model` in `/app/model.py`. `fit(records)` receives calibration dictionaries containing `input` and `value`, stores `activity` and returns self. `predict(inputs)` returns a finite one-dimensional real NumPy array in order, including an empty array for an empty input. Graded meshes are connected simple graphs with 2–6 stations and 1–7 links. Exposures on a link are in [0,1.3], visibilities are in [−1,1], and pilot counts are integers from 0 through 3. All conditioning events have positive probability.
 
-The public apparatus evaluates each receiver's individual delivery probability and conditioned single-pair fringe. It provides the posterior distribution of link count parities given the station reports, the four elementary link resource classes, and enumeration of simple paths. The starter gives the two receivers independent parity-selected loadings.
+The public starter implements the complete two-receiver experiment with the pilot counter disconnected. It resolves compatible link resources, station parities, shared phases and per-loading route selection. Its `flow.weights` and `fringe.ensemble` helpers compute the corresponding probability and fringe without conditioning on a counted phase reference. `apparatus.py` supplies calibration, elementary resource-class weights, simple paths and the parity-conditioned distribution.
 
-The ten calibration readings require maximum absolute error below 0.00002. The worked checks and the three held-out groups require maximum absolute error below 0.003. Each science group contains seven readings at settings separate from the two examples.
+The ten calibration readings require maximum absolute error below 0.00002. The worked checks and the three held-out groups require maximum absolute error below 0.003. Each science group has seven readings at settings distinct from the examples.

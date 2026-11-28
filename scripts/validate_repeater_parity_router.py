@@ -9,8 +9,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/repeater-parity-router"
 sys.path[:0] = [str(TASK / "environment"), str(TASK / "solution"), str(TASK / "tests")]
-from reference import explicit
-from fringe import ensemble
+from reference import conditional
+from tagged import value as tagged_reading
 
 
 def calibration():
@@ -21,98 +21,87 @@ def calibration():
 
 
 def science():
-    rng = np.random.default_rng(113709)
-
-    def draw(l, h):
-        return round(float(rng.uniform(l, h)), 6)
-
-    groups = {}
-    for family in ("delivery", "contention", "fringe"):
-        rows = []
+    rng = np.random.default_rng(773142)
+    family = {}
+    for k in ("delivery", "contention", "fringe"):
+        qs = []
         for i in range(7):
-            L = (3 if i % 2 else 4) if family != "fringe" else (3 if i != 5 else 2)
-            ends = []
-            for k in range(L):
-                if k:
-                    ends.extend([(2 * k - 2, 2 * k), (2 * k - 1, 2 * k + 1)])
-                ends.append((2 * k, 2 * k + 1))
+            L = 2 if i in (0, 5) else 3
+            edges = [(0, 1)]
+            for n in range(1, L):
+                edges.extend(
+                    [(2 * n - 2, 2 * n), (2 * n - 1, 2 * n + 1), (2 * n, 2 * n + 1)]
+                )
             if i % 3 == 0:
-                ends.insert(3, (0, 3))
+                edges[0] = (0, 3)
             if i % 3 == 1:
-                ends.insert(5, (3, 4))
-            if i % 3 == 2:
-                ends.pop(3 if L > 2 else 2)
-            if len(ends) > 10:
-                ends.remove((4, 5))
-            edge = [
+                edges[3] = (1, 2)
+            if i == 4:
+                edges.pop(-1)
+            if L == 2:
+                edges.append((0, 3)) if (0, 3) not in edges else edges.append((0, 1))
+            m = len(edges)
+            N = 2 * L
+            vis = rng.uniform(0.22, 0.90, m) * rng.choice([-1, 1], m)
+            links = [
                 [
                     u,
                     v,
-                    draw(0.25, 1.12),
-                    draw(0.09, 0.8),
-                    draw(0.20, 0.94) * (-1 if rng.random() < 0.24 else 1),
+                    round(float(rng.uniform(0.46, 1.13)), 6),
+                    round(float(rng.uniform(0.16, 0.75)), 6),
+                    round(float(h), 6),
                 ]
-                for u, v in ends
+                for (u, v), h in zip(edges, vis)
             ]
-            n = 2 * L
-            pairs = (
-                [[0, n - 1], [1, n - 2]]
+            current = [0] * N
+            for u, v, *_ in links:
+                if rng.random() < 0.35:
+                    current[u] ^= 1
+                    current[v] ^= 1
+            for j in rng.choice(N, min(2, N), replace=False):
+                current[int(j)] = None
+            routes = (
+                [[0, N - 1], [1, N - 2]]
                 if i % 3 == 0
-                else [[1, n - 1], [0, n - 1]]
+                else [[0, N - 1], [1, N - 1]]
                 if i % 3 == 1
-                else [[0, n - 1], [0, n - 1]]
+                else [[0, N - 1], [0, N - 1]]
             )
-            if family == "fringe" and i == 4:
-                pairs = [[0, n - 1], [0, n - 1]]
-            parity = [0] * n
-            for u, v, *_ in edge:
-                if rng.random() < 0.27:
-                    parity[u] ^= 1
-                    parity[v] ^= 1
-            if i % 2:
-                parity[int(rng.integers(0, n))] = None
-            if i % 3 == 1:
-                for j in rng.choice(n, 2, replace=False):
-                    parity[int(j)] = None
-            rows.append(
-                dict(links=edge, parities=parity, requests=pairs, observable=family)
+            watch = sorted(rng.choice(m, min(m, 2 + i % 3), replace=False).tolist())
+            qs.append(
+                dict(
+                    links=links,
+                    requests=routes,
+                    parities=current,
+                    pilot=dict(links=watch, count=[0, 1, 2, 1, 2, 1, 2][i]),
+                    observable=k,
+                )
             )
-        groups[family] = rows
-    return groups
+        family[k] = qs
+    return family
 
 
 def examples():
-    t = np.log(2.0)
+    a = np.log(2.0)
     single = dict(
-        links=[[0, 1, t, t, -0.35]], parities=[1, 1], requests=[[0, 1], [0, 1]]
+        links=[[0, 1, a, a, -0.35]],
+        parities=[1, 1],
+        requests=[[0, 1], [0, 1]],
+        pilot=dict(links=[0], count=3),
     )
-    first = [3 / 5 - 8 * t / 15, 8 * t / 9, 1.0]
-    # Capacities of the direct path D and the two-link bypass L, clipped at two.
-    p = np.array([0.5, t / 2, (1 - t) / 2])
-    l = np.array([0.75, 0.25 - p[2] ** 2, p[2] ** 2])
-    joint = fringe = 0.0
-    w = -0.24
-    for d in range(3):
-        for b in range(3):
-            count = int(d == 2) + int(b == 2) + 2 * int(d > 0 and b > 0)
-            if count:
-                joint += p[d] * l[b]
-                fringe += (
-                    p[d]
-                    * l[b]
-                    * (int(d == 2) + int(b == 2) + 2 * w * int(d > 0 and b > 0))
-                    / count
-                )
-    second = [joint, 1 - joint / (5 / 8), fringe / joint]
     tri = dict(
-        links=[[0, 2, t, 0, 0.5], [0, 1, t, 0, 0.6], [1, 2, t, 0, -0.8]],
+        links=[[0, 2, a, 0, 0.5], [0, 1, a, 0, 0.6], [1, 2, a, 0, -0.8]],
         parities=[None] * 3,
         requests=[[0, 2], [0, 2]],
+        pilot=dict(links=[0], count=1),
     )
     return [
         (dict(q, observable=k), v)
-        for q, truth in [(single, first), (tri, second)]
-        for k, v in zip(("delivery", "contention", "fringe"), truth)
+        for q, vs in [
+            (single, [0.875, 0.0, 1.0]),
+            (tri, [0.25, 0.75, 0.48 + 0.52 / 3 * (1 - a) ** 2]),
+        ]
+        for k, v in zip(("delivery", "contention", "fringe"), vs)
     ]
 
 
@@ -126,7 +115,7 @@ def validate(generate):
         rows = []
         errors = []
         for q in qs:
-            v = explicit(q, a)[group]
+            v = conditional(q, a)[group]
             assert np.isfinite(v) and -1 - 1.0e-12 <= v <= 1 + 1.0e-12
             errors.append(abs(oracle.read(q) - v))
             rows.append(dict(input=q, value=round(float(v), 8)))
@@ -143,8 +132,11 @@ def validate(generate):
         assert json.loads(p.read_text()) == values
     for p, label in [
         (TASK / "solution/model.py", "oracle"),
-        (TASK / "environment/model.py", "independent loads"),
-        (ROOT / "scripts/repeater_parity_router_baseline.py", "fresh phases"),
+        (TASK / "environment/model.py", "counter disconnected"),
+        (
+            ROOT / "scripts/repeater_parity_router_baseline.py",
+            "separate readout phases",
+        ),
     ]:
         model = runpy.run_path(str(p))["Model"]().fit(cal)
         assert abs(model.activity - a) < 2.0e-7
@@ -155,21 +147,25 @@ def validate(generate):
             err[family] = float(max(abs(prediction - [r["value"] for r in rows])))
         if label == "oracle":
             assert max(err.values()) < 2.0e-7
-        if label == "independent loads":
+        if label == "counter disconnected":
             assert min(err.values()) > 0.01
-        if label == "fresh phases":
+        if label == "separate readout phases":
             assert (
-                max(err["delivery"], err["contention"]) < 2.0e-7 and err["fringe"] > 0.2
+                max(err["delivery"], err["contention"]) < 2.0e-7
+                and err["fringe"] > 0.04
             )
         print(label, err)
-    pooled = max(abs(ensemble(r["input"], a)[1] - r["value"]) for r in data["fringe"])
-    assert pooled > 0.02
-    print("weighting shots by the number of path pairs", pooled)
+    saturated = {
+        k: max(abs(tagged_reading(r["input"], a, saturate=True) - r["value"]) for r in rows)
+        for k, rows in data.items()
+    }
+    print("one count per occupied negative link", saturated)
+    assert max(saturated.values()) > 0.04
     oracle.activity = 1.0
     for q, value in examples():
         np.testing.assert_allclose(oracle.read(q), value, atol=1.0e-10)
         np.testing.assert_allclose(
-            explicit(q, 1.0)[q["observable"]], value, atol=1.0e-10
+            conditional(q, 1.0)[q["observable"]], value, atol=1.0e-10
         )
 
 

@@ -1,1 +1,1 @@
-Fit the pair loading rate and predict the two-receiver delivery, contention and fringe readings of the parity-heralded repeater mesh in `/app/README.md`. Implement `Model` in `/app/model.py`.
+Fit the loading activity and predict the pilot-count-conditioned probabilities and remote fringes of the two-receiver repeater in `/app/README.md`. Implement `Model` in `/app/model.py`.

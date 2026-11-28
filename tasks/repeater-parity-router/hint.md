@@ -1,1 +1,1 @@
-Condition on the same station parity image in both protocols. Enumerate admissible paths or path flows on each herald loading. A single elementary pair can support one route through its link. When two distinct stored pairs are used on one link, their phase signs agree.
+Condition on both the phase reference and the raw count inventory. A monitored negative link contributes one pilot for every elementary pair on that link, including unused pairs. The same link signs determine the remote XX product.

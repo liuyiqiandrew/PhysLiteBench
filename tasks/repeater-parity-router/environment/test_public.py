@@ -24,37 +24,26 @@ def test_calibration():
 
 
 def examples():
-    t = np.log(2.0)
+    a = np.log(2.0)
     single = dict(
-        links=[[0, 1, t, t, -0.35]], parities=[1, 1], requests=[[0, 1], [0, 1]]
+        links=[[0, 1, a, a, -0.35]],
+        parities=[1, 1],
+        requests=[[0, 1], [0, 1]],
+        pilot=dict(links=[0], count=3),
     )
-    first = [3 / 5 - 8 * t / 15, 8 * t / 9, 1.0]
-    # Capacities of the direct path D and the two-link bypass L, clipped at two.
-    p = np.array([0.5, t / 2, (1 - t) / 2])
-    l = np.array([0.75, 0.25 - p[2] ** 2, p[2] ** 2])
-    joint = fringe = 0.0
-    w = -0.24
-    for d in range(3):
-        for b in range(3):
-            count = int(d == 2) + int(b == 2) + 2 * int(d > 0 and b > 0)
-            if count:
-                joint += p[d] * l[b]
-                fringe += (
-                    p[d]
-                    * l[b]
-                    * (int(d == 2) + int(b == 2) + 2 * w * int(d > 0 and b > 0))
-                    / count
-                )
-    second = [joint, 1 - joint / (5 / 8), fringe / joint]
     tri = dict(
-        links=[[0, 2, t, 0, 0.5], [0, 1, t, 0, 0.6], [1, 2, t, 0, -0.8]],
+        links=[[0, 2, a, 0, 0.5], [0, 1, a, 0, 0.6], [1, 2, a, 0, -0.8]],
         parities=[None] * 3,
         requests=[[0, 2], [0, 2]],
+        pilot=dict(links=[0], count=1),
     )
     return [
         (dict(q, observable=k), v)
-        for q, truth in [(single, first), (tri, second)]
-        for k, v in zip(("delivery", "contention", "fringe"), truth)
+        for q, vs in [
+            (single, [0.875, 0.0, 1.0]),
+            (tri, [0.25, 0.75, 0.48 + 0.52 / 3 * (1 - a) ** 2]),
+        ]
+        for k, v in zip(("delivery", "contention", "fringe"), vs)
     ]
 
 
