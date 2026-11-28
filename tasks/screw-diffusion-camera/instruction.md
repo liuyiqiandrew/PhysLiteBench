@@ -1,1 +1,0 @@
-Implement Model in /app/model.py for the scattering microscope and balanced actuator described in /app/README.md. Fit the solvent mobility, predict the ordinary gated fringes, and evaluate the slope and curvature of the driven gyroscope gradient pickup.

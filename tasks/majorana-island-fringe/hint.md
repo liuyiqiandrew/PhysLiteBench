@@ -1,1 +1,0 @@
-Two tag histories can have different lead propagators. The two-time charge meter resolves a regional total before the first quench and after the last. Its initial measurement can alter the state of a lead with hopping.
