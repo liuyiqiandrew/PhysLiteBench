@@ -1,0 +1,13 @@
+# Barkhausen pulse camera
+
+At time zero, two well-separated magnetic domain walls receive known field kicks. Wall i begins with velocity vᵢ>0. During its forward avalanche the wall velocity follows the Itô equation dVᵢ = −kᵢ Vᵢ dt + √(2 D mᵢ Vᵢ) dWᵢ. Zero is absorbing. The Brownian noises of the two walls are independent. The entries of `walls` are [vᵢ,kᵢ,mᵢ] in wall order 0,1. All quantities are dimensionless. The positive D in [0.72,1.12] is common to all experiments.
+
+Let τᵢ be the first zero of Vᵢ. An induction coil records the **total size** S=∫₀^∞(V₀+V₁)dt, following both walls to rest on every shot. The time channel records T=min(τ₀,τ₁) for `trigger="first"` and T=max(τ₀,τ₁) for `"last"`. The two times are almost surely distinct. A blind trigger erases the source identity. If `identity` is 0 or 1 keep only shots where that wall caused the indicated trigger. The untriggered wall continues to evolve.
+
+Each of two optical flashes [t,a,b] produces a Poisson count with mean a V₀(t)+b V₁(t). The counts are independent given both trajectories. The flashes do not perturb the walls. Report the probability that **both counts were zero** on shots whose total size and recorded time fall at `size` and `time`. Use the conditional density obtained from shrinking rectangular bins in S and T, holding both flash times fixed in laboratory units. For example, at D=0.85, walls [[0.48,0.95,1.14],[0.77,1.32,0.84]], flashes [[0.42,1.2,0.5],[0.83,0.46,1.8]], S=1.13 and T=1.25, a blind first trigger gives 0.20365058 and a blind last trigger gives 0.17253805.
+
+Calibration uses a single wall with m=1. Each record in data/calibration.json has an `input` with `kick`, `spring`, and `time`, and a `value` measuring the unconditional variance of its velocity at that time. The starter implements this calibration and a mean-velocity flash approximation. One available bench check is P(τ≤t)=exp[−v k/(D m (exp(kt)−1))] for one wall, before any size or optical selection.
+
+The wall settings have initial speed in [0.30,0.96], spring in [0.65,1.60], and diffusion multiplier in [0.70,1.30]. Two-wall records use 0.82≤T≤1.56, 0.68≤S≤1.78, and 0.20T≤t₁<t₂≤0.80T. Flash strengths are between 0 and 2.5. Calibration uses 0.2≤time≤1.3, 0.3≤kick≤1.0, and 0.65≤spring≤1.7.
+
+Implement Model.fit(records), store D in self.diffusivity and return self. Model.predict(inputs) returns a finite real NumPy vector with one output in input order and a zero-length vector for an empty input list. The calibration maximum absolute error must be below 0.000002. On each of the blind first, blind last and identified-trigger sets the maximum absolute probability error must be below 0.004.
