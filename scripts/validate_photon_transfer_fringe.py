@@ -259,8 +259,115 @@ def write_or_check(path, obj, generate):
     assert json.loads(path.read_text()) == obj, path
 
 
+def example(rho):
+    n = 3
+    s = dict(
+        mean=[0.0] * n,
+        cov=[[1.0, rho, 0.0], [rho, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        chirp=np.zeros((3, 3)).tolist(),
+        delay=[1.0, 0.0, 0.0],
+    )
+    return dict(
+        bank=[0],
+        before=[[0, 1, np.pi / 4, 0.0]],
+        after=[],
+        gate=None,
+        phase=0.0,
+        spectral=dict(preparations=[s], plate=[0, 0.0, 0.0]),
+        **{"lambda": np.pi}
+    )
+
+
+def spectral_preparations():
+    rng = np.random.default_rng(5867231)
+    result = {}
+
+    def state(n):
+        a = np.linalg.qr(rng.normal(size=(n, n)))[0]
+        b = np.linalg.qr(rng.normal(size=(n, n)))[0]
+        p = rng.uniform(0.55, 1.5, n)
+        p[0] = rng.uniform(0.53, 0.7)
+        p[-1] = rng.uniform(1.32, 1.51)
+        return dict(
+            mean=np.round(rng.uniform(-0.6, 0.6, n), 3).tolist(),
+            cov=np.round((a * p) @ a.T, 4).tolist(),
+            chirp=np.round((b * rng.uniform(-0.76, 0.76, n)) @ b.T, 4).tolist(),
+            delay=np.round(rng.uniform(-1.29, 1.29, n), 3).tolist(),
+        )
+
+    def mesh(n, K):
+        return [
+            [
+                *map(int, rng.choice(n, 2, replace=False)),
+                round(float(rng.uniform(0.37, 1.23)), 3),
+                round(float(rng.uniform(-3.0, 3.0)), 3),
+            ]
+            for _ in range(K)
+        ]
+
+    for name in ("joint_spectra", "dispersive_paths", "spectral_eraser"):
+        shots = []
+        for i in range(8):
+            n = 2 if i in (0, 4) else 3
+            before = mesh(n, n + 1)
+            after = mesh(n, n + 2)
+            s = state(n)
+            spec = dict(preparations=[s], plate=[i % n, 0.0, 0.0])
+            gate = None if i % 3 == 0 else dict(rails=[(i + 1) % n], parity=(-1) ** i)
+            angle = float(rng.uniform(1.3, 3.1))
+            phase = float(rng.uniform(-1.1, 1.1))
+            bank = [i % n]
+            if name == "joint_spectra" and i == 1:
+                s = dict(
+                    mean=[0.0, 0.0, 0.0],
+                    cov=[[1.0, -0.43, 0.0], [-0.43, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                    chirp=np.zeros((3, 3)).tolist(),
+                    delay=[1.17, 0.0, 0.0],
+                )
+                spec["preparations"] = [s]
+                before = [[0, 1, 0.71, 0.11]]
+                after = []
+                bank = [0]
+                gate = None
+                angle = 2.89
+                phase = 0.03
+            if name != "joint_spectra":
+                spec["plate"] = [
+                    i % n,
+                    round((-1) ** i * float(rng.uniform(0.78, 1.57)), 3),
+                    round(float(rng.uniform(-0.67, 0.67)), 3),
+                ]
+            if name == "spectral_eraser":
+                spec["preparations"].append(state(n))
+                spec["weight"] = np.round(
+                    rng.uniform(0.53, 1.18)
+                    * np.array([np.cos(i * 0.8), np.sin(i * 0.8)]),
+                    3,
+                ).tolist()
+                spec["marker"] = np.round(
+                    rng.uniform(0.6, 0.98)
+                    * np.array([np.cos(1.6 + i * 0.53), np.sin(1.6 + i * 0.53)]),
+                    3,
+                ).tolist()
+            shots.append(
+                dict(
+                    spectral=spec,
+                    before=before,
+                    after=after,
+                    bank=bank,
+                    gate=gate,
+                    phase=phase,
+                    **{"lambda": angle}
+                )
+            )
+        result[name] = shots
+    return result
+
+
 def main(generate):
+    from frequency_reference import reading as frequency_reading
     calibration,groups = preparations()
+    groups.update(spectral_preparations())
     cal = [dict(input=q,value=round(VIS*calibration_signal(q),8)) for q in calibration]
     for side in ('environment','tests'):
         write_or_check(TASK/side/'data/calibration.json',cal,generate)
@@ -273,8 +380,14 @@ def main(generate):
     for group,qs in groups.items():
         rows = []
         for i,q in enumerate(qs):
-            y, success = ref['reference'](q)
-            if i in (3,4) and 'pulse' not in q:
+            if 'spectral' in q:
+                y,success=frequency_reading(q,46)
+                coarse,coarse_p=frequency_reading(q,32)
+                convergence=max(convergence,abs(y-coarse),abs(success-coarse_p))
+                assert success>=.05
+            else:
+                y,success=ref['reference'](q)
+            if i in (3,4) and 'pulse' not in q and 'spectral' not in q:
                 finer,_ = ref['reference'](q,points=192)
                 convergence=max(convergence,abs(finer-y))
             retention = min(retention,success)
@@ -287,12 +400,17 @@ def main(generate):
     write_or_check(stored,results,generate)
     print('max errors',errors,'minimum retention',retention,'quadrature difference',convergence)
     assert max(errors['oracle'].values()) < 1e-6
-    new = ('pump_number','pump_erasure')
+    new = ('joint_spectra','dispersive_paths','spectral_eraser')
     assert max(v for k,v in errors['starter'].items() if k not in new)<1e-6
     assert min(errors['starter'][g] for g in new)>.001
     assert max(v for k,v in errors['shortcut'].items() if k not in new)<1e-6
     assert min(errors['shortcut'][k] for k in new)>.001
     assert retention >= .0005 and convergence < 1e-7
+    from spectral import spectral_signal
+    for rho in [.5,-.5]:
+        query=example(rho);expected=-np.exp(-(1-rho))
+        np.testing.assert_allclose(spectral_signal(query),(expected,1.),atol=1e-10,rtol=0)
+        np.testing.assert_allclose(frequency_reading(query,24),(expected,1.),atol=1e-9,rtol=0)
     # A swap moves all photons from the pumped rail. Its vacuum input emits pairs.
     sample = dict(source=[[0,.7,0],[0,0,0]],prep=[],before=[[0,1,np.pi/2,0]],after=[],
                   bank=[0],gate=None,phase=0)
