@@ -1,0 +1,3 @@
+Predict a two-atom Raman interference signal in a one-dimensional gas of impenetrable spin-½ bosons. Spatial coherence comes from a thermal hard-core charge state. The prepared spins are correlated along the order of the atoms. The two beams move atoms and rotate their spins coherently in one arm of an interferometer.
+
+Implement Model.fit(records) and Model.predict(inputs) in /app/model.py. Fit the visibility using the blank readings. The public README gives the density operator, spin preparation, interferometer and worked examples. The starter supplies the spatial density-matrix elements and pulse matrices.

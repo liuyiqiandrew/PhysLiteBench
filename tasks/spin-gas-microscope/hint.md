@@ -1,0 +1,1 @@
+Construct the spin overlap in the ordered many-body basis for each spectator occupation. Each pulse has an initial rank for its column index and a final rank for its row index. The diagonal spin-density matrix identifies the two rank-ordered lists. Average the resulting product over a single correlated spin sequence.
