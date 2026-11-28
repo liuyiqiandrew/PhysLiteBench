@@ -1,5 +1,5 @@
-from gaussian import Survey
+from pulse import PulseSurvey
 
 
-class Model(Survey):
-    """Coherent optical model in the weak-trigger limit for both switches."""
+class Model(PulseSurvey):
+    """Classical phase reference for all switches."""

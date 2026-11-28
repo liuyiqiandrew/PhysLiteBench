@@ -82,6 +82,10 @@ def preparations():
             q['pulse'] = [draw(.57,1.07),draw(.65,1.17)]
             rows.append(q)
         groups[name] = rows
+    # The pump number and analyzer settings describe the fabricated sources.
+    designs = json.loads((TASK/'tests/data/predictions.json').read_text())
+    for label in ('pump_number','pump_erasure'):
+        groups[label] = [row['input'] for row in designs[label]]
     return calibration,groups
 
 
@@ -198,6 +202,34 @@ def switch_fock(q, limit):
     rho = prep @ rho @ prep.conj().T
     count = occupations[:,q['bank']].sum(axis=1)
     ctrl = q['switch']
+    if 'pump' in q:
+        source=q['pump']
+        dim=1+max(x[0] for x in source['state']+(source['detect'] or []))
+        def ket(terms):
+            psi=np.zeros(dim,complex)
+            for k,x,y in terms:psi[k]=x+1j*y
+            return psi/np.linalg.norm(psi)
+        psi=ket(source['state'])
+        out=ket(source['detect']) if source['detect'] is not None else None
+        pump=np.diag(np.sqrt(np.arange(1,dim)),1)
+        between=np.kron(np.diag(np.exp(-.5j*source['kerr']*np.arange(dim)*(np.arange(dim)-1))),passive(ctrl['middle']))
+        ops=[]
+        for i,j,t,p,b,f in ctrl['clicks']:
+            mode=np.cos(t)*lower[i]+np.exp(1j*p)*np.sin(t)*lower[j]
+            ops.append(np.cos(b)*np.kron(np.eye(dim),mode)+np.exp(1j*f)*np.sin(b)*np.kron(pump,mode.conj().T))
+        initial=np.kron(psi[:,None],before)
+        trigger=(ops[1]@between@(ops[0]@initial) + np.exp(1j*ctrl['angle'])*ops[0]@between@(ops[1]@initial))/2
+        optical=after@trigger.reshape(dim,len(states),len(states))
+        if out is not None:optical=np.array([np.tensordot(out.conj(),optical,axes=1)])
+        rate=moment=0.
+        for first in np.unique(count):
+            sel=count==first
+            for transfer in optical:
+                block=transfer[:,sel]
+                probabilities=np.diag(block@rho[np.ix_(sel,sel)]@block.conj().T).real
+                moment+=probabilities@np.cos(q['lambda']*(count-first)-q['phase'])
+                rate+=probabilities.sum()
+        return moment/rate,rate
     if 'pulse' in q:
         ops = [trigger_fock(occupations,settings,eps,limit)
                for settings,eps in zip(ctrl['clicks'],q['pulse'])]
@@ -255,7 +287,7 @@ def main(generate):
     write_or_check(stored,results,generate)
     print('max errors',errors,'minimum retention',retention,'quadrature difference',convergence)
     assert max(errors['oracle'].values()) < 1e-6
-    new = ('finite_pulses','finite_eraser')
+    new = ('pump_number','pump_erasure')
     assert max(v for k,v in errors['starter'].items() if k not in new)<1e-6
     assert min(errors['starter'][g] for g in new)>.001
     assert max(v for k,v in errors['shortcut'].items() if k not in new)<1e-6
@@ -296,6 +328,15 @@ def main(generate):
     assert abs(ref['reference'](commutator)[0]-.5)<1e-12
     assert abs(models['oracle'].reading(commutator)-.5)<1e-12
 
+    for m,answer in [(1,.5),(2,-1/28)]:
+        quantum = dict(commutator,pump=dict(state=[[m,1.,0]],detect=None,kerr=np.pi))
+        assert abs(ref['reference'](quantum)[0]-answer)<1e-11
+        assert abs(models['oracle'].reading(quantum)-answer)<1e-11
+    probe = dict(groups['pump_erasure'][0],source=[[.084,.155,.7],[.11,.21,-.2]])
+    exact=ref['reference'](probe)
+    for limit in (12,20):
+        number=switch_fock(probe,limit)
+        assert max(abs(np.asarray(number)-exact)) < (2e-6 if limit==12 else 2e-8)
     commutator['pulse']=[.5,.65]
     finite,p=ref['reference'](commutator)
     assert abs(finite-.8922324303158284)<2e-7 and abs(p-.010848247529066407)<2e-9

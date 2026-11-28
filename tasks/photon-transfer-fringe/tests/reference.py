@@ -87,12 +87,47 @@ def switched(q, covariance, before, after, bank, angles, to_alpha):
         normalizer = np.exp(-.5*np.log1p(-np.linalg.eigvals(product)).sum(axis=1))
         tilted = np.linalg.solve(np.eye(2*n)-product,cov)
         answer = 0j
-        for left in range(2):
-            for right in range(2):
+        branches = []
+        if 'pump' not in q:
+            for arm in (0,1):
+                branches.append(([ops[arm],ops[1-arm]],{0:incoming[arm]}))
+        else:
+            charge = q['pump']
+            def amplitude(rows):
+                data={n:complex(r,i) for n,r,i in rows}
+                norm = np.sqrt(sum(abs(v)**2 for v in data.values()))
+                return {n:v/norm for n,v in data.items()}
+            initial=amplitude(charge['state'])
+            analyzer=None if charge['detect'] is None else amplitude(charge['detect'])
+            for arm in (0,1):
+                for first in (0,1):
+                    for last in (0,1):
+                        matrix={}
+                        for occupation,psi in initial.items():
+                            m=occupation-first
+                            endpoint=m-last
+                            if endpoint<0:
+                                continue
+                            term=psi*np.exp(-.5j*charge['kerr']*m*(m-1))
+                            if first:term*=np.sqrt(occupation)
+                            if last:term*=np.sqrt(m)
+                            term*=incoming[arm]
+                            if analyzer is not None:
+                                term*=analyzer.get(endpoint,0).conjugate()
+                                endpoint=0
+                            matrix[endpoint]=matrix.get(endpoint,0)+term
+                        l=[]
+                        for (a,b),r in zip((ops[arm],ops[1-arm]),(first,last)):
+                            l.append(((1-r)*a,r*b))
+                        branches.append((l,matrix))
+        for left_ops,l in branches:
+            for right_ops,r in branches:
+                weight=sum(w.conjugate()*r.get(i,0) for i,w in l.items())
+                if not weight:continue
                 def adj(op):
                     return op[1].conj(),op[0].conj()
-                factors = [before.conj().T,adj(ops[left]),middle.conj().T,adj(ops[1-left]),
-                           pulled,ops[1-right],middle,ops[right]]
+                factors = [before.conj().T,adj(left_ops[0]),middle.conj().T,adj(left_ops[1]),
+                           pulled,right_ops[1],middle,right_ops[0]]
                 walk = eye
                 creators,annihilators = [],[]
                 for elem in factors:
@@ -107,7 +142,7 @@ def switched(q, covariance, before, after, bank, angles, to_alpha):
                 source = u @ k @ to_alpha + v @ to_alpha.conj()
                 pair = source @ tilted @ source.T + u @ v.T
                 fourth = sum(pair[:,0,j]*pair[:,l,m] for j,l,m in ((1,2,3),(2,1,3),(3,1,2)))
-                answer += incoming[left].conjugate()*incoming[right]*np.mean(normalizer*fourth)
+                answer += weight*np.mean(normalizer*fourth)
         return answer/4
     retention = trace(0.).real
     return float((np.exp(-1j*q['phase'])*trace(q['lambda'])).real/retention),float(retention)

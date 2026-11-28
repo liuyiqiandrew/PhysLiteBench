@@ -32,6 +32,6 @@ def test_fit(metrics):
 
 
 @pytest.mark.parametrize('family',['mixing','squeezed','even_gate','odd_gate',
-                                   'ordered_clicks','erased_order','subtraction_port','finite_pulses','finite_eraser'])
+                                   'ordered_clicks','erased_order','subtraction_port','finite_pulses','finite_eraser','pump_number','pump_erasure'])
 def test_transfer(metrics,family):
     assert metrics['max_absolute_error'][family] < .001

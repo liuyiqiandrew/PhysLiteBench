@@ -1,5 +1,5 @@
-from pulse import PulseSurvey
+from pump import PumpSurvey
 
 
-class Model(PulseSurvey):
+class Model(PumpSurvey):
     pass

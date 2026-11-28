@@ -1,6 +1,6 @@
-"""Finite trigger dynamics with an unobserved record of the two orders."""
-from pulse import PulseSurvey
+"""The pump number is read between the two trigger interactions."""
+from pump import PumpSurvey
 
 
-class Model(PulseSurvey):
-    pulse_coherence = False
+class Model(PumpSurvey):
+    monitor = True
