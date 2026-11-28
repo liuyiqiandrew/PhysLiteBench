@@ -1,0 +1,1 @@
+Implement Model in /app/model.py for the rebound calorimeter in /app/README.md. Fit the acceleration diffusivity, predict the feedback selection and sticking transition, and calculate the time- and energy-selected sticking probabilities.
