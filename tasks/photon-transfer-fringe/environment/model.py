@@ -1,63 +1,28 @@
-"""Carrier-frequency, distinguishable-path approximation to the conversion herald."""
-from itertools import permutations
+"""Approximation that scatters the input photons in two successive isolated passages."""
+from itertools import product
 import numpy as np
-from scipy.special import ndtr
-from optics import Calibrated, calibration_signal, mesh
-from spectral import spectral_signal
+from apparatus import fields, one_photon, pulse, signal, spin
+from optics import Calibrated, calibration_signal
 
 
-def carrier(q):
-    before = abs(mesh(3, q["before"])) ** 2
-    after = abs(mesh(3, q["after"])) ** 2
-    spec = q["conversion"]
-    gate = q["gate"]
-    mass = np.zeros(3)
-    det = spec["detector"]
-    source = q["spectral"]
-    for i, p in enumerate(source["preparations"]):
-        mu = np.array(p["mean"])
-        cov = np.array(p["cov"])
-        weight = 1.0 if i == 0 else abs(complex(*source["weight"])) ** 2
-        for r, s, a, b, center, width, walk, delay in spec["paths"]:
-            for survivor in range(3):
-                rails = [r, s, survivor]
-                if (
-                    gate
-                    and (-1) ** sum(np.isin(rails, gate["rails"])) != gate["parity"]
-                ):
-                    continue
-                for m, n, j in permutations(range(3)):
-                    d = mu[m] - mu[n]
-                    z = mu[m] + mu[n]
-                    sigma = np.sqrt(cov[m, m] + cov[n, n] + 2 * cov[m, n])
-                    accept = 1.0
-                    if det and "band" in det:
-                        lo, hi = det["band"]
-                        accept = ndtr((hi - z) / sigma) - ndtr((lo - z) / sigma)
-                    if det and "mode" in det:
-                        c, sw, dt, beta = det["mode"]
-                        accept = np.exp(
-                            -((z - c) ** 2) / (2 * (sigma * sigma + sw * sw))
-                        )
-                    mass[survivor] += (
-                        weight
-                        * (a * a + b * b)
-                        * np.exp(-((d - center) ** 2) / (2 * width * width))
-                        * accept
-                        * before[r, m]
-                        * before[s, n]
-                        * before[survivor, j]
-                    )
-    out = after @ mass
-    bank = np.isin(np.arange(3), q["bank"])
-    count = np.cos(q["lambda"] * (bank.astype(int) - sum(bank)) - q["phase"])
-    return float(out @ count / sum(out))
+def sequential(q):
+    incoming, output = fields(q)
+    ground = spin(q["atom"])
+    analyzer = spin(q["analyzer"]) if q["analyzer"] is not None else None
+    kick = pulse(q)[:2, :2]
+    mass = np.zeros((2, 2))
+    for c, d in product(range(2), repeat=2):
+        detectors = (output[0, :, c], output[1, :, d])
+        amplitude = np.zeros(2, complex)
+        for j in range(2):
+            first = one_photon(q, incoming[0], detectors[j])
+            second = one_photon(q, incoming[1], detectors[1 - j])
+            amplitude += second @ kick @ first @ ground
+        projection = amplitude if analyzer is None else np.vdot(analyzer, amplitude)
+        mass[c, d] = np.sum(np.abs(projection) ** 2)
+    return signal(q, mass)[0] if mass.sum() > 0 else 0.0
 
 
 class Model(Calibrated):
     def reading(self, q):
-        if "conversion" in q:
-            return carrier(q)
-        if "spectral" in q:
-            return spectral_signal(q)[0]
-        return calibration_signal(q)
+        return sequential(q) if "rates" in q else calibration_signal(q)

@@ -1,1 +1,1 @@
-At fixed converted frequency z and survivor frequency v, apply both annihilation operators to the three-photon state. The unobserved partition u,z−u is summed as an amplitude. Different trigger measurements then act on the remaining z coordinate.
+A photon emitted after an absorption can change the ground state. Resolve all time-ordered atomic histories and direct transmissions into each selected pair of output modes before applying the final ground-state projection.

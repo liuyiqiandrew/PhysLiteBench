@@ -1,1 +1,1 @@
-Calibrate the number-transfer readout and predict the conditional signal for the three-photon upconversion experiment described in /app/README.md. Implement Model in /app/model.py.
+Calibrate the number-transfer counter and predict the conditional two-photon fringe for the quantum waveguide in `/app/README.md`. Implement `Model` in `/app/model.py`.

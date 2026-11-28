@@ -1,82 +1,75 @@
-"""Resolve the input frequencies and explicitly annihilate a pair in the three-photon state."""
-from itertools import permutations
+"""Continuous-time scattering paths with zero, one, or two excited-state dwell intervals."""
+from itertools import permutations, product
 import numpy as np
-from scipy.special import roots_legendre, roots_hermitenorm
-from frequency_reference import channels, interferometer
+from scipy.linalg import expm
 
 
-def gaussian_nodes(N, scale):
-    z, w = roots_hermitenorm(N)
-    return z * scale, w * scale * np.exp(z**2 / 2)
-
-
-def reading(q, order=33):
-    _, channels_at = channels(q)
-    conv = q["conversion"]
-    spec = q["spectral"]
-    d, wd = gaussian_nodes(order, 0.62)
-    v, wv = gaussian_nodes(order, 0.91)
-    det = conv["detector"]
-    mode = det and "mode" in det
-    if det and "band" in det:
-        lo, hi = det["band"]
-        z, wz = roots_legendre(order)
-        z = (lo + hi) / 2 + z * (hi - lo) / 2
-        wz *= (hi - lo) / 2
-    else:
-        z, wz = gaussian_nodes(order, 1.07)
-    x, y, zz = np.broadcast_arrays(
-        d[None, None, :] + z[None, :, None] / 2,
-        z[None, :, None] / 2 - d[None, None, :],
-        v[:, None, None],
+def rotation(angles):
+    a, p = angles
+    return np.array(
+        [
+            [np.cos(a), -np.sin(a) * np.exp(-1j * p)],
+            [np.sin(a) * np.exp(1j * p), np.cos(a)],
+        ]
     )
-    freq = np.stack([x, y, zz], axis=-1)
-    p = list(permutations(range(3)))
-    fs = [channels_at(freq[..., np.argsort(perm)]) for perm in p]
-    before = interferometer(3, q["before"])
-    after = interferometer(3, q["after"])
-    plate, D, B = spec["plate"]
-    phase = np.exp(1j * (-D * freq + B * freq**2 / 2))
-    amps = np.zeros((len(fs[0]), 3, len(v), len(z)), complex)
-    gate = q["gate"]
-    for r, s, ca, cb, ctr, bw, walk, pathdelay in conv["paths"]:
-        h = complex(ca, cb) * np.exp(
-            -(((x - y) - ctr) ** 2) / (4 * bw**2)
-            - 1j * (walk * (x - y) + pathdelay * (x + y))
+
+
+def envelopes(rows, durations):
+    return np.array([[complex(*z) for z in row] for row in rows]) / np.sqrt(durations)
+
+
+def reading(q):
+    intervals = q["durations"]
+    source = envelopes(q["input_modes"], intervals)
+    filters = envelopes(q["output_modes"], intervals)
+    polarized = rotation(q["input_rotation"])
+    analyzer = [rotation(x) for x in q["output_rotations"]]
+    init = np.r_[rotation(q["atom"])[:, 0], 0j]
+    pulse_at, theta, phase, stark = q["control"]
+    kick = np.zeros((3, 3), complex)
+    kick[:2, :2] = rotation((theta, phase))
+    kick[2, 2] = np.exp(1j * stark)
+    rates = np.asarray(q["rates"])
+    absorption = np.zeros((2, len(intervals), 3, 3), complex)
+    absorption[:, :, 2, :2] = (
+        -source[:, :, None] * (polarized.T * np.sqrt(rates))[:, None]
+    )
+    total = moment = 0.0
+    for c0, c1 in product(range(2), repeat=2):
+        polar_bras = np.array([analyzer[0][c0], analyzer[1][c1]])
+        detected = np.conjugate(filters)[:, :, None] * polar_bras[:, None, :]
+        emission = np.zeros_like(absorption)
+        emission[:, :, :2, 2] = detected * np.sqrt(rates)
+        overlap = (filters.conj() @ (source * intervals).T) * (polar_bras @ polarized)
+
+        def ordered(word):
+            count = len(word) + 1
+            state = np.zeros((count, 3), complex)
+            state[0] = init
+            for t, (width, delta) in enumerate(zip(intervals, q["detuning"])):
+                free = np.diag([0, 0, -rates.sum() / 2 - 1j * delta])
+                evolution = np.kron(np.eye(count), free)
+                for n, event in enumerate(word):
+                    evolution[3 * n + 3 : 3 * n + 6, 3 * n : 3 * n + 3] = event[t]
+                state = (expm(width * evolution) @ state.ravel()).reshape(count, 3)
+                if t + 1 == pulse_at:
+                    state = (kick @ state.T).T
+            return state[-1]
+
+        spin_out = (overlap[0, 0] * overlap[1, 1] + overlap[0, 1] * overlap[1, 0]) * (
+            kick @ init
         )
-        for surviving in range(3):
-            rs = np.array([r, s, surviving])
-            if gate and (-1) ** sum(np.isin(rs, gate["rails"])) != gate["parity"]:
-                continue
-            multipliers = [np.prod(before[rs, np.array(ordering)]) for ordering in p]
-            factor = h * np.prod(phase[..., rs == plate], axis=-1) * wd
-            for a in range(len(fs[0])):
-                at = sum(c * state[a] for c, state in zip(multipliers, fs))
-                amps[a, surviving] += (at * factor).sum(axis=2)
-    out = np.einsum("oi,aivz->aovz", after, amps)
-    if mode:
-        c, s, delay, chirp = det["mode"]
-        analyzer = (
-            np.exp(-0.25 * ((z - c) / s) ** 2 + 1j * (chirp * z * z / 2 - delay * z))
-            / (2 * np.pi * s * s) ** 0.25
-        )
-        prob = np.sum(abs(out @ (wz * analyzer.conj())) ** 2, axis=0) @ wv
-    elif det and "time" in det:
-        lo, hi = det["time"]
-        t, wt = roots_legendre(order)
-        t = (lo + hi) / 2 + t * (hi - lo) / 2
-        wt *= (hi - lo) / 2
-        after_clock = (
-            out @ (np.exp(-1j * z[:, None] * t) * wz[:, None]) / np.sqrt(2 * np.pi)
-        )
-        prob = np.sum(abs(after_clock) ** 2, axis=0) @ wt @ wv
-    else:
-        prob = np.sum(abs(out) ** 2, axis=0) @ wz @ wv
-    # Input-normalization integral, independently of the receiver projection.
-    z, w = gaussian_nodes(order, 0.91)
-    xyz = np.stack(np.meshgrid(z, z, z, indexing="ij"), axis=-1)
-    weights = np.einsum("i,j,k->ijk", w, w, w)
-    norm = sum(np.sum(weights * abs(a) ** 2) for a in channels_at(xyz))
-    bank = np.isin(np.arange(3), q["bank"])
-    obs = np.cos(q["lambda"] * (bank.astype(int) - sum(bank)) - q["phase"])
-    return float(prob @ obs / sum(prob)), float(sum(prob) / norm)
+        for i, j in product(range(2), repeat=2):
+            spin_out += overlap[1 - j, 1 - i] * ordered([absorption[i], emission[j]])
+        for i, k in permutations(range(2)):
+            for j, l in permutations(range(2)):
+                spin_out += ordered(
+                    [absorption[i], emission[j], absorption[k], emission[l]]
+                )
+        v = spin_out[:2]
+        if q["analyzer"] is not None:
+            v = np.vdot(rotation(q["analyzer"])[:, 0], v)
+        prob = np.square(np.abs(v)).sum()
+        total += prob
+        moment += prob * np.cos(q["lambda"] * (1 - c0 - c1) - q["phase"])
+    return float(moment / total), float(total)
