@@ -34,7 +34,7 @@ def test_fit(metrics):
 
 
 @pytest.mark.parametrize(
-    "family", ["prompt_cluster", "delayed_packet", "tagged_waveform"]
+    "family", ["one_delayed_contact", "joint_waveform", "packet_fractions"]
 )
 def test_transfer(metrics, family):
-    assert metrics["max_absolute_error"][family] < 0.003
+    assert metrics["max_absolute_error"][family] < 0.004

@@ -23,30 +23,28 @@ def test_calibration():
     assert np.max(np.abs(y - [r["value"] for r in rows])) < 0.00002
 
 
-def test_prompt_and_delayed_packets():
-    m, _ = fitted()
-    a = m.activity
-    q = dict(
-        depth=0.2,
-        velocities=[1.0, 1.0],
-        dead_space=[0.45, 0.12],
-        ionization=[1.0, 0.0],
-        feedback=0.0,
-        gain=2,
-        last_delay=0.0,
-        multiplicity=2,
-        tag=None,
-        read=[0.0, 0.8],
-    )
-    mean = 0.45 + 1 / a - 0.35 / np.expm1(0.35 * a)
-    assert abs(m.predict([q])[0] - (1 + 2 * (0.8 - mean)) / 2) < 0.003
-    q.update(
+def worked():
+    return dict(
         depth=0.4,
-        dead_space=[0.05, 0.05],
+        velocities=[1.0, 1.0],
         ionization=[2.0, 2.0],
-        feedback=0.6,
-        last_delay=0.3,
-        multiplicity=1,
-        read=[0.22, 0.7],
+        dead_space=[0.0, 0.0],
+        feedback=0.0,
+        gain=3,
+        tag=None,
+        read=[0.25, 0.7],
+        last_delays=[0.3, 0.4],
+        multiplicities=[2, 1],
+        observable="waveform",
     )
-    assert abs(m.predict([q])[0] - 0.61) < 0.003
+
+
+def test_paired_arrivals():
+    model, _ = fitted()
+    q = worked()
+    for pair, val in [([2, 1], 0.6), ([1, 2], 2 / 3), ([1, 1], 19 / 30)]:
+        q["multiplicities"] = pair
+        q["observable"] = "waveform"
+        assert abs(model.predict([q])[0] - val) < 0.004
+        q["observable"] = "fraction"
+        assert abs(model.predict([q])[0] - 1 / 3) < 0.004

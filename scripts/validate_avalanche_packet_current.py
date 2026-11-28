@@ -9,8 +9,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "tasks/avalanche-packet-current"
 sys.path[:0] = [str(TASK / "environment"), str(TASK / "solution"), str(TASK / "tests")]
-from geometry import reading
-from reference import predict
+from geometry import packet_law as physical, observable
+from reference import packet_law as alternate
 
 
 def calibration():
@@ -20,96 +20,124 @@ def calibration():
     ]
 
 
-def square():
-    return dict(
-        depth=0.2,
-        velocities=[1.0, 1.0],
-        dead_space=[0.45, 0.12],
-        ionization=[1.0, 0.0],
-        feedback=0.0,
-        gain=2,
-        last_delay=0.0,
-        multiplicity=2,
-        tag=None,
-        read=[0.0, 0.8],
-    )
-
-
 def queries():
-    rng = np.random.default_rng(9203241)
+    rng = np.random.default_rng(521478)
 
-    def uniform(lo, hi, size=None):
-        return np.round(rng.uniform(lo, hi, size), 5).tolist()
+    def draw(a, b, size=None):
+        return np.round(rng.uniform(a, b, size), 6).tolist()
 
-    out = {}
-    for family in ("prompt_cluster", "delayed_packet", "tagged_waveform"):
+    groups = {}
+    for k in ("one_delayed_contact", "joint_waveform", "packet_fractions"):
         rows = []
         for i in range(8):
-            x = uniform(0.27, 0.63)
-            v = [uniform(0.85, 1.3), uniform(0.69, 1.13)]
-            prompt = family == "prompt_cluster"
-            g = (2 if i % 3 == 0 else 3) if prompt else (3 if i % 3 == 0 else 4)
-            earliest = (1 - x) / v[0]
-            tau = (
-                0.0
-                if prompt
-                else round(x * (1 / v[0] + 1 / v[1]) * uniform(0.33, 0.79), 5)
-            )
-            m = g if prompt and i % 2 else (None if prompt or i % 3 == 0 else 1 + i % 2)
-            early = uniform(0.04, 0.34) * earliest
-            late = uniform(0.74, 1.46) * (earliest + 0.5 * tau)
-            read = [round(early, 5), round(late, 5)]
+            x = draw(0.33, 0.64)
+            v = [draw(0.88, 1.28), draw(0.73, 1.08)]
+            te, th = (1 - x) / v[0], x / v[1]
+            tmax = 1 / v[0] + 1 / v[1]
+            de = x * tmax * draw(0.37, 0.77)
+            dh = (1 - x) * tmax * draw(0.36, 0.82)
+            if k == "one_delayed_contact":
+                # An impact by the species opposite the prompt contact would have delayed that contact.
+                g = 3 if i % 3 else 4
+                delays = [0.0, dh] if i % 2 else [de, 0.0]
+                m = [g, 1] if i % 2 else [1, g]
+            else:
+                g = 5 if i in (1, 5) else (3 if i % 3 == 0 else 4)
+                delays = [de, dh]
+                m = (
+                    [1, 1],
+                    [1, 2],
+                    [2, 1],
+                    [1, None],
+                    [None, 2],
+                    [2, 2],
+                    [2, 1],
+                    [None, None],
+                )[i]
+                if k == "packet_fractions":
+                    m = (
+                        [1, 1],
+                        [2, 2],
+                        [2, 1],
+                        [1, 2],
+                        [1, 1],
+                        [1, 2],
+                        [2, 1],
+                        [1, 1],
+                    )[i]
+            LO = draw(0.15, 0.74) * min(te, th)
+            HI = draw(0.77, 1.21) * max(te + delays[0], th + delays[1])
             tag = (
-                None
-                if family != "tagged_waveform"
-                else [
-                    round(0.04 * earliest, 5),
-                    round((0.65 + 0.1 * (i % 4)) * earliest, 5),
-                    uniform(0.62, 1.32),
-                    uniform(0.19, 0.33),
+                [
+                    round(0.05 * te, 6),
+                    round(0.85 * te, 6),
+                    draw(0.7, 1.35),
+                    draw(0.18, 0.34),
                 ]
+                if i % 2
+                else None
             )
-            q = dict(
-                depth=x,
-                velocities=v,
-                dead_space=[uniform(0.045, 0.115), uniform(0.039, 0.102)],
-                ionization=uniform(1.62, 2.96, 2),
-                feedback=uniform(0.42, 1.16),
-                gain=g,
-                last_delay=tau,
-                multiplicity=m,
-                tag=tag,
-                read=read,
+            rows.append(
+                dict(
+                    depth=x,
+                    velocities=v,
+                    dead_space=[draw(0.046, 0.095), draw(0.041, 0.092)],
+                    ionization=draw(1.72, 2.85, 2),
+                    feedback=draw(0.46, 1.05),
+                    gain=g,
+                    last_delays=np.round(delays, 6).tolist(),
+                    multiplicities=m,
+                    tag=tag,
+                    read=np.round([LO, HI], 6).tolist(),
+                    observable="fraction" if k == "packet_fractions" else "waveform",
+                )
             )
-            rows.append(q)
-        out[family] = rows
-    return out
+        groups[k] = rows
+    return groups
+
+
+def worked():
+    return dict(
+        depth=0.4,
+        velocities=[1.0, 1.0],
+        ionization=[2.0, 2.0],
+        dead_space=[0.0, 0.0],
+        feedback=0.0,
+        gain=3,
+        tag=None,
+        read=[0.25, 0.7],
+        last_delays=[0.3, 0.4],
+        multiplicities=[2, 1],
+        observable="waveform",
+    )
 
 
 def validate(generate=False):
     a = 0.92
     cal = calibration()
     expect = {}
-    different = {}
-    convergence = {}
+    agree = {}
+    repeat = {}
     for key, qs in queries().items():
         rows = []
-        earlier = []
-        ref = []
+        external = []
+        refine = []
         for q in qs:
-            full = reading(q, a, 24)
-            lower = reading(q, a, 18)
-            alternative = predict(q, a, 128)
-            assert full[1] > 0 and 0 <= full[0] <= 1
-            ref.append(abs(full[0] - alternative[0]))
-            earlier.append(abs(full[0] - lower[0]))
-            rows.append(dict(input=q, value=round(full[0], 8)))
+            truth = physical(q, a, 18)
+            test = alternate(q, a, 10)
+            lo = physical(q, a, 12)
+            y = observable(q, truth)
+            assert np.isfinite(y) and 0 <= y <= 1 and truth[0].sum() > 0
+            external.append(abs(y - observable(q, test)))
+            refine.append(abs(y - observable(q, lo)))
+            rows.append(dict(input=q, value=round(float(y), 8)))
+            assert np.allclose(truth[0].sum(), test[0].sum(), rtol=0.001, atol=0.000025)
         expect[key] = rows
-        different[key] = max(ref)
-        convergence[key] = max(earlier)
-    assert max(different.values()) < 0.00045 and max(convergence.values()) < 0.00004
-    print("independent waveform differences", different)
-    print("polygon quadrature refinement", convergence)
+        agree[key] = max(external)
+        repeat[key] = max(refine)
+    assert max(agree.values()) < 0.0003 and max(repeat.values()) < 0.00015
+    print("independent waveform and probability differences", agree)
+    print("quadrature refinement", repeat)
     for p, data in [
         (TASK / "environment/data/calibration.json", cal),
         (TASK / "tests/data/calibration.json", cal),
@@ -117,66 +145,60 @@ def validate(generate=False):
     ]:
         if generate:
             p.write_text(json.dumps(data, indent=1) + "\n")
-        stored = json.loads(p.read_text())
-        assert stored == cal if isinstance(data, list) else stored.keys() == data.keys()
+        frozen = json.loads(p.read_text())
+        assert frozen == cal if isinstance(data, list) else frozen.keys() == data.keys()
         if isinstance(data, dict):
             for k, rows in data.items():
-                for x, y in zip(rows, stored[k], strict=True):
+                for x, y in zip(rows, frozen[k], strict=True):
                     assert (
                         x["input"] == y["input"] and abs(x["value"] - y["value"]) < 1e-7
                     )
     for name, p in [
         ("oracle", TASK / "solution/model.py"),
         ("starter", TASK / "environment/model.py"),
-        ("clamped", ROOT / "scripts/avalanche_packet_current_baseline.py"),
+        ("independent heights", ROOT / "scripts/avalanche_packet_current_baseline.py"),
     ]:
-        model = runpy.run_path(str(p))["Model"]().fit(cal)
-        assert abs(model.activity - a) < 1e-7
+        m = runpy.run_path(str(p))["Model"]().fit(cal)
+        assert abs(m.activity - a) < 1e-7
         err = {}
         for k, rows in expect.items():
-            v = model.predict([r["input"] for r in rows])
-            assert np.isfinite(v).all()
-            err[k] = float(np.max(abs(v - [r["value"] for r in rows])))
-        assert (
-            max(err.values()) < 0.00004
-            if name == "oracle"
-            else min(err.values()) > 0.003
-        )
-        print(name, err)
-    for method in (lambda q: reading(q, a, 20), lambda q: predict(q, a, 64)):
-        q = square()
-        m = 0.45 + 1 / a - 0.35 / np.expm1(0.35 * a)
-        np.testing.assert_allclose(
-            method(q), ((1 + 2 * (0.8 - m)) / 2, 1 - np.exp(-0.35 * a)), atol=1e-10
-        )
-        q = dict(
-            q,
-            depth=0.4,
-            dead_space=[0.05, 0.05],
-            ionization=[2.0, 2.0],
-            feedback=0.6,
-            last_delay=0.3,
-            multiplicity=1,
-            read=[0.22, 0.7],
-        )
-        assert abs(method(q)[0] - 0.61) < 1e-12
-        q = queries()["delayed_packet"][2]
-        y, p = method(dict(q, multiplicity=None))
-        sums = np.zeros(2)
-        for m in range(1, q["gain"]):
-            z, w = method(dict(q, multiplicity=m))
-            sums += np.array([z * w, w])
-        np.testing.assert_allclose(sums, [y * p, p], atol=1e-12)
-    print(
-        "terminal-electrode control",
-        {
-            k: max(
-                abs(reading(r["input"], a, 10, terminal=True)[0] - r["value"])
-                for r in rows
+            vals = m.predict([r["input"] for r in rows])
+            assert np.isfinite(vals).all()
+            err[k] = float(np.max(abs(vals - [r["value"] for r in rows])))
+        if name == "oracle":
+            assert max(err.values()) < 0.00015
+        if name == "starter":
+            assert min(err.values()) > 0.004
+        if name == "independent heights":
+            assert (
+                err["packet_fractions"] > 0.04
+                and max(err["joint_waveform"], err["one_delayed_contact"]) < 0.00015
             )
-            for k, rows in expect.items()
-        },
-    )
+        print(name, err)
+    q = worked()
+    for method in (physical, alternate):
+        law = method(q, a, 9)
+        assert np.count_nonzero(law[0] > 1e-12) == 3
+        for pair, val in [([2, 1], 0.6), ([1, 2], 2 / 3), ([1, 1], 19 / 30)]:
+            obs = dict(q, multiplicities=pair)
+            assert abs(observable(obs, law) - val) < 1e-12
+            assert (
+                abs(observable(dict(obs, observable="fraction"), law) - 1 / 3) < 1e-12
+            )
+        wildcard = dict(q, multiplicities=[None, None])
+        assert abs(observable(dict(wildcard, observable="fraction"), law) - 1) < 1e-12
+        np.testing.assert_allclose(
+            observable(wildcard, law), np.mean([0.6, 2 / 3, 19 / 30]), atol=1e-12
+        )
+    for k, rows in expect.items():
+        err = max(
+            abs(
+                observable(r["input"], physical(dict(r["input"], feedback=0.0), a, 9))
+                - r["value"]
+            )
+            for r in rows
+        )
+        print("clamped bias", k, err)
 
 
 if __name__ == "__main__":

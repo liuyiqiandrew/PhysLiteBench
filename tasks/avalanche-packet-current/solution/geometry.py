@@ -93,37 +93,38 @@ def region_nodes(constraints, cuts, dim, T, n):
     return np.c_[np.ones(len(t)), t], np.concatenate(ws)
 
 
-def reading(q, scale=1.0, order=8, terminal=False):
+def packet_law(q, scale=1.0, order=8, terminal=False):
     ve, vh = q["velocities"]
     vs = (ve, vh)
     dead = np.asarray(q["dead_space"]) / vs
     rates = np.asarray(q["ionization"]) * vs * scale
     n = q["gain"] - 1
-    delay = q["last_delay"]
-    T = (1 - q["depth"]) / ve + delay
-    dim = n - int(delay > 0)
-    
-    # An affine event time is [constant, coefficient of free time 1, ...].
+    delays = q["last_delays"]
+    target_times = np.array(
+        [(1 - q["depth"]) / ve + delays[0], q["depth"] / vh + delays[1]]
+    )
+    dim = n - sum(x > 0 for x in delays)
     basis = np.eye(dim + 1)
     one = basis[0]
     zero = 0 * one
-    total = score = 0.0
+    T = min(target_times)
+    total = np.zeros((n + 2, n + 2))
+    score = np.zeros_like(total)
     for labels in product(*(range(2 * j + 2) for j in range(n))):
-        # A pulse at the electron contact inherits its parent's arrival time on an electron impact. A hole impact starts a new pulse.
-        roots = [0]
-        eligible = []
-        for j, c in enumerate(labels):
-            roots.append((j + 1) if c % 2 else roots[c // 2])
-            if c % 2:
-                eligible.append(j)
-        hits = ([None] if not eligible else []) if delay == 0 else eligible
-        for m in hits:
-            target = 0 if m is None else m + 1
-            if (
-                q["multiplicity"] is not None
-                and roots.count(target) != q["multiplicity"]
-            ):
-                continue
+        packets = [[0], [0]]
+        origins = [[], []]
+        for j, i in enumerate(labels):
+            parent = i % 2
+            for c in (0, 1):
+                packets[c].append(packets[c][i // 2] if c == parent else j + 1)
+                if c != parent:
+                    origins[c].append(j)
+        choices = [
+            (o if delays[c] > 0 else [] if o else [None]) for c, o in enumerate(origins)
+        ]
+        for pins in product(*choices):
+            roots = [0 if j is None else j + 1 for j in pins]
+            multiplicity = tuple(p.count(r) for p, r in zip(packets, roots))
             births = [zero]
             positions = [q["depth"] * one]
             ends = [(one - positions[0]) / ve, positions[0] / vh]
@@ -135,8 +136,10 @@ def reading(q, scale=1.0, order=8, terminal=False):
                 p = i // 2
                 c = i % 2
                 born, x = births[p], positions[p]
-                if j == m:
-                    t = (ve * T * one - one + x + vh * born) / (ve + vh)
+                if j == pins[0]:
+                    t = (ve * target_times[0] * one - one + x + vh * born) / (ve + vh)
+                elif j == pins[1]:
+                    t = (vh * target_times[1] * one - x + ve * born) / (ve + vh)
                 else:
                     t = basis[k]
                     k += 1
@@ -152,14 +155,15 @@ def reading(q, scale=1.0, order=8, terminal=False):
                 ends.extend([t + (one - xnew) / ve, t + xnew / vh])
             for i, b in enumerate(fresh):
                 tracks.append((b, ends[i], i % 2))
-            if m is not None:
-                bounds.extend(
-                    [
-                        T * one - ends[2 * p]
-                        for p, origin in enumerate(roots)
-                        if origin != target
-                    ]
-                )
+            for c, origin in enumerate(roots):
+                if pins[c] is not None:
+                    bounds.extend(
+                        [
+                            target_times[c] * one - ends[2 * p + c]
+                            for p, r in enumerate(packets[c])
+                            if r != origin
+                        ]
+                    )
             gates = set(q["read"] + (q["tag"][:2] if q["tag"] else []))
             cuts = [e - g * one for e in [*births, *ends] for g in gates]
             for a, b, c in tracks:
@@ -167,7 +171,7 @@ def reading(q, scale=1.0, order=8, terminal=False):
             t, w = region_nodes(bounds, cuts, dim, T, order)
             if t is None:
                 continue
-            w = w * (ve / (ve + vh) if m is not None else 1.0)
+            w = w * np.prod([vs[c] / (ve + vh) for c in (0, 1) if pins[c] is not None])
             times = t @ np.array(births).T
             contacts = t @ np.array(ends).T
             start = t @ np.array([a for a, b, c in tracks]).T
@@ -184,9 +188,6 @@ def reading(q, scale=1.0, order=8, terminal=False):
                         )
                 return res
 
-            # H(t) integrates the common field factor. Differences of H over
-            # each eligible track give its integrated hazard, including survival
-            # of every carrier after the last selected impact.
             cutoff = np.minimum(end, start + dead[types])
             events = np.concatenate([times, contacts, cutoff, end], axis=1)
             perm = np.argsort(events, axis=1)
@@ -224,6 +225,18 @@ def reading(q, scale=1.0, order=8, terminal=False):
                 lo, hi, z, sigma = q["tag"]
                 likelihood *= np.exp(-0.5 * ((window(q["tag"]) - z) / sigma) ** 2)
             mass = w * likelihood
-            total += mass.sum()
-            score += mass @ (window(q["read"]) / q["gain"])
-    return score / total, total
+            total[multiplicity] += mass.sum()
+            score[multiplicity] += mass @ (window(q["read"]) / q["gain"])
+    return total, score
+
+
+def observable(q, law, independent=False):
+    mass, weighted = law
+    m, h = (slice(None) if n is None else n for n in q["multiplicities"])
+    selected = mass[m, h].sum()
+    norm = mass.sum()
+    if q["observable"] == "waveform":
+        return weighted[m, h].sum() / selected
+    if independent:
+        return mass[m, :].sum() * mass[:, h].sum() / (norm * norm)
+    return selected / norm

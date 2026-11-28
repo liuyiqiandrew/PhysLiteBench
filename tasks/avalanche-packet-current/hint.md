@@ -1,1 +1,1 @@
-With fixed gain, enumerate the possible parents of each ionization. Electron impacts inherit an electron arrival packet; hole impacts can start a new packet. The observed latest packet pins a hole impact time when its delay is positive.
+At an electron impact the new electron shares the parent electron trajectory, while the hole starts a new packet. A hole impact reverses these roles. Resolve both clocks and the two packet heights on each common history.
