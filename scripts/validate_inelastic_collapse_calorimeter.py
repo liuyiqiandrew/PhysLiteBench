@@ -118,6 +118,13 @@ def load(name, path):
 def main(rebuild):
     if rebuild:
         generate()
+    critical = np.exp(-np.pi / np.sqrt(3))
+    for gain in (0.72, GAIN, 1.10):
+        for threshold in (0.20, 0.25, 0.5, 1.0, 1.7, 2.0, 3.0):
+            for scale, expected in [(1 - 1e-11, 1), (1.0, 0), (1 + 1e-11, 0)]:
+                restitution = critical * scale
+                q = dict(mode="sticking", restitution=[restitution] * 2, threshold=threshold)
+                assert signal(q, gain) == expected
     for t, u, v in [(1.64, 0.51, 0.70), (0.62, 0.83, 0.29), (2.4, 0.34, 1.1)]:
         full, first, other = renewal_check(t, u, v, GAIN, 128)
         assert abs(full - first - other) < 1e-9, (full, first, other)

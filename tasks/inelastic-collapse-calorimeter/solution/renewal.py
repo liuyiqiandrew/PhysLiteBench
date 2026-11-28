@@ -33,7 +33,8 @@ def slow(q, diffusivity):
 def log_drift(q, diffusivity):
     p = slow(q, diffusivity)
     fast, soft = q["restitution"]
-    return np.pi / np.sqrt(3) + (1 - p) * np.log(fast) + p * np.log(soft)
+    critical = np.exp(-np.pi / np.sqrt(3))
+    return np.log(fast / critical) + p * np.log(soft / fast)
 
 
 def signal(q, diffusivity, step=0.14, lower=-56, order=24):
