@@ -1,0 +1,1 @@
+A multistep surface is a killed Markov process before conditioning. Net seam crossings identify which step occupies each rank in a sorted set at the first camera. Both observations refer to one retained surface.
